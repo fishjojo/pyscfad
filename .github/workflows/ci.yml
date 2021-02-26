@@ -18,4 +18,4 @@ jobs:
       - name: install
         run: ./.github/workflows/install.sh
       - name: test
-        run: pytest
+        run: ./.github/workflows/run_test.sh
