@@ -18,6 +18,8 @@ class Mole():
             return moleintor.int1e_kin(self)
         elif intor == "int1e_nuc":
             return moleintor.int1e_nuc(self)
+        elif intor == "int2e":
+            return moleintor.int2e(self)
         else:
             raise NotImplementedError
 
