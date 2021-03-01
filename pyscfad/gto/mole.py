@@ -12,8 +12,12 @@ class Mole():
 
     def intor(self, intor, comp=None, hermi=0, aosym='s1', out=None,
               shls_slice=None):
-        if intor=="int1e_ovlp":
+        if intor == "int1e_ovlp":
             return moleintor.int1e_ovlp(self)
+        elif intor == "int1e_kin":
+            return moleintor.int1e_kin(self)
+        elif intor == "int1e_nuc":
+            return moleintor.int1e_nuc(self)
         else:
             raise NotImplementedError
 
