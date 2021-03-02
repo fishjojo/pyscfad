@@ -70,8 +70,35 @@ def int1e_nuc_jvp(primals, tangents):
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
         with mol.mol.with_rinv_at_nucleus(ia):
-            vrinv = mol.mol.intor('int1e_iprinv', comp=3) # <\nabla|1/r|>
+            vrinv = mol.mol.intor('int1e_iprinv', comp=3)
             vrinv *= -mol.mol.atom_charge(ia)
+        vrinv[:,p0:p1] += h1[:,p0:p1]
+        tmp = vrinv + vrinv.transpose(0,2,1)
+        tmp1 = jnp.einsum('xij,x->ij',tmp, coords[k])
+        tangent_out = jax.ops.index_add(tangent_out, jax.ops.index[:,:], tmp1)
+    return primal_out, tangent_out
+
+@custom_jvp
+def ECPscalar(mol):
+    return mol.mol.intor("ECPscalar")
+
+@ECPscalar.defjvp
+def ECPscalar_jvp(primals, tangents):
+    mol, = primals
+    primal_out = ECPscalar(mol)
+
+    mol_t, = tangents
+    coords = mol_t.coords
+    atmlst = range(mol.mol.natm)
+    aoslices = mol.mol.aoslice_by_atom()
+    nao = mol.mol.nao
+    tangent_out = jnp.zeros((nao,nao))
+
+    h1 = -mol.mol.intor('ECPscalar_ipnuc', comp=3)
+    for k, ia in enumerate(atmlst):
+        p0, p1 = aoslices [ia,2:]
+        with mol.mol.with_rinv_at_nucleus(ia):
+            vrinv = mol.mol.intor('ECPscalar_iprinv', comp=3)
         vrinv[:,p0:p1] += h1[:,p0:p1]
         tmp = vrinv + vrinv.transpose(0,2,1)
         tmp1 = jnp.einsum('xij,x->ij',tmp, coords[k])
