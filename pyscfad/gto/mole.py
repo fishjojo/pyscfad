@@ -1,23 +1,22 @@
-from jax import numpy as jnp
-from flax import struct
-from pyscf.gto import mole as pmole
+from pyscf import gto
+from pyscfad import lib
+from pyscfad.lib import np_helper as np
 from . import moleintor
 
-@struct.dataclass
-class Mole(pmole.Mole):
-    mol: pmole.Mole = struct.field(pytree_node=False)
-    coords: jnp.array = None
-    exponents: jnp.array = None
-    contract_coeff: jnp.array = None
+@lib.dataclass
+class Mole(gto.Mole):
+    mol: gto.Mole
+    coords: np.array = lib.field(pytree_node=True, default=None)
+    exponents: np.array = lib.field(pytree_node=True, default=None)
+    contract_coeff: np.array = lib.field(pytree_node=True, default=None)
 
     def __post_init__(self):
+        # copy the attributes of self.mol
         for key, value in self.mol.__dict__.items():
-            object.__setattr__(self, key, value) # copy attributes of mol
+            object.__setattr__(self, key, value)
 
-    def setattr(self, attr, value):
+    def __setattr__(self, attr, value):
         """
-        Mimics :func:`setattr`
-
         Note:
             This function modifies the attributes of both `self` and `self.mol`
         """
