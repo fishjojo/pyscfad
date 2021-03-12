@@ -32,8 +32,10 @@ linalg.eigh = eigh
 @custom_jvp
 def _eigh(a, b, lower=True,
           turbo=True, check_finite=True, driver=None):
-    w, v = scipy.linalg.eigh(a, b=b, lower=lower,
-                             turbo=turbo, check_finite=check_finite, driver=driver)
+    if scipy.__version__ >= "1.5.0":
+        w, v = scipy.linalg.eigh(a, b=b, lower=lower, check_finite=check_finite, driver=driver)
+    else:
+        w, v = scipy.linalg.eigh(a, b=b, lower=lower, check_finite=check_finite, turbo=turbo)
     return w, v
 
 @_eigh.defjvp
