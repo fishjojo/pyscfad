@@ -32,11 +32,9 @@ def energy_elec(mf, dm=None, h1e=None, vhf=None):
     if vhf is None: vhf = mf.get_veff(mf.mol, dm)
     e1 = np.einsum('ij,ji->', h1e, dm)
     e_coul = np.einsum('ij,ji->', vhf, dm) * .5
-    e1_val = e1.val if getattr(e1, "val", None) else e1._value
-    e_coul_val = e_coul.val if getattr(e_coul, "val", None) else e_coul._value
-    mf.scf_summary['e1'] = e1_val.real
-    mf.scf_summary['e2'] = e_coul_val.real
-    logger.debug(mf, 'E1 = %s  E_coul = %s', e1_val, e_coul_val)
+    mf.scf_summary['e1'] = e1.real
+    mf.scf_summary['e2'] = e_coul.real
+    #logger.debug(mf, 'E1 = %s  E_coul = %s', e1, e_coul)
     return (e1+e_coul).real, e_coul
 
 
@@ -57,14 +55,14 @@ class SCF(hf.SCF):
     callback: type = None
     scf_summary: dict = None
     opt: type = None
-    _eri: np.array = None
+    #_eri: np.array = None
 
     def __post_init__(self):
         # This will reset non-traced attributes to default values
         # NOTE that the default values are defined in the base class
         mf = hf.SCF(self.mol)
         for key, value in mf.__dict__.items():
-            if getattr(self, key, "None") is None:
+            if getattr(self, key, None) is None:
                 object.__setattr__(self, key, value)
 
     #def get_init_guess(self, mol=None, key='minao'):
@@ -76,7 +74,8 @@ class SCF(hf.SCF):
         if mol is None: mol = self.mol
         if dm is None: dm = self.make_rdm1()
         if self._eri is None:
-            object.__setattr__(self, "_eri", mol.intor('int2e'))
+            #object.__setattr__(self, "_eri", mol.intor('int2e'))
+            self._eri = self.mol.intor('int2e')
         vj, vk = dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
         return vj, vk
 
