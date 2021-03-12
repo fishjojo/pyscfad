@@ -30,7 +30,7 @@ def eigh(a, b=None, lower=True, eigvals_only=False, overwrite_a=False,
 linalg.eigh = eigh
 
 @custom_jvp
-def _eigh(a, b, lower=True, hermi = 1,
+def _eigh(a, b, lower=True,
           turbo=True, check_finite=True, driver=None):
     w, v = scipy.linalg.eigh(a, b=b, lower=lower,
                              turbo=turbo, check_finite=check_finite, driver=driver)
