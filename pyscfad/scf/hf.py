@@ -1,4 +1,5 @@
 import numpy
+import jax
 from pyscf.lib import logger
 from pyscf.scf import hf
 from pyscfad import lib
@@ -27,7 +28,11 @@ def make_rdm1(mo_coeff, mo_occ, **kwargs):
     return np.dot(mocc*mo_occ[mo_occ>0], mocc.conj().T)
 
 def energy_elec(mf, dm=None, h1e=None, vhf=None):
-    if dm is None: dm = mf.make_rdm1()
+    if dm is None:
+        # this gaurantees the derivative of 
+        # mo_energy/mo_coeff wrt mol is captured
+        mf.mo_energy, mf.mo_coeff = mf.eig(mf.get_fock(), mf.get_ovlp())
+        dm = mf.make_rdm1()
     if h1e is None: h1e = mf.get_hcore()
     if vhf is None: vhf = mf.get_veff(mf.mol, dm)
     e1 = np.einsum('ij,ji->', h1e, dm)
@@ -36,6 +41,12 @@ def energy_elec(mf, dm=None, h1e=None, vhf=None):
     mf.scf_summary['e2'] = e_coul.real
     #logger.debug(mf, 'E1 = %s  E_coul = %s', e1, e_coul)
     return (e1+e_coul).real, e_coul
+
+def eig(h, s):
+    e, c = np.linalg.eigh(h, s)
+    idx = np.argmax(abs(c.real), axis=0)
+    c = jax.ops.index_mul(c, jax.ops.index[:,c[idx,np.arange(len(e))].real<0], -1.)
+    return e, c
 
 
 @lib.dataclass
@@ -67,6 +78,7 @@ class SCF(hf.SCF):
 
     #def get_init_guess(self, mol=None, key='minao'):
     #    dm = hf.SCF.get_init_guess(self, mol=mol, key=key)
+    #    self.mo_energy, self.mo_coeff = self.eig(self.get_fock(dm=dm), self.get_ovlp())
     #    return dm
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
@@ -95,6 +107,16 @@ class SCF(hf.SCF):
         if mo_occ is None: mo_occ = self.mo_occ
         return make_rdm1(mo_coeff, mo_occ)
 
+    def _eigh(self, h, s):
+        return eig(h, s)
+
     energy_elec = energy_elec
+
+    def nuc_grad_ad(self):
+        """
+        Energy gradient wrt nuclear coordinates computed by AD
+        """
+        jac = jax.jacfwd(self.__class__.energy_tot)(self)
+        return jac.mol.coords
 
 RHF = SCF
