@@ -1,8 +1,8 @@
 import jax
+import jax.numpy as np
 from jax import custom_jvp
 from jax.config import config
 config.update("jax_enable_x64", True)
-from pyscfad.lib import np_helper as np
 
 @custom_jvp
 def int1e_ovlp(mol):

@@ -1,5 +1,5 @@
-import scipy
-from jax.numpy import *
+import scipy.linalg
+import jax.numpy as np
 from jax import custom_jvp
 from jax.config import config
 config.update("jax_enable_x64", True)
@@ -27,8 +27,6 @@ def eigh(a, b=None, lower=True, eigvals_only=False, overwrite_a=False,
     else:
         return w, v
 
-linalg.eigh = eigh
-
 @custom_jvp
 def _eigh(a, b, lower=True,
           turbo=True, check_finite=True, driver=None):
@@ -45,16 +43,16 @@ def _eigh_jvp(primals, tangents):
 
     w, v = _eigh(*primals)
 
-    vt_at_v = dot(v.conj().T, dot(at, v))
+    vt_at_v = np.dot(v.conj().T, np.dot(at, v))
     if b is None:
         vt_bt_v = 0
     else:
-        vt_bt_v = dot(v.conj().T, dot(bt, v))
-    vt_bt_v_w = dot(vt_bt_v, diag(w))
+        vt_bt_v = np.dot(v.conj().T, np.dot(bt, v))
+    vt_bt_v_w = np.dot(vt_bt_v, np.diag(w))
     da_minus_ds = vt_at_v - vt_bt_v_w
-    dw = diag(da_minus_ds)
+    dw = np.diag(da_minus_ds)
 
-    eye_n = eye(a.shape[-1], dtype=a.dtype)
-    Fmat = reciprocal(eye_n + w[..., newaxis, :] - w[..., newaxis]) - eye_n
-    dv = dot(v, multiply(Fmat, da_minus_ds) - multiply(eye_n, vt_bt_v) * .5)
+    eye_n = np.eye(a.shape[-1], dtype=a.dtype)
+    Fmat = np.reciprocal(eye_n + w[..., np.newaxis, :] - w[..., np.newaxis]) - eye_n
+    dv = np.dot(v, np.multiply(Fmat, da_minus_ds) - np.multiply(eye_n, vt_bt_v) * .5)
     return (w,v), (dw,dv)

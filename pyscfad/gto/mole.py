@@ -1,7 +1,7 @@
 import jax
+import jax.numpy as np
 from pyscf import gto
 from pyscfad import lib
-from pyscfad.lib import np_helper as np
 from . import moleintor
 
 
