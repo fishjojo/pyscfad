@@ -1,8 +1,6 @@
 import scipy.linalg
-import jax.numpy as np
+from pyscfad.lib import numpy as np
 from jax import custom_jvp
-from jax.config import config
-config.update("jax_enable_x64", True)
 
 def eigh(a, b=None, lower=True, eigvals_only=False, overwrite_a=False,
          overwrite_b=False, turbo=True, eigvals=None, type=1,

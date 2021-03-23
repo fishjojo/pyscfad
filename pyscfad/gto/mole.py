@@ -1,9 +1,8 @@
 import jax
-import jax.numpy as np
 from pyscf import gto
 from pyscfad import lib
-from . import moleintor
-
+from pyscfad.lib import numpy as np
+from pyscfad.gto import moleintor
 
 def energy_nuc(mol, charges=None, coords=None):
     if charges is None: charges = mol.atom_charges()

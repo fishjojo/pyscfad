@@ -1,7 +1,7 @@
-import jax
-import jax.numpy as jnp
 from pyscf.scf import hf
+import jax
 from pyscfad import lib
+from pyscfad.lib import numpy as jnp
 from pyscfad.gto import mole
 
 def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
