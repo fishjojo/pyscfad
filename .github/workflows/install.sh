@@ -18,4 +18,4 @@ else
     exit 1
 fi
 
-./.github/workflows/build_pyscf_"os".sh
+./.github/workflows/build_pyscf_"$os".sh
