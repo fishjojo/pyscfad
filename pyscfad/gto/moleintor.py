@@ -1,6 +1,6 @@
-import jax
 from jax import custom_jvp
 from pyscfad.lib import numpy as np
+from pyscfad.lib import ops
 
 @custom_jvp
 def int1e_ovlp(mol):
@@ -21,8 +21,8 @@ def int1e_ovlp_jvp(primals, tangents):
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
         tmp = np.einsum('xij,x->ij',s1[:,p0:p1],coords[k])
-        tangent_out = jax.ops.index_add(tangent_out, jax.ops.index[p0:p1], tmp)
-        tangent_out = jax.ops.index_add(tangent_out, jax.ops.index[:,p0:p1], tmp.T)
+        tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
+        tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.T)
     return primal_out, tangent_out
 
 @custom_jvp
@@ -44,8 +44,8 @@ def int1e_kin_jvp(primals, tangents):
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
         tmp = np.einsum('xij,x->ij',s1[:,p0:p1],coords[k])
-        tangent_out = jax.ops.index_add(tangent_out, jax.ops.index[p0:p1], tmp)
-        tangent_out = jax.ops.index_add(tangent_out, jax.ops.index[:,p0:p1], tmp.T)
+        tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
+        tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.T)
     return primal_out, tangent_out
 
 @custom_jvp
@@ -73,7 +73,7 @@ def int1e_nuc_jvp(primals, tangents):
         vrinv[:,p0:p1] += h1[:,p0:p1]
         tmp = vrinv + vrinv.transpose(0,2,1)
         tmp1 = np.einsum('xij,x->ij',tmp, coords[k])
-        tangent_out = jax.ops.index_add(tangent_out, jax.ops.index[:,:], tmp1)
+        tangent_out = ops.index_add(tangent_out, ops.index[:,:], tmp1)
     return primal_out, tangent_out
 
 @custom_jvp
@@ -100,7 +100,7 @@ def ECPscalar_jvp(primals, tangents):
         vrinv[:,p0:p1] += h1[:,p0:p1]
         tmp = vrinv + vrinv.transpose(0,2,1)
         tmp1 = np.einsum('xij,x->ij',tmp, coords[k])
-        tangent_out = jax.ops.index_add(tangent_out, jax.ops.index[:,:], tmp1)
+        tangent_out = ops.index_add(tangent_out, ops.index[:,:], tmp1)
     return primal_out, tangent_out
 
 @custom_jvp
@@ -123,8 +123,8 @@ def int2e_jvp(primals, tangents):
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
         tmp = np.einsum("xijkl,x->ijkl", eri1[:,p0:p1], coords[k])
-        tangent_out = jax.ops.index_add(tangent_out, jax.ops.index[p0:p1], tmp)
-        tangent_out = jax.ops.index_add(tangent_out, jax.ops.index[:,p0:p1], tmp.transpose((1,0,2,3)))
-        tangent_out = jax.ops.index_add(tangent_out, jax.ops.index[:,:,p0:p1], tmp.transpose((2,3,0,1)))
-        tangent_out = jax.ops.index_add(tangent_out, jax.ops.index[:,:,:,p0:p1], tmp.transpose((2,3,1,0)))
+        tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
+        tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.transpose((1,0,2,3)))
+        tangent_out = ops.index_add(tangent_out, ops.index[:,:,p0:p1], tmp.transpose((2,3,0,1)))
+        tangent_out = ops.index_add(tangent_out, ops.index[:,:,:,p0:p1], tmp.transpose((2,3,1,0)))
     return primal_out, tangent_out

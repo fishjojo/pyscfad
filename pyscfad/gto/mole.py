@@ -1,7 +1,7 @@
-import jax
 from pyscf import gto
 from pyscfad import lib
 from pyscfad.lib import numpy as np
+from pyscfad.lib import ops
 from pyscfad.gto import moleintor
 
 def energy_nuc(mol, charges=None, coords=None):
@@ -9,14 +9,14 @@ def energy_nuc(mol, charges=None, coords=None):
     if len(charges) <= 1:
         return 0
     rr = inter_distance(mol, coords)
-    rr = jax.ops.index_update(rr, np.diag_indices_from(rr), 1.e200)
+    rr = ops.index_update(rr, np.diag_indices_from(rr), 1.e200)
     e = np.einsum('i,ij,j->', charges, 1./rr, charges) * .5
     return e
 
 def inter_distance(mol, coords=None):
     if coords is None: coords = mol.coords
     rr = np.linalg.norm(coords.reshape(-1,1,3) - coords, axis=2)
-    rr = jax.ops.index_update(rr, np.diag_indices_from(rr), 0.)
+    rr = ops.index_update(rr, np.diag_indices_from(rr), 0.)
     return rr
 
 
