@@ -4,4 +4,4 @@ export PYTHONPATH=$(pwd):$(pwd)/pyscf:$PYTHONPATH
 echo $PYTHONPATH
 
 cat "jaxnumpy = True" >> $HOME/.pyscf_conf.py
-pytest
+cd pyscfad; pytest
