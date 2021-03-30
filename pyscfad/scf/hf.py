@@ -1,5 +1,12 @@
-from pyscf.scf import hf
+import tempfile
+from typing import Optional, Any
 import jax
+
+from pyscf import __config__
+from pyscf.lib import param
+from pyscf.scf import hf, diis
+from pyscf.scf.hf import MUTE_CHKFILE
+
 from pyscfad import lib
 from pyscfad.lib import numpy as jnp
 from pyscfad.gto import mole
@@ -25,32 +32,56 @@ def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
 @lib.dataclass
 class SCF(hf.SCF):
     mol: mole.Mole = lib.field(pytree_node=True)
-    mo_coeff: jnp.array = lib.field(pytree_node=True, default=None)
+    mo_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
+
+    conv_tol: float = getattr(__config__, 'scf_hf_SCF_conv_tol', 1e-9)
+    conv_tol_grad: Optional[float] = getattr(__config__, 'scf_hf_SCF_conv_tol_grad', None)
+    max_cycle: int = getattr(__config__, 'scf_hf_SCF_max_cycle', 50)
+    init_guess: str = getattr(__config__, 'scf_hf_SCF_init_guess', 'minao')
+
+    DIIS: Any = diis.SCF_DIIS
+    diis: Any = getattr(__config__, 'scf_hf_SCF_diis', True)
+    diis_space: int = getattr(__config__, 'scf_hf_SCF_diis_space', 8)
+    diis_start_cycle: int = getattr(__config__, 'scf_hf_SCF_diis_start_cycle', 1)
+    diis_file: Optional[str] = None
+    diis_space_rollback: bool = False
+
+    damp: float = getattr(__config__, 'scf_hf_SCF_damp', 0.)
+    level_shift: float = getattr(__config__, 'scf_hf_SCF_level_shift', 0.)
+    direct_scf: bool = getattr(__config__, 'scf_hf_SCF_direct_scf', True)
+    direct_scf_tol: float = getattr(__config__, 'scf_hf_SCF_direct_scf_tol', 1e-13)
+    conv_check: bool = getattr(__config__, 'scf_hf_SCF_conv_check', True)
 
     verbose: int = None
     max_memory: int = None
-    stdout: type = None
-    chkfile: str = None
+    stdout: Any = None
 
-    mo_energy: jnp.array = None
-    mo_occ: jnp.array = None
-    e_tot: float = None
-    converged: bool = None
-    callback: type = None
-    scf_summary: dict = None
-    opt: type = None
-    #_eri: jnp.array = None
+    chkfile: Optional[str] = None
+    _chkfile: Any = None
 
-    init_guess: str = "minao"
-    max_cycle: int = 50
+    mo_energy: Optional[jnp.array] = None
+    mo_occ: Optional[jnp.array] = None
+    e_tot: float = 0.
+    converged: bool = False
+    callback: Any = None
+    scf_summary: dict = lib.field(default_factory = dict)
+
+    opt: Any = None
+    _eri: Optional[jnp.array] = None
 
     def __post_init__(self):
-        # This will reset non-traced attributes to default values
-        # NOTE that the default values are defined in the base class
-        mf = hf.SCF(self.mol)
-        for key, value in mf.__dict__.items():
-            if getattr(self, key, None) is None:
-                object.__setattr__(self, key, value)
+        if not MUTE_CHKFILE and self.chkfile is None:
+            self._chkfile = tempfile.NamedTemporaryFile(dir=param.TMPDIR)
+            self.chkfile = self._chkfile.name
+
+        if self.verbose is None:
+            self.verbose = self.mol.verbose
+        if self.max_memory is None:
+            self.max_memory = self.mol.max_memory
+        if self.stdout is None:
+            self.stdout = self.mol.stdout
+
+        self._keys = set(self.__dict__.keys())
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
                omega=None):
@@ -65,7 +96,11 @@ class SCF(hf.SCF):
         """
         Energy gradient wrt nuclear coordinates computed by AD
         """
-        dm0 = self.get_init_guess() #avoid tracing through get_init_guess
+        if self.converged:
+            dm0 = self.make_rdm1()
+            self.reset() # need to reset _eri to get its gradient
+        else:
+            dm0 = self.get_init_guess() #avoid tracing through get_init_guess
         jac = jax.jacfwd(self.__class__.kernel)(self, dm0=dm0)
         return jac.mol.coords
 
