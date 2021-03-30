@@ -6,12 +6,21 @@ from pyscfad.lib import numpy as jnp
 from pyscfad import gto
 
 @pytest.fixture
-def get_mol():
+def get_mol0():
     mol = pyscf.M(
         atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587',
         basis = 'sto3g',
         verbose=0,
     )
+    return mol
+
+@pytest.fixture
+def get_mol():
+    mol = gto.Mole()
+    mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
+    mol.basis = 'sto3g'
+    mol.verbose=0
+    mol.build()
     return mol
 
 def int2e_grad_analyt(mol):
@@ -34,14 +43,14 @@ def func(mol, intor):
 def func1(mol, intor):
     return jnp.linalg.norm(mol.intor(intor))
 
-def test_int2e(get_mol):
-    mol = get_mol
-    eri0 = mol.intor("int2e")
-    x = mol.atom_coords()
-    mol1 = gto.mole.Mole(mol, coords=x)
-    assert abs(eri0-mol1.intor("int2e")).max() < 1e-10
+def test_int2e(get_mol0, get_mol):
+    mol0 = get_mol0
+    eri0 = mol0.intor("int2e")
+    mol1 = get_mol
+    eri = mol1.intor("int2e")
+    assert abs(eri-eri0).max() < 1e-10
 
-    tmp = int2e_grad_analyt(mol)
+    tmp = int2e_grad_analyt(mol0)
 
     g0 = tmp
     jac = jax.jacfwd(func)(mol1, "int2e")

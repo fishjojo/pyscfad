@@ -1,12 +1,12 @@
 import pytest
 import numpy as np
-import pyscf
 import jax
-from pyscfad.lib import numpy as jnp
+import pyscf
 from pyscfad import gto
+from pyscfad.lib import numpy as jnp
 
 @pytest.fixture
-def get_mol():
+def get_mol0():
     mol = pyscf.M(
         atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587',
         basis = 'sto3g',
@@ -15,7 +15,16 @@ def get_mol():
     return mol
 
 @pytest.fixture
-def get_mol_ecp():
+def get_mol():
+    mol = gto.Mole()
+    mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
+    mol.basis = 'sto3g'
+    mol.verbose=0
+    mol.build()
+    return mol
+
+@pytest.fixture
+def get_mol_ecp0():
     mol = pyscf.M(
         atom = '''
             Na 0. 0. 0.
@@ -25,6 +34,19 @@ def get_mol_ecp():
         ecp = {'Na':'lanl2dz'},
         verbose=0,
     )
+    return mol
+
+@pytest.fixture
+def get_mol_ecp():
+    mol = gto.Mole()
+    mol.atom = '''
+        Na 0. 0. 0.
+        H  0.  0.  1.
+    '''
+    mol.basis = {'Na':'lanl2dz', 'H':'sto3g'}
+    mol.ecp = {'Na':'lanl2dz'}
+    mol.verbose=0
+    mol.build()
     return mol
 
 def grad_analyt(mol, intor):
@@ -77,14 +99,14 @@ def func1(mol, intor):
 def func2(mol, intor):
     return jnp.exp(mol.intor(intor))
 
-def test_ovlp(get_mol):
-    mol = get_mol
-    s0 = mol.intor('int1e_ovlp')
-    x = mol.atom_coords()
-    mol1 = gto.mole.Mole(mol, coords=x)
-    assert abs(s0-mol1.intor("int1e_ovlp")).max() < 1e-10
+def test_ovlp(get_mol0, get_mol):
+    mol0 = get_mol0
+    s0 = mol0.intor('int1e_ovlp')
+    mol1 = get_mol
+    s = mol1.intor('int1e_ovlp')
+    assert abs(s-s0).max() < 1e-10
 
-    tmp = grad_analyt(mol, "int1e_ipovlp")
+    tmp = grad_analyt(mol0, "int1e_ipovlp")
 
     g0 = tmp
     jac = jax.jacfwd(func)(mol1, "int1e_ovlp")
@@ -101,14 +123,14 @@ def test_ovlp(get_mol):
     g = jac.coords
     assert abs(g-g0).max() < 1e-10
 
-def test_kin(get_mol):
-    mol = get_mol
-    kin0 = mol.intor("int1e_kin")
-    x = mol.atom_coords()
-    mol1 = gto.mole.Mole(mol, coords=x)
-    assert abs(kin0-mol1.intor("int1e_kin")).max() < 1e-10
+def test_kin(get_mol0, get_mol):
+    mol0 = get_mol0
+    kin0 = mol0.intor("int1e_kin")
+    mol1 = get_mol
+    kin = mol1.intor("int1e_kin")
+    assert abs(kin-kin0).max() < 1e-10
 
-    tmp = grad_analyt(mol, "int1e_ipkin")
+    tmp = grad_analyt(mol0, "int1e_ipkin")
 
     g0 = tmp
     jac = jax.jacfwd(func)(mol1, "int1e_kin")
@@ -120,14 +142,14 @@ def test_kin(get_mol):
     g = jac.coords
     assert abs(g-g0).max() < 1e-10
 
-def test_nuc(get_mol):
-    mol = get_mol
-    nuc0 = mol.intor("int1e_nuc")
-    x = mol.atom_coords()
-    mol1 = gto.mole.Mole(mol, coords=x)
-    assert abs(nuc0-mol1.intor("int1e_nuc")).max() < 1e-10
+def test_nuc(get_mol0, get_mol):
+    mol0 = get_mol0
+    nuc0 = mol0.intor("int1e_nuc")
+    mol1 = get_mol
+    nuc = mol1.intor("int1e_nuc")
+    assert abs(nuc-nuc0).max() < 1e-10
 
-    tmp = nuc_grad_analyt(mol)
+    tmp = nuc_grad_analyt(mol0)
 
     g0 = tmp
     jac = jax.jacfwd(func)(mol1, "int1e_nuc")
@@ -139,14 +161,14 @@ def test_nuc(get_mol):
     g = jac.coords
     assert abs(g-g0).max() < 1e-10
 
-def test_ECPscalar(get_mol_ecp):
-    mol = get_mol_ecp
-    nuc0 = mol.intor("ECPscalar")
-    x = mol.atom_coords()
-    mol1 = gto.mole.Mole(mol, coords=x)
-    assert abs(nuc0-mol1.intor("ECPscalar")).max() < 1e-10
+def test_ECPscalar(get_mol_ecp0, get_mol_ecp):
+    mol0 = get_mol_ecp0
+    nuc0 = mol0.intor("ECPscalar")
+    mol1 = get_mol_ecp
+    nuc = mol1.intor("ECPscalar")
+    assert abs(nuc-nuc0).max() < 1e-10
 
-    tmp = ECPscalar_grad_analyt(mol)
+    tmp = ECPscalar_grad_analyt(mol0)
 
     g0 = tmp
     jac = jax.jacfwd(func)(mol1, "ECPscalar")

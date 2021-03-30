@@ -1,10 +1,25 @@
 from jax import custom_jvp
+from pyscf.gto.mole import Mole
 from pyscfad.lib import numpy as np
 from pyscfad.lib import ops
 
+def getints(mol, intor):
+    if intor == "int1e_ovlp":
+        return int1e_ovlp(mol)
+    elif intor == "int1e_kin":
+        return int1e_kin(mol)
+    elif intor == "int1e_nuc":
+        return int1e_nuc(mol)
+    elif intor == "ECPscalar":
+        return ECPscalar(mol)
+    elif intor == "int2e":
+        return int2e(mol)
+    else:
+        raise NotImplementedError
+
 @custom_jvp
 def int1e_ovlp(mol):
-    return mol.mol.intor("int1e_ovlp")
+    return Mole.intor(mol, "int1e_ovlp")
 
 @int1e_ovlp.defjvp
 def int1e_ovlp_jvp(primals, tangents):
@@ -13,11 +28,11 @@ def int1e_ovlp_jvp(primals, tangents):
 
     mol_t, = tangents
     coords = mol_t.coords
-    atmlst = range(mol.mol.natm)
-    aoslices = mol.mol.aoslice_by_atom()
-    nao = mol.mol.nao
+    atmlst = range(mol.natm)
+    aoslices = mol.aoslice_by_atom()
+    nao = mol.nao
     tangent_out = np.zeros((nao,nao))
-    s1 = -mol.mol.intor('int1e_ipovlp', comp=3)
+    s1 = -Mole.intor(mol, 'int1e_ipovlp', comp=3)
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
         tmp = np.einsum('xij,x->ij',s1[:,p0:p1],coords[k])
@@ -27,7 +42,7 @@ def int1e_ovlp_jvp(primals, tangents):
 
 @custom_jvp
 def int1e_kin(mol):
-    return mol.mol.intor("int1e_kin")
+    return Mole.intor(mol, "int1e_kin")
 
 @int1e_kin.defjvp
 def int1e_kin_jvp(primals, tangents):
@@ -36,11 +51,11 @@ def int1e_kin_jvp(primals, tangents):
 
     mol_t, = tangents
     coords = mol_t.coords
-    atmlst = range(mol.mol.natm)
-    aoslices = mol.mol.aoslice_by_atom()
-    nao = mol.mol.nao
+    atmlst = range(mol.natm)
+    aoslices = mol.aoslice_by_atom()
+    nao = mol.nao
     tangent_out = np.zeros((nao,nao))
-    s1 = -mol.mol.intor('int1e_ipkin', comp=3)
+    s1 = -Mole.intor(mol, 'int1e_ipkin', comp=3)
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
         tmp = np.einsum('xij,x->ij',s1[:,p0:p1],coords[k])
@@ -50,7 +65,7 @@ def int1e_kin_jvp(primals, tangents):
 
 @custom_jvp
 def int1e_nuc(mol):
-    return mol.mol.intor("int1e_nuc")
+    return Mole.intor(mol, "int1e_nuc")
 
 @int1e_nuc.defjvp
 def int1e_nuc_jvp(primals, tangents):
@@ -59,17 +74,17 @@ def int1e_nuc_jvp(primals, tangents):
 
     mol_t, = tangents
     coords = mol_t.coords
-    atmlst = range(mol.mol.natm)
-    aoslices = mol.mol.aoslice_by_atom()
-    nao = mol.mol.nao
+    atmlst = range(mol.natm)
+    aoslices = mol.aoslice_by_atom()
+    nao = mol.nao
     tangent_out = np.zeros((nao,nao))
 
-    h1 = -mol.mol.intor('int1e_ipnuc', comp=3)
+    h1 = -Mole.intor(mol, 'int1e_ipnuc', comp=3)
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
-        with mol.mol.with_rinv_at_nucleus(ia):
-            vrinv = mol.mol.intor('int1e_iprinv', comp=3)
-            vrinv *= -mol.mol.atom_charge(ia)
+        with mol.with_rinv_at_nucleus(ia):
+            vrinv = Mole.intor(mol, 'int1e_iprinv', comp=3)
+            vrinv *= -mol.atom_charge(ia)
         vrinv[:,p0:p1] += h1[:,p0:p1]
         tmp = vrinv + vrinv.transpose(0,2,1)
         tmp1 = np.einsum('xij,x->ij',tmp, coords[k])
@@ -78,7 +93,7 @@ def int1e_nuc_jvp(primals, tangents):
 
 @custom_jvp
 def ECPscalar(mol):
-    return mol.mol.intor("ECPscalar")
+    return Mole.intor(mol, "ECPscalar")
 
 @ECPscalar.defjvp
 def ECPscalar_jvp(primals, tangents):
@@ -87,16 +102,16 @@ def ECPscalar_jvp(primals, tangents):
 
     mol_t, = tangents
     coords = mol_t.coords
-    atmlst = range(mol.mol.natm)
-    aoslices = mol.mol.aoslice_by_atom()
-    nao = mol.mol.nao
+    atmlst = range(mol.natm)
+    aoslices = mol.aoslice_by_atom()
+    nao = mol.nao
     tangent_out = np.zeros((nao,nao))
 
-    h1 = -mol.mol.intor('ECPscalar_ipnuc', comp=3)
+    h1 = -Mole.intor(mol, 'ECPscalar_ipnuc', comp=3)
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
-        with mol.mol.with_rinv_at_nucleus(ia):
-            vrinv = mol.mol.intor('ECPscalar_iprinv', comp=3)
+        with mol.with_rinv_at_nucleus(ia):
+            vrinv = Mole.intor(mol, 'ECPscalar_iprinv', comp=3)
         vrinv[:,p0:p1] += h1[:,p0:p1]
         tmp = vrinv + vrinv.transpose(0,2,1)
         tmp1 = np.einsum('xij,x->ij',tmp, coords[k])
@@ -105,7 +120,7 @@ def ECPscalar_jvp(primals, tangents):
 
 @custom_jvp
 def int2e(mol):
-    return mol.mol.intor("int2e")
+    return Mole.intor(mol, "int2e")
 
 @int2e.defjvp
 def int2e_jvp(primals, tangents):
@@ -114,12 +129,12 @@ def int2e_jvp(primals, tangents):
 
     mol_t, = tangents
     coords = mol_t.coords
-    atmlst = range(mol.mol.natm)
-    aoslices = mol.mol.aoslice_by_atom()
-    nao = mol.mol.nao
+    atmlst = range(mol.natm)
+    aoslices = mol.aoslice_by_atom()
+    nao = mol.nao
     tangent_out = np.zeros([nao,]*4)
 
-    eri1 = -mol.mol.intor("int2e_ip1", comp=3)
+    eri1 = -Mole.intor(mol, "int2e_ip1", comp=3)
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
         tmp = np.einsum("xijkl,x->ijkl", eri1[:,p0:p1], coords[k])

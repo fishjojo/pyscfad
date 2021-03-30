@@ -3,7 +3,7 @@ import pyscf
 from pyscfad import gto, scf
 
 @pytest.fixture
-def get_mol():
+def get_mol0():
     mol = pyscf.M(
         atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587',
         basis = 'sto3g',
@@ -11,10 +11,18 @@ def get_mol():
     )
     return mol
 
-def test_nuc_grad(get_mol):
-    mol0 = get_mol
-    x = mol0.atom_coords()
-    mol = gto.Mole(mol0, coords=x)
+@pytest.fixture
+def get_mol():
+    mol = gto.Mole()
+    mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
+    mol.basis = 'sto3g'
+    mol.verbose=0
+    mol.build()
+    return mol
+
+def test_nuc_grad(get_mol0, get_mol):
+    mol0 = get_mol0
+    mol = get_mol
     mf = scf.RHF(mol)
     g = mf.nuc_grad_ad()
 
