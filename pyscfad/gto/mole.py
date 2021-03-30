@@ -38,46 +38,46 @@ class Mole(gto.Mole):
     contract_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
 
     # attributes of the base class
-    verbose: int = lib.field(default = getattr(__config__, 'VERBOSE', logger.NOTE))
-    unit: str = lib.field(default = getattr(__config__, 'UNIT', 'angstrom'))
-    incore_anyway: bool = lib.field(default = getattr(__config__, 'INCORE_ANYWAY', False))
-    cart: bool = lib.field(default = getattr(__config__, 'gto_mole_Mole_cart', False))
+    verbose: int = getattr(__config__, 'VERBOSE', logger.NOTE)
+    unit: str = getattr(__config__, 'UNIT', 'angstrom')
+    incore_anyway: bool = getattr(__config__, 'INCORE_ANYWAY', False)
+    cart: bool = getattr(__config__, 'gto_mole_Mole_cart', False)
 
     # attributes of the base class object
-    output: Optional[str] = lib.field(default = None)
-    max_memory: int = lib.field(default = param.MAX_MEMORY)
-    charge: int = lib.field(default = 0)
-    spin: int = lib.field(default = 0)
-    symmetry: bool = lib.field(default = False)
-    symmetry_subgroup: Optional[str] = lib.field(default = None)
-    cart: bool = lib.field(default = False)
+    output: Optional[str] = None
+    max_memory: int = param.MAX_MEMORY
+    charge: int = 0
+    spin: int = 0
+    symmetry: bool = False
+    symmetry_subgroup: Optional[str] = None
+    cart: bool = False
     atom: Union[list,str] = lib.field(default_factory = list)
-    basis: Union[dict,str] = lib.field(default = 'sto-3g')
+    basis: Union[dict,str] = 'sto-3g'
     nucmod: Union[dict,str] = lib.field(default_factory = dict)
     ecp: Union[dict,str] = lib.field(default_factory = dict)
     nucprop: dict = lib.field(default_factory = dict)
 
     # private attributes
-    _atm: numpy.ndarray = lib.field(default = numpy.zeros((0,6), dtype=numpy.int32))
-    _bas: numpy.ndarray = lib.field(default = numpy.zeros((0,8), dtype=numpy.int32))
-    _env: numpy.ndarray = lib.field(default = numpy.zeros(PTR_ENV_START))
-    _ecpbas: numpy.ndarray = lib.field(default = numpy.zeros((0,8), dtype=numpy.int32))
+    _atm: numpy.ndarray = numpy.zeros((0,6), dtype=numpy.int32)
+    _bas: numpy.ndarray = numpy.zeros((0,8), dtype=numpy.int32)
+    _env: numpy.ndarray = numpy.zeros(PTR_ENV_START)
+    _ecpbas: numpy.ndarray = numpy.zeros((0,8), dtype=numpy.int32)
 
-    stdout: Any = lib.field(default = sys.stdout)
-    groupname: str = lib.field(default = 'C1')
-    topgroup: str = lib.field(default = 'C1')
-    symm_orb: Optional[list] = lib.field(default = None)
-    irrep_id: Optional[list] = lib.field(default = None)
-    irrep_name: Optional[list] = lib.field(default = None)
-    _symm_orig: Optional[numpy.ndarray] = lib.field(default = None)
-    _symm_axes: Optional[numpy.ndarray] = lib.field(default = None)
-    _nelectron: Optional[int] = lib.field(default = None)
-    _nao: Optional[int] = lib.field(default = None)
-    _enuc: Optional[float] = lib.field(default = None)
+    stdout: Any = sys.stdout
+    groupname: str = 'C1'
+    topgroup: str = 'C1'
+    symm_orb: Optional[list] = None
+    irrep_id: Optional[list] = None
+    irrep_name: Optional[list] = None
+    _symm_orig: Optional[numpy.ndarray] = None
+    _symm_axes: Optional[numpy.ndarray] = None
+    _nelectron: Optional[int] = None
+    _nao: Optional[int] = None
+    _enuc: Optional[float] = None
     _atom: list = lib.field(default_factory = list)
     _basis: dict = lib.field(default_factory = dict)
     _ecp: dict = lib.field(default_factory = dict)
-    _built: bool = lib.field(default = False)
+    _built: bool = False
     _pseudo: dict = lib.field(default_factory = dict)
 
     def __post_init__(self):
