@@ -5,7 +5,7 @@ import numpy
 from pyscf import __config__
 from pyscf import gto
 from pyscf.lib import logger, param
-from pyscf.gto.mole import PTR_ENV_START
+from pyscf.gto.mole import NPRIM_OF, NCTR_OF, PTR_COEFF, PTR_ENV_START
 
 from pyscfad import lib
 from pyscfad.lib import numpy as jnp
@@ -28,6 +28,31 @@ def inter_distance(mol, coords=None):
     rr = ops.index_update(rr, jnp.diag_indices_from(rr), 0.)
     return rr
 
+def setup_ctr_coeff(mol):
+    tmp = []
+    cs = jnp.empty([0], dtype=float)
+    _env_of = numpy.empty([0], dtype=numpy.int32)
+    offset = 0
+    cs_of = []
+    for i in range(len(mol._bas)):
+        nprim = mol._bas[i,NPRIM_OF]
+        nctr = mol._bas[i,NCTR_OF]
+        ptr_coeff = mol._bas[i,PTR_COEFF]
+        if ptr_coeff not in tmp:
+            tmp.append(ptr_coeff)
+            cs = jnp.append(cs, mol._env[ptr_coeff : ptr_coeff+nprim*nctr])
+            _env_of = numpy.append(_env_of, numpy.arange(ptr_coeff,ptr_coeff+nprim*nctr))
+            cs_of.append(offset)
+            offset += nprim*nctr
+    tmp = numpy.asarray(tmp, dtype=numpy.int32)
+    cs_of = numpy.asarray(cs_of, dtype=numpy.int32)
+    ptr_coeff = mol._bas[:,PTR_COEFF]
+    idx = []
+    for ptr in ptr_coeff:
+        idx.append(numpy.where(ptr == tmp)[0])
+    idx = numpy.asarray(idx).flatten()
+    cs_of = cs_of[idx]
+    return cs, cs_of, _env_of
 
 @lib.dataclass
 class Mole(gto.Mole):
@@ -35,7 +60,7 @@ class Mole(gto.Mole):
     # NOTE jax requires that at least one variable needs to be traced for AD
     coords: jnp.array = lib.field(pytree_node=True, default=jnp.zeros([1,3], dtype=float))
     exponents: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-    contract_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
+    ctr_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
 
     # attributes of the base class
     verbose: int = getattr(__config__, 'VERBOSE', logger.NOTE)
@@ -87,6 +112,7 @@ class Mole(gto.Mole):
         gto.Mole.build(self, *args, **kwargs)
        
         self.coords = jnp.asarray(self.atom_coords())
+        self.ctr_coeff, _, _ = setup_ctr_coeff(self)
 
     energy_nuc = energy_nuc
 
