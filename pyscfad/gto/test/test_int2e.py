@@ -37,6 +37,22 @@ def int2e_grad_analyt(mol):
         g[:,:,:,p0:p1,k] += h1[:,p0:p1].transpose(3,4,2,1,0)
     return g
 
+def cs_grad_fd(mol, intor):
+    disp = 1e-5 / 2.
+    grad_fd = []
+    cs, cs_of, _env_of = gto.mole.setup_ctr_coeff(mol)
+    for i in range(len(cs)):
+        ptr_ctr = _env_of[i]
+        mol._env[ptr_ctr] += disp
+        sp = mol.intor(intor)
+        mol._env[ptr_ctr] -= disp *2.
+        sm = mol.intor(intor)
+        g = (sp-sm) / (disp*2.)
+        grad_fd.append(g)
+        mol._env[ptr_ctr] += disp
+    grad_fd = np.asarray(grad_fd).transpose(1,2,3,4,0)
+    return grad_fd
+
 def func(mol, intor):
     return mol.intor(intor)
 
@@ -50,14 +66,21 @@ def test_int2e(get_mol0, get_mol):
     eri = mol1.intor("int2e")
     assert abs(eri-eri0).max() < 1e-10
 
-    tmp = int2e_grad_analyt(mol0)
+    tmp_nuc = int2e_grad_analyt(mol0)
+    tmp_cs = cs_grad_fd(mol0, "int2e")
 
-    g0 = tmp
+    g0_nuc = tmp_nuc
+    g0_cs = tmp_cs
     jac = jax.jacfwd(func)(mol1, "int2e")
-    g = jac.coords
-    assert abs(g-g0).max() < 1e-10
+    g_nuc = jac.coords
+    g_cs = jac.ctr_coeff
+    assert abs(g_nuc-g0_nuc).max() < 1e-10
+    assert abs(g_cs-g0_cs).max() < 1e-9
 
-    g0 = np.einsum("ijkl,ijklnx->nx", eri0, tmp) / np.linalg.norm(eri0)
+    g0_nuc = np.einsum("ijkl,ijklnx->nx", eri0, tmp_nuc) / np.linalg.norm(eri0)
+    g0_cs = np.einsum("ijkl,ijklx->x", eri0, tmp_cs) / np.linalg.norm(eri0)
     jac = jax.jacfwd(func1)(mol1, "int2e")
-    g = jac.coords
-    assert abs(g-g0).max() < 1e-10
+    g_nuc = jac.coords
+    g_cs = jac.ctr_coeff
+    assert abs(g_nuc-g0_nuc).max() < 1e-10
+    assert abs(g_cs-g0_cs).max() < 1e-9

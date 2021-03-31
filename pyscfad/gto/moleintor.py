@@ -1,5 +1,5 @@
 from jax import custom_jvp
-from pyscf.gto import mole
+from pyscf.gto import mole, moleintor
 from pyscf.gto.mole import Mole
 from pyscfad.lib import numpy as np
 from pyscfad.lib import ops
@@ -33,10 +33,7 @@ def int1e_2c_nuc_jvp(mol, mol_t, intor):
         tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.T)
     return tangent_out
 
-def int1e_2c_cs_jvp(mol, mol_t, intor, factor=1.):
-    ctr_coeff = mol.ctr_coeff
-    ctr_coeff_t = mol_t.ctr_coeff
-
+def get_fakemol_cs(mol):
     mol1 = mol.copy()
     for key in mol._basis.keys():
         mol1._basis[key] = mole.uncontract(mol._basis[key])
@@ -46,7 +43,13 @@ def int1e_2c_cs_jvp(mol, mol_t, intor, factor=1.):
     for i in range(len(mol1._bas)):
         ptr_ctr = mol1._bas[i,mole.PTR_COEFF]
         mol1._env[ptr_ctr] = 1.
+    return mol1
 
+def int1e_2c_cs_jvp(mol, mol_t, intor, factor=1.):
+    ctr_coeff = mol.ctr_coeff
+    ctr_coeff_t = mol_t.ctr_coeff
+
+    mol1 = get_fakemol_cs(mol)
     s = mole.intor_cross(intor, mol1, mol) * factor
     _, cs_of, _ = gto.mole.setup_ctr_coeff(mol)
     nao = mol.nao
@@ -176,16 +179,7 @@ def ECPscalar_jvp(primals, tangents):
         tangent_out = ops.index_add(tangent_out, ops.index[:,:], tmp1)
     return primal_out, tangent_out
 
-@custom_jvp
-def int2e(mol):
-    return Mole.intor(mol, "int2e")
-
-@int2e.defjvp
-def int2e_jvp(primals, tangents):
-    mol, = primals
-    primal_out = int2e(mol)
-
-    mol_t, = tangents
+def int2e_nuc_jvp(mol, mol_t):
     coords = mol_t.coords
     atmlst = range(mol.natm)
     aoslices = mol.aoslice_by_atom()
@@ -200,4 +194,62 @@ def int2e_jvp(primals, tangents):
         tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.transpose((1,0,2,3)))
         tangent_out = ops.index_add(tangent_out, ops.index[:,:,p0:p1], tmp.transpose((2,3,0,1)))
         tangent_out = ops.index_add(tangent_out, ops.index[:,:,:,p0:p1], tmp.transpose((2,3,1,0)))
+    return tangent_out
+
+def int2e_cs_jvp(mol, mol_t, intor):
+    ctr_coeff = mol.ctr_coeff
+    ctr_coeff_t = mol_t.ctr_coeff
+
+    mol1 = get_fakemol_cs(mol)
+
+    nbas = len(mol._bas)
+    nbas1 = len(mol1._bas)
+    atmc, basc, envc = mole.conc_env(mol1._atm, mol1._bas, mol1._env,
+                                     mol._atm, mol._bas, mol._env)
+    shls_slice = (0, nbas1, nbas1, nbas1+nbas, nbas1, nbas1+nbas, nbas1, nbas1+nbas)
+    intor = mol._add_suffix(intor)
+    eri = moleintor.getints(intor, atmc, basc, envc, shls_slice)
+
+    _, cs_of, _ = gto.mole.setup_ctr_coeff(mol)
+    nao = mol.nao
+    grad = np.zeros((len(ctr_coeff), nao, nao, nao, nao), dtype=float)
+
+    off = 0
+    ibas = 0
+    for i in range(len(mol._bas)):
+        l = mol._bas[i,mole.ANG_OF]
+        if mol.cart:
+            nbas = (l+1)*(l+2)//2
+        else:
+            nbas = 2*l + 1
+        nprim = mol._bas[i,mole.NPRIM_OF]
+        nctr = mol._bas[i,mole.NCTR_OF]
+        g = eri[off:(off+nprim*nbas)].reshape(nprim,-1,nao,nao,nao)
+        for j in range(nctr):
+            idx = ops.index[(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim), ibas:(ibas+nbas)]
+            grad = ops.index_add(grad, idx, g)
+            ibas += nbas
+        off += nprim*nbas
+    tangent_out = np.einsum('xijkl,x->ijkl', grad, ctr_coeff_t)
+    tangent_out += tangent_out.transpose(1,0,2,3)
+    tangent_out += tangent_out.transpose(2,3,0,1)
+    return tangent_out
+
+
+@custom_jvp
+def int2e(mol):
+    return Mole.intor(mol, "int2e")
+
+@int2e.defjvp
+def int2e_jvp(primals, tangents):
+    mol, = primals
+    primal_out = int2e(mol)
+
+    mol_t, = tangents
+    tangent_out = np.zeros_like(primal_out)
+
+    if mol.coords is not None:
+        tangent_out += int2e_nuc_jvp(mol, mol_t)
+    if mol.ctr_coeff is not None:
+        tangent_out += int2e_cs_jvp(mol, mol_t, "int2e")
     return primal_out, tangent_out
