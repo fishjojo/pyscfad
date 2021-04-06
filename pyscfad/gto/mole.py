@@ -122,9 +122,10 @@ def setup_ctr_coeff(mol):
 class Mole(gto.Mole):
     # traced attributes
     # NOTE jax requires that at least one variable needs to be traced for AD
-    coords: jnp.array = lib.field(pytree_node=True, default=jnp.zeros([1,3], dtype=float))
+    coords: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
     exp: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
     ctr_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
+    r0: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
 
     # attributes of the base class
     verbose: int = getattr(__config__, 'VERBOSE', logger.NOTE)
@@ -183,12 +184,10 @@ class Mole(gto.Mole):
 
     def intor(self, intor, comp=None, hermi=0, aosym='s1', out=None,
               shls_slice=None):
-        has_grad = ["int1e_ovlp", 
-                    "int1e_kin",
-                    "int1e_nuc",
-                    "ECPscalar",
-                    "int2e",]
-        if not intor in has_grad:
-            return gto.Mole.intor(self, intor, comp=comp, hermi=hermi, aosym=aosym, out=out, shls_slice=shls_slice)
+        if (self.coords is None and self.exp is None 
+                and self.ctr_coeff is None and self.r0 is None):
+            return gto.Mole.intor(self, intor, comp=comp, hermi=hermi, 
+                                  aosym=aosym, out=out, shls_slice=shls_slice)
         else:
-            return moleintor.getints(self, intor)
+            return moleintor.getints(self, intor, shls_slice,
+                                     comp, hermi, aosym, out=None)

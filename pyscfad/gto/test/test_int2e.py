@@ -5,11 +5,16 @@ import jax
 from pyscfad.lib import numpy as jnp
 from pyscfad import gto
 
+tol_val = 1e-12
+tol_nuc = 1e-10
+tol_cs = 1e-10
+tol_exp = 1e-10
+
 @pytest.fixture
 def get_mol0():
     mol = pyscf.M(
         atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587',
-        basis = 'sto3g',
+        basis = '6-31g',
         verbose=0,
     )
     return mol
@@ -18,7 +23,7 @@ def get_mol0():
 def get_mol():
     mol = gto.Mole()
     mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
-    mol.basis = 'sto3g'
+    mol.basis = '6-31g'
     mol.verbose=0
     mol.build()
     return mol
@@ -37,39 +42,34 @@ def int2e_grad_analyt(mol):
         g[:,:,:,p0:p1,k] += h1[:,p0:p1].transpose(3,4,2,1,0)
     return g
 
-def cs_grad_fd(mol, intor):
-    disp = 1e-5 / 2.
+def four_point_fd(mol, intor, _env_of, disp=1e-4):
     grad_fd = []
-    cs, cs_of, _env_of = gto.mole.setup_ctr_coeff(mol)
-    for i in range(len(cs)):
-        ptr_ctr = _env_of[i]
-        mol._env[ptr_ctr] += disp
-        sp = mol.intor(intor)
-        mol._env[ptr_ctr] -= disp *2.
-        sm = mol.intor(intor)
-        g = (sp-sm) / (disp*2.)
-        grad_fd.append(g)
-        mol._env[ptr_ctr] += disp
-    grad_fd = np.asarray(grad_fd).transpose(1,2,3,4,0)
-    return grad_fd
-
-def exp_grad_fd(mol, intor):
-    disp = 1e-5/2.
-    grad_fd = []
-    es, es_of, _env_of = gto.mole.setup_exp(mol)
-    for i in range(len(es)):
+    for i in range(len(_env_of)):
         ptr_exp = _env_of[i]
         mol._env[ptr_exp] += disp
         sp = mol.intor(intor)
-        mol._env[ptr_exp] -= disp *2.
-        sm = mol.intor(intor)
-
-        s = (sp-sm) / (disp*2.)
-        grad_fd.append(s)
         mol._env[ptr_exp] += disp
-    grad_fd = np.asarray(grad_fd).transpose(1,2,3,4,0)
-    return grad_fd
+        sp2 = mol.intor(intor)
+        mol._env[ptr_exp] -= disp * 4.
+        sm2 = mol.intor(intor)
+        mol._env[ptr_exp] += disp
+        sm = mol.intor(intor)
+        g = (8.*(sp-sm) - sp2 + sm2) / (12.*disp)
+        grad_fd.append(g)
+        mol._env[ptr_exp] += disp
+    return np.asarray(grad_fd).transpose(1,2,3,4,0)
 
+def cs_grad_fd(mol, intor):
+    disp = 1e-4
+    cs, cs_of, _env_of = gto.mole.setup_ctr_coeff(mol)
+    g = four_point_fd(mol, intor, _env_of, disp)
+    return g
+
+def exp_grad_fd(mol, intor):
+    disp = 1e-4
+    es, es_of, _env_of = gto.mole.setup_exp(mol)
+    g = four_point_fd(mol, intor, _env_of, disp)
+    return g
 
 def func(mol, intor):
     return mol.intor(intor)
@@ -82,7 +82,7 @@ def test_int2e(get_mol0, get_mol):
     eri0 = mol0.intor("int2e")
     mol1 = get_mol
     eri = mol1.intor("int2e")
-    assert abs(eri-eri0).max() < 1e-10
+    assert abs(eri-eri0).max() < tol_val
 
     tmp_nuc = int2e_grad_analyt(mol0)
     tmp_cs = cs_grad_fd(mol0, "int2e")
@@ -95,9 +95,9 @@ def test_int2e(get_mol0, get_mol):
     g_nuc = jac.coords
     g_cs = jac.ctr_coeff
     g_exp = jac.exp
-    assert abs(g_nuc-g0_nuc).max() < 1e-10
-    assert abs(g_cs-g0_cs).max() < 1e-9
-    assert abs(g_exp-g0_exp).max() < 1e-8
+    assert abs(g_nuc-g0_nuc).max() < tol_nuc
+    assert abs(g_cs-g0_cs).max() < tol_cs
+    assert abs(g_exp-g0_exp).max() < tol_exp
 
     g0_nuc = np.einsum("ijkl,ijklnx->nx", eri0, tmp_nuc) / np.linalg.norm(eri0)
     g0_cs = np.einsum("ijkl,ijklx->x", eri0, tmp_cs) / np.linalg.norm(eri0)
@@ -106,6 +106,6 @@ def test_int2e(get_mol0, get_mol):
     g_nuc = jac.coords
     g_cs = jac.ctr_coeff
     g_exp = jac.exp
-    assert abs(g_nuc-g0_nuc).max() < 1e-10
-    assert abs(g_cs-g0_cs).max() < 1e-9
-    assert abs(g_exp-g0_exp).max() < 1e-8
+    assert abs(g_nuc-g0_nuc).max() < tol_nuc
+    assert abs(g_cs-g0_cs).max() < tol_cs
+    assert abs(g_exp-g0_exp).max() < tol_exp

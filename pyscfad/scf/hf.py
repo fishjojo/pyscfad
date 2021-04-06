@@ -33,6 +33,7 @@ def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
 class SCF(hf.SCF):
     mol: mole.Mole = lib.field(pytree_node=True)
     mo_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
+    mo_energy: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
 
     conv_tol: float = getattr(__config__, 'scf_hf_SCF_conv_tol', 1e-9)
     conv_tol_grad: Optional[float] = getattr(__config__, 'scf_hf_SCF_conv_tol_grad', None)
@@ -59,7 +60,6 @@ class SCF(hf.SCF):
     chkfile: Optional[str] = None
     _chkfile: Any = None
 
-    mo_energy: Optional[jnp.array] = None
     mo_occ: Optional[jnp.array] = None
     e_tot: float = 0.
     converged: bool = False
