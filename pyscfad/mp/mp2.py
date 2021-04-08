@@ -32,13 +32,18 @@ class MP2(mp2.MP2):
     t2: jnp.array = None
 
     def __post_init__(self):
-        if self.mol is None: self.mol = self._scf.mol
-        if self.verbose is None: self.verbose = self.mol.verbose
-        if self.stdout is None: self.stdout = self.mol.stdout
-        if self.max_memory is None: self.max_memory = self._scf.max_memory
-
-        if self.mo_coeff is None: self.mo_coeff = self._scf.mo_coeff
-        if self.mo_occ is None: self.mo_occ = self._scf.mo_occ
+        if self.mol is None:
+            self.mol = self._scf.mol
+        if self.verbose is None:
+            self.verbose = self.mol.verbose
+        if self.stdout is None:
+            self.stdout = self.mol.stdout
+        if self.max_memory is None:
+            self.max_memory = self._scf.max_memory
+        if self.mo_coeff is None:
+            self.mo_coeff = self._scf.mo_coeff
+        if self.mo_occ is None:
+            self.mo_occ = self._scf.mo_occ
 
         self._keys = set(self.__dict__.keys())
 
