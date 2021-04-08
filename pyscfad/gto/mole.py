@@ -87,11 +87,21 @@ class Mole(gto.Mole):
         self._keys = set(self.__dict__.keys())
 
     def build(self, *args, **kwargs):
+        trace_coords = kwargs.pop("trace_coords", False)
+        trace_exp = kwargs.pop("trace_exp", False)
+        trace_ctr_coeff = kwargs.pop("trace_ctr_coeff", False)
+        trace_r0 = kwargs.pop("trace_r0", False)
+
         gto.Mole.build(self, *args, **kwargs)
 
-        self.coords = jnp.asarray(self.atom_coords())
-        self.exp, _, _ = setup_exp(self)
-        self.ctr_coeff, _, _ = setup_ctr_coeff(self)
+        if trace_coords:
+            self.coords = jnp.asarray(self.atom_coords())
+        if trace_exp:
+            self.exp, _, _ = setup_exp(self)
+        if trace_ctr_coeff:
+            self.ctr_coeff, _, _ = setup_ctr_coeff(self)
+        if trace_r0:
+            pass
 
     energy_nuc = energy_nuc
 

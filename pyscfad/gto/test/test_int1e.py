@@ -25,7 +25,7 @@ def get_mol():
     mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
     mol.basis = 'ccpvdz'
     mol.verbose=0
-    mol.build()
+    mol.build(trace_coords=True, trace_exp=True, trace_ctr_coeff=True)
     return mol
 
 @pytest.fixture
@@ -51,7 +51,7 @@ def get_mol_ecp():
     mol.basis = {'Na':'lanl2dz', 'H':'sto3g'}
     mol.ecp = {'Na':'lanl2dz'}
     mol.verbose=0
-    mol.build()
+    mol.build(trace_coords=True, trace_exp=True, trace_ctr_coeff=True)
     return mol
 
 def grad_analyt(mol, intor):

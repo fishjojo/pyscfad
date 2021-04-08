@@ -25,7 +25,7 @@ def get_mol():
     mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
     mol.basis = '6-31g'
     mol.verbose=0
-    mol.build()
+    mol.build(trace_coords=True, trace_exp=True, trace_ctr_coeff=True)
     return mol
 
 def int2e_grad_analyt(mol):

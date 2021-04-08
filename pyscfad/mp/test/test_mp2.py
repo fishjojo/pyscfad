@@ -1,6 +1,7 @@
 import pytest
+import numpy
 import pyscf
-from pyscfad import gto, scf
+from pyscfad import gto, scf, mp
 
 @pytest.fixture
 def get_mol0():
@@ -23,25 +24,11 @@ def get_mol():
 def test_nuc_grad(get_mol0, get_mol):
     mol = get_mol
     mf = scf.RHF(mol)
-    g = mf.nuc_grad_ad()
-
-    mol0 = get_mol0
-    mf0 = pyscf.scf.RHF(mol0)
-    mf0.kernel()
-    g0 = mf0.Gradients().grad()
-
-    assert abs(g-g0).max() < 1e-6
-
-def test_nuc_grad_at_converge(get_mol0, get_mol):
-    mol = get_mol
-    mf = scf.RHF(mol)
     mf.kernel()
-    g = mf.nuc_grad_ad()
+    mymp = mp.MP2(mf)
+    g = mymp.nuc_grad_ad()
 
-    mol0 = get_mol0
-    mf0 = pyscf.scf.RHF(mol0)
-    mf0.kernel()
-    g0 = mf0.Gradients().grad()
-
+    g0 = numpy.asarray([[0, 0,  9.40540959e-02],
+                        [0, 3.79302604e-02, -4.70270479e-02],
+                        [0, -3.79302604e-02, -4.70270479e-02]])
     assert abs(g-g0).max() < 1e-6
-

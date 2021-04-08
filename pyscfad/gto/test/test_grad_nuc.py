@@ -19,7 +19,7 @@ def get_mol():
     mol.atom = 'H 0 0 0; H 0 0 0.74'  # in Angstrom
     mol.basis = '631g'
     mol.verbose=0
-    mol.build()
+    mol.build(trace_coords=True)
     return mol
 
 def test_grad_nuc(get_mol0, get_mol):
