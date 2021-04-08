@@ -236,14 +236,28 @@ def test_ECPscalar_nuc(get_mol_ecp0, get_mol_ecp):
     nuc = mol1.intor("ECPscalar")
     assert abs(nuc-nuc0).max() < tol_val
 
-    tmp = ECPscalar_grad_analyt(mol0)
+    tmp_nuc = ECPscalar_grad_analyt(mol0)
+    tmp_cs = cs_grad_fd(mol0, "ECPscalar")
+    tmp_exp = exp_grad_fd(mol0, "ECPscalar")
 
-    g0 = tmp
+    g0_nuc = tmp_nuc
+    g0_cs = tmp_cs
+    g0_exp = tmp_exp
     jac = jax.jacfwd(func)(mol1, "ECPscalar")
-    g = jac.coords
-    assert abs(g-g0).max() < tol_nuc
+    g_nuc = jac.coords
+    g_cs = jac.ctr_coeff
+    g_exp = jac.exp
+    assert abs(g_nuc-g0_nuc).max() < tol_nuc
+    assert abs(g_cs-g0_cs).max() < tol_cs
+    assert abs(g_exp-g0_exp).max() < tol_exp
 
-    g0 = np.einsum("ij,ijnx->nx", nuc0, tmp) / np.linalg.norm(nuc0)
+    g0_nuc = np.einsum("ij,ijnx->nx", nuc0, tmp_nuc) / np.linalg.norm(nuc0)
+    g0_cs = np.einsum("ij,ijx->x", nuc0, tmp_cs) / np.linalg.norm(nuc0)
+    g0_exp = np.einsum("ij,ijx->x", nuc0, tmp_exp) / np.linalg.norm(nuc0)
     jac = jax.jacfwd(func1)(mol1, "ECPscalar")
-    g = jac.coords
-    assert abs(g-g0).max() < tol_nuc
+    g_nuc = jac.coords
+    g_cs = jac.ctr_coeff
+    g_exp = jac.exp
+    assert abs(g_nuc-g0_nuc).max() < tol_nuc
+    assert abs(g_cs-g0_cs).max() < tol_cs
+    assert abs(g_exp-g0_exp).max() < tol_exp

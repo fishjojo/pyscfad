@@ -12,10 +12,9 @@ def getints(mol, intor, shls_slice=None,
     if intor.endswith("_spinor"):
         raise NotImplementedError
 
-    if intor.startswith("int1e"):
+    if (intor.startswith("int1e") or
+        intor.startswith('ECP')):
         return getints2c(mol, intor, shls_slice, comp, hermi, aosym, out)
-    elif intor == "ECPscalar":
-        return ECPscalar(mol)
     elif intor.startswith("int2e"):
         return int2e(mol)
     else:
@@ -38,49 +37,25 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
     mol_t, = tangents
     tangent_out = np.zeros_like(primal_out)
     if mol.coords is not None:
-        tmp = intor.split("_", 1)
-        intor_ip = tmp[0] + "_ip" + tmp[1]
+        if intor.startswith("ECPscalar"):
+            intor_ip = intor.replace("ECPscalar", "ECPscalar_ipnuc")
+        else:
+            tmp = intor.split("_", 1)
+            intor_ip = tmp[0] + "_ip" + tmp[1]
         tangent_out += _int1e_jvp_r0(mol, mol_t, intor_ip)
+
         if intor.startswith("int1e_nuc"):
-            intor_ip = "int1e_iprinv"
-            if intor.endswith("_sph"):
-                intor_ip = intor_ip + "_sph"
-            elif intor.endswith("_cart"):
-                intor_ip = intor_ip + "_cart"
-            tangent_out += _int1e_nuc_jvp_rc(mol, mol_t, intor_ip)
+            intor_ip = intor.replace("int1e_nuc", "int1e_iprinv")
+            has_ecp = False
+        elif intor.startswith("ECPscalar"):
+            intor_ip = intor.replace("ECPscalar", "ECPscalar_iprinv")
+            has_ecp = True
+        tangent_out += _int1e_nuc_jvp_rc(mol, mol_t, intor_ip)
     if mol.ctr_coeff is not None:
         tangent_out += _int1e_jvp_cs(mol, mol_t, intor)
     if mol.exp is not None:
         tangent_out += _int1e_jvp_exp(mol, mol_t, intor)
     return primal_out, tangent_out
-
-def _int1e_jvp_r0(mol, mol_t, intor):
-    coords_t = mol_t.coords
-    atmlst = range(mol.natm)
-    aoslices = mol.aoslice_by_atom()
-    nao = mol.nao
-    tangent_out = np.zeros((nao,nao))
-    s1 = -Mole.intor(mol, intor, comp=3)
-    for k, ia in enumerate(atmlst):
-        p0, p1 = aoslices [ia,2:]
-        tmp = np.einsum('xij,x->ij',s1[:,p0:p1],coords_t[k])
-        tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
-        tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.T)
-    return tangent_out
-
-def _int1e_nuc_jvp_rc(mol, mol_t, intor):
-    coords_t = mol_t.coords
-    atmlst = range(mol.natm)
-    aoslices = mol.aoslice_by_atom()
-    nao = mol.nao
-    tangent_out = np.zeros((nao,nao))
-    for k, ia in enumerate(atmlst):
-        with mol.with_rinv_at_nucleus(ia):
-            vrinv = Mole.intor(mol, intor, comp=3)
-            vrinv *= -mol.atom_charge(ia)
-        vrinv += vrinv.transpose(0,2,1)
-        tangent_out += np.einsum('xij,x->ij', vrinv, coords_t[k])
-    return tangent_out
 
 def _get_fakemol_cs(mol):
     mol1 = gto.mole.uncontract(mol)
@@ -111,13 +86,57 @@ def promote_xyz(xyz, x, l):
     elif x == 'x':
         return 'x'*l+xyz
 
+def _int1e_jvp_r0(mol, mol_t, intor):
+    coords_t = mol_t.coords
+    atmlst = range(mol.natm)
+    aoslices = mol.aoslice_by_atom()
+    nao = mol.nao
+    tangent_out = np.zeros((nao,nao))
+    s1 = -Mole.intor(mol, intor, comp=3)
+    for k, ia in enumerate(atmlst):
+        p0, p1 = aoslices [ia,2:]
+        tmp = np.einsum('xij,x->ij',s1[:,p0:p1],coords_t[k])
+        tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
+        tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.T)
+    return tangent_out
+
+def _int1e_nuc_jvp_rc(mol, mol_t, intor):
+    coords_t = mol_t.coords
+    atmlst = range(mol.natm)
+    aoslices = mol.aoslice_by_atom()
+    nao = mol.nao
+    tangent_out = np.zeros((nao,nao))
+    for k, ia in enumerate(atmlst):
+        with mol.with_rinv_at_nucleus(ia):
+            vrinv = Mole.intor(mol, intor, comp=3)
+            if "ECP" not in intor:
+                vrinv *= -mol.atom_charge(ia)
+        vrinv += vrinv.transpose(0,2,1)
+        tangent_out += np.einsum('xij,x->ij', vrinv, coords_t[k])
+    return tangent_out
+
 def _int1e_jvp_cs(mol, mol_t, intor):
     ctr_coeff = mol.ctr_coeff
     ctr_coeff_t = mol_t.ctr_coeff
 
     mol1 = _get_fakemol_cs(mol)
     mol1._atm[:,mole.CHARGE_OF] = 0 # set nuclear charge to zero
-    s = mole.intor_cross(intor, mol1, mol)
+    nbas1 = len(mol1._bas)
+    nbas = len(mol._bas)
+    shls_slice = (0, nbas1, nbas1, nbas1+nbas)
+    intor = mol._add_suffix(intor)
+    if 'ECP' in intor:
+        assert(mol._ecp is not None)
+        bas = numpy.vstack((mol._bas, mol._ecpbas))
+    else:
+        bas = mol._bas
+    atmc, basc, envc = mole.conc_env(mol1._atm, mol1._bas, mol1._env,
+                                     mol._atm, bas, mol._env)
+    if 'ECP' in intor:
+        envc[mole.AS_ECPBAS_OFFSET] = len(mol1._bas) + len(mol._bas)
+        envc[mole.AS_NECPBAS] = len(mol._ecpbas)
+
+    s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
     _, cs_of, _ = gto.mole.setup_ctr_coeff(mol)
     nao = mol.nao
     grad = np.zeros((len(ctr_coeff), nao, nao), dtype=float)
@@ -152,7 +171,22 @@ def _int1e_jvp_exp(mol, mol_t, intor):
     else:
         cart = True
         intor = mol._add_suffix(intor, cart=True)
-    s = mole.intor_cross(intor, mol1, mol)
+
+    nbas1 = len(mol1._bas)
+    nbas = len(mol._bas)
+    shls_slice = (0, nbas1, nbas1, nbas1+nbas)
+    if 'ECP' in intor:
+        assert(mol._ecp is not None)
+        bas = numpy.vstack((mol._bas, mol._ecpbas))
+    else:
+        bas = mol._bas
+    atmc, basc, envc = mole.conc_env(mol1._atm, mol1._bas, mol1._env,
+                                     mol._atm, bas, mol._env)
+    if 'ECP' in intor:
+        envc[mole.AS_ECPBAS_OFFSET] = len(mol1._bas) + len(mol._bas)
+        envc[mole.AS_NECPBAS] = len(mol._ecpbas)
+
+    s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
     es, es_of, _env_of = gto.mole.setup_exp(mol)
     nao = mole.nao_cart(mol)
     grad = np.zeros((len(es), nao, nao), dtype=float)
@@ -196,33 +230,6 @@ def _int1e_jvp_exp(mol, mol_t, intor):
         c2s = np.asarray(mol.cart2sph_coeff())
         tangent_out = np.dot(c2s.T, np.dot(tangent_out, c2s))
     return tangent_out
-
-@custom_jvp
-def ECPscalar(mol):
-    return Mole.intor(mol, "ECPscalar")
-
-@ECPscalar.defjvp
-def ECPscalar_jvp(primals, tangents):
-    mol, = primals
-    primal_out = ECPscalar(mol)
-
-    mol_t, = tangents
-    coords = mol_t.coords
-    atmlst = range(mol.natm)
-    aoslices = mol.aoslice_by_atom()
-    nao = mol.nao
-    tangent_out = np.zeros((nao,nao))
-
-    h1 = -Mole.intor(mol, 'ECPscalar_ipnuc', comp=3)
-    for k, ia in enumerate(atmlst):
-        p0, p1 = aoslices [ia,2:]
-        with mol.with_rinv_at_nucleus(ia):
-            vrinv = Mole.intor(mol, 'ECPscalar_iprinv', comp=3)
-        vrinv[:,p0:p1] += h1[:,p0:p1]
-        tmp = vrinv + vrinv.transpose(0,2,1)
-        tmp1 = np.einsum('xij,x->ij',tmp, coords[k])
-        tangent_out = ops.index_add(tangent_out, ops.index[:,:], tmp1)
-    return primal_out, tangent_out
 
 def int2e_nuc_jvp(mol, mol_t):
     coords = mol_t.coords
