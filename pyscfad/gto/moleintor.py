@@ -16,7 +16,7 @@ def getints(mol, intor, shls_slice=None,
         intor.startswith('ECP')):
         return getints2c(mol, intor, shls_slice, comp, hermi, aosym, out)
     elif intor.startswith("int2e"):
-        return int2e(mol)
+        return getints4c(mol, intor, shls_slice, comp, aosym, out)
     else:
         raise NotImplementedError
 
@@ -57,6 +57,34 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
     if mol.exp is not None:
         tangent_out += _int1e_jvp_exp(mol, mol_t, intor)
     return primal_out, tangent_out
+
+@partial(custom_jvp, nondiff_argnums=tuple(range(1,6)))
+def getints4c(mol, intor,
+              shls_slice=None, comp=1, aosym='s1', out=None):
+    return Mole.intor(mol, intor,
+                      comp=comp, aosym=aosym,
+                      shls_slice=shls_slice, out=out)
+
+@getints4c.defjvp
+def getints4c_jvp(intor, shls_slice, comp, aosym, out,
+                  primals, tangents):
+    if shls_slice is not None:
+        raise NotImplementedError
+    mol, = primals
+    primal_out = getints4c(mol, intor, shls_slice, comp, aosym, out)
+
+    mol_t, = tangents
+    tangent_out = np.zeros_like(primal_out)
+
+    if mol.coords is not None:
+        intor_ip = intor.replace("int2e", "int2e_ip1")
+        tangent_out += _int2e_jvp_r0(mol, mol_t, intor_ip)
+    if mol.ctr_coeff is not None:
+        tangent_out += _int2e_jvp_cs(mol, mol_t, intor)
+    if mol.exp is not None:
+        tangent_out += _int2e_jvp_exp(mol, mol_t, intor)
+    return primal_out, tangent_out
+
 
 def _get_fakemol_cs(mol):
     mol1 = uncontract(mol)
@@ -233,14 +261,14 @@ def _int1e_jvp_exp(mol, mol_t, intor):
         tangent_out = np.dot(c2s.T, np.dot(tangent_out, c2s))
     return tangent_out
 
-def int2e_nuc_jvp(mol, mol_t):
+def _int2e_jvp_r0(mol, mol_t, intor):
     coords = mol_t.coords
     atmlst = range(mol.natm)
     aoslices = mol.aoslice_by_atom()
     nao = mol.nao
     tangent_out = np.zeros([nao,]*4)
 
-    eri1 = -Mole.intor(mol, "int2e_ip1", comp=3)
+    eri1 = -Mole.intor(mol, intor, comp=3)
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
         tmp = np.einsum("xijkl,x->ijkl", eri1[:,p0:p1], coords[k])
@@ -250,7 +278,7 @@ def int2e_nuc_jvp(mol, mol_t):
         tangent_out = ops.index_add(tangent_out, ops.index[:,:,:,p0:p1], tmp.transpose((2,3,1,0)))
     return tangent_out
 
-def int2e_cs_jvp(mol, mol_t, intor):
+def _int2e_jvp_cs(mol, mol_t, intor):
     ctr_coeff = mol.ctr_coeff
     ctr_coeff_t = mol_t.ctr_coeff
 
@@ -290,7 +318,7 @@ def int2e_cs_jvp(mol, mol_t, intor):
     tangent_out += tangent_out.transpose(2,3,0,1)
     return tangent_out
 
-def int2e_exp_jvp(mol, mol_t, intor="int2e"):
+def _int2e_jvp_exp(mol, mol_t, intor):
     mol1 = _get_fakemol_exp(mol)
     intor = mol._add_suffix(intor, cart=True)
 
@@ -346,23 +374,3 @@ def int2e_exp_jvp(mol, mol_t, intor="int2e"):
         c2s = np.asarray(mol.cart2sph_coeff())
         tangent_out = np.einsum("iu,jv,ijkl,ks,lt->uvst", c2s, c2s, tangent_out, c2s, c2s)
     return tangent_out
-
-@custom_jvp
-def int2e(mol):
-    return Mole.intor(mol, "int2e")
-
-@int2e.defjvp
-def int2e_jvp(primals, tangents):
-    mol, = primals
-    primal_out = int2e(mol)
-
-    mol_t, = tangents
-    tangent_out = np.zeros_like(primal_out)
-
-    if mol.coords is not None:
-        tangent_out += int2e_nuc_jvp(mol, mol_t)
-    if mol.ctr_coeff is not None:
-        tangent_out += int2e_cs_jvp(mol, mol_t, "int2e")
-    if mol.exp is not None:
-        tangent_out += int2e_exp_jvp(mol, mol_t, "int2e")
-    return primal_out, tangent_out
