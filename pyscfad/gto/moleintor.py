@@ -1,11 +1,11 @@
-import numpy
 from functools import partial
+import numpy
 from jax import custom_jvp
 from pyscf.gto import mole, moleintor
 from pyscf.gto.mole import Mole
 from pyscfad.lib import numpy as np
 from pyscfad.lib import ops
-from pyscfad import gto
+from ._mole_helper import uncontract, setup_exp, setup_ctr_coeff
 
 def getints(mol, intor, shls_slice=None,
             comp=None, hermi=0, aosym='s1', out=None):
@@ -21,17 +21,20 @@ def getints(mol, intor, shls_slice=None,
         raise NotImplementedError
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
-def getints2c(mol, intor, 
+def getints2c(mol, intor,
               shls_slice=None, comp=1, hermi=0, aosym='s1', out=None):
-    return Mole.intor(mol, intor, 
-                      comp=comp, hermi=hermi, aosym=aosym, 
+    return Mole.intor(mol, intor,
+                      comp=comp, hermi=hermi, aosym=aosym,
                       shls_slice=shls_slice, out=out)
 
 @getints2c.defjvp
 def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
                   primals, tangents):
+    if shls_slice is not None:
+        raise NotImplementedError
+
     mol, = primals
-    primal_out = getints2c(mol, intor, shls_slice=None, 
+    primal_out = getints2c(mol, intor, shls_slice=None,
                            comp=comp, hermi=hermi, aosym=aosym, out=out)
 
     mol_t, = tangents
@@ -46,10 +49,8 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
 
         if intor.startswith("int1e_nuc"):
             intor_ip = intor.replace("int1e_nuc", "int1e_iprinv")
-            has_ecp = False
         elif intor.startswith("ECPscalar"):
             intor_ip = intor.replace("ECPscalar", "ECPscalar_iprinv")
-            has_ecp = True
         tangent_out += _int1e_nuc_jvp_rc(mol, mol_t, intor_ip)
     if mol.ctr_coeff is not None:
         tangent_out += _int1e_jvp_cs(mol, mol_t, intor)
@@ -58,11 +59,11 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
     return primal_out, tangent_out
 
 def _get_fakemol_cs(mol):
-    mol1 = gto.mole.uncontract(mol)
+    mol1 = uncontract(mol)
     return mol1
 
 def _get_fakemol_exp(mol):
-    mol1 = gto.mole.uncontract(mol)
+    mol1 = uncontract(mol)
     mol1._bas[:,mole.ANG_OF]  += 2
     return mol1
 
@@ -85,6 +86,8 @@ def promote_xyz(xyz, x, l):
             return xyz+'y'*l
     elif x == 'x':
         return 'x'*l+xyz
+    else:
+        raise ValueError
 
 def _int1e_jvp_r0(mol, mol_t, intor):
     coords_t = mol_t.coords
@@ -103,7 +106,6 @@ def _int1e_jvp_r0(mol, mol_t, intor):
 def _int1e_nuc_jvp_rc(mol, mol_t, intor):
     coords_t = mol_t.coords
     atmlst = range(mol.natm)
-    aoslices = mol.aoslice_by_atom()
     nao = mol.nao
     tangent_out = np.zeros((nao,nao))
     for k, ia in enumerate(atmlst):
@@ -126,7 +128,7 @@ def _int1e_jvp_cs(mol, mol_t, intor):
     shls_slice = (0, nbas1, nbas1, nbas1+nbas)
     intor = mol._add_suffix(intor)
     if 'ECP' in intor:
-        assert(mol._ecp is not None)
+        assert mol._ecp is not None
         bas = numpy.vstack((mol._bas, mol._ecpbas))
     else:
         bas = mol._bas
@@ -137,7 +139,7 @@ def _int1e_jvp_cs(mol, mol_t, intor):
         envc[mole.AS_NECPBAS] = len(mol._ecpbas)
 
     s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
-    _, cs_of, _ = gto.mole.setup_ctr_coeff(mol)
+    _, cs_of, _ = setup_ctr_coeff(mol)
     nao = mol.nao
     grad = np.zeros((len(ctr_coeff), nao, nao), dtype=float)
 
@@ -176,7 +178,7 @@ def _int1e_jvp_exp(mol, mol_t, intor):
     nbas = len(mol._bas)
     shls_slice = (0, nbas1, nbas1, nbas1+nbas)
     if 'ECP' in intor:
-        assert(mol._ecp is not None)
+        assert mol._ecp is not None
         bas = numpy.vstack((mol._bas, mol._ecpbas))
     else:
         bas = mol._bas
@@ -187,7 +189,7 @@ def _int1e_jvp_exp(mol, mol_t, intor):
         envc[mole.AS_NECPBAS] = len(mol._ecpbas)
 
     s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
-    es, es_of, _env_of = gto.mole.setup_exp(mol)
+    es, es_of, _env_of = setup_exp(mol)
     nao = mole.nao_cart(mol)
     grad = np.zeros((len(es), nao, nao), dtype=float)
 
@@ -263,7 +265,7 @@ def int2e_cs_jvp(mol, mol_t, intor):
     intor = mol._add_suffix(intor)
     eri = moleintor.getints(intor, atmc, basc, envc, shls_slice)
 
-    _, cs_of, _ = gto.mole.setup_ctr_coeff(mol)
+    _, cs_of, _ = setup_ctr_coeff(mol)
     nao = mol.nao
     grad = np.zeros((len(ctr_coeff), nao, nao, nao, nao), dtype=float)
 
@@ -300,7 +302,7 @@ def int2e_exp_jvp(mol, mol_t, intor="int2e"):
 
     eri = moleintor.getints(intor, atmc, basc, envc, shls_slice)
 
-    es, es_of, _env_of = gto.mole.setup_exp(mol)
+    es, es_of, _env_of = setup_exp(mol)
     nao = mole.nao_cart(mol)
     grad = np.zeros((len(es), nao, nao, nao, nao), dtype=float)
 

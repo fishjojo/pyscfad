@@ -7,9 +7,8 @@ from pyscf.lib import param
 from pyscf.scf import hf, diis
 from pyscf.scf.hf import MUTE_CHKFILE
 
-from pyscfad import lib
+from pyscfad import lib, gto
 from pyscfad.lib import numpy as jnp
-from pyscfad.gto import mole
 
 def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
     dm = jnp.asarray(dm)
@@ -31,7 +30,7 @@ def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
 
 @lib.dataclass
 class SCF(hf.SCF):
-    mol: mole.Mole = lib.field(pytree_node=True)
+    mol: gto.Mole = lib.field(pytree_node=True)
     mo_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
     mo_energy: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
 
@@ -85,8 +84,10 @@ class SCF(hf.SCF):
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
                omega=None):
-        if mol is None: mol = self.mol
-        if dm is None: dm = self.make_rdm1()
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm = self.make_rdm1()
         if self._eri is None:
             self._eri = self.mol.intor('int2e')
         vj, vk = dot_eri_dm(self._eri, dm, hermi, with_j, with_k)

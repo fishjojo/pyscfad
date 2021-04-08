@@ -1,4 +1,4 @@
-import jax
+import jax.ops
 
 index = jax.ops.index
 index_update = jax.ops.index_update

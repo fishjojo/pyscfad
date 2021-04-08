@@ -1,0 +1,10 @@
+name: Pylint
+on: [push, pull_request]
+jobs:
+  Pylint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - run: pip install pylint
+      - run: pylint pyscfad

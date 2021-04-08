@@ -9,12 +9,12 @@ def dataclass(cls):
     data_cls = dataclasses.dataclass()(cls)
     data_fields = []
     meta_fields = []
-    for field, field_info in data_cls.__dataclass_fields__.items():
+    for field_name, field_info in data_cls.__dataclass_fields__.items():
         is_pytree_node = field_info.metadata.get('pytree_node', False)
         if is_pytree_node:
-            data_fields.append(field)
+            data_fields.append(field_name)
         else:
-            meta_fields.append(field)
+            meta_fields.append(field_name)
 
     def tree_flatten(obj):
         data =  tuple(getattr(obj, key, "None") for key in data_fields)

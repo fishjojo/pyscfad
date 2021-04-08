@@ -1,12 +1,12 @@
 import scipy.linalg
-from pyscfad.lib import numpy as np
 from jax import custom_jvp
+from pyscfad.lib import numpy as np
 
 def eigh(a, b=None, lower=True, eigvals_only=False, overwrite_a=False,
          overwrite_b=False, turbo=True, eigvals=None, type=1,
          check_finite=True, subset_by_index=None, subset_by_value=None,
          driver=None):
-    if overwrite_a == True or overwrite_b == True:
+    if overwrite_a is True or overwrite_b is True:
         raise NotImplementedError("Overwritting a or b is not implemeneted.")
     if type != 1:
         raise NotImplementedError("Only the type=1 case of eigh is implemented.")
@@ -17,7 +17,7 @@ def eigh(a, b=None, lower=True, eigvals_only=False, overwrite_a=False,
     if b is not None:
         b = 0.5 * (b + b.T.conj())
 
-    w, v =  _eigh(a, b, lower=lower, 
+    w, v =  _eigh(a, b, lower=lower,
                   turbo=turbo, check_finite=check_finite, driver=driver)
 
     if eigvals_only:
