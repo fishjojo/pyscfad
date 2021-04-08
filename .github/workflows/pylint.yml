@@ -16,4 +16,4 @@ jobs:
       - name: install pylint
         run: pip install pylint
       - name: style check
-        run: pylint pyscfad
+        run: ./.github/workflows/lint.sh
