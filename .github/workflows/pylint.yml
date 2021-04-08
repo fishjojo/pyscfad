@@ -5,6 +5,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-      - run: pip install pylint
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: install
+        run: ./.github/workflows/install.sh
+        run: pip install pylint
+      - name: lint
       - run: pylint pyscfad
