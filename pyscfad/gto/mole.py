@@ -10,6 +10,7 @@ from pyscfad import lib
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import ops
 from pyscfad.gto import moleintor
+from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
 
 def energy_nuc(mol, charges=None, coords=None):
@@ -104,6 +105,7 @@ class Mole(gto.Mole):
             pass
 
     energy_nuc = energy_nuc
+    eval_ao = eval_gto = eval_gto
 
     def intor(self, intor, comp=None, hermi=0, aosym='s1', out=None,
               shls_slice=None):
