@@ -40,8 +40,10 @@ class VXC():
         self._exc = e
 
 def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
-    if mol is None: mol = ks.mol
-    if dm is None: dm = ks.make_rdm1()
+    if mol is None:
+        mol = ks.mol
+    if dm is None:
+        dm = ks.make_rdm1()
     t0 = (logger.process_clock(), logger.perf_counter())
 
     ground_state = getattr(dm, "ndim", None) == 2
@@ -68,7 +70,7 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
         max_memory = ks.max_memory - current_memory()[0]
         n, vxc.exc, vxc.vxc = ni.nr_rks(mol, ks.grids, ks.xc, dm, max_memory=max_memory)
         if ks.nlc != '':
-            assert('VV10' in ks.nlc.upper())
+            assert 'VV10' in ks.nlc.upper()
             _, enlc, vnlc = ni.nr_rks(mol, ks.nlcgrids, ks.xc+'__'+ks.nlc, dm,
                                       max_memory=max_memory)
             vxc.exc += enlc
@@ -159,6 +161,7 @@ class KohnShamDFT(rks.KohnShamDFT):
     _numint: numint.NumInt = numint.NumInt()
 
     def __post_init__(self):
+        # pylint: disable=E1101
         if self.grids is None:
             self.grids = gen_grid.Grids(self.mol)
             self.grids.level = getattr(__config__, 'dft_rks_RKS_grids_level',

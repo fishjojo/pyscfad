@@ -1,8 +1,8 @@
 import warnings
 import math
-import numpy
 import ctypes
 from functools import partial
+import numpy
 from jax import custom_jvp
 from pyscf.dft.libxc import PROBLEMATIC_XC
 from pyscf.dft.libxc import parse_xc, needs_laplacian, _itrf, is_lda, is_meta_gga
@@ -16,7 +16,7 @@ def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=Non
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
 def _eval_xc(rho, hyb, fn_facs, spin=0, relativity=0, deriv=1, verbose=None):
-    assert(deriv <= 3)
+    assert deriv <= 3
     if spin == 0:
         nspin = 1
         rho_u = rho_d = numpy.asarray(rho, order='C')
@@ -24,8 +24,8 @@ def _eval_xc(rho, hyb, fn_facs, spin=0, relativity=0, deriv=1, verbose=None):
         nspin = 2
         rho_u = numpy.asarray(rho[0], order='C')
         rho_d = numpy.asarray(rho[1], order='C')
-    assert(rho_u.dtype == numpy.double)
-    assert(rho_d.dtype == numpy.double)
+    assert rho_u.dtype == numpy.double
+    assert rho_d.dtype == numpy.double
 
     if rho_u.ndim == 1:
         rho_u = rho_u.reshape(1,-1)
@@ -47,8 +47,9 @@ def _eval_xc(rho, hyb, fn_facs, spin=0, relativity=0, deriv=1, verbose=None):
         warnings.warn('Libxc functionals %s may have discrepancy to xcfun '
                       'library.\n' % problem_xc)
 
-    if any([needs_laplacian(fid) for fid in fn_ids]):
-        raise NotImplementedError('laplacian in meta-GGA method')
+    for fid in fn_ids:
+        if needs_laplacian(fid):
+            raise NotImplementedError('laplacian in meta-GGA method')
 
     n = len(fn_ids)
     if (n == 0 or  # xc_code = '' or xc_code = 'HF', an empty functional

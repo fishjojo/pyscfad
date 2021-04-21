@@ -1,6 +1,6 @@
 import numpy
 from pyscf.dft import numint
-from pyscf.dft.numint import SWITCH_SIZE
+from pyscf.dft.numint import SWITCH_SIZE, _vv10nlc
 from pyscf.dft.gen_grid import make_mask, BLKSIZE
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import ops
@@ -38,7 +38,8 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 # *.5 because vmat + vmat.T
                 #:aow = numpy.einsum('pi,p->pi', ao, .5*weight*vrho, out=aow)
                 aow = _scale_ao(ao, .5*weight*vrho, out=None)
-                vmat = ops.index_add(vmat, ops.index[idm], _dot_ao_ao(mol, ao, aow, mask, shls_slice, ao_loc))
+                vmat = ops.index_add(vmat, ops.index[idm],
+                                     _dot_ao_ao(mol, ao, aow, mask, shls_slice, ao_loc))
                 rho = exc = vxc = vrho = None
     elif xctype == 'GGA':
         ao_deriv = 1
@@ -57,7 +58,8 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 wv = _rks_gga_wv0(rho, vxc, weight)
                 #:aow = numpy.einsum('npi,np->pi', ao, wv, out=aow)
                 aow = _scale_ao(ao, wv, out=None)
-                vmat = ops.index_add(vmat, ops.index[idm], _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc))
+                vmat = ops.index_add(vmat, ops.index[idm],
+                                     _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc))
                 rho = exc = vxc = wv = None
     elif xctype == 'NLC':
         nlc_pars = ni.nlc_coeff(xc_code[:-6])
@@ -102,7 +104,7 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 rho = exc = vxc = wv = None
         vvrho = vvweight = vvcoords = None
     elif xctype == 'MGGA':
-        if (any(x in xc_code.upper() for x in ('CC06', 'CS', 'BR89', 'MK00'))):
+        if any(x in xc_code.upper() for x in ('CC06', 'CS', 'BR89', 'MK00')):
             raise NotImplementedError('laplacian in meta-GGA method')
         ao_deriv = 2
         for ao, mask, weight, coords \
@@ -113,6 +115,7 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 exc, vxc = ni.eval_xc(xc_code, rho, spin=0,
                                       relativity=relativity, deriv=1,
                                       verbose=verbose)[:2]
+                # pylint: disable=W0612
                 vrho, vsigma, vlapl, vtau = vxc[:4]
                 den = rho[0] * weight
                 nelec[idm] += den.sum()
@@ -123,6 +126,7 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 aow = _scale_ao(ao[:4], wv, out=aow)
                 vmat[idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
 
+# pylint: disable=W0511
 # FIXME: .5 * .5   First 0.5 for v+v.T symmetrization.
 # Second 0.5 is due to the Libxc convention tau = 1/2 \nabla\phi\dot\nabla\phi
                 wv = (.5 * .5 * weight * vtau).reshape(-1,1)
@@ -143,10 +147,10 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
 
 def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
     xctype = xctype.upper()
-    if xctype == 'LDA' or xctype == 'HF':
-        ngrids, nao = ao.shape
+    if xctype in ('LDA', 'HF'):
+        ngrids = ao.shape[0]
     else:
-        ngrids, nao = ao[0].shape
+        ngrids = ao[0].shape[0]
 
     if non0tab is None:
         non0tab = numpy.ones(((ngrids+BLKSIZE-1)//BLKSIZE,mol.nbas),
@@ -158,7 +162,7 @@ def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
 
     shls_slice = (0, mol.nbas)
     ao_loc = mol.ao_loc_nr()
-    if xctype == 'LDA' or xctype == 'HF':
+    if xctype in ('LDA', 'HF'):
         c0 = _dot_ao_dm(mol, ao, dm, non0tab, shls_slice, ao_loc)
         #:rho = numpy.einsum('pi,pi->p', ao, c0)
         rho = _contract_rho(ao, c0)
@@ -206,13 +210,15 @@ def _scale_ao(ao, wv, out=None):
 
 def _dot_ao_ao(mol, ao1, ao2, non0tab, shls_slice, ao_loc, hermi=0):
     '''return numpy.dot(ao1.T, ao2)'''
-    ngrids, nao = ao1.shape
+    nao = ao1.shape[-1]
     if nao < SWITCH_SIZE:
         return jnp.dot(ao1.T.conj(), ao2)
+    else:
+        raise NotImplementedError
 
 def _dot_ao_dm(mol, ao, dm, non0tab, shls_slice, ao_loc, out=None):
     '''return numpy.dot(ao, dm)'''
-    ngrids, nao = ao.shape
+    nao = ao.shape[-1]
     if nao < SWITCH_SIZE:
         return jnp.dot(jnp.asarray(dm).T, ao.T).T
     else:
@@ -221,7 +227,6 @@ def _dot_ao_dm(mol, ao, dm, non0tab, shls_slice, ao_loc, out=None):
 def _contract_rho(bra, ket):
     bra = bra.T
     ket = ket.T
-    nao, ngrids = bra.shape
 
     rho  = jnp.einsum('ip,ip->p', bra.real, ket.real)
     rho += jnp.einsum('ip,ip->p', bra.imag, ket.imag)
@@ -239,6 +244,7 @@ def _rks_gga_wv0(rho, vxc, weight):
 class NumInt(numint.NumInt):
     def _gen_rho_evaluator(self, mol, dms, hermi=0):
         if getattr(dms, 'mo_coeff', None) is not None:
+            # pylint: disable=W0511
             #TODO: test whether dm.mo_coeff matching dm
             mo_coeff = dms.mo_coeff
             mo_occ = dms.mo_occ
@@ -264,7 +270,8 @@ class NumInt(numint.NumInt):
 
     def eval_xc(self, xc_code, rho, spin=0, relativity=0, deriv=1, omega=None,
                 verbose=None):
-        if omega is None: omega = self.omega
+        if omega is None:
+            omega = self.omega
         return libxc.eval_xc(xc_code, rho, spin, relativity, deriv,
                              omega, verbose)
 
