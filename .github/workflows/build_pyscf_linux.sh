@@ -8,9 +8,8 @@ sudo apt-get -qq install \
     curl
 
 cd pyscf/pyscf/lib
-#curl http://www.sunqm.net/pyscf/files/bin/pyscf-1.7.5-deps.tar.gz | tar xzf -
+curl http://www.sunqm.net/pyscf/files/bin/pyscf-2.0a-deps.tar.gz | tar xzf -
 mkdir build; cd build
-#cmake -DBUILD_LIBXC=OFF -DBUILD_XCFUN=OFF ..
+cmake -DBUILD_LIBXC=OFF -DBUILD_XCFUN=OFF -DBUILD_LIBCINT=OFF ..
 cmake ..
 make -j4
-#cd ../../../..
