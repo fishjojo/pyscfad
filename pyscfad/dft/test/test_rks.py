@@ -52,4 +52,4 @@ def test_rks_nuc_grad(get_mol, get_mol_p, get_mol_m):
     em = mfm.kernel()
 
     g_fd = (ep-em) / 1e-4 * BOHR
-    assert abs(g[1,2] - g_fd) < 3e-6
+    assert abs(g[1,2] - g_fd) < 1e-5
