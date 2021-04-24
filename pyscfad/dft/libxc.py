@@ -137,7 +137,9 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
     rho, = primals
     rho_t, = tangents
 
-    assert deriv == 1
+    if deriv > 2:
+        raise NotImplementedError
+
     exc, vxc, fxc, kxc = _eval_xc(rho, hyb, fn_facs, spin, relativity, deriv+1, verbose)
 
     fn_ids = [x[0] for x in fn_facs]
@@ -148,7 +150,20 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
         vxc_jvp = (fxc[0] * rho_t, None, None, None)
         #vxc_jvp = ((fxc[0] - 2. * (vxc[0] - exc) / rho) * rho_t, None, None, None)
     elif any((is_meta_gga(x) for x in fn_ids)):
-        raise NotImplementedError
+        exc_jvp = (vxc[0] - exc) / rho[0] * rho_t[0]
+        exc_jvp += vxc[1] / rho[0] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
+        exc_jvp += vxc[2] / rho[0] * rho_t[4]
+        exc_jvp += vxc[3] / rho[0] * rho_t[5]
+
+        vrho1 = fxc[0] * rho_t[0] + fxc[1] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4]) \
+              + fxc[5] * rho_t[4] + fxc[6] * rho_t[5]
+        vsigma1 = fxc[1] * rho_t[0] + fxc[2] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4]) \
+                + fxc[8] * rho_t[4] + fxc[9] * rho_t[5]
+        vlapl1 = fxc[5] * rho_t[0] + fxc[8] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4]) \
+               + fxc[3] * rho_t[4] + fxc[7] * rho_t[5]
+        vtau1 = fxc[6] * rho_t[0] + fxc[9] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4]) \
+              + fxc[7] * rho_t[4] + fxc[4] * rho_t[5]
+        vxc_jvp = jnp.vstack((vrho1, vsigma1, vlapl1, vtau1))
     else:
         exc_jvp = (vxc[0] - exc) / rho[0] * rho_t[0]
         exc_jvp += vxc[1] / rho[0] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
@@ -157,6 +172,10 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
         vsigma1 = fxc[1] * rho_t[0] + fxc[2] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
         vxc_jvp = (vrho1, vsigma1, None, None)
 
-    if deriv == 1:
+    if deriv == 0:
+        vxc = fxc = kxc = vxc_jvp = fxc_jvp = kxc_jvp = None
+    elif deriv == 1:
         fxc = kxc = fxc_jvp = kxc_jvp = None
+    elif deriv == 2:
+        kxc = kxc_jvp = None
     return (exc, vxc, fxc, kxc), (exc_jvp, vxc_jvp, fxc_jvp, kxc_jvp)
