@@ -13,5 +13,5 @@ mol.build(trace_coords=True)
 
 mf = dft.RKS(mol)
 mf.xc = 'b3lyp'
-g = mf.nuc_grad_ad()
+g = mf.nuc_grad_ad(mode="fwd")
 print(g)

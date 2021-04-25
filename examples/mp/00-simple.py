@@ -25,7 +25,7 @@ def func(mymp):
     mymp.kernel()
     return mymp.e_tot
 
-jac = jax.jacfwd(func)(mymp)
+jac = jax.grad(func)(mymp)
 print(jac._scf.mol.coords)
 print(jac._scf.mol.exp)
 print(jac._scf.mol.ctr_coeff)
