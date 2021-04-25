@@ -26,6 +26,6 @@ def test_grad_nuc(get_mol0, get_mol):
     mol0 = get_mol0
     g0 = grad_nuc(mol0)
     mol = get_mol
-    jac = jax.jacfwd(mol.__class__.energy_nuc)(mol)
+    jac = jax.grad(mol.__class__.energy_nuc)(mol)
     g = jac.coords
     assert abs(g-g0).max() < 1e-10

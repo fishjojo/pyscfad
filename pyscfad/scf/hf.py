@@ -70,6 +70,7 @@ class SCF(hf.SCF):
 
     def __post_init__(self):
         if not MUTE_CHKFILE and self.chkfile is None:
+            # pylint: disable=R1732
             self._chkfile = tempfile.NamedTemporaryFile(dir=param.TMPDIR)
             self.chkfile = self._chkfile.name
 
@@ -93,7 +94,7 @@ class SCF(hf.SCF):
         vj, vk = dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
         return vj, vk
 
-    def nuc_grad_ad(self):
+    def nuc_grad_ad(self, mode="rev"):
         """
         Energy gradient wrt nuclear coordinates computed by AD
         """
@@ -102,7 +103,10 @@ class SCF(hf.SCF):
             self.reset() # need to reset _eri to get its gradient
         else:
             dm0 = self.get_init_guess() #avoid tracing through get_init_guess
-        jac = jax.jacfwd(self.__class__.kernel)(self, dm0=dm0)
+        if mode == "fwd":
+            jac = jax.jacfwd(self.__class__.kernel)(self, dm0=dm0)
+        else:
+            jac = jax.jacrev(self.__class__.kernel)(self, dm0=dm0)
         return jac.mol.coords
 
 RHF = SCF

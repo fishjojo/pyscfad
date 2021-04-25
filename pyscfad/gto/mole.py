@@ -1,6 +1,7 @@
 import sys
 from typing import Optional, Union, Any
 import numpy
+import jax
 
 from pyscf import __config__
 from pyscf import gto
@@ -28,9 +29,31 @@ def inter_distance(mol, coords=None):
         coords = mol.coords
     if coords is None:
         coords = mol.atom_coords()
+    return _rr(coords)
+
+@jax.custom_jvp
+def _rr(coords):
     rr = jnp.linalg.norm(coords.reshape(-1,1,3) - coords, axis=2)
     rr = ops.index_update(rr, jnp.diag_indices_from(rr), 0.)
     return rr
+
+@_rr.defjvp
+def _rr_jvp(primals, tangents):
+    coords, = primals
+    coords_t, = tangents
+
+    primal_out = _rr(coords)
+
+    r = coords.reshape(-1,1,3) - coords
+    rnorm = jnp.linalg.norm(r, axis=2)
+    rnorm = ops.index_update(rnorm, jnp.diag_indices_from(rnorm), 1.e200)
+    natm = coords.shape[0]
+    tangent_out = jnp.zeros_like(primal_out)
+    for i in range(natm):
+        tangent_out = ops.index_add(tangent_out, ops.index[i],
+                jnp.einsum('nx,x->n', r[i] / rnorm[i,:,None], coords_t[i]))
+    tangent_out += tangent_out.T
+    return primal_out, tangent_out
 
 @lib.dataclass
 class Mole(gto.Mole):
