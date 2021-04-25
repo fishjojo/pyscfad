@@ -1,10 +1,16 @@
+from functools import partial
 import numpy
+import jax
+from jax import custom_jvp
+import pyscf
 from pyscf.dft import numint
-from pyscf.dft.numint import SWITCH_SIZE, _vv10nlc
+from pyscf.dft.numint import SWITCH_SIZE
 from pyscf.dft.gen_grid import make_mask, BLKSIZE
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import ops
 from . import libxc
+
+libdft = pyscf.lib.load_library('libdft')
 
 def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
            max_memory=2000, verbose=None):
@@ -73,34 +79,37 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
         vvcoords=numpy.empty([nset,0,3])
         for ao, mask, weight, coords \
                 in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
+            ao = jax.lax.stop_gradient(ao)
             rhotmp = numpy.empty([0,4,weight.size])
             weighttmp = numpy.empty([0,weight.size])
             coordstmp = numpy.empty([0,weight.size,3])
             for idm in range(nset):
                 rho = make_rho(idm, ao, mask, 'GGA')
+                rho = numpy.asarray(jax.lax.stop_gradient(rho))
                 rho = numpy.expand_dims(rho,axis=0)
                 rhotmp = numpy.concatenate((rhotmp,rho),axis=0)
                 weighttmp = numpy.concatenate((weighttmp,numpy.expand_dims(weight,axis=0)),axis=0)
                 coordstmp = numpy.concatenate((coordstmp,numpy.expand_dims(coords,axis=0)),axis=0)
                 rho = None
-            vvrho=numpy.concatenate((vvrho,rhotmp),axis=2)
-            vvweight=numpy.concatenate((vvweight,weighttmp),axis=1)
-            vvcoords=numpy.concatenate((vvcoords,coordstmp),axis=1)
+            vvrho = numpy.concatenate((vvrho,rhotmp),axis=2)
+            vvweight = numpy.concatenate((vvweight,weighttmp),axis=1)
+            vvcoords = numpy.concatenate((vvcoords,coordstmp),axis=1)
             rhotmp = weighttmp = coordstmp = None
         for ao, mask, weight, coords \
                 in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
-            aow = numpy.ndarray(ao[0].shape, order='F', buffer=aow)
+            #aow = numpy.ndarray(ao[0].shape, order='F', buffer=aow)
             for idm in range(nset):
                 rho = make_rho(idm, ao, mask, 'GGA')
                 exc, vxc = _vv10nlc(rho,coords,vvrho[idm],vvweight[idm],vvcoords[idm],nlc_pars)
                 den = rho[0] * weight
-                nelec[idm] += den.sum()
-                excsum[idm] += numpy.dot(den, exc)
+                nelec[idm] += getattr(den.sum(), "val", den.sum())
+                excsum = ops.index_add(excsum, ops.index[idm], jnp.dot(den, exc))
 # ref eval_mat function
                 wv = _rks_gga_wv0(rho, vxc, weight)
                 #:aow = numpy.einsum('npi,np->pi', ao, wv, out=aow)
-                aow = _scale_ao(ao, wv, out=aow)
-                vmat[idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
+                aow = _scale_ao(ao, wv, out=None)
+                vmat = ops.index_add(vmat, ops.index[idm],
+                                     _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc))
                 rho = exc = vxc = wv = None
         vvrho = vvweight = vvcoords = None
     elif xctype == 'MGGA':
@@ -242,6 +251,25 @@ def _rks_gga_wv0(rho, vxc, weight):
     wv = ops.index_update(wv, ops.index[1:], (weight * vgamma * 2) * rho[1:4])
     #wv = ops.index_mul(wv, ops.index[0], .5)  # v+v.T should be applied in the caller
     return wv
+
+@partial(custom_jvp, nondiff_argnums=(1,2,3,4,5,))
+def _vv10nlc(rho, coords, vvrho, vvweight, vvcoords, nlc_pars):
+    rho = numpy.asarray(rho)
+    return numint._vv10nlc(rho, coords, vvrho, vvweight, vvcoords, nlc_pars)
+
+@_vv10nlc.defjvp
+def _vv10nlc_jvp(coords, vvrho, vvweight, vvcoords, nlc_pars,
+                 primals, tangents):
+    rho, = primals
+    rho_t, = tangents
+
+    exc, vxc = _vv10nlc(rho, coords, vvrho, vvweight, vvcoords, nlc_pars)
+
+    exc_jvp = (vxc[0] - exc) / rho[0] * rho_t[0] \
+            + vxc[1] / rho[0] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
+    # pylint: disable=W0511
+    vxc_jvp = jnp.zeros_like(vxc) # FIXME gradient of vxc not implemented
+    return (exc,vxc), (exc_jvp, vxc_jvp)
 
 class NumInt(numint.NumInt):
     def _gen_rho_evaluator(self, mol, dms, hermi=0):
