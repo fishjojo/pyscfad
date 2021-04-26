@@ -1,6 +1,10 @@
 import scipy.linalg
 from jax import custom_jvp
 from pyscfad.lib import numpy as np
+from pyscfad.lib import ops
+
+# threshold for degenerate eigenvalues
+DEG_THRESH = 1e-10
 
 def eigh(a, b=None, lower=True, eigvals_only=False, overwrite_a=False,
          overwrite_b=False, turbo=True, eigvals=None, type=1,
@@ -36,6 +40,7 @@ def _eigh(a, b, lower=True,
 
 @_eigh.defjvp
 def _eigh_jvp(primals, tangents):
+    deg_thresh = DEG_THRESH
     a, b = primals[:2]
     at, bt = tangents[:2]
 
@@ -51,6 +56,10 @@ def _eigh_jvp(primals, tangents):
     dw = np.diag(da_minus_ds)
 
     eye_n = np.eye(a.shape[-1], dtype=a.dtype)
-    Fmat = np.reciprocal(eye_n + w[..., np.newaxis, :] - w[..., np.newaxis]) - eye_n
+    eji = w[..., np.newaxis, :] - w[..., np.newaxis]
+    idx = abs(eji) < deg_thresh
+    eji = ops.index_update(eji, ops.index[idx], 1.e200)
+    eji = ops.index_update(eji, np.diag_indices_from(eji), 1.)
+    Fmat = np.reciprocal(eji) - eye_n
     dv = np.dot(v, np.multiply(Fmat, da_minus_ds) - np.multiply(eye_n, vt_bt_v) * .5)
     return (w,v), (dw,dv)
