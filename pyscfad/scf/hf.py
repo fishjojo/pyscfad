@@ -1,14 +1,13 @@
 import tempfile
 from typing import Optional, Any
 import jax
-
 from pyscf import __config__
 from pyscf.lib import param
 from pyscf.scf import hf, diis
 from pyscf.scf.hf import MUTE_CHKFILE
-
 from pyscfad import lib, gto
 from pyscfad.lib import numpy as jnp
+from pyscfad.lib import stop_grad
 
 def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
     dm = jnp.asarray(dm)
@@ -94,15 +93,21 @@ class SCF(hf.SCF):
         vj, vk = dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
         return vj, vk
 
+    def get_init_guess(self, mol=None, key='minao'):
+        if mol is None:
+            mol = self.mol
+        mol = stop_grad(mol)
+        return hf.SCF.get_init_guess(self, mol, key)
+
     def nuc_grad_ad(self, mode="rev"):
         """
         Energy gradient wrt nuclear coordinates computed by AD
         """
+        dm0 = None
         if self.converged:
             dm0 = self.make_rdm1()
             self.reset() # need to reset _eri to get its gradient
-        else:
-            dm0 = self.get_init_guess() #avoid tracing through get_init_guess
+
         if mode == "fwd":
             jac = jax.jacfwd(self.__class__.kernel)(self, dm0=dm0)
         else:

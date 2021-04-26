@@ -6,6 +6,7 @@ from pyscf.lib import logger
 from pyscf.dft import rks, gen_grid
 from pyscfad import lib
 from pyscfad.lib import numpy as jnp
+from pyscfad.lib import stop_grad
 from pyscfad.scf import hf
 from . import numint
 
@@ -137,8 +138,8 @@ def energy_elec(ks, dm=None, h1e=None, vhf=None):
 
 NELEC_ERROR_TOL = getattr(__config__, 'dft_rks_prune_error_tol', 0.02)
 def prune_small_rho_grids_(ks, mol, dm, grids):
-    mol = jax.lax.stop_gradient(mol)
-    dm = jax.lax.stop_gradient(dm)
+    mol = stop_grad(mol)
+    dm = stop_grad(dm)
     rho = ks._numint.get_rho(mol, dm, grids, ks.max_memory)
     n = numpy.dot(rho, grids.weights)
     if abs(n-mol.nelectron) < NELEC_ERROR_TOL*n:

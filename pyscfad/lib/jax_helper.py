@@ -3,7 +3,10 @@ Extensions to dataclasses
 """
 
 import dataclasses
+import jax
 from jax import tree_util
+
+stop_grad = jax.lax.stop_gradient
 
 def dataclass(cls):
     data_cls = dataclasses.dataclass()(cls)

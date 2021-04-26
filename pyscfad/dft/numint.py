@@ -8,6 +8,7 @@ from pyscf.dft.numint import SWITCH_SIZE
 from pyscf.dft.gen_grid import make_mask, BLKSIZE
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import ops
+from pyscfad.lib import stop_grad
 from . import libxc
 
 libdft = pyscf.lib.load_library('libdft')
@@ -79,13 +80,13 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
         vvcoords=numpy.empty([nset,0,3])
         for ao, mask, weight, coords \
                 in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
-            ao = jax.lax.stop_gradient(ao)
+            ao = stop_grad(ao)
             rhotmp = numpy.empty([0,4,weight.size])
             weighttmp = numpy.empty([0,weight.size])
             coordstmp = numpy.empty([0,weight.size,3])
             for idm in range(nset):
                 rho = make_rho(idm, ao, mask, 'GGA')
-                rho = numpy.asarray(jax.lax.stop_gradient(rho))
+                rho = numpy.asarray(stop_grad(rho))
                 rho = numpy.expand_dims(rho,axis=0)
                 rhotmp = numpy.concatenate((rhotmp,rho),axis=0)
                 weighttmp = numpy.concatenate((weighttmp,numpy.expand_dims(weight,axis=0)),axis=0)
