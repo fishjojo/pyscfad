@@ -122,27 +122,34 @@ def _int1e_jvp_r0(mol, mol_t, intor):
     atmlst = range(mol.natm)
     aoslices = mol.aoslice_by_atom()
     nao = mol.nao
-    tangent_out = np.zeros((nao,nao))
+    #tangent_out = np.zeros((nao,nao))
     s1 = -Mole.intor(mol, intor, comp=3)
+    grad = numpy.zeros((mol.natm,3,nao,nao), dtype=float)
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
-        tmp = np.einsum('xij,x->ij',s1[:,p0:p1],coords_t[k])
-        tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
-        tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.T)
+        #tmp = np.einsum('xij,x->ij',s1[:,p0:p1],coords_t[k])
+        #tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
+        #tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.T)
+        grad[k,:,p0:p1] = s1[:,p0:p1]
+    grad += grad.transpose(0,1,3,2)
+    tangent_out = np.einsum('nxij,nx->ij', grad, coords_t)
+    #tangent_out += tangent_out.T
     return tangent_out
 
 def _int1e_nuc_jvp_rc(mol, mol_t, intor):
     coords_t = mol_t.coords
     atmlst = range(mol.natm)
     nao = mol.nao
-    tangent_out = np.zeros((nao,nao))
+    #tangent_out = np.zeros((nao,nao))
+    grad = numpy.zeros((mol.natm,3,nao,nao), dtype=float)
     for k, ia in enumerate(atmlst):
         with mol.with_rinv_at_nucleus(ia):
             vrinv = Mole.intor(mol, intor, comp=3)
             if "ECP" not in intor:
                 vrinv *= -mol.atom_charge(ia)
         vrinv += vrinv.transpose(0,2,1)
-        tangent_out += np.einsum('xij,x->ij', vrinv, coords_t[k])
+        grad[k] = vrinv
+    tangent_out = np.einsum('nxij,nx->ij', grad, coords_t)
     return tangent_out
 
 def _int1e_jvp_cs(mol, mol_t, intor):
@@ -169,7 +176,8 @@ def _int1e_jvp_cs(mol, mol_t, intor):
     s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
     _, cs_of, _ = setup_ctr_coeff(mol)
     nao = mol.nao
-    grad = np.zeros((len(ctr_coeff), nao, nao), dtype=float)
+    #grad = np.zeros((len(ctr_coeff), nao, nao), dtype=float)
+    grad = numpy.zeros((len(ctr_coeff), nao, nao), dtype=float)
 
     off = 0
     ibas = 0
@@ -183,13 +191,15 @@ def _int1e_jvp_cs(mol, mol_t, intor):
         nctr = mol._bas[i,mole.NCTR_OF]
         g = s[off:(off+nprim*nbas)].reshape(nprim,-1,nao)
         for j in range(nctr):
-            idx = ops.index[(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim), ibas:(ibas+nbas), :]
-            grad = ops.index_add(grad, idx, g)
+            #idx = ops.index[(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim), ibas:(ibas+nbas), :]
+            #grad = ops.index_add(grad, idx, g)
+            grad[(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim), ibas:(ibas+nbas)] += g
             ibas += nbas
         off += nprim*nbas
     grad += grad.transpose(0,2,1)
 
     tangent_out = np.einsum('xij,x->ij', grad, ctr_coeff_t)
+    #tangent_out += tangent_out.T
     return tangent_out
 
 def _int1e_jvp_exp(mol, mol_t, intor):
@@ -219,7 +229,8 @@ def _int1e_jvp_exp(mol, mol_t, intor):
     s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
     es, es_of, _env_of = setup_exp(mol)
     nao = mole.nao_cart(mol)
-    grad = np.zeros((len(es), nao, nao), dtype=float)
+    #grad = np.zeros((len(es), nao, nao), dtype=float)
+    grad = numpy.zeros((len(es), nao, nao), dtype=float)
 
     off = 0
     ibas = 0
@@ -249,13 +260,15 @@ def _int1e_jvp_exp(mol, mol_t, intor):
                     idx_y = xyz1.index(promote_xyz(orb, 'y', 2))
                     idx_z = xyz1.index(promote_xyz(orb, 'z', 2))
                     gc = -(g[j,idx_x] + g[j,idx_y] + g[j,idx_z]) *  c
-                    grad = ops.index_add(grad, ops.index[ioff+j, jbas], gc)
+                    #grad = ops.index_add(grad, ops.index[ioff+j, jbas], gc)
+                    grad[ioff+j, jbas] += gc
                     jbas += 1
             ibas += nbas
         off += nprim * nbas1
 
+    grad += grad.transpose(0,2,1)
     tangent_out = np.einsum('xij,x->ij', grad, mol_t.exp)
-    tangent_out += tangent_out.T
+    #tangent_out += tangent_out.T
     if not mol.cart or not cart:
         c2s = np.asarray(mol.cart2sph_coeff())
         tangent_out = np.dot(c2s.T, np.dot(tangent_out, c2s))
@@ -266,16 +279,23 @@ def _int2e_jvp_r0(mol, mol_t, intor):
     atmlst = range(mol.natm)
     aoslices = mol.aoslice_by_atom()
     nao = mol.nao
-    tangent_out = np.zeros([nao,]*4)
+    #tangent_out = np.zeros([nao,]*4)
 
     eri1 = -Mole.intor(mol, intor, comp=3)
+    grad = numpy.zeros((mol.natm,3,nao,nao,nao,nao), dtype=float)
     for k, ia in enumerate(atmlst):
         p0, p1 = aoslices [ia,2:]
-        tmp = np.einsum("xijkl,x->ijkl", eri1[:,p0:p1], coords[k])
-        tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
-        tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.transpose((1,0,2,3)))
-        tangent_out = ops.index_add(tangent_out, ops.index[:,:,p0:p1], tmp.transpose((2,3,0,1)))
-        tangent_out = ops.index_add(tangent_out, ops.index[:,:,:,p0:p1], tmp.transpose((2,3,1,0)))
+        #tmp = np.einsum("xijkl,x->ijkl", eri1[:,p0:p1], coords[k])
+        #tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
+        #tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.transpose((1,0,2,3)))
+        #tangent_out = ops.index_add(tangent_out, ops.index[:,:,p0:p1], tmp.transpose((2,3,0,1)))
+        #tangent_out = ops.index_add(tangent_out, ops.index[:,:,:,p0:p1], tmp.transpose((2,3,1,0)))
+        grad[k,:,p0:p1] = eri1[:,p0:p1]
+    #grad += grad.transpose(0,1,3,2,4,5)
+    #grad += grad.transpose(0,1,4,5,2,3)
+    tangent_out = np.einsum("nxijkl,nx->ijkl", grad, coords)
+    tangent_out += tangent_out.transpose(1,0,2,3)
+    tangent_out += tangent_out.transpose(2,3,0,1)
     return tangent_out
 
 def _int2e_jvp_cs(mol, mol_t, intor):
@@ -295,7 +315,8 @@ def _int2e_jvp_cs(mol, mol_t, intor):
 
     _, cs_of, _ = setup_ctr_coeff(mol)
     nao = mol.nao
-    grad = np.zeros((len(ctr_coeff), nao, nao, nao, nao), dtype=float)
+    #grad = np.zeros((len(ctr_coeff), nao, nao, nao, nao), dtype=float)
+    grad = numpy.zeros((len(ctr_coeff), nao, nao, nao, nao), dtype=float)
 
     off = 0
     ibas = 0
@@ -309,10 +330,13 @@ def _int2e_jvp_cs(mol, mol_t, intor):
         nctr = mol._bas[i,mole.NCTR_OF]
         g = eri[off:(off+nprim*nbas)].reshape(nprim,-1,nao,nao,nao)
         for j in range(nctr):
-            idx = ops.index[(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim), ibas:(ibas+nbas)]
-            grad = ops.index_add(grad, idx, g)
+            #idx = ops.index[(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim), ibas:(ibas+nbas)]
+            #grad = ops.index_add(grad, idx, g)
+            grad[(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim), ibas:(ibas+nbas)] += g
             ibas += nbas
         off += nprim*nbas
+    #grad += grad.transpose(0,2,1,3,4)
+    #grad += grad.transpose(0,3,4,1,2)
     tangent_out = np.einsum('xijkl,x->ijkl', grad, ctr_coeff_t)
     tangent_out += tangent_out.transpose(1,0,2,3)
     tangent_out += tangent_out.transpose(2,3,0,1)
@@ -332,7 +356,8 @@ def _int2e_jvp_exp(mol, mol_t, intor):
 
     es, es_of, _env_of = setup_exp(mol)
     nao = mole.nao_cart(mol)
-    grad = np.zeros((len(es), nao, nao, nao, nao), dtype=float)
+    #grad = np.zeros((len(es), nao, nao, nao, nao), dtype=float)
+    grad = numpy.zeros((len(es), nao, nao, nao, nao), dtype=float)
 
     off = 0
     ibas = 0
@@ -362,11 +387,14 @@ def _int2e_jvp_exp(mol, mol_t, intor):
                     idx_y = xyz1.index(promote_xyz(orb, 'y', 2))
                     idx_z = xyz1.index(promote_xyz(orb, 'z', 2))
                     gc = -(g[j,idx_x] + g[j,idx_y] + g[j,idx_z]) *  c
-                    grad = ops.index_add(grad, ops.index[ioff+j, jbas], gc)
+                    #grad = ops.index_add(grad, ops.index[ioff+j, jbas], gc)
+                    grad[ioff+j, jbas] += gc
                     jbas += 1
             ibas += nbas
         off += nprim * nbas1
 
+    #grad += grad.transpose(0,2,1,3,4)
+    #grad += grad.transpose(0,3,4,1,2)
     tangent_out = np.einsum('xijkl,x->ijkl', grad, mol_t.exp)
     tangent_out += tangent_out.transpose(1,0,2,3)
     tangent_out += tangent_out.transpose(2,3,0,1)
