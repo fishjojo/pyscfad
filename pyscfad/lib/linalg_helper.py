@@ -1,4 +1,8 @@
+from functools import partial
+import numpy
+import scipy
 import scipy.linalg
+from jax import jit
 from jax import custom_jvp
 from pyscfad.lib import numpy as np
 from pyscfad.lib import ops
@@ -40,26 +44,37 @@ def _eigh(a, b, lower=True,
 
 @_eigh.defjvp
 def _eigh_jvp(primals, tangents):
-    deg_thresh = DEG_THRESH
     a, b = primals[:2]
     at, bt = tangents[:2]
-
     w, v = _eigh(*primals)
-
-    vt_at_v = np.dot(v.conj().T, np.dot(at, v))
+    deg_thresh = DEG_THRESH
+    eji = w[..., numpy.newaxis, :] - w[..., numpy.newaxis]
+    idx = abs(eji) < deg_thresh
+    eji[idx] = 1.e200
+    eji[numpy.diag_indices_from(eji)] = 1
+    eye_n = numpy.eye(a.shape[-1], dtype=a.dtype)
+    Fmat = numpy.reciprocal(eji) - eye_n
     if b is None:
-        vt_bt_v = 0
+        dw, dv = _eigh_jvp_jitted_nob(v, Fmat, at)
     else:
-        vt_bt_v = np.dot(v.conj().T, np.dot(bt, v))
+        dw, dv = _eigh_jvp_jitted(w, v, Fmat, at, bt)
+    return (w,v), (dw,dv)
+
+@jit
+def _eigh_jvp_jitted(w, v, Fmat, at, bt):
+    vt_at_v = np.dot(v.conj().T, np.dot(at, v))
+    vt_bt_v = np.dot(v.conj().T, np.dot(bt, v))
     vt_bt_v_w = np.dot(vt_bt_v, np.diag(w))
     da_minus_ds = vt_at_v - vt_bt_v_w
     dw = np.diag(da_minus_ds)
 
-    eye_n = np.eye(a.shape[-1], dtype=a.dtype)
-    eji = w[..., np.newaxis, :] - w[..., np.newaxis]
-    idx = abs(eji) < deg_thresh
-    eji = ops.index_update(eji, ops.index[idx], 1.e200)
-    eji = ops.index_update(eji, np.diag_indices_from(eji), 1.)
-    Fmat = np.reciprocal(eji) - eye_n
+    eye_n = np.eye(vt_bt_v.shape[-1])
     dv = np.dot(v, np.multiply(Fmat, da_minus_ds) - np.multiply(eye_n, vt_bt_v) * .5)
-    return (w,v), (dw,dv)
+    return dw, dv
+
+@jit
+def _eigh_jvp_jitted_nob(v, Fmat, at):
+    vt_at_v = np.dot(v.conj().T, np.dot(at, v))
+    dw = np.diag(vt_at_v)
+    dv = np.dot(v, np.multiply(Fmat, vt_at_v))
+    return dw, dv
