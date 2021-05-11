@@ -3,3 +3,4 @@
 cd pyscfad/lib
 mkdir build; cd build
 cmake ..
+make
