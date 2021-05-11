@@ -1,7 +1,7 @@
 from functools import partial
 import numpy
-from pyscf.scf import _vhf
 from jax import custom_jvp
+from pyscf.scf import _vhf
 
 @partial(custom_jvp, nondiff_argnums=(2,3,4))
 def incore(eri, dms, hermi=0, with_j=True, with_k=True):
