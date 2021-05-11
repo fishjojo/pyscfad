@@ -11,8 +11,10 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.7
-      - name: install package
-        run: ./.github/workflows/install.sh
+      - name: install pyscf
+        run: ./.github/workflows/install_pyscf.sh
+      - name: build lib
+        run: ./.github/workflows/build_lib.sh
       - name: install pylint
         run: pip install pylint
       - name: style check
