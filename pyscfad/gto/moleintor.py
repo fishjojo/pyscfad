@@ -1,12 +1,17 @@
 from functools import partial
+import ctypes
 import numpy
 from jax import custom_jvp
 from jax import jit
+from pyscf import ao2mo
 from pyscf.gto import mole, moleintor
 from pyscf.gto.mole import Mole
 from pyscfad.lib import numpy as np
 from pyscfad.lib import ops
+from pyscfad.lib.misc import load_library
 from ._mole_helper import uncontract, setup_exp, setup_ctr_coeff
+
+libcgto = load_library('libcgto')
 
 def getints(mol, intor, shls_slice=None,
             comp=None, hermi=0, aosym='s1', out=None):
@@ -62,15 +67,27 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,6)))
 def getints4c(mol, intor,
               shls_slice=None, comp=1, aosym='s1', out=None):
-    return Mole.intor(mol, intor,
-                      comp=comp, aosym=aosym,
-                      shls_slice=shls_slice, out=out)
+    if (shls_slice is None and aosym=='s1'
+            and intor in ['int2e', 'int2e_sph', 'int2e_cart']):
+        eri8 = Mole.intor(mol, intor,
+                comp=comp, aosym='s8',
+                shls_slice=shls_slice, out=out)
+        eri = ao2mo.restore(aosym, eri8, mol.nao)
+        eri8 = None
+    else:
+        eri = Mole.intor(mol, intor,
+                comp=comp, aosym=aosym,
+                shls_slice=shls_slice, out=out)
+    return eri
 
 @getints4c.defjvp
 def getints4c_jvp(intor, shls_slice, comp, aosym, out,
                   primals, tangents):
-    if shls_slice is not None:
+    if shls_slice is not None or out is not None:
         raise NotImplementedError
+    if aosym != 's1':
+        raise NotImplementedError
+
     mol, = primals
     primal_out = getints4c(mol, intor, shls_slice, comp, aosym, out)
 
@@ -280,25 +297,26 @@ def _int1e_jvp_exp(mol, mol_t, intor):
 
 def _int2e_jvp_r0(mol, mol_t, intor):
     coords = mol_t.coords
-    atmlst = range(mol.natm)
-    aoslices = mol.aoslice_by_atom()
+    #atmlst = range(mol.natm)
+    aoslices = numpy.asarray(mol.aoslice_by_atom(), dtype=numpy.int32)
     nao = mol.nao
-    #tangent_out = np.zeros([nao,]*4)
 
-    eri1 = -Mole.intor(mol, intor, comp=3)
-    grad = numpy.zeros((mol.natm,3,nao,nao,nao,nao), dtype=float)
-    for k, ia in enumerate(atmlst):
-        p0, p1 = aoslices [ia,2:]
-        #tmp = np.einsum("xijkl,x->ijkl", eri1[:,p0:p1], coords[k])
-        #tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
-        #tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.transpose((1,0,2,3)))
-        #tangent_out = ops.index_add(tangent_out, ops.index[:,:,p0:p1], tmp.transpose((2,3,0,1)))
-        #tangent_out = ops.index_add(tangent_out, ops.index[:,:,:,p0:p1], tmp.transpose((2,3,1,0)))
-        grad[k,:,p0:p1] = eri1[:,p0:p1]
-    #grad += grad.transpose(0,1,3,2,4,5)
-    #grad += grad.transpose(0,1,4,5,2,3)
-    tangent_out = _int2e_dot_grad_tangent_r0(grad, coords)
-    return tangent_out
+    eri1 = -Mole.intor(mol, intor, comp=3, aosym='s2kl')
+    grad = numpy.zeros((mol.natm,3,nao,nao,nao,nao), dtype=numpy.double)
+    libcgto.restore_int2e_deriv(grad.ctypes.data_as(ctypes.c_void_p),
+            eri1.ctypes.data_as(ctypes.c_void_p),
+            aoslices.ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(mol.natm), ctypes.c_int(nao))
+    eri1 = None
+    #for k, ia in enumerate(atmlst):
+    #    p0, p1 = aoslices [ia,2:]
+    #    tmp = np.einsum("xijkl,x->ijkl", eri1[:,p0:p1], coords[k])
+    #    tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
+    #    #tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.transpose((1,0,2,3)))
+    #    #tangent_out = ops.index_add(tangent_out, ops.index[:,:,p0:p1], tmp.transpose((2,3,0,1)))
+    #    #tangent_out = ops.index_add(tangent_out, ops.index[:,:,:,p0:p1], tmp.transpose((2,3,1,0)))
+    #    #grad[k,:,p0:p1] = eri1[:,p0:p1]
+    return _int2e_dot_grad_tangent_r0(grad, coords)
 
 @jit
 def _int2e_dot_grad_tangent_r0(grad, tangent):

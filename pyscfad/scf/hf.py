@@ -8,6 +8,7 @@ from pyscf.scf.hf import MUTE_CHKFILE
 from pyscfad import lib, gto
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import stop_grad
+from . import _vhf
 
 def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
     dm = jnp.asarray(dm)
@@ -21,7 +22,9 @@ def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
         elif with_k:
             vk = _dot_eri_dm_k(eri, dm)
     else:
-        raise NotImplementedError
+        if dm.dtype == jnp.complex128:
+            raise NotImplementedError
+        vj, vk = _vhf.incore(eri, dm, hermi, with_j, with_k)
     return vj, vk
 
 @jax.jit
@@ -115,7 +118,7 @@ class SCF(hf.SCF):
         if dm is None:
             dm = self.make_rdm1()
         if self._eri is None:
-            self._eri = self.mol.intor('int2e')
+            self._eri = self.mol.intor('int2e', aosym='s1')
         vj, vk = dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
         return vj, vk
 
@@ -131,13 +134,25 @@ class SCF(hf.SCF):
         """
         dm0 = None
         if self.converged:
+            def e_tot(self, dm0=None):
+                h1e = self.get_hcore()
+                vhf = self.get_veff(dm=dm0)
+                fock = self.get_fock(h1e=h1e, vhf=vhf, cycle=-1)
+                s1e = self.get_ovlp()
+                _, mo_coeff = self.eig(fock, s1e)
+                dm = self.make_rdm1(mo_coeff=mo_coeff)
+                vhf = self.get_veff(dm=dm)
+                return self.energy_tot(dm, h1e, vhf)
+            func = e_tot
             dm0 = self.make_rdm1()
             self.reset() # need to reset _eri to get its gradient
-
-        if mode == "fwd":
-            jac = jax.jacfwd(self.__class__.kernel)(self, dm0=dm0)
         else:
-            jac = jax.jacrev(self.__class__.kernel)(self, dm0=dm0)
+            func = self.__class__.kernel
+
+        if mode == "rev":
+            jac = jax.jacrev(func)(self, dm0=dm0)
+        else:
+            jac = jax.jacfwd(func)(self, dm0=dm0)
         return jac.mol.coords
 
 RHF = SCF
