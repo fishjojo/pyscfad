@@ -5,10 +5,14 @@ import pyscf
 from pyscfad import gto
 from pyscfad.lib import numpy as jnp
 
-tol_val = 1e-12
-tol_nuc = 1e-10
-tol_cs = 1e-10
-tol_exp = 1e-9
+TOL_VAL = 1e-12
+TOL_NUC = 1e-10
+TOL_CS = 1e-10
+TOL_EXP = 1e-9
+
+TEST_SET = ["int1e_ovlp", "int1e_kin", "int1e_nuc",]
+TEST_SET_ECP = ["ECPscalar"]
+TEST_SET_NUC = ["int1e_nuc"]
 
 @pytest.fixture
 def get_mol0():
@@ -130,134 +134,66 @@ def func(mol, intor):
 def func1(mol, intor):
     return jnp.linalg.norm(mol.intor(intor))
 
-def test_ovlp(get_mol0, get_mol):
+def _test_int1e_value(intor, mol0, mol1, tol=TOL_VAL):
+    v0 = mol0.intor(intor)
+    v1 = mol1.intor(intor)
+    assert abs(v1-v0).max() < tol
+
+def _test_int1e_deriv_fd(intor, mol0, mol1, funfd, jacattr, tol):
+    v0 = mol0.intor(intor)
+    jac_fd = funfd(mol0, intor)
+    jac_fwd = jax.jacfwd(func)(mol1, intor)
+    jac_rev = jax.jacrev(func)(mol1, intor)
+    assert abs(getattr(jac_fwd, jacattr) - jac_fd).max() < tol
+    assert abs(getattr(jac_rev, jacattr) - jac_fd).max() < tol
+
+    g0 = np.einsum("ij,ijx->x", v0, jac_fd) / np.linalg.norm(v0)
+    jac_fwd = jax.jacfwd(func1)(mol1, intor)
+    jac_rev = jax.jacrev(func1)(mol1, intor)
+    assert abs(getattr(jac_fwd, jacattr) - g0).max() < tol
+    assert abs(getattr(jac_rev, jacattr) - g0).max() < tol
+
+def _test_int1e_deriv_cs(intor, mol0, mol1, tol=TOL_CS):
+    _test_int1e_deriv_fd(intor, mol0, mol1,
+                         cs_grad_fd, "ctr_coeff", tol)
+
+def _test_int1e_deriv_exp(intor, mol0, mol1, tol=TOL_EXP):
+    _test_int1e_deriv_fd(intor, mol0, mol1,
+                         exp_grad_fd, "exp", tol)
+
+def _test_int1e_deriv_nuc(intor, mol0, mol1, funanal, args, tol=TOL_NUC):
+    v0 = mol0.intor(intor)
+    jac0 = funanal(*args)
+    jac_fwd = jax.jacfwd(func)(mol1, intor)
+    jac_rev = jax.jacrev(func)(mol1, intor)
+    assert abs(jac_fwd.coords - jac0).max() < tol
+    assert abs(jac_rev.coords - jac0).max() < tol
+
+    g0 = np.einsum("ij,ijnx->nx", v0, jac0) / np.linalg.norm(v0)
+    jac_fwd = jax.jacfwd(func1)(mol1, intor)
+    jac_rev = jax.jacrev(func1)(mol1, intor)
+    assert abs(jac_fwd.coords - g0).max() < tol
+    assert abs(jac_rev.coords - g0).max() < tol
+
+def test_int1e(get_mol0, get_mol, get_mol_ecp0, get_mol_ecp):
     mol0 = get_mol0
-    s0 = mol0.intor('int1e_ovlp')
     mol1 = get_mol
-    s = mol1.intor('int1e_ovlp')
-    assert abs(s-s0).max() < tol_val
+    for intor in TEST_SET:
+        _test_int1e_value(intor, mol0, mol1)
+        _test_int1e_deriv_cs(intor, mol0, mol1)
+        _test_int1e_deriv_exp(intor, mol0, mol1)
 
-    tmp_nuc = grad_analyt(mol0, "int1e_ipovlp")
-    tmp_cs = cs_grad_fd(mol0, "int1e_ovlp")
-    tmp_exp = exp_grad_fd(mol0, "int1e_ovlp")
+    for intor in set(TEST_SET) - set(TEST_SET_NUC):
+        _test_int1e_deriv_nuc(intor, mol0, mol1, grad_analyt, 
+                              (mol0, intor.replace("int1e_", "int1e_ip")))
+    
+    for intor in TEST_SET_NUC:
+        _test_int1e_deriv_nuc(intor, mol0, mol1, nuc_grad_analyt, (mol0,))
 
-    g0_nuc = tmp_nuc
-    g0_cs = tmp_cs
-    g0_exp = tmp_exp
-    jac = jax.jacfwd(func)(mol1, "int1e_ovlp")
-    g_nuc = jac.coords
-    g_cs = jac.ctr_coeff
-    g_exp = jac.exp
-    assert abs(g_nuc-g0_nuc).max() < tol_nuc
-    assert abs(g_cs-g0_cs).max() < tol_cs
-    assert abs(g_exp-g0_exp).max() < tol_exp
-
-    g0_nuc = np.einsum("ij,ijnx->nx", s0, tmp_nuc) / np.linalg.norm(s0)
-    g0_cs = np.einsum("ij,ijx->x", s0, tmp_cs) / np.linalg.norm(s0)
-    g0_exp = np.einsum("ij,ijx->x", s0, tmp_exp) / np.linalg.norm(s0)
-    jac = jax.jacfwd(func1)(mol1, "int1e_ovlp")
-    g_nuc = jac.coords
-    g_cs = jac.ctr_coeff
-    g_exp = jac.exp
-    assert abs(g_nuc-g0_nuc).max() < tol_nuc
-    assert abs(g_cs-g0_cs).max() < tol_cs
-    assert abs(g_exp-g0_exp).max() < tol_exp
-
-def test_kin(get_mol0, get_mol):
-    mol0 = get_mol0
-    kin0 = mol0.intor("int1e_kin")
-    mol1 = get_mol
-    kin = mol1.intor("int1e_kin")
-    assert abs(kin-kin0).max() < tol_val
-
-    tmp_nuc = grad_analyt(mol0, "int1e_ipkin")
-    tmp_cs = cs_grad_fd(mol0, "int1e_kin")
-    tmp_exp = exp_grad_fd(mol0, "int1e_kin")
-
-    g0_nuc = tmp_nuc
-    g0_cs = tmp_cs
-    g0_exp = tmp_exp
-    jac = jax.jacfwd(func)(mol1, "int1e_kin")
-    g_nuc = jac.coords
-    g_cs = jac.ctr_coeff
-    g_exp = jac.exp
-    assert abs(g_nuc-g0_nuc).max() < tol_nuc
-    assert abs(g_cs-g0_cs).max() < tol_cs
-    assert abs(g_exp-g0_exp).max() < tol_exp
-
-    g0_nuc = np.einsum("ij,ijnx->nx", kin0, tmp_nuc) / np.linalg.norm(kin0)
-    g0_cs = np.einsum("ij,ijx->x", kin0, tmp_cs) / np.linalg.norm(kin0)
-    g0_exp = np.einsum("ij,ijx->x", kin0, tmp_exp) / np.linalg.norm(kin0)
-    jac = jax.jacfwd(func1)(mol1, "int1e_kin")
-    g_nuc = jac.coords
-    g_cs = jac.ctr_coeff
-    g_exp = jac.exp
-    assert abs(g_nuc-g0_nuc).max() < tol_nuc
-    assert abs(g_cs-g0_cs).max() < tol_cs
-    assert abs(g_exp-g0_exp).max() < tol_exp
-
-def test_nuc(get_mol0, get_mol):
-    mol0 = get_mol0
-    nuc0 = mol0.intor("int1e_nuc")
-    mol1 = get_mol
-    nuc = mol1.intor("int1e_nuc")
-    assert abs(nuc-nuc0).max() < tol_val
-
-    tmp_nuc = nuc_grad_analyt(mol0)
-    tmp_cs = cs_grad_fd(mol0, "int1e_nuc")
-    tmp_exp = exp_grad_fd(mol0, "int1e_nuc")
-
-    g0_nuc = tmp_nuc
-    g0_cs = tmp_cs
-    g0_exp = tmp_exp
-    jac = jax.jacfwd(func)(mol1, "int1e_nuc")
-    g_nuc = jac.coords
-    g_cs = jac.ctr_coeff
-    g_exp = jac.exp
-    assert abs(g_nuc-g0_nuc).max() < tol_nuc
-    assert abs(g_cs-g0_cs).max() < tol_cs
-    assert abs(g_exp-g0_exp).max() < tol_exp
-
-    g0_nuc = np.einsum("ij,ijnx->nx", nuc0, tmp_nuc) / np.linalg.norm(nuc0)
-    g0_cs = np.einsum("ij,ijx->x", nuc0, tmp_cs) / np.linalg.norm(nuc0)
-    g0_exp = np.einsum("ij,ijx->x", nuc0, tmp_exp) / np.linalg.norm(nuc0)
-    jac = jax.jacfwd(func1)(mol1, "int1e_nuc")
-    g_nuc = jac.coords
-    g_cs = jac.ctr_coeff
-    g_exp = jac.exp
-    assert abs(g_nuc-g0_nuc).max() < tol_nuc
-    assert abs(g_cs-g0_cs).max() < tol_cs
-    assert abs(g_exp-g0_exp).max() < tol_exp
-
-def test_ECPscalar_nuc(get_mol_ecp0, get_mol_ecp):
-    mol0 = get_mol_ecp0
-    nuc0 = mol0.intor("ECPscalar")
-    mol1 = get_mol_ecp
-    nuc = mol1.intor("ECPscalar")
-    assert abs(nuc-nuc0).max() < tol_val
-
-    tmp_nuc = ECPscalar_grad_analyt(mol0)
-    tmp_cs = cs_grad_fd(mol0, "ECPscalar")
-    tmp_exp = exp_grad_fd(mol0, "ECPscalar")
-
-    g0_nuc = tmp_nuc
-    g0_cs = tmp_cs
-    g0_exp = tmp_exp
-    jac = jax.jacfwd(func)(mol1, "ECPscalar")
-    g_nuc = jac.coords
-    g_cs = jac.ctr_coeff
-    g_exp = jac.exp
-    assert abs(g_nuc-g0_nuc).max() < tol_nuc
-    assert abs(g_cs-g0_cs).max() < tol_cs
-    assert abs(g_exp-g0_exp).max() < tol_exp
-
-    g0_nuc = np.einsum("ij,ijnx->nx", nuc0, tmp_nuc) / np.linalg.norm(nuc0)
-    g0_cs = np.einsum("ij,ijx->x", nuc0, tmp_cs) / np.linalg.norm(nuc0)
-    g0_exp = np.einsum("ij,ijx->x", nuc0, tmp_exp) / np.linalg.norm(nuc0)
-    jac = jax.jacfwd(func1)(mol1, "ECPscalar")
-    g_nuc = jac.coords
-    g_cs = jac.ctr_coeff
-    g_exp = jac.exp
-    assert abs(g_nuc-g0_nuc).max() < tol_nuc
-    assert abs(g_cs-g0_cs).max() < tol_cs
-    assert abs(g_exp-g0_exp).max() < tol_exp
+    molecp0 = get_mol_ecp0
+    molecp1 = get_mol_ecp
+    for intor in TEST_SET_ECP:
+        _test_int1e_value(intor, molecp0, molecp1)
+        _test_int1e_deriv_cs(intor, molecp0, molecp1)
+        _test_int1e_deriv_exp(intor, molecp0, molecp1)
+        _test_int1e_deriv_nuc(intor, molecp0, molecp1, ECPscalar_grad_analyt, (molecp0,))
