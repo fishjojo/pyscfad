@@ -14,6 +14,7 @@ TEST_SET = ["int1e_ovlp", "int1e_kin", "int1e_nuc",
             "int1e_rinv",]
 TEST_SET_ECP = ["ECPscalar"]
 TEST_SET_NUC = ["int1e_nuc"]
+TEST_SET_2C2E = ["int2c2e",]
 
 @pytest.fixture
 def get_mol0():
@@ -198,3 +199,11 @@ def test_int1e(get_mol0, get_mol, get_mol_ecp0, get_mol_ecp):
         _test_int1e_deriv_cs(intor, molecp0, molecp1)
         _test_int1e_deriv_exp(intor, molecp0, molecp1)
         _test_int1e_deriv_nuc(intor, molecp0, molecp1, ECPscalar_grad_analyt, (molecp0,))
+
+    for intor in TEST_SET_2C2E:
+        _test_int1e_value(intor, mol0, mol1)
+        _test_int1e_deriv_cs(intor, mol0, mol1)
+        _test_int1e_deriv_exp(intor, mol0, mol1, tol=5e-8)
+        _test_int1e_deriv_nuc(intor, mol0, mol1, grad_analyt,
+                              (mol0, intor.replace("int2c2e", "int2c2e_ip1")))
+

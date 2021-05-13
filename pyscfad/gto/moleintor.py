@@ -19,6 +19,7 @@ def getints(mol, intor, shls_slice=None,
         raise NotImplementedError
 
     if (intor.startswith("int1e") or
+        intor.startswith("int2c2e") or
         intor.startswith('ECP')):
         return getints2c(mol, intor, shls_slice, comp, hermi, aosym, out)
     elif intor.startswith("int2e"):
@@ -48,9 +49,12 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
     if mol.coords is not None:
         if intor.startswith("ECPscalar"):
             intor_ip = intor.replace("ECPscalar", "ECPscalar_ipnuc")
-        else:
-            tmp = intor.split("_", 1)
-            intor_ip = tmp[0] + "_ip" + tmp[1]
+        elif intor.startswith("int2c2e"):
+            intor_ip = intor.replace("int2c2e", "int2c2e_ip1")
+        elif intor.startswith("int1e"):
+            intor_ip = intor.replace("int1e_", "int1e_ip")
+            #tmp = intor.split("_", 1)
+            #intor_ip = tmp[0] + "_ip" + tmp[1]
         tangent_out += _int1e_jvp_r0(mol, mol_t, intor_ip)
 
         intor_ip = None
