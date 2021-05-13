@@ -10,7 +10,8 @@ TOL_NUC = 1e-10
 TOL_CS = 1e-10
 TOL_EXP = 1e-9
 
-TEST_SET = ["int1e_ovlp", "int1e_kin", "int1e_nuc",]
+TEST_SET = ["int1e_ovlp", "int1e_kin", "int1e_nuc",
+            "int1e_rinv",]
 TEST_SET_ECP = ["ECPscalar"]
 TEST_SET_NUC = ["int1e_nuc"]
 

@@ -53,11 +53,13 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
             intor_ip = tmp[0] + "_ip" + tmp[1]
         tangent_out += _int1e_jvp_r0(mol, mol_t, intor_ip)
 
+        intor_ip = None
         if intor.startswith("int1e_nuc"):
             intor_ip = intor.replace("int1e_nuc", "int1e_iprinv")
         elif intor.startswith("ECPscalar"):
             intor_ip = intor.replace("ECPscalar", "ECPscalar_iprinv")
-        tangent_out += _int1e_nuc_jvp_rc(mol, mol_t, intor_ip)
+        if intor_ip is not None:
+            tangent_out += _int1e_nuc_jvp_rc(mol, mol_t, intor_ip)
     if mol.ctr_coeff is not None:
         tangent_out += _int1e_jvp_cs(mol, mol_t, intor)
     if mol.exp is not None:
