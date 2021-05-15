@@ -32,7 +32,7 @@ def test_rks_nuc_grad(get_mol):
     mol = get_mol
     mf = dft.RKS(mol)
     mf.xc = 'b3lyp'
-    g = mf.nuc_grad_ad(mode="fwd")
+    g = mf.mol_grad_ad(mode="rev").coords
     g0 = numpy.array([[0, 0, 2.24114270e-03],
                       [0, 0, -2.24114270e-03]])
     assert abs(g-g0).max() < 1e-10
@@ -42,7 +42,7 @@ def test_rks_nuc_grad_mgga(get_mol, get_mol_p, get_mol_m):
     mol = get_mol
     mf = dft.RKS(mol)
     mf.xc = 'm062x'
-    g = mf.nuc_grad_ad(mode="fwd")
+    g = mf.mol_grad_ad(mode="rev").coords
 
     molp = get_mol_p
     mfp = dft.RKS(molp)
@@ -62,5 +62,5 @@ def test_rks_nuc_grad_nlc(get_mol):
     mf = dft.RKS(mol)
     mf.xc = 'B97M_V'
     mf.nlc = 'VV10'
-    g = mf.nuc_grad_ad(mode="fwd")
+    g = mf.mol_grad_ad(mode="rev").coords
     assert abs(g[1,2] - 2.68791294e-03) < 1e-9

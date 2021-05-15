@@ -24,7 +24,7 @@ def get_mol():
 def test_nuc_grad(get_mol0, get_mol):
     mol = get_mol
     mf = scf.RHF(mol)
-    g = mf.nuc_grad_ad()
+    g = mf.mol_grad_ad().coords
 
     mol0 = get_mol0
     mf0 = pyscf.scf.RHF(mol0)
@@ -37,7 +37,7 @@ def test_nuc_grad_at_converge(get_mol0, get_mol):
     mol = get_mol
     mf = scf.RHF(mol)
     mf.kernel()
-    g = mf.nuc_grad_ad()
+    g = mf.mol_grad_ad().coords
 
     mol0 = get_mol0
     mf0 = pyscf.scf.RHF(mol0)

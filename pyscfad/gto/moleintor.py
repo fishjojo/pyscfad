@@ -349,7 +349,7 @@ def _int2e_jvp_cs(mol, mol_t, intor):
     _, cs_of, _ = setup_ctr_coeff(mol)
     nao = mol.nao
     #grad = np.zeros((len(ctr_coeff), nao, nao, nao, nao), dtype=float)
-    grad = numpy.zeros((len(ctr_coeff), nao, nao, nao, nao), dtype=float)
+    grad = numpy.zeros((len(ctr_coeff), nao, nao, nao, nao), dtype=numpy.double)
 
     off = 0
     ibas = 0

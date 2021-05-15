@@ -122,6 +122,6 @@ if __name__ == "__main__":
     mf.U_val, mf.U_idx, mf.U_lab = set_U(mol, U_idx, U_val)
     mf.C_ao_lo = make_minao_lo(mf)
     dm0 = mf.get_init_guess()
-    jac = jax.jacfwd(mf.__class__.kernel)(mf, dm0=dm0)
+    jac = jax.jacrev(mf.__class__.kernel)(mf, dm0=dm0)
     print(jac.U_val)
     print(jac.mol.coords)

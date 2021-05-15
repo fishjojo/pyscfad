@@ -6,7 +6,7 @@ from pyscf.gto.eval_gto import eval_gto as pyscf_eval_gto
 from pyscfad import gto
 
 BOHR = 0.52917721092
-bas = '631g'
+bas = 'sto3g'
 
 def test_eval_gto_nuc():
     mol = gto.Mole()
@@ -15,6 +15,7 @@ def test_eval_gto_nuc():
     mol.build(trace_coords=True)
 
     grids = gen_grid.Grids(mol)
+    grids.level = 0
     grids.build(with_non0tab=True)
     coords = grids.coords
 
@@ -40,5 +41,8 @@ def test_eval_gto_nuc():
         aop = molp.eval_gto(eval_name, coords)
         aom = molm.eval_gto(eval_name, coords)
         g_fd = (aop-aom) / (1e-5 / BOHR)
-        jac = jax.jacfwd(mol.__class__.eval_gto)(mol, eval_name, coords)
-        assert abs(jac.coords[...,1,2] - g_fd).max() < tol[i]
+        jac_fwd = jax.jacfwd(mol.__class__.eval_gto)(mol, eval_name, coords)
+        assert abs(jac_fwd.coords[...,1,2] - g_fd).max() < tol[i]
+
+        jac_rev = jax.jacrev(mol.__class__.eval_gto)(mol, eval_name, coords)
+        assert abs(jac_rev.coords[...,1,2] - g_fd).max() < tol[i]

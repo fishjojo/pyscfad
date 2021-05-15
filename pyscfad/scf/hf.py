@@ -128,9 +128,9 @@ class SCF(hf.SCF):
         mol = stop_grad(mol)
         return hf.SCF.get_init_guess(self, mol, key)
 
-    def nuc_grad_ad(self, mode="rev"):
+    def mol_grad_ad(self, mode="rev"):
         """
-        Energy gradient wrt nuclear coordinates computed by AD
+        Energy gradient wrt AO parameters computed by AD
         """
         dm0 = None
         if self.converged:
@@ -153,6 +153,6 @@ class SCF(hf.SCF):
             jac = jax.jacrev(func)(self, dm0=dm0)
         else:
             jac = jax.jacfwd(func)(self, dm0=dm0)
-        return jac.mol.coords
+        return jac.mol
 
 RHF = SCF

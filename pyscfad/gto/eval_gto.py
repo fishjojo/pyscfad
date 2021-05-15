@@ -1,4 +1,5 @@
 from functools import partial
+import numpy
 from jax import custom_jvp
 from pyscf.gto.moleintor import make_loc
 from pyscf.gto.eval_gto import eval_gto as pyscf_eval_gto
@@ -74,13 +75,38 @@ def _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
     ng = len(grid_coords)
 
     ao1 = - pyscf_eval_gto(mol, new_eval, grid_coords, None, shls_slice, non0tab, ao_loc)
+    grad = numpy.zeros([mol.natm,3,nc,ng,nao], dtype=ao1.dtype)
 
-    if nc == 1:
-        tangent_out = jnp.zeros((ng,nao))
-    else:
-        tangent_out = jnp.zeros((nc,ng,nao))
     atmlst = range(mol.natm)
     aoslices = mol.aoslice_by_atom(ao_loc)
+
+    #if nc == 1:
+    #    tangent_out = jnp.zeros((ng,nao))
+    #else:
+    #    tangent_out = jnp.zeros((nc,ng,nao))
+    #for iorder in range(order+1):
+    #    for k, ia in enumerate(atmlst):
+    #        p0, p1 = aoslices [ia, 2:]
+    #        if p1 <= ao_start:
+    #            continue
+    #        id0 = max(0, p0 - ao_start)
+    #        id1 = min(p1, ao_end) - ao_start
+    #        if order == 0:
+    #            tmp = jnp.einsum('xgi,x->gi', ao1[1:4,:,id0:id1], coords_t[k])
+    #            tangent_out = ops.index_add(tangent_out, ops.index[:,id0:id1], tmp)
+    #        else:
+    #            start0 = iorder * (iorder+1) * (iorder+2) // 6
+    #            start = (iorder+1) * (iorder+2) * (iorder+3) // 6
+    #            end = (iorder+2) * (iorder+3) * (iorder+4) // 6
+    #            for il, label in enumerate(get_bas_label(iorder)):
+    #                idx_x = _DERIV_LABEL.index("".join(sorted(label + 'x')), start, end)
+    #                idx_y = _DERIV_LABEL.index("".join(sorted(label + 'y')), start, end)
+    #                idx_z = _DERIV_LABEL.index("".join(sorted(label + 'z')), start, end)
+    #                tmp = (ao1[idx_x,:,id0:id1] * coords_t[k,0]
+    #                       + ao1[idx_y,:,id0:id1] * coords_t[k,1]
+    #                       + ao1[idx_z,:,id0:id1] * coords_t[k,2])
+    #                tangent_out = ops.index_add(tangent_out, ops.index[start0+il,:,id0:id1], tmp)
+
     for iorder in range(order+1):
         for k, ia in enumerate(atmlst):
             p0, p1 = aoslices [ia, 2:]
@@ -88,21 +114,22 @@ def _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
                 continue
             id0 = max(0, p0 - ao_start)
             id1 = min(p1, ao_end) - ao_start
-            if order == 0:
-                tmp = jnp.einsum('xgi,x->gi', ao1[1:4,:,id0:id1], coords_t[k])
-                tangent_out = ops.index_add(tangent_out, ops.index[:,id0:id1], tmp)
-            else:
-                start0 = iorder * (iorder+1) * (iorder+2) // 6
-                start = (iorder+1) * (iorder+2) * (iorder+3) // 6
-                end = (iorder+2) * (iorder+3) * (iorder+4) // 6
-                for il, label in enumerate(get_bas_label(iorder)):
-                    idx_x = _DERIV_LABEL.index("".join(sorted(label + 'x')), start, end)
-                    idx_y = _DERIV_LABEL.index("".join(sorted(label + 'y')), start, end)
-                    idx_z = _DERIV_LABEL.index("".join(sorted(label + 'z')), start, end)
-                    tmp = (ao1[idx_x,:,id0:id1] * coords_t[k,0]
-                           + ao1[idx_y,:,id0:id1] * coords_t[k,1]
-                           + ao1[idx_z,:,id0:id1] * coords_t[k,2])
-                    tangent_out = ops.index_add(tangent_out, ops.index[start0+il,:,id0:id1], tmp)
+
+            start0 = iorder * (iorder+1) * (iorder+2) // 6
+            start = (iorder+1) * (iorder+2) * (iorder+3) // 6
+            end = (iorder+2) * (iorder+3) * (iorder+4) // 6
+            for il, label in enumerate(get_bas_label(iorder)):
+                idx_x = _DERIV_LABEL.index("".join(sorted(label + 'x')), start, end)
+                idx_y = _DERIV_LABEL.index("".join(sorted(label + 'y')), start, end)
+                idx_z = _DERIV_LABEL.index("".join(sorted(label + 'z')), start, end)
+                grad[k,0,start0+il,:,id0:id1] += ao1[idx_x,:,id0:id1]
+                grad[k,1,start0+il,:,id0:id1] += ao1[idx_y,:,id0:id1]
+                grad[k,2,start0+il,:,id0:id1] += ao1[idx_z,:,id0:id1]
+    ao1 = None
+    tangent_out = jnp.einsum("nxlgi,nx->lgi", grad, coords_t)
+    grad = None
+    if nc == 1:
+        tangent_out = tangent_out[0]
     return tangent_out
 
 def _eval_gto_jvp_cs(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc):
