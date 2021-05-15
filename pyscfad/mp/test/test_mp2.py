@@ -26,7 +26,7 @@ def test_nuc_grad(get_mol0, get_mol):
     mf = scf.RHF(mol)
     mf.kernel()
     mymp = mp.MP2(mf)
-    g = mymp.nuc_grad_ad()
+    g = mymp.mol_grad_ad().coords
 
     g0 = numpy.asarray([[0, 0,  9.40540959e-02],
                         [0, 3.79302604e-02, -4.70270479e-02],
