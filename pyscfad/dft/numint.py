@@ -1,6 +1,7 @@
 from functools import partial
 import numpy
 import jax
+from jax import jit
 from jax import custom_jvp
 import pyscf
 from pyscf.dft import numint
@@ -180,34 +181,62 @@ def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
         rho = _contract_rho(ao, c0)
     elif xctype in ('GGA', 'NLC'):
         rho = jnp.empty((4,ngrids))
-        c0 = _dot_ao_dm(mol, ao[0], dm, non0tab, shls_slice, ao_loc)
+        #c0 = _dot_ao_dm(mol, ao[0], dm, non0tab, shls_slice, ao_loc)
         #:rho[0] = numpy.einsum('pi,pi->p', c0, ao[0])
-        rho = ops.index_update(rho, ops.index[0], _contract_rho(c0, ao[0]))
-        for i in range(1, 4):
-            #:rho[i] = numpy.einsum('pi,pi->p', c0, ao[i])
-            rho = ops.index_update(rho, ops.index[i], _contract_rho(c0, ao[i]) * 2)
+        #rho = ops.index_update(rho, ops.index[0], _contract_rho(c0, ao[0]))
+        #for i in range(1, 4):
+        #    #:rho[i] = numpy.einsum('pi,pi->p', c0, ao[i])
+        #    rho = ops.index_update(rho, ops.index[i], _contract_rho(c0, ao[i]) * 2)
+        rho = _rks_gga_assemble_rho(rho, ao, dm)
     else: # meta-GGA
         # rho[4] = \nabla^2 rho, rho[5] = 1/2 |nabla f|^2
         rho = jnp.empty((6,ngrids))
-        c0 = _dot_ao_dm(mol, ao[0], dm, non0tab, shls_slice, ao_loc)
+        #c0 = _dot_ao_dm(mol, ao[0], dm, non0tab, shls_slice, ao_loc)
         #:rho[0] = numpy.einsum('pi,pi->p', ao[0], c0)
-        rho = ops.index_update(rho, ops.index[0], _contract_rho(ao[0], c0))
-        rho = ops.index_update(rho, ops.index[5], 0)
-        for i in range(1, 4):
-            #:rho[i] = numpy.einsum('pi,pi->p', c0, ao[i]) * 2 # *2 for +c.c.
-            rho = ops.index_update(rho, ops.index[i], _contract_rho(c0, ao[i]) * 2)
-            c1 = _dot_ao_dm(mol, ao[i], dm.T, non0tab, shls_slice, ao_loc)
-            #:rho[5] += numpy.einsum('pi,pi->p', c1, ao[i])
-            rho = ops.index_add(rho, ops.index[5], _contract_rho(c1, ao[i]))
-        XX, YY, ZZ = 4, 7, 9
-        ao2 = ao[XX] + ao[YY] + ao[ZZ]
-        #:rho[4] = numpy.einsum('pi,pi->p', c0, ao2)
-        rho = ops.index_update(rho, ops.index[4], _contract_rho(c0, ao2))
-        rho = ops.index_add(rho, ops.index[4], rho[5])
-        rho = ops.index_mul(rho, ops.index[4], 2)
-        rho = ops.index_mul(rho, ops.index[5], .5)
+        #rho = ops.index_update(rho, ops.index[0], _contract_rho(ao[0], c0))
+        #rho = ops.index_update(rho, ops.index[5], 0)
+        #for i in range(1, 4):
+        #    #:rho[i] = numpy.einsum('pi,pi->p', c0, ao[i]) * 2 # *2 for +c.c.
+        #    rho = ops.index_update(rho, ops.index[i], _contract_rho(c0, ao[i]) * 2)
+        #    c1 = _dot_ao_dm(mol, ao[i], dm.T, non0tab, shls_slice, ao_loc)
+        #    #:rho[5] += numpy.einsum('pi,pi->p', c1, ao[i])
+        #    rho = ops.index_add(rho, ops.index[5], _contract_rho(c1, ao[i]))
+        #XX, YY, ZZ = 4, 7, 9
+        #ao2 = ao[XX] + ao[YY] + ao[ZZ]
+        ##:rho[4] = numpy.einsum('pi,pi->p', c0, ao2)
+        #rho = ops.index_update(rho, ops.index[4], _contract_rho(c0, ao2))
+        #rho = ops.index_add(rho, ops.index[4], rho[5])
+        #rho = ops.index_mul(rho, ops.index[4], 2)
+        #rho = ops.index_mul(rho, ops.index[5], .5)
+        rho = _rks_mgga_assemble_rho(rho, ao, dm)
     return rho
 
+@jit
+def _rks_gga_assemble_rho(rho, ao, dm):
+    c0 = _dot_ao_dm_incore(ao[0], dm)
+    rho = ops.index_update(rho, ops.index[0], _contract_rho(c0, ao[0]))
+    for i in range(1, 4):
+        rho = ops.index_update(rho, ops.index[i], _contract_rho(c0, ao[i]) * 2)
+    return rho
+
+@jit
+def _rks_mgga_assemble_rho(rho, ao, dm):
+    c0 = _dot_ao_dm_incore(ao[0], dm)
+    rho = ops.index_update(rho, ops.index[0], _contract_rho(ao[0], c0))
+    rho = ops.index_update(rho, ops.index[5], 0)
+    for i in range(1, 4):
+        rho = ops.index_update(rho, ops.index[i], _contract_rho(c0, ao[i]) * 2)
+        c1 = _dot_ao_dm_incore(ao[i], dm.T)
+        rho = ops.index_add(rho, ops.index[5], _contract_rho(c1, ao[i]))
+    XX, YY, ZZ = 4, 7, 9
+    ao2 = ao[XX] + ao[YY] + ao[ZZ]
+    rho = ops.index_update(rho, ops.index[4], _contract_rho(c0, ao2))
+    rho = ops.index_add(rho, ops.index[4], rho[5])
+    rho = ops.index_mul(rho, ops.index[4], 2)
+    rho = ops.index_mul(rho, ops.index[5], .5)
+    return rho
+
+@jit
 def _scale_ao(ao, wv, out=None):
     #:aow = numpy.einsum('npi,np->pi', ao[:4], wv)
     if wv.ndim == 2:
@@ -224,18 +253,27 @@ def _dot_ao_ao(mol, ao1, ao2, non0tab, shls_slice, ao_loc, hermi=0):
     '''return numpy.dot(ao1.T, ao2)'''
     nao = ao1.shape[-1]
     if nao < SWITCH_SIZE:
-        return jnp.dot(ao1.T.conj(), ao2)
+        return _dot_ao_ao_incore(ao1, ao2)
     else:
         raise NotImplementedError
+
+@jit
+def _dot_ao_ao_incore(ao1, ao2):
+    return jnp.dot(ao1.T.conj(), ao2)
 
 def _dot_ao_dm(mol, ao, dm, non0tab, shls_slice, ao_loc, out=None):
     '''return numpy.dot(ao, dm)'''
     nao = ao.shape[-1]
     if nao < SWITCH_SIZE:
-        return jnp.dot(jnp.asarray(dm).T, ao.T).T
+        return _dot_ao_dm_incore(ao, dm)
     else:
         raise NotImplementedError
 
+@jit
+def _dot_ao_dm_incore(ao, dm):
+    return jnp.dot(jnp.asarray(dm).T, ao.T).T
+
+@jit
 def _contract_rho(bra, ket):
     bra = bra.T
     ket = ket.T
@@ -244,6 +282,7 @@ def _contract_rho(bra, ket):
     rho += jnp.einsum('ip,ip->p', bra.imag, ket.imag)
     return rho
 
+@jit
 def _rks_gga_wv0(rho, vxc, weight):
     vrho, vgamma = vxc[:2]
     ngrid = vrho.size

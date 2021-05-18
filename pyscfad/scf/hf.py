@@ -1,3 +1,4 @@
+from functools import partial
 import tempfile
 from typing import Optional, Any
 import jax
@@ -14,46 +15,25 @@ def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
     dm = jnp.asarray(dm)
     nao = dm.shape[-1]
     if eri.dtype == jnp.complex128 or eri.size == nao**4:
-        vj = vk = None
-        if with_j and with_k:
-            vj, vk = _dot_eri_dm_jk(eri, dm)
-        elif with_j:
-            vj = _dot_eri_dm_j(eri, dm)
-        elif with_k:
-            vk = _dot_eri_dm_k(eri, dm)
+        vj, vk = _dot_eri_dm_nosymm(eri, dm, with_j, with_k)
     else:
         if dm.dtype == jnp.complex128:
             raise NotImplementedError
         vj, vk = _vhf.incore(eri, dm, hermi, with_j, with_k)
     return vj, vk
 
-@jax.jit
-def _dot_eri_dm_j(eri, dm):
+@partial(jax.jit, static_argnums=(2,3))
+def _dot_eri_dm_nosymm(eri, dm, with_j, with_k):
     nao = dm.shape[-1]
     eri = eri.reshape((nao,)*4)
     dms = dm.reshape(-1,nao,nao)
-    vj = jnp.einsum('ijkl,xji->xkl', eri, dms)
-    vj = vj.reshape(dm.shape)
-    return vj
-
-@jax.jit
-def _dot_eri_dm_k(eri, dm):
-    nao = dm.shape[-1]
-    eri = eri.reshape((nao,)*4)
-    dms = dm.reshape(-1,nao,nao)
-    vk = jnp.einsum('ijkl,xjk->xil', eri, dms)
-    vk = vk.reshape(dm.shape)
-    return vk
-
-@jax.jit
-def _dot_eri_dm_jk(eri, dm):
-    nao = dm.shape[-1]
-    eri = eri.reshape((nao,)*4)
-    dms = dm.reshape(-1,nao,nao)
-    vj = jnp.einsum('ijkl,xji->xkl', eri, dms)
-    vj = vj.reshape(dm.shape)
-    vk = jnp.einsum('ijkl,xjk->xil', eri, dms)
-    vk = vk.reshape(dm.shape)
+    vj = vk = None
+    if with_j:
+        vj = jnp.einsum('ijkl,xji->xkl', eri, dms)
+        vj = vj.reshape(dm.shape)
+    if with_k:
+        vk = jnp.einsum('ijkl,xjk->xil', eri, dms)
+        vk = vk.reshape(dm.shape)
     return vj, vk
 
 @lib.dataclass
