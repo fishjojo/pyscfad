@@ -46,10 +46,13 @@ def _rr_jvp(primals, tangents):
 
     r = coords.reshape(-1,1,3) - coords
     natm = coords.shape[0]
-    tangent_out = jnp.zeros_like(primal_out)
+    #tangent_out = jnp.zeros_like(primal_out)
+    grad = numpy.zeros((natm,natm,3), dtype=numpy.double)
     for i in range(natm):
-        tangent_out = ops.index_add(tangent_out, ops.index[i],
-                                    jnp.dot(r[i] / rnorm[i,:,None], coords_t[i]))
+        #tangent_out = ops.index_add(tangent_out, ops.index[i],
+        #                            jnp.dot(r[i] / rnorm[i,:,None], coords_t[i]))
+        grad[i] += r[i] / rnorm[i,:,None]
+    tangent_out = jnp.einsum("ijx,ix->ij", grad, coords_t)
     tangent_out += tangent_out.T
     return primal_out, tangent_out
 
