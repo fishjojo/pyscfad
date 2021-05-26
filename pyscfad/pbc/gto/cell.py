@@ -8,6 +8,7 @@ from pyscfad.lib import numpy as jnp
 from pyscfad.gto import mole
 from pyscfad.gto._mole_helper import setup_exp, setup_ctr_coeff
 from pyscfad.pbc.gto import _pbcintor
+from pyscfad.pbc.gto.eval_gto import eval_gto as pbc_eval_gto
 
 def pbc_intor(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
               shls_slice=None, **kwargs):
@@ -79,6 +80,22 @@ class Cell(mole.Mole, cell.Cell):
             self.ctr_coeff, _, _ = setup_ctr_coeff(self)
         if trace_r0:
             pass
+
+    def pbc_eval_gto(self, eval_name, coords, comp=None, kpts=None, kpt=None,
+                     shls_slice=None, non0tab=None, ao_loc=None, out=None):
+        return pbc_eval_gto(self, eval_name, coords, comp, kpts, kpt,
+                            shls_slice, non0tab, ao_loc, out)
+    pbc_eval_ao = pbc_eval_gto
+
+    def eval_gto(self, eval_name, coords, comp=None, kpts=None, kpt=None,
+                 shls_slice=None, non0tab=None, ao_loc=None, out=None):
+        if eval_name[:3] == 'PBC':
+            return self.pbc_eval_gto(eval_name, coords, comp, kpts, kpt,
+                                     shls_slice, non0tab, ao_loc, out)
+        else:
+            return mole.eval_gto(self, eval_name, coords, comp,
+                                 shls_slice, non0tab, ao_loc, out)
+    eval_ao = eval_gto
 
     pbc_intor = pbc_intor
     get_SI = get_SI

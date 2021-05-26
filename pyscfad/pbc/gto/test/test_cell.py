@@ -1,7 +1,7 @@
 import pytest
 import numpy
 import jax
-from pyscf.lib import numpy as jnp
+from pyscfad.lib import numpy as jnp
 from pyscfad.pbc import gto
 
 @pytest.fixture
