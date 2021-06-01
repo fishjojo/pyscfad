@@ -44,8 +44,8 @@ def int2e_grad_analyt(mol):
 
 def four_point_fd(mol, intor, _env_of, disp=1e-4):
     grad_fd = []
-    for i in range(len(_env_of)):
-        ptr_exp = _env_of[i]
+    for _, ptr_exp in enumerate(_env_of):
+        #ptr_exp = _env_of[i]
         mol._env[ptr_exp] += disp
         sp = mol.intor(intor)
         mol._env[ptr_exp] += disp
@@ -61,13 +61,13 @@ def four_point_fd(mol, intor, _env_of, disp=1e-4):
 
 def cs_grad_fd(mol, intor):
     disp = 1e-4
-    cs, cs_of, _env_of = gto.mole.setup_ctr_coeff(mol)
+    _, _, _env_of = gto.mole.setup_ctr_coeff(mol)
     g = four_point_fd(mol, intor, _env_of, disp)
     return g
 
 def exp_grad_fd(mol, intor):
     disp = 1e-4
-    es, es_of, _env_of = gto.mole.setup_exp(mol)
+    _, _, _env_of = gto.mole.setup_exp(mol)
     g = four_point_fd(mol, intor, _env_of, disp)
     return g
 
@@ -77,6 +77,7 @@ def func(mol, intor):
 def func1(mol, intor):
     return jnp.linalg.norm(mol.intor(intor))
 
+# pylint: disable=redefined-outer-name
 def test_int2e(get_mol0, get_mol):
     mol0 = get_mol0
     eri0 = mol0.intor("int2e")

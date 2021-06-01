@@ -21,6 +21,7 @@ def get_mol():
     mol.build(trace_coords=True)
     return mol
 
+# pylint: disable=redefined-outer-name
 def test_nuc_grad(get_mol0, get_mol):
     mol = get_mol
     mf = scf.RHF(mol)

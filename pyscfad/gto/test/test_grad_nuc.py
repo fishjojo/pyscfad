@@ -22,6 +22,7 @@ def get_mol():
     mol.build(trace_coords=True)
     return mol
 
+# pylint: disable=redefined-outer-name
 def test_grad_nuc(get_mol0, get_mol):
     mol0 = get_mol0
     g0 = grad_nuc(mol0)

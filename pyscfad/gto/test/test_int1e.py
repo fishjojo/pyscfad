@@ -103,8 +103,8 @@ def ECPscalar_grad_analyt(mol):
 
 def four_point_fd(mol, intor, _env_of, disp=1e-4):
     grad_fd = []
-    for i in range(len(_env_of)):
-        ptr_exp = _env_of[i]
+    for _, ptr_exp in enumerate(_env_of):
+        #ptr_exp = _env_of[i]
         mol._env[ptr_exp] += disp
         sp = mol.intor(intor)
         mol._env[ptr_exp] += disp
@@ -120,13 +120,13 @@ def four_point_fd(mol, intor, _env_of, disp=1e-4):
 
 def cs_grad_fd(mol, intor):
     disp = 1e-3
-    cs, cs_of, _env_of = gto.mole.setup_ctr_coeff(mol)
+    _, _, _env_of = gto.mole.setup_ctr_coeff(mol)
     g = four_point_fd(mol, intor, _env_of, disp)
     return g
 
 def exp_grad_fd(mol, intor):
     disp = 1e-4
-    es, es_of, _env_of = gto.mole.setup_exp(mol)
+    _, _, _env_of = gto.mole.setup_exp(mol)
     g = four_point_fd(mol, intor, _env_of, disp)
     return g
 
@@ -177,6 +177,7 @@ def _test_int1e_deriv_nuc(intor, mol0, mol1, funanal, args, tol=TOL_NUC):
     assert abs(jac_fwd.coords - g0).max() < tol
     assert abs(jac_rev.coords - g0).max() < tol
 
+# pylint: disable=redefined-outer-name
 def test_int1e(get_mol0, get_mol, get_mol_ecp0, get_mol_ecp):
     mol0 = get_mol0
     mol1 = get_mol
@@ -186,9 +187,9 @@ def test_int1e(get_mol0, get_mol, get_mol_ecp0, get_mol_ecp):
         _test_int1e_deriv_exp(intor, mol0, mol1)
 
     for intor in set(TEST_SET) - set(TEST_SET_NUC):
-        _test_int1e_deriv_nuc(intor, mol0, mol1, grad_analyt, 
+        _test_int1e_deriv_nuc(intor, mol0, mol1, grad_analyt,
                               (mol0, intor.replace("int1e_", "int1e_ip")))
-    
+
     for intor in TEST_SET_NUC:
         _test_int1e_deriv_nuc(intor, mol0, mol1, nuc_grad_analyt, (mol0,))
 
@@ -206,4 +207,3 @@ def test_int1e(get_mol0, get_mol, get_mol_ecp0, get_mol_ecp):
         _test_int1e_deriv_exp(intor, mol0, mol1, tol=5e-8)
         _test_int1e_deriv_nuc(intor, mol0, mol1, grad_analyt,
                               (mol0, intor.replace("int2c2e", "int2c2e_ip1")))
-
