@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
-import pyscf
 import jax
+import pyscf
 from pyscfad.lib import numpy as jnp
 from pyscfad import gto
 
