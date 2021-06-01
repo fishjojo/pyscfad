@@ -38,6 +38,7 @@ def _dot_eri_dm_nosymm(eri, dm, with_j, with_k):
 
 @lib.dataclass
 class SCF(hf.SCF):
+    # pylint: disable=too-many-instance-attributes
     mol: gto.Mole = lib.field(pytree_node=True)
     mo_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
     mo_energy: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
@@ -75,6 +76,7 @@ class SCF(hf.SCF):
 
     opt: Any = None
     _eri: Optional[jnp.array] = None
+    _built: bool = False
 
     def __post_init__(self):
         if not MUTE_CHKFILE and self.chkfile is None:
@@ -88,7 +90,8 @@ class SCF(hf.SCF):
             self.max_memory = self.mol.max_memory
         if self.stdout is None:
             self.stdout = self.mol.stdout
-
+        if not self._built:
+            self._built = True
         self._keys = set(self.__dict__.keys())
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,

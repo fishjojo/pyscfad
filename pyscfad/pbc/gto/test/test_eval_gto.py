@@ -69,3 +69,12 @@ def test_eval_gto(get_cell):
 
     # TODO reverse mode autodiff
     pass
+
+    for i in range(4):
+        intor = "PBCGTOval_sph_deriv" + str(i)
+        ao = cell.pbc_eval_gto(intor, grids)
+        ao_ref = pyscf_eval_gto(cell, intor, grids)
+        assert abs(ao - ao_ref).max() < 1e-10
+
+        # TODO test gradient
+        pass
