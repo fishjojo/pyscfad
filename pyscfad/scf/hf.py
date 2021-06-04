@@ -136,6 +136,9 @@ class SCF(hf.SCF):
             jac = jax.jacrev(func)(self, dm0=dm0)
         else:
             jac = jax.jacfwd(func)(self, dm0=dm0)
-        return jac.mol
+        if hasattr(jac,"cell"):
+            return jac.cell
+        else:
+            return jac.mol
 
 RHF = SCF

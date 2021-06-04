@@ -24,10 +24,7 @@ def energy_nuc(mol, charges=None, coords=None):
     return e
 
 def inter_distance(mol, coords=None):
-    if coords is None:
-        coords = mol.coords
-    if coords is None:
-        coords = mol.atom_coords()
+    coords = mol.atom_coords()
     return _rr(coords)
 
 @jax.custom_jvp
@@ -110,6 +107,15 @@ class Mole(gto.Mole):
 
     def __post_init__(self):
         self._keys = set(self.__dict__.keys())
+
+    def atom_coords(self, unit='Bohr'):
+        if self.coords is None:
+            return gto.Mole.atom_coords(self, unit)
+        else:
+            if unit[:3].upper() == 'ANG':
+                return self.coords * param.BOHR
+            else:
+                return self.coords
 
     def build(self, *args, **kwargs):
         trace_coords = kwargs.pop("trace_coords", False)

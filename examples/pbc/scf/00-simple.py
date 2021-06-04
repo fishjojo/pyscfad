@@ -10,8 +10,10 @@ cell.a = '''0.            2.6935121974    2.6935121974
             2.6935121974  2.6935121974    0.    '''
 cell.basis = 'gth-szv'
 cell.pseudo = 'gth-pade'
+cell.verbose = 5
 cell.build(trace_coords=True)
 
 mf = scf.RHF(cell)
-jac = jax.jacrev(mf.__class__.get_hcore)(mf)
-print(jac.cell.coords)
+#mf.kernel()
+jac = mf.mol_grad_ad(mode='fwd')
+print(jac.coords)

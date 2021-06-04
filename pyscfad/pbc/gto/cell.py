@@ -2,7 +2,7 @@ import warnings
 from typing import Optional, Any
 import numpy
 from pyscf import __config__
-from pyscf.pbc.gto import cell
+from pyscf.pbc.gto import cell as pyscf_cell
 from pyscfad import lib
 from pyscfad.lib import numpy as jnp
 from pyscfad.gto import mole
@@ -19,9 +19,7 @@ def pbc_intor(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
     return res
 
 def get_SI(cell, Gv=None):
-    coords = cell.coords
-    if coords is None:
-        coords = cell.atom_coords()
+    coords = cell.atom_coords()
     ngrids = numpy.prod(cell.mesh)
     if Gv is None or Gv.shape[0] == ngrids:
         Gv = cell.get_Gv()
@@ -29,9 +27,10 @@ def get_SI(cell, Gv=None):
     SI = jnp.exp(-1j*jnp.dot(coords, GvT))
     return SI
 
+energy_nuc = pyscf_cell.ewald
 
 @lib.dataclass
-class Cell(mole.Mole, cell.Cell):
+class Cell(mole.Mole, pyscf_cell.Cell):
     precision: float = getattr(__config__, 'pbc_gto_cell_Cell_precision', 1e-8)
     exp_to_discard: Optional[float] = getattr(__config__, 'pbc_gto_cell_Cell_exp_to_discard', None)
 
@@ -70,7 +69,7 @@ class Cell(mole.Mole, cell.Cell):
         trace_ctr_coeff = kwargs.pop("trace_ctr_coeff", False)
         trace_r0 = kwargs.pop("trace_r0", False)
 
-        cell.Cell.build(self, *args, **kwargs)
+        pyscf_cell.Cell.build(self, *args, **kwargs)
 
         if trace_coords:
             self.coords = jnp.asarray(self.atom_coords())
@@ -99,3 +98,4 @@ class Cell(mole.Mole, cell.Cell):
 
     pbc_intor = pbc_intor
     get_SI = get_SI
+    energy_nuc = energy_nuc
