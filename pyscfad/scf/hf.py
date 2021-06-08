@@ -111,11 +111,10 @@ class SCF(hf.SCF):
         mol = stop_grad(mol)
         return hf.SCF.get_init_guess(self, mol, key)
 
-    def mol_grad_ad(self, mode="rev"):
+    def mol_grad_ad(self, dm0=None, mode="rev"):
         """
         Energy gradient wrt AO parameters computed by AD
         """
-        dm0 = None
         if self.converged:
             def e_tot(self, dm0=None):
                 h1e = self.get_hcore()
@@ -127,7 +126,8 @@ class SCF(hf.SCF):
                 vhf = self.get_veff(dm=dm)
                 return self.energy_tot(dm, h1e, vhf)
             func = e_tot
-            dm0 = self.make_rdm1()
+            if dm0 is None:
+                dm0 = self.make_rdm1()
             self.reset() # need to reset _eri to get its gradient
         else:
             func = self.__class__.kernel

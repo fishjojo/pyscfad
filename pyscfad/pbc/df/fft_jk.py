@@ -25,7 +25,7 @@ def get_j_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None, 
 
     if hermi == 1 or gamma_point(kpts):
         vR = rhoR = jnp.zeros((nset,ngrids))
-        for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts):
+        for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts, cell=cell):
             ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
             for i in range(nset):
                 #rhoR[i,p0:p1] += make_rho(i, ao_ks, mask, 'LDA')
@@ -41,7 +41,7 @@ def get_j_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None, 
 
     else:  # vR may be complex if the underlying density is complex
         vR = rhoR = jnp.zeros((nset,ngrids), dtype=jnp.complex128)
-        for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts):
+        for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts, cell=cell):
             ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
             for i in range(nset):
                 for k, ao in enumerate(ao_ks):
@@ -66,7 +66,7 @@ def get_j_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None, 
     else:
         vj_kpts = jnp.zeros((nset,nband,nao,nao), dtype=jnp.complex128)
 
-    for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts_band):
+    for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts_band, cell=cell):
         ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
         for i in range(nset):
             # ni.eval_mat can handle real vR only
@@ -190,31 +190,31 @@ def get_k_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None,
     return _format_jks(vk_kpts, dm_kpts, input_band, kpts)
 
 def get_jk(mydf, dm, hermi=1, kpt=numpy.zeros(3), kpts_band=None,
-           with_j=True, with_k=True, exxdiv=None):
+           with_j=True, with_k=True, exxdiv=None, cell=None):
     dm = jnp.asarray(dm)
     vj = vk = None
     if with_j:
-        vj = get_j(mydf, dm, hermi, kpt, kpts_band)
+        vj = get_j(mydf, dm, hermi, kpt, kpts_band, cell=cell)
     if with_k:
-        vk = get_k(mydf, dm, hermi, kpt, kpts_band, exxdiv)
+        vk = get_k(mydf, dm, hermi, kpt, kpts_band, exxdiv, cell=cell)
     return vj, vk
 
-def get_j(mydf, dm, hermi=1, kpt=numpy.zeros(3), kpts_band=None):
+def get_j(mydf, dm, hermi=1, kpt=numpy.zeros(3), kpts_band=None, cell=None):
     dm = jnp.asarray(dm)
     nao = dm.shape[-1]
     dm_kpts = dm.reshape(-1,1,nao,nao)
-    vj = get_j_kpts(mydf, dm_kpts, hermi, kpt.reshape(1,3), kpts_band)
+    vj = get_j_kpts(mydf, dm_kpts, hermi, kpt.reshape(1,3), kpts_band, cell=cell)
     if kpts_band is None:
         vj = vj[:,0]
     if dm.ndim == 2:
         vj = vj[0]
     return vj
 
-def get_k(mydf, dm, hermi=1, kpt=numpy.zeros(3), kpts_band=None, exxdiv=None):
+def get_k(mydf, dm, hermi=1, kpt=numpy.zeros(3), kpts_band=None, exxdiv=None, cell=None):
     dm = jnp.asarray(dm)
     nao = dm.shape[-1]
     dm_kpts = dm.reshape(-1,1,nao,nao)
-    vk = get_k_kpts(mydf, dm_kpts, hermi, kpt.reshape(1,3), kpts_band, exxdiv)
+    vk = get_k_kpts(mydf, dm_kpts, hermi, kpt.reshape(1,3), kpts_band, exxdiv, cell=cell)
     if kpts_band is None:
         vk = vk[:,0]
     if dm.ndim == 2:

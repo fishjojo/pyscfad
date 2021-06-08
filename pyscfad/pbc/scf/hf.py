@@ -90,7 +90,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
             #                          with_j, with_k, omega, exxdiv=self.exxdiv)
         else:
             vj, vk = self.with_df.get_jk(dm.reshape(-1,nao,nao), hermi, kpt, kpts_band,
-                                         with_j, with_k, omega, exxdiv=self.exxdiv)
+                                         with_j, with_k, omega, exxdiv=self.exxdiv, cell=cell)
 
         if with_j:
             vj = _format_jks(vj, dm, kpts_band)
@@ -99,7 +99,9 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
         #logger.timer(self, 'vj and vk', *cpu0)
         return vj, vk
 
+    get_veff = pyscf_pbc_hf.SCF.get_veff
     energy_nuc = pyscf_pbc_hf.SCF.energy_nuc
+    cell_grad_ad = mol_hf.SCF.mol_grad_ad
 
 RHF = SCF
 
@@ -109,7 +111,7 @@ def normalize_dm_(mf, dm):
     if getattr(dm, "ndim", 0) == 2:
         ne = numpy.einsum('ij,ji->', stop_grad(dm), s).real
     else:
-        ne = numpy.einsum('xij,ji->', dm, s).real
+        ne = numpy.einsum('xij,ji->', stop_grad(dm), s).real
     if abs(ne - cell.nelectron).sum() > 1e-7:
         logger.debug(mf, 'Big error detected in the electron number '
                      'of initial guess density matrix (Ne/cell = %g)!\n'

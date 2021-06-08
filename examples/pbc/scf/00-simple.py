@@ -2,18 +2,28 @@ import jax
 from pyscfad.pbc import gto
 from pyscfad.pbc import scf, df
 
+BOHR = 0.52917721092
+
+basis = 'gth-szv'
+pseudo = 'gth-pade'
+
+a = 5.431020511
+lattice = [[0., a/2, a/2],
+          [a/2, 0., a/2],
+          [a/2, a/2, 0.]]
+disp = 0.01
+atom = [['Si', [0., 0., 0.]],
+        ['Si', [a/4+disp, a/4+disp, a/4+disp]]]
+
 cell = gto.Cell()
-cell.atom = '''Si 0.,  0.,  0.
-               Si 1.3467560987,  1.3467560987,  1.3467560987'''
-cell.a = '''0.            2.6935121974    2.6935121974
-            2.6935121974  0.              2.6935121974
-            2.6935121974  2.6935121974    0.    '''
-cell.basis = 'gth-szv'
-cell.pseudo = 'gth-pade'
+cell.atom = atom
+cell.a = lattice
+cell.basis = basis
+cell.pseudo = pseudo
 cell.verbose = 5
 cell.build(trace_coords=True)
 
-mf = scf.RHF(cell)
-#mf.kernel()
+mf = scf.RHF(cell, exxdiv=None)
+mf.kernel()
 jac = mf.mol_grad_ad(mode='fwd')
 print(jac.coords)

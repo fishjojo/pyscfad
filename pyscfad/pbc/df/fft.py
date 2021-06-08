@@ -145,7 +145,7 @@ class FFTDF(fft.FFTDF):
         self._keys = set(self.__dict__.keys())
 
     def get_jk(self, dm, hermi=1, kpts=None, kpts_band=None,
-               with_j=True, with_k=True, omega=None, exxdiv=None):
+               with_j=True, with_k=True, omega=None, exxdiv=None, cell=None):
         from pyscfad.pbc.df import fft_jk
         if omega is not None:  # J/K for RSH functionals
             raise NotImplementedError
@@ -163,12 +163,12 @@ class FFTDF(fft.FFTDF):
         vj = vk = None
         if kpts.shape == (3,):
             vj, vk = fft_jk.get_jk(self, dm, hermi, kpts, kpts_band,
-                                   with_j, with_k, exxdiv)
+                                   with_j, with_k, exxdiv, cell=cell)
         else:
             if with_k:
-                vk = fft_jk.get_k_kpts(self, dm, hermi, kpts, kpts_band, exxdiv)
+                vk = fft_jk.get_k_kpts(self, dm, hermi, kpts, kpts_band, exxdiv, cell=cell)
             if with_j:
-                vj = fft_jk.get_j_kpts(self, dm, hermi, kpts, kpts_band)
+                vj = fft_jk.get_j_kpts(self, dm, hermi, kpts, kpts_band, cell=cell)
         return vj, vk
 
 
