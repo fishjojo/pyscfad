@@ -20,10 +20,9 @@ cell.atom = atom
 cell.a = lattice
 cell.basis = basis
 cell.pseudo = pseudo
-cell.verbose = 5
 cell.build(trace_coords=True)
 
 mf = scf.RHF(cell, exxdiv=None)
 mf.kernel()
-jac = mf.mol_grad_ad(mode='fwd')
+jac = mf.mol_grad_ad()
 print(jac.coords)

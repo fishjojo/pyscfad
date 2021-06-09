@@ -114,7 +114,7 @@ def test_e_tot(get_cell, get_cell_ref):
     mf = scf.RHF(cell, exxdiv=None)
     e_tot = mf.kernel()
     jac_fwd = mf.cell_grad_ad(mode='fwd')
-    #jac_bwd = mf.cell_grad_ad(mode='rev') #FIXME reverse mode gives Nan
+    jac_bwd = mf.cell_grad_ad(mode='rev')
 
     cell_ref = get_cell_ref
     kpts = numpy.zeros([1,3])
@@ -125,4 +125,4 @@ def test_e_tot(get_cell, get_cell_ref):
 
     assert abs(e_tot - e_tot_ref) < 1e-10
     assert abs(jac_fwd.coords - g0).max() < 1e-8
-    #assert abs(jac_bwd.coords - g0).max() < 1e-8
+    assert abs(jac_bwd.coords - g0).max() < 1e-8
