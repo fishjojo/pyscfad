@@ -40,7 +40,7 @@ def _dot_eri_dm_nosymm(eri, dm, with_j, with_k):
 class SCF(hf.SCF):
     # pylint: disable=too-many-instance-attributes
     mol: gto.Mole = lib.field(pytree_node=True)
-    mo_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
+    mo_coeff: Optional[jnp.array] = lib.field(pytree_node=False, default=None)
     mo_energy: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
 
     conv_tol: float = getattr(__config__, 'scf_hf_SCF_conv_tol', 1e-9)
@@ -117,13 +117,14 @@ class SCF(hf.SCF):
         """
         if self.converged:
             def e_tot(self, dm0=None):
+                mol = getattr(self, "cell", self.mol)
                 h1e = self.get_hcore()
-                vhf = self.get_veff(dm=dm0)
+                vhf = self.get_veff(mol, dm0)
                 fock = self.get_fock(h1e=h1e, vhf=vhf, cycle=-1)
                 s1e = self.get_ovlp()
                 _, mo_coeff = self.eig(fock, s1e)
-                dm = self.make_rdm1(mo_coeff=mo_coeff)
-                vhf = self.get_veff(dm=dm)
+                dm = self.make_rdm1(mo_coeff)
+                vhf = self.get_veff(mol, dm)
                 return self.energy_tot(dm, h1e, vhf)
             func = e_tot
             if dm0 is None:

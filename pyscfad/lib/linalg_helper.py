@@ -66,7 +66,7 @@ def _eigh_jvp_jitted(w, v, Fmat, at, bt):
     vt_bt_v = np.dot(v.conj().T, np.dot(bt, v))
     vt_bt_v_w = np.dot(vt_bt_v, np.diag(w))
     da_minus_ds = vt_at_v - vt_bt_v_w
-    dw = np.diag(da_minus_ds)
+    dw = np.diag(da_minus_ds).real
 
     eye_n = np.eye(vt_bt_v.shape[-1])
     dv = np.dot(v, np.multiply(Fmat, da_minus_ds) - np.multiply(eye_n, vt_bt_v) * .5)
