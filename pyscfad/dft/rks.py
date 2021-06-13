@@ -12,53 +12,18 @@ from . import numint
 
 @lib.dataclass
 class VXC():
-    _vxc: jnp.array = None
-    _ecoul: float = None
-    _exc: float = None
-    _vj: jnp.array = None
-    _vk: jnp.array = None
+    vxc: jnp.array = None
+    ecoul: float = None
+    exc: float = None
+    vj: jnp.array = None
+    vk: jnp.array = None
 
-    def __init__(self, vxc=None, ecoul=None, exc=None, vj=None, vk=None):
-        self.vxc = vxc
-        self.ecoul = ecoul
-        self.exc = exc
-        self.vj = vj
-        self.vk = vk
-
-    @property
-    def vxc(self):
-        return self._vxc
-    @vxc.setter
-    def vxc(self, v):
-        self._vxc = v
-
-    @property
-    def ecoul(self):
-        return self._ecoul
-    @ecoul.setter
-    def ecoul(self, e):
-        self._ecoul = e
-
-    @property
-    def exc(self):
-        return self._exc
-    @exc.setter
-    def exc(self, e):
-        self._exc = e
-
-    @property
-    def vj(self):
-        return self._vj
-    @vj.setter
-    def vj(self, v):
-        self._vj = v
-
-    @property
-    def vk(self):
-        return self._vk
-    @vk.setter
-    def vk(self, v):
-        self._vk = v
+    def reset(self):
+        self.vxc = None
+        self.ecoul = None
+        self.exc = None
+        self.vj = None
+        self.vk = None
 
     def __repr__(self):
         return self.vxc.__repr__()

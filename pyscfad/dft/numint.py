@@ -1,3 +1,4 @@
+import warnings
 from functools import partial
 import numpy
 import jax
@@ -17,10 +18,10 @@ libdft = pyscf.lib.load_library('libdft')
 def eval_mat(mol, ao, weight, rho, vxc,
              non0tab=None, xctype='LDA', spin=0, verbose=None):
     xctype = xctype.upper()
-    if xctype == 'LDA' or xctype == 'HF':
-        ngrids, nao = ao.shape
+    if xctype in ['LDA', 'HF']:
+        ngrids, _ = ao.shape
     else:
-        ngrids, nao = ao[0].shape
+        ngrids, _ = ao[0].shape
 
     if non0tab is None:
         non0tab = numpy.ones(((ngrids+BLKSIZE-1)//BLKSIZE,mol.nbas),
@@ -28,7 +29,7 @@ def eval_mat(mol, ao, weight, rho, vxc,
     shls_slice = (0, mol.nbas)
     ao_loc = mol.ao_loc_nr()
     transpose_for_uks = False
-    if xctype == 'LDA' or xctype == 'HF':
+    if xctype in ['LDA', 'HF']:
         if not getattr(vxc, 'ndim', None) == 2:
             vrho = vxc[0]
         else:
