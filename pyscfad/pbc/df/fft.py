@@ -3,7 +3,7 @@ import numpy
 from pyscf import __config__
 from pyscf import lib as pyscf_lib
 from pyscf.pbc.lib.kpts_helper import gamma_point
-from pyscf.pbc.df import fft
+from pyscf.pbc.df import fft as pyscf_fft
 from pyscfad import lib
 from pyscfad.lib import numpy as jnp
 from pyscfad.pbc import tools 
@@ -114,9 +114,9 @@ def get_pp(mydf, kpts=None, cell=None):
 
 
 @lib.dataclass
-class FFTDF(fft.FFTDF):
-    from pyscf.pbc.dft import gen_grid
-    from pyscfad.pbc.dft import numint
+class FFTDF(pyscf_fft.FFTDF):
+    #from pyscf.pbc.dft import gen_grid
+    #from pyscfad.pbc.dft import numint
 
     cell: Cell = lib.field(pytree_node=True)
     kpts: numpy.ndarray = numpy.zeros((1,3))
@@ -125,15 +125,18 @@ class FFTDF(fft.FFTDF):
     verbose: Optional[int] = None
     max_memory: Optional[int] = None
 
-    grids: Optional[gen_grid.UniformGrids] = None
+    #grids: Optional[gen_grid.UniformGrids] = None
+    grids: Any = None
     blockdim: int = getattr(__config__, 'pbc_df_df_DF_blockdim', 240)
 
     exxdiv: Optional[str] = None
-    _numint: numint.KNumInt = numint.KNumInt()
+    #_numint: numint.KNumInt = numint.KNumInt()
+    _numint: Any = None # can't import numint here
     _rsh_df: dict = lib.field(default_factory = dict)
 
     def __post_init__(self):
         from pyscf.pbc.dft import gen_grid
+        from pyscfad.pbc.dft import numint
         if self.stdout is None:
             self.stdout = self.cell.stdout
         if self.verbose is None:
@@ -142,6 +145,8 @@ class FFTDF(fft.FFTDF):
             self.max_memory = self.cell.max_memory
         if self.grids is None:
             self.grids = gen_grid.UniformGrids(self.cell)
+        if self._numint is None:
+            self._numint = numint.KNumInt()
         self._keys = set(self.__dict__.keys())
 
     def get_jk(self, dm, hermi=1, kpts=None, kpts_band=None,

@@ -31,6 +31,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
             setattr(self, key, kwargs[key])
         if not self._built:
             mol_hf.SCF.__init__(self, cell)
+            mol_hf.SCF.__post_init__(self)
             self.direct_scf = getattr(__config__, 'pbc_scf_SCF_direct_scf', False)
             self.conv_tol = self.cell.precision * 10
         if self.with_df is None:

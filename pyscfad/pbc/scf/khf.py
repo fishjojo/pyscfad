@@ -37,6 +37,7 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
             setattr(self, key, kwargs[key])
         if not self._built:
             mol_hf.SCF.__init__(self, cell)
+            mol_hf.SCF.__post_init__(self)
             self.direct_scf = getattr(__config__, 'pbc_scf_SCF_direct_scf', True)
             self.conv_tol_grad = getattr(__config__, 'pbc_scf_KSCF_conv_tol_grad', None)
             self.conv_tol = self.cell.precision * 10

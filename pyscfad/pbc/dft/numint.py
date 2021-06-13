@@ -3,9 +3,80 @@ import numpy
 from pyscf.pbc.dft import numint as pyscf_numint
 from pyscf.pbc.dft.gen_grid import make_mask, BLKSIZE
 from pyscfad.lib import numpy as jnp
-from pyscfad.lib import ops
+from pyscfad.lib import ops, stop_grad
 from pyscfad.dft import numint
-from pyscfad.dft.numint import _contract_rho, _dot_ao_dm
+from pyscfad.dft.numint import eval_mat, _contract_rho, _dot_ao_dm
+
+def nr_rks(ni, cell, grids, xc_code, dms, spin=0, relativity=0, hermi=0,
+           kpts=None, kpts_band=None, max_memory=2000, verbose=None):
+    if kpts is None:
+        kpts = numpy.zeros((1,3))
+
+    xctype = ni._xc_type(xc_code)
+    make_rho, nset, nao = ni._gen_rho_evaluator(cell, dms, hermi)
+
+    nelec = [0]*nset
+    excsum = [0]*nset
+    vmat = [0]*nset
+    if xctype == 'LDA':
+        ao_deriv = 0
+        for ao_k1, ao_k2, mask, weight, coords \
+                in ni.block_loop(cell, grids, nao, ao_deriv, kpts, kpts_band,
+                                 max_memory):
+            for i in range(nset):
+                rho = make_rho(i, ao_k2, mask, xctype)
+                exc, vxc = ni.eval_xc(xc_code, rho, spin=0,
+                                      relativity=relativity, deriv=1)[:2]
+                den = rho*weight
+                nelec[i] += stop_grad(den).sum()
+                excsum[i] += (den*exc).sum()
+                vmat[i] += ni.eval_mat(cell, ao_k1, weight, rho, vxc,
+                                       mask, xctype, 0, verbose)
+    elif xctype == 'GGA':
+        ao_deriv = 1
+        for ao_k1, ao_k2, mask, weight, coords \
+                in ni.block_loop(cell, grids, nao, ao_deriv, kpts, kpts_band,
+                                 max_memory):
+            for i in range(nset):
+                rho = make_rho(i, ao_k2, mask, xctype)
+                exc, vxc = ni.eval_xc(xc_code, rho, spin=0,
+                                      relativity=relativity, deriv=1)[:2]
+                den = rho[0]*weight
+                nelec[i] += stop_grad(den).sum()
+                excsum[i] += (den*exc).sum()
+                vmat[i] += ni.eval_mat(cell, ao_k1, weight, rho, vxc,
+                                       mask, xctype, 0, verbose)
+    elif xctype == 'MGGA':
+        if (any(x in xc_code.upper() for x in ('CC06', 'CS', 'BR89', 'MK00'))):
+            raise NotImplementedError('laplacian in meta-GGA method')
+        ao_deriv = 2
+        for ao_k1, ao_k2, mask, weight, coords \
+                in ni.block_loop(cell, grids, nao, ao_deriv, kpts, kpts_band,
+                                 max_memory):
+            for i in range(nset):
+                rho = make_rho(i, ao_k2, mask, xctype)
+                exc, vxc = ni.eval_xc(xc_code, rho, spin=0,
+                                      relativity=relativity, deriv=1)[:2]
+                den = rho[0]*weight
+                nelec[i] += stop_grad(den).sum()
+                excsum[i] += (den*exc).sum()
+                vmat[i] += ni.eval_mat(cell, ao_k1, weight, rho, vxc,
+                                       mask, xctype, 0, verbose)
+
+    nelec = numpy.asarray(nelec)
+    excsum = jnp.asarray(excsum)
+    vmat = jnp.asarray(vmat)
+    if nset == 1:
+        nelec = nelec[0]
+        excsum = excsum[0]
+        vmat = vmat[0]
+    return nelec, excsum, vmat
+
+def eval_ao(cell, coords, kpt=numpy.zeros(3), deriv=0, relativity=0, shls_slice=None,
+            non0tab=None, out=None, verbose=None):
+    ao_kpts = eval_ao_kpts(cell, coords, numpy.reshape(kpt, (-1,3)), deriv,
+                           relativity, shls_slice, non0tab, out, verbose)
+    return ao_kpts[0]
 
 def eval_ao_kpts(cell, coords, kpts=None, deriv=0, relativity=0,
                  shls_slice=None, non0tab=None, out=None, verbose=None, **kwargs):
@@ -99,6 +170,83 @@ def eval_rho(cell, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
         # real orbitals and real DM
         rho = numint.eval_rho(cell, ao, dm, non0tab, xctype, hermi, verbose)
     return rho
+
+class NumInt(numint.NumInt):
+    def nr_rks(self, cell, grids, xc_code, dms, hermi=0,
+               kpt=numpy.zeros(3), kpts_band=None, max_memory=2000, verbose=None):
+        if kpts_band is not None:
+            # To compute Vxc on kpts_band, convert the NumInt object to KNumInt object.
+            ni = KNumInt()
+            ni.__dict__.update(self.__dict__)
+            nao = dms.shape[-1]
+            return ni.nr_rks(cell, grids, xc_code, dms.reshape(-1,1,nao,nao),
+                             hermi, kpt.reshape(1,3), kpts_band, max_memory,
+                             verbose)
+        return nr_rks(self, cell, grids, xc_code, dms,
+                      0, 0, hermi, kpt, kpts_band, max_memory, verbose)
+
+    def eval_ao(self, cell, coords, kpt=numpy.zeros(3), deriv=0, relativity=0,
+                shls_slice=None, non0tab=None, out=None, verbose=None):
+        return eval_ao(cell, coords, kpt, deriv, relativity, shls_slice,
+                       non0tab, out, verbose)
+
+    def eval_mat(self, cell, ao, weight, rho, vxc,
+                 non0tab=None, xctype='LDA', spin=0, verbose=None):
+        # Guess whether ao is evaluated for kpts_band.  When xctype is LDA, ao on grids
+        # should be a 2D array.  For other xc functional, ao should be a 3D array.
+        if ao.ndim == 2 or (xctype != 'LDA' and ao.ndim == 3):
+            mat = eval_mat(cell, ao, weight, rho, vxc, non0tab, xctype, spin, verbose)
+        else:
+            nkpts = len(ao)
+            nao = ao[0].shape[-1]
+            mat = jnp.empty((nkpts,nao,nao), dtype=jnp.complex128)
+            for k in range(nkpts):
+                mat[k] = eval_mat(cell, ao[k], weight, rho, vxc,
+                                  non0tab, xctype, spin, verbose)
+        return mat
+
+    def block_loop(self, cell, grids, nao=None, deriv=0, kpt=numpy.zeros(3),
+                   kpts_band=None, max_memory=2000, non0tab=None, blksize=None):
+        '''Define this macro to loop over grids by blocks.
+        '''
+        # For UniformGrids, grids.coords does not indicate whehter grids are initialized
+        if grids.non0tab is None:
+            grids.build(with_non0tab=True)
+        if nao is None:
+            nao = cell.nao
+        grids_coords = grids.coords
+        grids_weights = grids.weights
+        ngrids = grids_coords.shape[0]
+        comp = (deriv+1)*(deriv+2)*(deriv+3)//6
+# NOTE to index grids.non0tab, the blksize needs to be the integer multiplier of BLKSIZE
+        if blksize is None:
+            blksize = int(max_memory*1e6/(comp*2*nao*16*BLKSIZE))*BLKSIZE
+            blksize = max(BLKSIZE, min(blksize, ngrids, BLKSIZE*1200))
+        if non0tab is None:
+            non0tab = grids.non0tab
+        if non0tab is None:
+            non0tab = numpy.empty(((ngrids+BLKSIZE-1)//BLKSIZE,cell.nbas),
+                                  dtype=numpy.uint8)
+            non0tab[:] = 0xff
+        kpt = numpy.reshape(kpt, 3)
+        if kpts_band is None:
+            kpt1 = kpt2 = kpt
+        else:
+            kpt1 = kpts_band
+            kpt2 = kpt
+
+        for ip0 in range(0, ngrids, blksize):
+            ip1 = min(ngrids, ip0+blksize)
+            coords = grids_coords[ip0:ip1]
+            weight = grids_weights[ip0:ip1]
+            non0 = non0tab[ip0//BLKSIZE:]
+            ao_k2 = self.eval_ao(cell, coords, kpt2, deriv=deriv, non0tab=non0)
+            if abs(kpt1-kpt2).sum() < 1e-9:
+                ao_k1 = ao_k2
+            else:
+                ao_k1 = self.eval_ao(cell, coords, kpt1, deriv=deriv)
+            yield ao_k1, ao_k2, non0, weight, coords
+            ao_k1 = ao_k2 = None
 
 class KNumInt(numint.NumInt):
     def __init__(self, kpts=numpy.zeros((1,3))):

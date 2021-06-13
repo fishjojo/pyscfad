@@ -1,5 +1,6 @@
 import jax
-from pyscfad.pbc import gto, scf
+from pyscfad.pbc import gto
+from pyscfad.pbc import dft, df
 
 basis = 'gth-szv'
 pseudo = 'gth-pade'
@@ -19,7 +20,8 @@ cell.basis = basis
 cell.pseudo = pseudo
 cell.build(trace_coords=True)
 
-mf = scf.RHF(cell, exxdiv=None)
+mf = dft.RKS(cell, exxdiv=None)
+mf.xc = 'pbe'
 mf.kernel()
-jac = mf.mol_grad_ad()
+jac = mf.cell_grad_ad()
 print(jac.coords)
