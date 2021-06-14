@@ -1,4 +1,3 @@
-import jax
 from pyscfad.pbc import gto
 from pyscfad.pbc import scf, df
 

@@ -253,6 +253,32 @@ class KNumInt(numint.NumInt):
         numint.NumInt.__init__(self)
         self.kpts = numpy.reshape(kpts, (-1,3))
 
+    def nr_rks(self, cell, grids, xc_code, dms, hermi=0, kpts=None, kpts_band=None,
+               max_memory=2000, verbose=None, **kwargs):
+        if kpts is None:
+            if 'kpt' in kwargs:
+                sys.stderr.write('WARN: KNumInt.nr_rks function finds keyword '
+                                 'argument "kpt" and converts it to "kpts"\n')
+                kpts = kwargs['kpt']
+            else:
+                kpts = self.kpts
+        kpts = kpts.reshape(-1,3)
+
+        return nr_rks(self, cell, grids, xc_code, dms, 0, 0,
+                      hermi, kpts, kpts_band, max_memory, verbose)
+
+    def eval_mat(self, cell, ao_kpts, weight, rho, vxc,
+                 non0tab=None, xctype='LDA', spin=0, verbose=None):
+        nkpts = len(ao_kpts)
+        nao = ao_kpts[0].shape[-1]
+        #dtype = jnp.result_type(*ao_kpts)
+        #mat = jnp.empty((nkpts,nao,nao), dtype=dtype)
+        mat = [0] * nkpts
+        for k in range(nkpts):
+            mat[k] = eval_mat(cell, ao_kpts[k], weight, rho, vxc,
+                              non0tab, xctype, spin, verbose)
+        return jnp.asarray(mat)
+
     def eval_ao(self, cell, coords, kpts=numpy.zeros((1,3)), deriv=0, relativity=0,
                 shls_slice=None, non0tab=None, out=None, verbose=None, **kwargs):
         return eval_ao_kpts(cell, coords, kpts, deriv,

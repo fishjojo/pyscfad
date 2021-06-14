@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy
 from pyscf import __config__
 from pyscf.lib import logger
@@ -90,7 +91,7 @@ class KohnShamDFT(mol_ks.KohnShamDFT):
 @lib.dataclass
 class RKS(KohnShamDFT, pbchf.RHF):
     kpt: numpy.ndarray = numpy.zeros(3)
-    exxdiv: str = getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')
+    exxdiv: Optional[str] = getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')
 
     def __init__(self, cell, xc='LDA,VWN', **kwargs):
         self.cell = cell
