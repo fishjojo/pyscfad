@@ -50,10 +50,12 @@ def _eigh_jvp(primals, tangents):
     deg_thresh = DEG_THRESH
     eji = w[..., numpy.newaxis, :] - w[..., numpy.newaxis]
     idx = abs(eji) < deg_thresh
-    eji[idx] = 1.e200
-    eji[numpy.diag_indices_from(eji)] = 1
+    #eji[idx] = 1.e200
+    #eji[numpy.diag_indices_from(eji)] = 1
+    eji = ops.index_update(eji, idx, 1.e200)
+    eji = ops.index_update(eji, np.diag_indices_from(eji), 1.)
     eye_n = numpy.eye(a.shape[-1], dtype=a.dtype)
-    Fmat = numpy.reciprocal(eji) - eye_n
+    Fmat = np.reciprocal(eji) - eye_n
     if b is None:
         dw, dv = _eigh_jvp_jitted_nob(v, Fmat, at)
     else:
