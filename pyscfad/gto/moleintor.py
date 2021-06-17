@@ -52,10 +52,16 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
         elif intor.startswith("int2c2e"):
             intor_ip = intor.replace("int2c2e", "int2c2e_ip1")
         elif intor.startswith("int1e"):
-            intor_ip = intor.replace("int1e_", "int1e_ip")
+            if intor in ['int1e_r', 'int1e_r_sph', 'int1e_r_cart']:
+                intor_ip = intor.replace('int1e_r', 'int1e_irp')
+            else:
+                intor_ip = intor.replace("int1e_", "int1e_ip")
             #tmp = intor.split("_", 1)
             #intor_ip = tmp[0] + "_ip" + tmp[1]
-        tangent_out += _int1e_jvp_r0(mol, mol_t, intor_ip)
+        if intor_ip.startswith("int1e_ir"):
+            tangent_out += _int1e_r_jvp_r0(mol, mol_t, intor_ip)
+        else:
+            tangent_out += _int1e_jvp_r0(mol, mol_t, intor_ip)
 
         intor_ip = None
         if intor.startswith("int1e_nuc"):
@@ -158,6 +164,20 @@ def _int1e_jvp_r0(mol, mol_t, intor):
     tangent_out = _int1e_dot_grad_tangent_r0(grad, coords_t)
     return tangent_out
 
+def _int1e_r_jvp_r0(mol, mol_t, intor):
+    coords_t = mol_t.coords
+    atmlst = range(mol.natm)
+    aoslices = mol.aoslice_by_atom()
+    nao = mol.nao
+    s1 = -Mole.intor(mol, intor).reshape(3,-1,nao,nao)
+    grad = [numpy.zeros_like(s1) for ia in atmlst]
+    grad = numpy.asarray(grad)
+    for k, ia in enumerate(atmlst):
+        p0, p1 = aoslices [ia,2:]
+        grad[k,...,p0:p1] = s1[...,p0:p1]
+    tangent_out = _int1e_r_dot_grad_tangent_r0(grad, coords_t)
+    return tangent_out
+
 def _int1e_nuc_jvp_rc(mol, mol_t, intor):
     coords_t = mol_t.coords
     atmlst = range(mol.natm)
@@ -178,6 +198,13 @@ def _int1e_dot_grad_tangent_r0(grad, tangent):
     tangent_out = np.einsum('nxij,nx->ij', grad, tangent)
     tangent_out += tangent_out.T
     return tangent_out
+
+@jit
+def _int1e_r_dot_grad_tangent_r0(grad, tangent):
+    tangent_out = np.einsum('nxpij,nx->pij', grad, tangent)
+    tangent_out += tangent_out.transpose(0,2,1)
+    return tangent_out
+
 
 def _int1e_jvp_cs(mol, mol_t, intor):
     ctr_coeff = mol.ctr_coeff
