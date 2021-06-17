@@ -1,4 +1,5 @@
 from typing import Union, Any
+import numpy
 import jax
 from pyscf import __config__
 from pyscf.mp import mp2
@@ -14,7 +15,6 @@ class MP2(mp2.MP2):
     conv_tol: float = getattr(__config__, 'cc_ccsd_CCSD_conv_tol', 1e-7)
     conv_tol_normt: float = getattr(__config__, 'cc_ccsd_CCSD_conv_tol_normt', 1e-5)
 
-
     frozen: Union[int, list, None] = None
     level_shift: float = 0.
 
@@ -24,7 +24,7 @@ class MP2(mp2.MP2):
     max_memory: int = None
 
     mo_coeff: jnp.array = None
-    mo_occ: jnp.array = None
+    mo_occ: numpy.array = None
     _nocc: int = None
     _nmo: int = None
     e_corr: float = None
