@@ -205,7 +205,6 @@ def _int1e_r_dot_grad_tangent_r0(grad, tangent):
     tangent_out += tangent_out.transpose(0,2,1)
     return tangent_out
 
-
 def _int1e_jvp_cs(mol, mol_t, intor):
     ctr_coeff = mol.ctr_coeff
     ctr_coeff_t = mol_t.ctr_coeff
