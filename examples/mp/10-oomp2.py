@@ -5,38 +5,10 @@ import jax.scipy as scipy
 from pyscfad import lib
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import ops
+from pyscfad.lib.numpy_helper import unpack_triu
+from pyscfad.tools import rotate_mo1
 from pyscfad import gto, scf
 from pyscfad import mp
-
-def unpack_triu(x, n, hermi=0):
-    R = jnp.zeros([n,n])
-    idx = numpy.triu_indices(n)
-    R = ops.index_update(R, idx, x)
-    if hermi == 0:
-        return R
-    elif hermi == 1:
-        R = R + R.conj().T
-        R = ops.index_mul(R, numpy.diag_indices(n), 0.5)
-        return R
-    elif hermi == 2:
-        return R - R.conj().T
-    else:
-        raise KeyError
-
-def update_rotate_matrix(dx, n, u0=1):
-    dr = unpack_triu(dx, n, hermi=2)
-    u = jnp.dot(u0, scipy.linalg.expm(dr))
-    return u
-
-def rotate_mo(mo_coeff, u):
-    mo = jnp.dot(mo_coeff, u)
-    return mo
-
-def rotate_mo1(mo_coeff, x):
-    nao = mo_coeff.shape[0]
-    u = update_rotate_matrix(x, nao)
-    mo_coeff1 = rotate_mo(mo_coeff, u)
-    return mo_coeff1
 
 @lib.dataclass
 class OOMP2(mp.MP2):
