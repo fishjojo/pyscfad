@@ -1,0 +1,9 @@
+include MANIFEST.in
+include README.md setup.py LICENSE
+
+prune pyscfad/lib/build
+
+include pyscfad/lib/*.so
+include pyscfad/lib/*.dylib
+
+recursive-include pyscfad/lib *.c *.h
