@@ -1,8 +1,10 @@
 from functools import partial
 import ctypes
 import numpy
+from jax import vmap
 from jax import custom_jvp
 from jax import jit
+from jax.lax import dynamic_slice, dynamic_update_slice
 from pyscf import ao2mo
 from pyscf.gto import mole, moleintor
 from pyscf.gto.mole import Mole
@@ -29,7 +31,7 @@ def getints(mol, intor, shls_slice=None,
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
 def getints2c(mol, intor,
-              shls_slice=None, comp=1, hermi=0, aosym='s1', out=None):
+              shls_slice=None, comp=None, hermi=0, aosym='s1', out=None):
     return Mole.intor(mol, intor,
                       comp=comp, hermi=hermi, aosym=aosym,
                       shls_slice=shls_slice, out=out)
@@ -41,24 +43,35 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
         raise NotImplementedError
 
     mol, = primals
+    mol_t, = tangents
+
     primal_out = getints2c(mol, intor, shls_slice=None,
                            comp=comp, hermi=hermi, aosym=aosym, out=out)
 
-    mol_t, = tangents
     tangent_out = np.zeros_like(primal_out)
     if mol.coords is not None:
+        intor_ip_bra = intor_ip_ket = intor_ip = None
         if intor.startswith("ECPscalar"):
             intor_ip = intor.replace("ECPscalar", "ECPscalar_ipnuc")
         elif intor.startswith("int2c2e"):
             intor_ip = intor.replace("int2c2e", "int2c2e_ip1")
         elif intor.startswith("int1e"):
-            if intor in ['int1e_r', 'int1e_r_sph', 'int1e_r_cart']:
+            if "ip" in intor:
+                intor_ip_bra = intor.replace("int1e_", "int1e_ip")
+                if "sph" in intor:
+                    intor_ip_ket = intor.replace("_sph","") + "ip" + "_sph"
+                elif "cart" in intor:
+                    intor_ip_ket = intor.replace("_cart","") + "ip" + "_cart"
+                else:
+                    intor_ip_ket = intor + "ip"
+            elif intor in ['int1e_r', 'int1e_r_sph', 'int1e_r_cart']:
                 intor_ip = intor.replace('int1e_r', 'int1e_irp')
             else:
                 intor_ip = intor.replace("int1e_", "int1e_ip")
-            #tmp = intor.split("_", 1)
-            #intor_ip = tmp[0] + "_ip" + tmp[1]
-        if intor_ip.startswith("int1e_ir"):
+        if intor_ip_bra or intor_ip_ket:
+            tangent_out += _gen_int1e_jvp_r0(mol, mol_t, intor_ip_bra, intor_ip_ket)
+            return primal_out, tangent_out
+        elif intor_ip.startswith("int1e_ir"):
             tangent_out += _int1e_r_jvp_r0(mol, mol_t, intor_ip)
         else:
             tangent_out += _int1e_jvp_r0(mol, mol_t, intor_ip)
@@ -68,10 +81,12 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
             intor_ip = intor.replace("int1e_nuc", "int1e_iprinv")
         elif intor.startswith("ECPscalar"):
             intor_ip = intor.replace("ECPscalar", "ECPscalar_iprinv")
-        if intor_ip is not None:
+        if intor_ip:
             tangent_out += _int1e_nuc_jvp_rc(mol, mol_t, intor_ip)
+
     if mol.ctr_coeff is not None:
         tangent_out += _int1e_jvp_cs(mol, mol_t, intor)
+
     if mol.exp is not None:
         tangent_out += _int1e_jvp_exp(mol, mol_t, intor)
     return primal_out, tangent_out
@@ -148,20 +163,61 @@ def promote_xyz(xyz, x, l):
         raise ValueError
 
 def _int1e_jvp_r0(mol, mol_t, intor):
-    coords_t = mol_t.coords
-    atmlst = range(mol.natm)
+    s1 = -getints2c(mol, intor, comp=3)
+    grad = _int1e_fill_grad_r0(mol, s1)
+    tangent_out = _int1e_dot_grad_tangent_r0(grad, mol_t.coords)
+    return tangent_out
+
+# FIXME unrolling the for loop can be slow,
+# and vmap does not work with dynamically shaped sub-array.
+# How to make in-place assignment efficient?
+@jit
+def _int1e_fill_grad_r0(mol, s1):
+    shape = [mol.natm,] + list(s1.shape)
+    grad = np.zeros(shape, dtype=s1.dtype)
     aoslices = mol.aoslice_by_atom()
+    for ia in range(mol.natm):
+        p0, p1 = aoslices[ia,2:]
+        grad = ops.index_update(grad, ops.index[ia,:,p0:p1], s1[:,p0:p1])
+    #def func(grad_k, ia):
+    #    p0, p1 = aoslices[ia, 2:]
+    #    return ops.index_update(grad_k, ops.index[:,p0:p1], s1[:,p0:p1])
+    #grad = vmap(func)(grad, np.arange(mol.natm))
+    return grad
+
+def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b):
+    coords_t = mol_t.coords
+    #atmlst = range(mol.natm)
+    #aoslices = mol.aoslice_by_atom()
     nao = mol.nao
-    s1 = -Mole.intor(mol, intor, comp=3)
-    grad = numpy.zeros((mol.natm,3,nao,nao), dtype=float)
-    for k, ia in enumerate(atmlst):
-        p0, p1 = aoslices [ia,2:]
-        #tmp = np.einsum('xij,x->ij',s1[:,p0:p1],coords_t[k])
-        #tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
-        #tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.T)
-        grad[k,:,p0:p1] = s1[:,p0:p1]
-    #grad += grad.transpose(0,1,3,2)
-    tangent_out = _int1e_dot_grad_tangent_r0(grad, coords_t)
+
+    s1a = -getints2c(mol, intor_a).reshape(3,-1,nao,nao)
+    s1b = -getints2c(mol, intor_b).reshape(-1,3,nao,nao).transpose(1,0,2,3)
+    #jvp = np.zeros(s1a.shape[1:])
+    #for k, ia in enumerate(atmlst):
+    #    p0, p1 = aoslices[ia,2:]
+    #    ta = np.einsum('xyij,x->yij', s1a[...,p0:p1,:], coords_t[k])
+    #    tb = np.einsum('xyij,x->yij', s1b[...,p0:p1], coords_t[k])
+    #    jvp = ops.index_add(jvp, ops.index[:,p0:p1], ta)
+    #    jvp = ops.index_add(jvp, ops.index[:,:,p0:p1], tb)
+    grad = _gen_int1e_fill_grad_r0(mol, s1a, s1b)
+    jvp = _gen_int1e_dot_grad_tangent_r0(grad, coords_t)
+    return jvp
+
+@jit
+def _gen_int1e_fill_grad_r0(mol, s1a, s1b):
+    shape = [mol.natm,] + list(s1a.shape)
+    grad = np.zeros(shape, dtype=s1a.dtype)
+    aoslices = mol.aoslice_by_atom()
+    for ia in range(mol.natm):
+        p0, p1 = aoslices[ia,2:]
+        grad = ops.index_add(grad, ops.index[ia,:,:,p0:p1], s1a[...,p0:p1,:])
+        grad = ops.index_add(grad, ops.index[ia,...,p0:p1], s1b[...,p0:p1])
+    return grad
+
+@jit
+def _gen_int1e_dot_grad_tangent_r0(grad, tangent):
+    tangent_out = np.einsum('nxyij,nx->yij', grad, tangent)
     return tangent_out
 
 def _int1e_r_jvp_r0(mol, mol_t, intor):
@@ -188,7 +244,6 @@ def _int1e_nuc_jvp_rc(mol, mol_t, intor):
             vrinv = Mole.intor(mol, intor, comp=3)
             if "ECP" not in intor:
                 vrinv *= -mol.atom_charge(ia)
-        #vrinv += vrinv.transpose(0,2,1)
         grad[k] = vrinv
     tangent_out = _int1e_dot_grad_tangent_r0(grad, coords_t)
     return tangent_out

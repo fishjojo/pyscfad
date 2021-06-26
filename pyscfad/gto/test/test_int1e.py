@@ -9,6 +9,7 @@ TOL_VAL = 1e-12
 TOL_NUC = 1e-10
 TOL_CS = 1e-10
 TOL_EXP = 1e-9
+TOL_NUC2 = 5e-9
 
 TEST_SET = ["int1e_ovlp", "int1e_kin", "int1e_nuc",
             "int1e_rinv",]
@@ -67,7 +68,7 @@ def grad_analyt(mol, intor):
     g = np.zeros((nao,nao,mol.natm,3))
     s1 = -mol.intor(intor, comp=3)
     for k, ia in enumerate(atmlst):
-        p0, p1 = aoslices [ia,2:]
+        p0, p1 = aoslices[ia,2:]
         g[p0:p1,:,k] += s1[:,p0:p1].transpose(1,2,0)
         g[:,p0:p1,k] += s1[:,p0:p1].transpose(2,1,0)
     return g
@@ -86,6 +87,7 @@ def nuc_grad_analyt(mol):
         vrinv[:,p0:p1] += h1[:,p0:p1]
         g[:,:,k] = vrinv.transpose(1,2,0) + vrinv.transpose(2,1,0)
     return g
+
 
 def ECPscalar_grad_analyt(mol):
     atmlst = range(mol.natm)
@@ -178,7 +180,7 @@ def _test_int1e_deriv_nuc(intor, mol0, mol1, funanal, args, tol=TOL_NUC):
     assert abs(jac_rev.coords - g0).max() < tol
 
 # pylint: disable=redefined-outer-name
-def test_int1e(get_mol0, get_mol, get_mol_ecp0, get_mol_ecp):
+def test_int1e_deriv1(get_mol0, get_mol, get_mol_ecp0, get_mol_ecp):
     mol0 = get_mol0
     mol1 = get_mol
     for intor in TEST_SET:
