@@ -4,7 +4,7 @@ import jax
 import pyscf
 from pyscfad import gto
 
-TOL_NUC2 = 5e-9
+TOL_NUC2 = 5e-8
 
 TEST_SET = ["int1e_ovlp", "int1e_kin", "int1e_nuc",
             "int1e_rinv",]
@@ -13,7 +13,7 @@ TEST_SET_NUC = ["int1e_nuc"]
 @pytest.fixture
 def get_mol0():
     mol = pyscf.M(
-        atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587',
+        atom = 'H 0. 0. 0.; F 0. , 0. , 0.91',
         basis = 'ccpvdz',
         verbose=0,
     )
@@ -22,10 +22,10 @@ def get_mol0():
 @pytest.fixture
 def get_mol():
     mol = gto.Mole()
-    mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
+    mol.atom = 'H 0. 0. 0.; F 0. , 0. , 0.91'
     mol.basis = 'ccpvdz'
     mol.verbose=0
-    mol.build(trace_coords=True, trace_exp=True, trace_ctr_coeff=True)
+    mol.build(trace_coords=True)
     return mol
 
 
