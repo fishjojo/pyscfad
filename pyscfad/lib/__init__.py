@@ -1,4 +1,4 @@
-import jax.numpy as numpy
+from jax import numpy
 from jax.config import config as jax_config
 
 from pyscfad.lib import ops

@@ -213,7 +213,8 @@ def _int1e_jvp_r0(mol, mol_t, intor):
 # TODO unrolling the for loop can be slow,
 # and vmap does not work with dynamically shaped sub-array.
 # How to make in-place assignment efficient?
-@jit
+# jit breaks pytest
+#@jit
 def _int1e_fill_grad_r0(mol, s1):
     shape = [mol.natm,] + list(s1.shape)
     grad = np.zeros(shape, dtype=s1.dtype)

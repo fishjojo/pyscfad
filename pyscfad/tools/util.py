@@ -1,4 +1,4 @@
-import jax.scipy as scipy
+from jax import scipy
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib.numpy_helper import unpack_triu
 
