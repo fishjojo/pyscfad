@@ -135,12 +135,11 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,6)))
 def getints4c(mol, intor,
-              shls_slice=None, comp=1, aosym='s1', out=None):
+              shls_slice=None, comp=None, aosym='s1', out=None):
     if (shls_slice is None and aosym=='s1'
             and intor in ['int2e', 'int2e_sph', 'int2e_cart']):
-        eri8 = Mole.intor(mol, intor,
-                comp=comp, aosym='s8',
-                shls_slice=shls_slice, out=out)
+        eri8 = Mole.intor(mol, intor, comp=comp, aosym='s8',
+                          shls_slice=shls_slice, out=out)
         eri = ao2mo.restore(aosym, eri8, mol.nao)
         eri8 = None
     else:
@@ -164,8 +163,47 @@ def getints4c_jvp(intor, shls_slice, comp, aosym, out,
     tangent_out = np.zeros_like(primal_out)
 
     if mol.coords is not None:
-        intor_ip = intor.replace("int2e", "int2e_ip1")
-        tangent_out += _int2e_jvp_r0(mol, mol_t, intor_ip)
+        if "ip" in intor:
+            str12 = intor.replace("int2e_","").replace("_sph","").replace("_cart","")
+            if "1" in str12:
+                str1 = str12[:str12.index("1")+1]
+                str_a = "ip" + str12
+                if not "v" in str1:
+                    str_b = str12.replace("1", "vip1")
+                else:
+                    str_b = str12.replace("1", "ip1")
+            else:
+                str_a = "ip1" + str12
+                str_b = None
+            if "2" in str12:
+                if "1" in str12:
+                    str_c = str12.replace("1", "1ip")
+                    str2 = str12[str12.index("1")+1:]
+                else:
+                    str_c = "ip" + str12
+                    str2 = str12
+                if not "v" in str2:
+                    str_d = str12.replace("2", "vip2")
+                else:
+                    str_d = str12.replace("2", "ip2")
+            else:
+                str_c = str12 + "ip2"
+                str_d = None
+
+            if "sph" in intor:
+                suffix = "_sph"
+            elif "cart" in intor:
+                suffix = "_cart"
+            else:
+                suffix = ""
+            intors = [str_a, str_b, str_c, str_d]
+            for i, intor in enumerate(intors):
+                if intor:
+                    intors[i] = "int2e_" + intor + suffix
+            tangent_out += _gen_int2e_jvp_r0(mol, mol_t, intors)
+        else:
+            intor_ip = intor.replace("int2e", "int2e_ip1")
+            tangent_out += _int2e_jvp_r0(mol, mol_t, intor_ip)
     if mol.ctr_coeff is not None:
         tangent_out += _int2e_jvp_cs(mol, mol_t, intor)
     if mol.exp is not None:
@@ -445,33 +483,80 @@ def _int1e_jvp_exp(mol, mol_t, intor):
     return tangent_out
 
 def _int2e_jvp_r0(mol, mol_t, intor):
-    coords = mol_t.coords
+    coords_t = mol_t.coords
     #atmlst = range(mol.natm)
     aoslices = numpy.asarray(mol.aoslice_by_atom(), dtype=numpy.int32)
     nao = mol.nao
 
-    eri1 = -Mole.intor(mol, intor, comp=3, aosym='s2kl')
-    grad = numpy.zeros((mol.natm,3,nao,nao,nao,nao), dtype=numpy.double)
-    libcgto.restore_int2e_deriv(grad.ctypes.data_as(ctypes.c_void_p),
-            eri1.ctypes.data_as(ctypes.c_void_p),
-            aoslices.ctypes.data_as(ctypes.c_void_p),
-            ctypes.c_int(mol.natm), ctypes.c_int(nao))
-    eri1 = None
+    #eri1 = -Mole.intor(mol, intor, comp=3, aosym='s2kl')
+    #grad = numpy.zeros((mol.natm,3,nao,nao,nao,nao), dtype=numpy.double)
+    #libcgto.restore_int2e_deriv(grad.ctypes.data_as(ctypes.c_void_p),
+    #        eri1.ctypes.data_as(ctypes.c_void_p),
+    #        aoslices.ctypes.data_as(ctypes.c_void_p),
+    #        ctypes.c_int(mol.natm), ctypes.c_int(nao))
+    #eri1 = None
+    eri1 = -getints4c(mol, intor, comp=None, aosym='s1')
+    grad = _int2e_fill_grad_r0(mol, eri1)
     #for k, ia in enumerate(atmlst):
     #    p0, p1 = aoslices [ia,2:]
-    #    tmp = np.einsum("xijkl,x->ijkl", eri1[:,p0:p1], coords[k])
+    #    tmp = np.einsum("xijkl,x->ijkl", eri1[:,p0:p1], coords_t[k])
     #    tangent_out = ops.index_add(tangent_out, ops.index[p0:p1], tmp)
-    #    #tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.transpose((1,0,2,3)))
-    #    #tangent_out = ops.index_add(tangent_out, ops.index[:,:,p0:p1], tmp.transpose((2,3,0,1)))
-    #    #tangent_out = ops.index_add(tangent_out, ops.index[:,:,:,p0:p1], tmp.transpose((2,3,1,0)))
-    #    #grad[k,:,p0:p1] = eri1[:,p0:p1]
-    return _int2e_dot_grad_tangent_r0(grad, coords)
+    #    tangent_out = ops.index_add(tangent_out, ops.index[:,p0:p1], tmp.transpose((1,0,2,3)))
+    #    tangent_out = ops.index_add(tangent_out, ops.index[:,:,p0:p1], tmp.transpose((2,3,0,1)))
+    #    tangent_out = ops.index_add(tangent_out, ops.index[:,:,:,p0:p1], tmp.transpose((2,3,1,0)))
+    return _int2e_dot_grad_tangent_r0(grad, coords_t)
+
+#@jit
+def _int2e_fill_grad_r0(mol, eri1):
+    shape = [mol.natm,] + list(eri1.shape)
+    grad = np.zeros(shape, dtype=eri1.dtype)
+    aoslices = mol.aoslice_by_atom()
+    for ia in range(mol.natm):
+        p0, p1 = aoslices[ia,2:]
+        grad = ops.index_update(grad, ops.index[ia,:,p0:p1], eri1[:,p0:p1])
+    return grad
 
 @jit
 def _int2e_dot_grad_tangent_r0(grad, tangent):
     tangent_out = np.einsum("nxijkl,nx->ijkl", grad, tangent)
     tangent_out += tangent_out.transpose(1,0,2,3)
     tangent_out += tangent_out.transpose(2,3,0,1)
+    return tangent_out
+
+def _gen_int2e_jvp_r0(mol, mol_t, intors):
+    coords_t = mol_t.coords
+    nao = mol.nao
+    intor_a, intor_b, intor_c, intor_d = intors
+    # FIXME the shapes of eris are wrong for 3rd and higher order derivatives
+    eri1_a = -getints4c(mol, intor_a, aosym='s1').reshape(3,-1,nao,nao,nao,nao)
+    if intor_b:
+        eri1_b = -getints4c(mol, intor_b, aosym='s1').reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
+    else:
+        eri1_b = eri1_a.transpose(0,1,3,2,4,5)
+    eri1_c = -getints4c(mol, intor_c, aosym='s1').reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
+    if intor_d:
+        eri1_d = -getints4c(mol, intor_d, aosym='s1').reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
+    else:
+        eri1_d = eri1_c.transpose(0,1,2,3,5,4)
+    grad = _gen_int2e_fill_grad_r0(mol, eri1_a, eri1_b, eri1_c, eri1_d)
+    return _gen_int2e_dot_grad_tangent_r0(grad, coords_t)
+
+@jit
+def _gen_int2e_fill_grad_r0(mol, eri1_a, eri1_b, eri1_c, eri1_d):
+    shape = [mol.natm,] + list(eri1_a.shape)
+    grad = np.zeros(shape, dtype=eri1_a.dtype)
+    aoslices = mol.aoslice_by_atom()
+    for ia in range(mol.natm):
+        p0, p1 = aoslices[ia,2:]
+        grad = ops.index_add(grad, ops.index[ia,:,:,p0:p1], eri1_a[:,:,p0:p1])
+        grad = ops.index_add(grad, ops.index[ia,:,:,:,p0:p1], eri1_b[:,:,:,p0:p1])
+        grad = ops.index_add(grad, ops.index[ia,...,p0:p1,:], eri1_c[...,p0:p1,:])
+        grad = ops.index_add(grad, ops.index[ia,...,p0:p1], eri1_d[...,p0:p1])
+    return grad
+
+@jit
+def _gen_int2e_dot_grad_tangent_r0(grad, tangent):
+    tangent_out = np.einsum("nxyijkl,nx->yijkl", grad, tangent)
     return tangent_out
 
 def _int2e_jvp_cs(mol, mol_t, intor):
