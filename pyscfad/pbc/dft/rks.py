@@ -15,9 +15,12 @@ from pyscfad.pbc.dft import numint
 
 def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
              kpt=None, kpts_band=None):
-    if cell is None: cell = ks.cell
-    if dm is None: dm = ks.make_rdm1()
-    if kpt is None: kpt = ks.kpt
+    if cell is None:
+        cell = ks.cell
+    if dm is None:
+        dm = ks.make_rdm1()
+    if kpt is None:
+        kpt = ks.kpt
     t0 = (logger.process_clock(), logger.perf_counter())
 
     omega, alpha, hyb = ks._numint.rsh_and_hybrid_coeff(ks.xc, spin=cell.spin)
@@ -109,4 +112,4 @@ class RKS(KohnShamDFT, pbchf.RHF):
 
     get_veff = get_veff
     energy_elec = mol_ks.energy_elec
-    get_rho = pyscf_rks.get_rho 
+    get_rho = pyscf_rks.get_rho

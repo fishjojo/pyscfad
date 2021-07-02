@@ -197,9 +197,9 @@ def getints4c_jvp(intor, shls_slice, comp, aosym, out,
             else:
                 suffix = ""
             intors = [str_a, str_b, str_c, str_d]
-            for i, intor in enumerate(intors):
-                if intor:
-                    intors[i] = "int2e_" + intor + suffix
+            for i, intor_i in enumerate(intors):
+                if intor_i:
+                    intors[i] = "int2e_" + intor_i + suffix
             tangent_out += _gen_int2e_jvp_r0(mol, mol_t, intors)
         else:
             intor_ip = intor.replace("int2e", "int2e_ip1")
@@ -248,6 +248,7 @@ def _int1e_jvp_r0(mol, mol_t, intor):
     tangent_out = _int1e_dot_grad_tangent_r0(grad, mol_t.coords)
     return tangent_out
 
+# pylint: disable=fixme
 # TODO unrolling the for loop can be slow,
 # and vmap does not work with dynamically shaped sub-array.
 # How to make in-place assignment efficient?
@@ -485,8 +486,8 @@ def _int1e_jvp_exp(mol, mol_t, intor):
 def _int2e_jvp_r0(mol, mol_t, intor):
     coords_t = mol_t.coords
     #atmlst = range(mol.natm)
-    aoslices = numpy.asarray(mol.aoslice_by_atom(), dtype=numpy.int32)
-    nao = mol.nao
+    #aoslices = numpy.asarray(mol.aoslice_by_atom(), dtype=numpy.int32)
+    #nao = mol.nao
 
     #eri1 = -Mole.intor(mol, intor, comp=3, aosym='s2kl')
     #grad = numpy.zeros((mol.natm,3,nao,nao,nao,nao), dtype=numpy.double)
@@ -527,15 +528,19 @@ def _gen_int2e_jvp_r0(mol, mol_t, intors):
     coords_t = mol_t.coords
     nao = mol.nao
     intor_a, intor_b, intor_c, intor_d = intors
+    # pylint: disable=fixme
     # FIXME the shapes of eris are wrong for 3rd and higher order derivatives
     eri1_a = -getints4c(mol, intor_a, aosym='s1').reshape(3,-1,nao,nao,nao,nao)
     if intor_b:
-        eri1_b = -getints4c(mol, intor_b, aosym='s1').reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
+        eri1_b = -getints4c(mol, intor_b, aosym='s1')
+        eri1_b = eri1_b.reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
     else:
         eri1_b = eri1_a.transpose(0,1,3,2,4,5)
-    eri1_c = -getints4c(mol, intor_c, aosym='s1').reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
+    eri1_c = -getints4c(mol, intor_c, aosym='s1')
+    eri1_c = eri1_c.reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
     if intor_d:
-        eri1_d = -getints4c(mol, intor_d, aosym='s1').reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
+        eri1_d = -getints4c(mol, intor_d, aosym='s1')
+        eri1_d = eri1_d.reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
     else:
         eri1_d = eri1_c.transpose(0,1,2,3,5,4)
     grad = _gen_int2e_fill_grad_r0(mol, eri1_a, eri1_b, eri1_c, eri1_d)
