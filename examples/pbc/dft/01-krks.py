@@ -17,7 +17,7 @@ cell.atom = atom
 cell.a = lattice
 cell.basis = basis
 cell.pseudo = pseudo
-cell.build(trace_coords=True)
+cell.build()
 
 kpts = cell.make_kpts([2,1,1])
 mf = dft.KRKS(cell, kpts=kpts, exxdiv=None)

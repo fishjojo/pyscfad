@@ -25,7 +25,7 @@ def get_mol():
     mol.atom = 'H 0. 0. 0.; F 0. , 0. , 0.91'
     mol.basis = 'ccpvdz'
     mol.verbose=0
-    mol.build(trace_coords=True)
+    mol.build(trace_exp=False, trace_ctr_coeff=False)
     return mol
 
 

@@ -83,6 +83,7 @@ setup(
         'jax>=0.1.65',
         'jaxlib>=0.1.65',
         'pyscf @ git+https://github.com/fishjojo/pyscf.git@ad#egg=pyscf',
+        'pyscf-properties @ git+https://github.com/pyscf/properties',
     ],
     url='https://github.com/fishjojo/pyscfad',
     license='MIT',

@@ -10,7 +10,7 @@ cell.a = '''0.            2.6935121974    2.6935121974
             2.6935121974  2.6935121974    0.    '''
 cell.basis = 'gth-szv'
 cell.pseudo = 'gth-pade'
-cell.build(trace_coords=True)
+cell.build()
 kpts = cell.make_kpts([2,1,1])
 
 def func(cell):

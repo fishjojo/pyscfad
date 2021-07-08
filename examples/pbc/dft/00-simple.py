@@ -17,7 +17,7 @@ cell.atom = atom
 cell.a = lattice
 cell.basis = basis
 cell.pseudo = pseudo
-cell.build(trace_coords=True)
+cell.build()
 
 mf = dft.RKS(cell, exxdiv=None)
 mf.xc = 'pbe'

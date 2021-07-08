@@ -117,10 +117,10 @@ class Mole(gto.Mole):
             else:
                 return self.coords
 
-    def build(self, *args, **kwargs):
-        trace_coords = kwargs.pop("trace_coords", False)
-        trace_exp = kwargs.pop("trace_exp", False)
-        trace_ctr_coeff = kwargs.pop("trace_ctr_coeff", False)
+    def build(self, *args, trace_coords=True, trace_exp=True, trace_ctr_coeff=True, **kwargs):
+        #trace_coords = kwargs.pop("trace_coords", False)
+        #trace_exp = kwargs.pop("trace_exp", False)
+        #trace_ctr_coeff = kwargs.pop("trace_ctr_coeff", False)
         trace_r0 = kwargs.pop("trace_r0", False)
 
         gto.Mole.build(self, *args, **kwargs)

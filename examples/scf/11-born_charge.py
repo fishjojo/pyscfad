@@ -10,7 +10,7 @@ mol = gto.Mole()
 mol.atom = '''H  ,  0.   0.   0.
               F  ,  0.   0.   .917'''
 mol.basis = '631g'
-mol.build(trace_coords=True)
+mol.build(trace_exp=False, trace_ctr_coeff=False)
 
 def dip_moment(mol):
     mf = scf.RHF(mol)

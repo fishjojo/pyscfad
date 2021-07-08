@@ -112,8 +112,8 @@ class Cell(mole.Mole, pyscf_cell.Cell):
     def __post_init__(self):
         mole.Mole.__post_init__(self)
 
-    def build(self, *args, **kwargs):
-        trace_coords = kwargs.pop("trace_coords", False)
+    def build(self, *args, trace_coords=True, **kwargs):
+        #trace_coords = kwargs.pop("trace_coords", False)
         trace_exp = kwargs.pop("trace_exp", False)
         trace_ctr_coeff = kwargs.pop("trace_ctr_coeff", False)
         trace_r0 = kwargs.pop("trace_r0", False)

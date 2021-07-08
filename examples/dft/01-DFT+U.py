@@ -114,7 +114,7 @@ if __name__ == "__main__":
     mol = gto.Mole()
     mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
     mol.basis = '631g'
-    mol.build(trace_coords=True)
+    mol.build()
 
     U_idx = ["0 O 2p"]
     U_val = [5.0]
