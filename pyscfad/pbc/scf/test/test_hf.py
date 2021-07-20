@@ -113,8 +113,8 @@ def test_e_tot(get_cell, get_cell_ref):
     cell = get_cell
     mf = scf.RHF(cell, exxdiv=None)
     e_tot = mf.kernel()
-    jac_fwd = mf.cell_grad_ad(mode='fwd')
-    jac_bwd = mf.cell_grad_ad(mode='rev')
+    jac_fwd = mf.energy_grad(mode='fwd')
+    jac_bwd = mf.energy_grad(mode='rev')
 
     cell_ref = get_cell_ref
     kpts = numpy.zeros([1,3])

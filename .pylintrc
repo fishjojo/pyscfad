@@ -16,7 +16,8 @@ fail-under=10.0
 
 # Files or directories to be skipped. They should be base names, not paths.
 ignore=CVS,
-       pbc
+       pbc,
+       cc
 
 # Files or directories matching the regex patterns are skipped. The regex
 # matches against base names, not paths.

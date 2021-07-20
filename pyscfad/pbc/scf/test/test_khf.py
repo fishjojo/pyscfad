@@ -119,8 +119,8 @@ def test_e_tot(get_cell, get_cell_ref):
     kpts = cell.make_kpts([2,1,1])
     mf = scf.KRHF(cell, kpts=kpts, exxdiv=None)
     e_tot = mf.kernel()
-    jac_fwd = mf.cell_grad_ad(mode='fwd')
-    jac_bwd = mf.cell_grad_ad(mode='rev')
+    jac_fwd = mf.energy_grad(mode='fwd')
+    jac_bwd = mf.energy_grad(mode='rev')
 
     cell_ref = get_cell_ref
     mf_ref = pyscf_scf.KRHF(cell_ref, kpts=kpts, exxdiv=None)

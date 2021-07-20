@@ -13,7 +13,7 @@ mol.build()
 
 mf = scf.RHF(mol)
 mf.kernel()
-jac = mf.mol_grad_ad()
+jac = mf.energy_grad()
 print(jac.coords)
 print(jac.ctr_coeff)
 print(jac.exp)

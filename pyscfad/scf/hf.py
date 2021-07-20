@@ -111,11 +111,13 @@ class SCF(hf.SCF):
         mol = stop_grad(mol)
         return hf.SCF.get_init_guess(self, mol, key)
 
-    def mol_grad_ad(self, dm0=None, mode="rev"):
+    def energy_grad(self, dm0=None, mode="rev"):
         """
         Energy gradient wrt AO parameters computed by AD
         """
         if self.converged:
+            # NOTE this works because derivatives of MO coefficients
+            # do not contribute to the energy gradient
             def e_tot(self, dm0=None):
                 mol = getattr(self, "cell", self.mol)
                 h1e = self.get_hcore()

@@ -102,7 +102,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
 
     get_veff = pyscf_pbc_hf.SCF.get_veff
     energy_nuc = pyscf_pbc_hf.SCF.energy_nuc
-    cell_grad_ad = mol_hf.SCF.mol_grad_ad
+    energy_grad = mol_hf.SCF.energy_grad
 
 RHF = SCF
 

@@ -14,5 +14,5 @@ mol.build()
 mf = dft.RKS(mol)
 mf.xc = 'b3lyp'
 mf.kernel()
-jac = mf.mol_grad_ad()
+jac = mf.energy_grad()
 print(jac.coords)

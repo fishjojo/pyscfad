@@ -22,5 +22,5 @@ kpts = cell.make_kpts([2,1,1])
 
 mf = scf.KRHF(cell, kpts=kpts, exxdiv=None)
 mf.kernel()
-jac = mf.cell_grad_ad()
+jac = mf.energy_grad()
 print(jac.coords)

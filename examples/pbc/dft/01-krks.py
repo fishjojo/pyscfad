@@ -23,5 +23,5 @@ kpts = cell.make_kpts([2,1,1])
 mf = dft.KRKS(cell, kpts=kpts, exxdiv=None)
 mf.xc = 'pbe'
 mf.kernel()
-jac = mf.cell_grad_ad()
+jac = mf.energy_grad()
 print(jac.coords)
