@@ -12,20 +12,14 @@ mol.basis = '631g'
 mol.verbose=5
 mol.build()
 
-mf = scf.RHF(mol)
-mf.kernel()
-
-mymp = mp.MP2(mf)
-def func(mymp):
-    mymp.reset()
-    dm0 = mymp._scf.make_rdm1()
-    mymp._scf.kernel(dm0=dm0)
-    mymp.mo_coeff = mymp._scf.mo_coeff
-    mymp.mo_occ = mymp._scf.mo_occ
+def mp2(mol, dm0=None):
+    mf = scf.RHF(mol)
+    mf.kernel(dm0)
+    mymp = mp.MP2(mf)
     mymp.kernel()
     return mymp.e_tot
 
-jac = jax.grad(func)(mymp)
-print(jac._scf.mol.coords)
-print(jac._scf.mol.exp)
-print(jac._scf.mol.ctr_coeff)
+jac = jax.grad(mp2)(mol)
+print(jac.coords)
+print(jac.exp)
+print(jac.ctr_coeff)

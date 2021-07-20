@@ -57,21 +57,3 @@ class MP2(mp2.MP2):
         cv = jnp.asarray(mo_coeff[:,nocc:])
         eris.ovov = jnp.einsum("uvst,ui,va,sj,tb->iajb", self._scf._eri, co,cv,co,cv)
         return eris
-
-    def mol_grad_ad(self, mode="rev"):
-        """
-        Energy gradient wrt AO parameters computed by AD
-        """
-        def e_tot(mymp):
-            mymp.reset()
-            dm0 = mymp._scf.make_rdm1()
-            mymp._scf.kernel(dm0=dm0)
-            mymp.mo_coeff = mymp._scf.mo_coeff
-            mymp.mo_occ = mymp._scf.mo_occ
-            mymp.kernel()
-            return mymp.e_tot
-        if mode == "rev":
-            jac = jax.jacrev(e_tot)(self)
-        else:
-            jac = jax.jacfwd(e_tot)(self)
-        return jac._scf.mol
