@@ -97,6 +97,22 @@ class CCSD(ccsd.CCSD):
         if nmo is None: nmo = self.nmo
         return vector_to_amplitudes(vec, nmo, nocc)
 
+    def ipccsd(self, nroots=1, left=False, koopmans=False, guess=None,
+               partition=None, eris=None):
+        from pyscfad.cc import eom_rccsd
+        return eom_rccsd.EOMIP(self).kernel(nroots, left, koopmans, guess,
+                                            partition, eris)
+
+    def eaccsd(self, nroots=1, left=False, koopmans=False, guess=None,
+               partition=None, eris=None):
+        from pyscfad.cc import eom_rccsd
+        return eom_rccsd.EOMEA(self).kernel(nroots, left, koopmans, guess,
+                                            partition, eris)
+
+    def eeccsd(self, nroots=1, koopmans=False, guess=None, eris=None):
+        from pyscfad.cc import eom_rccsd
+        return eom_rccsd.EOMEE(self).kernel(nroots, koopmans, guess, eris)
+
 class _ChemistsERIs(ccsd._ChemistsERIs):
     def _common_init_(self, mycc, mo_coeff=None):
         if mo_coeff is None:
