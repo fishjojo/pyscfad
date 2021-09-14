@@ -15,10 +15,12 @@ def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
     dm = jnp.asarray(dm)
     nao = dm.shape[-1]
     if eri.dtype == jnp.complex128 or eri.size == nao**4:
+        print("_dot_eri_dm_nosymm")
         vj, vk = _dot_eri_dm_nosymm(eri, dm, with_j, with_k)
     else:
         if dm.dtype == jnp.complex128:
             raise NotImplementedError
+        print("_vhf.incore")
         vj, vk = _vhf.incore(eri, dm, hermi, with_j, with_k)
     return vj, vk
 

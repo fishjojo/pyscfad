@@ -44,7 +44,7 @@ class SCF(uhf.UHF):
     stdout:     Any = None
 
     chkfile: Optional[str] = None
-    _chkfile: Any = None
+    _chkfile: Any          = None
 
     mo_occ: Optional[jnp.array] = None
     e_tot: float = 0.
