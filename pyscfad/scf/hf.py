@@ -15,12 +15,10 @@ def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
     dm = jnp.asarray(dm)
     nao = dm.shape[-1]
     if eri.dtype == jnp.complex128 or eri.size == nao**4:
-        print("_dot_eri_dm_nosymm")
         vj, vk = _dot_eri_dm_nosymm(eri, dm, with_j, with_k)
     else:
         if dm.dtype == jnp.complex128:
             raise NotImplementedError
-        print("_vhf.incore")
         vj, vk = _vhf.incore(eri, dm, hermi, with_j, with_k)
     return vj, vk
 
@@ -54,7 +52,7 @@ class SCF(hf.SCF):
     diis: Any = getattr(__config__, 'scf_hf_SCF_diis', True)
     diis_space: int = getattr(__config__, 'scf_hf_SCF_diis_space', 8)
     diis_start_cycle: int = getattr(__config__, 'scf_hf_SCF_diis_start_cycle', 1)
-    diis_file: Optional[str] = None
+    diis_file: Optional[str]  = None
     diis_space_rollback: bool = False
 
     damp: float = getattr(__config__, 'scf_hf_SCF_damp', 0.)
@@ -131,6 +129,7 @@ class SCF(hf.SCF):
                 vhf = self.get_veff(mol, dm)
                 return self.energy_tot(dm, h1e, vhf)
             func = e_tot
+            func(self)
             if dm0 is None:
                 dm0 = self.make_rdm1()
             self.reset() # need to reset _eri to get its gradient
