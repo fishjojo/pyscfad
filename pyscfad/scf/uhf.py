@@ -12,10 +12,10 @@ from pyscfad     import lib, gto
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import stop_grad
 
-from . import hf as rhf
+from . import hf
 
 @lib.dataclass
-class UHF(rhf.RHF, uhf.UHF):
+class UHF(hf.SCF, uhf.UHF):
     _nelec: Optional[int] = None 
     init_guess_breaksym: Optional[bool] = None
 
