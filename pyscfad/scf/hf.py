@@ -143,5 +143,7 @@ class SCF(hf.SCF):
             return jac.cell
         else:
             return jac.mol
-
-RHF = SCF
+            
+@lib.dataclass
+class RHF(SCF, hf.RHF):
+    pass
