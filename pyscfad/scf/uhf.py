@@ -1,18 +1,8 @@
-from   functools import partial
-import tempfile
-from typing import Optional, Any
-
+from typing import Optional
 import jax
-
-from pyscf        import __config__
-from pyscf.lib    import param
-from pyscf.scf    import uhf, diis
-
-from pyscfad     import lib, gto
-from pyscfad.lib import numpy as jnp
-from pyscfad.lib import stop_grad
-
-from . import hf
+from pyscf.scf   import uhf
+from pyscfad     import lib
+from pyscfad.scf import hf
 
 @lib.dataclass
 class UHF(hf.SCF, uhf.UHF):
