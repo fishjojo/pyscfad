@@ -1,9 +1,8 @@
 from pyscfad.scf import hf
-rhf = hf
 from pyscfad.scf import uhf
 
 def RHF(mol, **kwargs):
-    return rhf.RHF(mol, **kwargs)
+    return hf.RHF(mol, **kwargs)
 
 def UHF(mol, **kwargs):
     if mol.nelectron == 1:
