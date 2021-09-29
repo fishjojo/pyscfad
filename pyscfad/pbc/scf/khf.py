@@ -4,6 +4,7 @@ from pyscf import __config__
 from pyscf.pbc.scf import khf as pyscf_khf
 from pyscfad import lib
 from pyscfad.lib import numpy as jnp
+from pyscfad.lib import stop_grad
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
 from pyscfad.pbc.scf import hf as pbchf
@@ -62,7 +63,13 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         #logger.timer(self, 'vj and vk', *cpu0)
         return vj, vk
 
-    get_init_guess = pyscf_khf.KSCF.get_init_guess
+    def get_init_guess(self, cell=None, key='minao'):
+        if cell is None:
+            cell = self.cell
+        cell = stop_grad(cell)
+        return pyscf_khf.KSCF.get_init_guess(self, cell, key)
+
+
     get_hcore = get_hcore
     get_ovlp = pyscf_khf.KSCF.get_ovlp
     get_fock = pyscf_khf.KSCF.get_fock

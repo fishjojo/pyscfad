@@ -51,4 +51,4 @@ x0 = numpy.zeros([size,])
 options = {"gtol":1e-6}
 res = minimize(func, x0, args=(mf,), jac=True, method="BFGS", options = options)
 e = func(res.x, mf)[0]
-print("OOMP2 energy: ", e)
+print(e)
