@@ -139,7 +139,7 @@ class Mole(gto.Mole):
     eval_ao = eval_gto = eval_gto
 
     def intor(self, intor, comp=None, hermi=0, aosym='s1', out=None,
-              shls_slice=None):
+              shls_slice=None, grids=None):
         if (self.coords is None and self.exp is None
                 and self.ctr_coeff is None and self.r0 is None):
             return gto.Mole.intor(self, intor, comp=comp, hermi=hermi,

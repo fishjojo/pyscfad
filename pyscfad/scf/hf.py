@@ -144,4 +144,6 @@ class SCF(hf.SCF):
         else:
             return jac.mol
 
-RHF = SCF
+@lib.dataclass
+class RHF(SCF, hf.RHF):
+    pass
