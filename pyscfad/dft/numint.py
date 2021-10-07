@@ -239,7 +239,7 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
     elif xctype == 'HF':
         pass
     else:
-        raise NotImplementedError(f'numint.nr_uks for functional {xc_code}')
+        raise NotImplementedError(f'numint.nr_rks for functional {xc_code}')
 
     for i in range(nset):
         vmat[i] = vmat[i] + vmat[i].conj().T
@@ -297,8 +297,6 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 nelec[1, idm] += stop_grad(den).sum()
                 excsum[idm]   += jnp.dot(den, exc)
 
-                # *.5 due to +c.c. in the end
-                #:aow = numpy.einsum('pi,p->pi', ao, .5*weight*vrho[:,0], out=aow)
                 aow           = _scale_ao(ao, .5*weight*vrho[:,0], out=None)
                 vmat[0, idm] += _dot_ao_ao(mol, ao, aow, mask, shls_slice, ao_loc)
                 aow           = _scale_ao(ao, .5*weight*vrho[:,1], out=None)
@@ -398,17 +396,6 @@ def _format_uks_dm(dms):
         dma = dmb = dms * .5
     else:
         dma, dmb = dms
-    if getattr(dms, 'mo_coeff', None) is not None:
-        mo_coeff = dms.mo_coeff
-        mo_occ = dms.mo_occ
-        if mo_coeff[0].ndim < dma.ndim: # handle ROKS
-            mo_occa = numpy.array(mo_occ> 0, dtype=numpy.double)
-            mo_occb = numpy.array(mo_occ==2, dtype=numpy.double)
-            dma = lib.tag_array(dma, mo_coeff=mo_coeff, mo_occ=mo_occa)
-            dmb = lib.tag_array(dmb, mo_coeff=mo_coeff, mo_occ=mo_occb)
-        else:
-            dma = lib.tag_array(dma, mo_coeff=mo_coeff[0], mo_occ=mo_occ[0])
-            dmb = lib.tag_array(dmb, mo_coeff=mo_coeff[1], mo_occ=mo_occ[1])
     return dma, dmb
 
 def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
@@ -544,6 +531,29 @@ def _rks_gga_wv0(rho, vxc, weight):
     wv = ops.index_update(wv, ops.index[1:], (weight * vgamma * 2) * rho[1:4])
     #wv = ops.index_mul(wv, ops.index[0], .5)  # v+v.T should be applied in the caller
     return wv
+
+@jit
+def _uks_gga_wv0(rho, vxc, weight):
+    rhoa, rhob   = rho
+    vrho, vsigma = vxc[:2]
+
+    ngrid   = vrho.shape[0]
+    wva     = jnp.empty((4,ngrid))
+    wva[0]  = ops.index_update(wva, ops.index[0],   weight * vrho[:,0]   * .5)   # v+v.T should be applied in the caller
+    wva[1:] = ops.index_update(wva, ops.index[1:], (weight * vsigma[:,0] *  2) * rho[1:4])
+    wva[1:]+= ops.index_update(wva, ops.index[1:], (weight * vsigma[:,1]     ) * rho[1:4])
+
+    wvb     = jnp.empty((4,ngrid))
+    wvb[0]  = ops.index_update(wvb, ops.index[0],   weight * vrho[:,1]   * .5)   # v+v.T should be applied in the caller
+    wvb[1:] = ops.index_update(wvb, ops.index[1:], (weight * vsigma[:,2] *  2) * rho[1:4])
+    wvb[1:]+= ops.index_update(wvb, ops.index[1:], (weight * vsigma[:,1]     ) * rho[1:4])
+
+    wvb     = jnp.empty((4,ngrid))
+    wvb[0]  = weight * vrho[:,1] * .5  # v+v.T should be applied in the caller
+    wvb[1:] = rhob[1:4] * (weight * vsigma[:,2] * 2)  # sigma_dd
+    wvb[1:]+= rhoa[1:4] * (weight * vsigma[:,1])      # sigma_ud
+
+    return wva, wvb
 
 @partial(custom_jvp, nondiff_argnums=(1,2,3,4,5,))
 def _vv10nlc(rho, coords, vvrho, vvweight, vvcoords, nlc_pars):
