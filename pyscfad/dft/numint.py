@@ -119,10 +119,11 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
     shls_slice = (0, mol.nbas)
     ao_loc = mol.ao_loc_nr()
 
-    nelec = [0]*nset
+    nelec  = [0]*nset
     excsum = [0]*nset
-    vmat = [0]*nset
-    aow = None
+    vmat   = [0]*nset
+    aow    = None
+
     if xctype == 'LDA':
         ao_deriv = 0
         for ao, mask, weight, coords \
@@ -235,6 +236,10 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 vmat[idm] += _dot_ao_ao(mol, ao[2], wv*ao[2], mask, shls_slice, ao_loc)
                 vmat[idm] += _dot_ao_ao(mol, ao[3], wv*ao[3], mask, shls_slice, ao_loc)
                 rho = exc = vxc = vrho = wv = None
+    elif xctype == 'HF':
+        pass
+    else:
+        raise NotImplementedError(f'numint.nr_uks for functional {xc_code}')
 
     for i in range(nset):
         vmat[i] = vmat[i] + vmat[i].conj().T
@@ -245,6 +250,153 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
         nelec = nelec[0]
         excsum = excsum[0]
         vmat = vmat[0]
+    return nelec, excsum, vmat
+
+
+def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
+           max_memory=2000, verbose=None):
+
+    xctype = ni._xc_type(xc_code)
+
+    if xctype == 'NLC':
+        dms_sf = dms[0] + dms[1]
+        nelec, excsum, vmat = nr_rks(ni, mol, grids, xc_code, dms_sf, relativity, hermi, max_memory, verbose)
+        return [nelec,nelec], excsum, jnp.asarray([vmat,vmat])
+
+    dma, dmb = _format_uks_dm(dms)
+    nao      = dma.shape[-1]
+    make_rhoa, nset = ni._gen_rho_evaluator(mol, dma, hermi)[:2]
+    make_rhob       = ni._gen_rho_evaluator(mol, dmb, hermi)[0]
+
+    shls_slice = (0, mol.nbas)
+    ao_loc = mol.ao_loc_nr()
+
+    nelec  = numpy.zeros((2,nset))
+    excsum = numpy.zeros(nset)
+    vmat   = numpy.zeros((2,nset,nao,nao), dtype=numpy.result_type(dma, dmb))
+    aow    = None
+
+    if xctype == 'LDA':
+        ao_deriv = 0
+        for ao, mask, weight, coords \
+                in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
+            #aow = numpy.ndarray(ao.shape, order='F', buffer=aow)
+            for idm in range(nset):
+                rho_a = make_rhoa(idm, ao, mask, "LDA")
+                rho_b = make_rhob(idm, ao, mask, "LDA")
+                exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
+                                      relativity=relativity, deriv=1,
+                                      verbose=verbose)[:2]
+                vrho = vxc[0]
+
+                den            = rho_a * weight
+                nelec[0, idm] += stop_grad(den).sum()
+                excsum[idm]   += jnp.dot(den, exc)
+
+                den            = rho_b * weight
+                nelec[1, idm] += stop_grad(den).sum()
+                excsum[idm]   += jnp.dot(den, exc)
+
+                # *.5 due to +c.c. in the end
+                #:aow = numpy.einsum('pi,p->pi', ao, .5*weight*vrho[:,0], out=aow)
+                aow           = _scale_ao(ao, .5*weight*vrho[:,0], out=None)
+                vmat[0, idm] += _dot_ao_ao(mol, ao, aow, mask, shls_slice, ao_loc)
+                aow           = _scale_ao(ao, .5*weight*vrho[:,1], out=None)
+                vmat[1, idm] += _dot_ao_ao(mol, ao, aow, mask, shls_slice, ao_loc)
+                rho_a = rho_b = exc = vxc = vrho = None
+
+    elif xctype == 'GGA':
+        ao_deriv = 1
+        for ao, mask, weight, coords \
+                in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
+            #aow = numpy.ndarray(ao[0].shape, order='F', buffer=aow)
+            for idm in range(nset):
+                rho_a = make_rhoa(idm, ao, mask, "GGA")
+                rho_b = make_rhob(idm, ao, mask, "GGA")
+
+                exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
+                                      relativity=relativity, deriv=1,
+                                      verbose=verbose)[:2]
+
+                den            = rho_a * weight
+                nelec[0, idm] += stop_grad(den).sum()
+                excsum[idm]   += jnp.dot(den, exc)
+
+                den            = rho_b * weight
+                nelec[1, idm] += stop_grad(den).sum()
+                excsum[idm]   += jnp.dot(den, exc)
+
+                # ref eval_mat function
+                wva, wvb     = _uks_gga_wv0((rho_a,rho_b), vxc, weight)
+                aow          = _scale_ao(ao, wva, out=None)
+                vmat[0,idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
+                aow          = _scale_ao(ao, wvb, out=None)
+                vmat[1,idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
+                rho_a = rho_b = exc = vxc = wva = wvb = None
+
+    elif xctype == 'MGGA':
+        if any(x in xc_code.upper() for x in ('CC06', 'CS', 'BR89', 'MK00')):
+            raise NotImplementedError('laplacian in meta-GGA method')
+        
+        ao_deriv = 2
+        for ao, mask, weight, coords \
+                in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
+            #aow = numpy.ndarray(ao[0].shape, order='F', buffer=aow)
+            for idm in range(nset):
+                rho_a = make_rhoa(idm, ao, mask, "GGA")
+                rho_b = make_rhob(idm, ao, mask, "GGA")
+
+                exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
+                                      relativity=relativity, deriv=1,
+                                      verbose=verbose)[:2]
+
+                vrho, vsigma, vlapl, vtau = vxc[:4]
+
+                den            = rho_a * weight
+                nelec[0, idm] += stop_grad(den).sum()
+                excsum[idm]   += jnp.dot(den, exc)
+
+                den            = rho_b * weight
+                nelec[1, idm] += stop_grad(den).sum()
+                excsum[idm]   += jnp.dot(den, exc)
+
+                wva, wvb     = _uks_gga_wv0((rho_a,rho_b), vxc, weight)
+                aow          = _scale_ao(ao[:4], wva, out=aow)
+                vmat[0,idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
+                aow          = _scale_ao(ao[:4], wvb, out=aow)
+                vmat[1,idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
+
+# FIXME: .5 * .5   First 0.5 for v+v.T symmetrization.
+# Second 0.5 is due to the Libxc convention tau = 1/2 \nabla\phi\dot\nabla\phi
+                wv = (.25 * weight * vtau[:,0]).reshape(-1,1)
+                vmat[0,idm] += _dot_ao_ao(mol, ao[1], wv*ao[1], mask, shls_slice, ao_loc)
+                vmat[0,idm] += _dot_ao_ao(mol, ao[2], wv*ao[2], mask, shls_slice, ao_loc)
+                vmat[0,idm] += _dot_ao_ao(mol, ao[3], wv*ao[3], mask, shls_slice, ao_loc)
+                wv = (.25 * weight * vtau[:,1]).reshape(-1,1)
+                vmat[1,idm] += _dot_ao_ao(mol, ao[1], wv*ao[1], mask, shls_slice, ao_loc)
+                vmat[1,idm] += _dot_ao_ao(mol, ao[2], wv*ao[2], mask, shls_slice, ao_loc)
+                vmat[1,idm] += _dot_ao_ao(mol, ao[3], wv*ao[3], mask, shls_slice, ao_loc)
+                rho_a = rho_b = exc = vxc = vrho = wva = wvb = None
+    elif xctype == 'HF':
+        pass
+    else:
+        raise NotImplementedError(f'numint.nr_uks for functional {xc_code}')
+
+    for i in range(nset):
+        vmat[0, i] = vmat[0, i] + vmat[0, i].conj().T
+        vmat[1, i] = vmat[1, i] + vmat[1, i].conj().T
+
+    nelec  = numpy.asarray(nelec)
+    excsum = jnp.asarray(excsum)
+    vmat   = jnp.asarray(vmat)
+    
+    for i in range(nset):
+        vmat[0,i] = vmat[0,i] + vmat[0,i].conj().T
+        vmat[1,i] = vmat[1,i] + vmat[1,i].conj().T
+    if isinstance(dma, numpy.ndarray) and dma.ndim == 2:
+        vmat = vmat[:,0]
+        nelec = nelec.reshape(2)
+        excsum = excsum[0]
     return nelec, excsum, vmat
 
 def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
@@ -438,3 +590,4 @@ class NumInt(numint.NumInt):
         return eval_rho(mol, ao, dm, non0tab, xctype, hermi, verbose)
 
     nr_rks = nr_rks
+    nr_uks = nr_uks
