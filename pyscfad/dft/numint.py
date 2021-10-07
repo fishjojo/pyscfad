@@ -386,18 +386,30 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
         vmat[0, i] = vmat[0, i] + vmat[0, i].conj().T
         vmat[1, i] = vmat[1, i] + vmat[1, i].conj().T
 
-    nelec  = numpy.asarray(nelec)
-    excsum = jnp.asarray(excsum)
-    vmat   = jnp.asarray(vmat)
-    
-    for i in range(nset):
-        vmat[0,i] = vmat[0,i] + vmat[0,i].conj().T
-        vmat[1,i] = vmat[1,i] + vmat[1,i].conj().T
-    if isinstance(dma, numpy.ndarray) and dma.ndim == 2:
-        vmat = vmat[:,0]
-        nelec = nelec.reshape(2)
+    if isinstance(dma, jnp.ndarray) and dma.ndim == 2:
+        vmat   = vmat[:,0]
+        nelec  = nelec.reshape(2)
         excsum = excsum[0]
+
     return nelec, excsum, vmat
+
+def _format_uks_dm(dms):
+    if isinstance(dms, numpy.ndarray) and dms.ndim == 2:  # RHF DM
+        dma = dmb = dms * .5
+    else:
+        dma, dmb = dms
+    if getattr(dms, 'mo_coeff', None) is not None:
+        mo_coeff = dms.mo_coeff
+        mo_occ = dms.mo_occ
+        if mo_coeff[0].ndim < dma.ndim: # handle ROKS
+            mo_occa = numpy.array(mo_occ> 0, dtype=numpy.double)
+            mo_occb = numpy.array(mo_occ==2, dtype=numpy.double)
+            dma = lib.tag_array(dma, mo_coeff=mo_coeff, mo_occ=mo_occa)
+            dmb = lib.tag_array(dmb, mo_coeff=mo_coeff, mo_occ=mo_occb)
+        else:
+            dma = lib.tag_array(dma, mo_coeff=mo_coeff[0], mo_occ=mo_occ[0])
+            dmb = lib.tag_array(dmb, mo_coeff=mo_coeff[1], mo_occ=mo_occ[1])
+    return dma, dmb
 
 def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
     xctype = xctype.upper()
