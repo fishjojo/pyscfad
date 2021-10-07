@@ -392,7 +392,7 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
     return nelec, excsum, vmat
 
 def _format_uks_dm(dms):
-    if isinstance(dms, numpy.ndarray) and dms.ndim == 2:  # RHF DM
+    if isinstance(dms, jnp.ndarray) and dms.ndim == 2:  # RHF DM
         dma = dmb = dms * .5
     else:
         dma, dmb = dms
@@ -547,11 +547,6 @@ def _uks_gga_wv0(rho, vxc, weight):
     wvb[0]  = ops.index_update(wvb, ops.index[0],   weight * vrho[:,1]   * .5)   # v+v.T should be applied in the caller
     wvb[1:] = ops.index_update(wvb, ops.index[1:], (weight * vsigma[:,2] *  2) * rho[1:4])
     wvb[1:]+= ops.index_update(wvb, ops.index[1:], (weight * vsigma[:,1]     ) * rho[1:4])
-
-    wvb     = jnp.empty((4,ngrid))
-    wvb[0]  = weight * vrho[:,1] * .5  # v+v.T should be applied in the caller
-    wvb[1:] = rhob[1:4] * (weight * vsigma[:,2] * 2)  # sigma_dd
-    wvb[1:]+= rhoa[1:4] * (weight * vsigma[:,1])      # sigma_ud
 
     return wva, wvb
 
