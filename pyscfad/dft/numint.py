@@ -316,11 +316,11 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                                       relativity=relativity, deriv=1,
                                       verbose=verbose)[:2]
 
-                den            = rho_a * weight
+                den            = rho_a[0] * weight
                 nelec[0, idm] += stop_grad(den).sum()
                 excsum[idm]   += jnp.dot(den, exc)
 
-                den            = rho_b * weight
+                den            = rho_b[0] * weight
                 nelec[1, idm] += stop_grad(den).sum()
                 excsum[idm]   += jnp.dot(den, exc)
 
@@ -536,17 +536,19 @@ def _rks_gga_wv0(rho, vxc, weight):
 def _uks_gga_wv0(rho, vxc, weight):
     rhoa, rhob   = rho
     vrho, vsigma = vxc[:2]
+    ngrid        = vrho.shape[0]
 
-    ngrid   = vrho.shape[0]
-    wva     = jnp.empty((4,ngrid))
-    wva[0]  = ops.index_update(wva, ops.index[0],   weight * vrho[:,0]   * .5)   # v+v.T should be applied in the caller
-    wva[1:] = ops.index_update(wva, ops.index[1:], (weight * vsigma[:,0] *  2) * rho[1:4])
-    wva[1:]+= ops.index_update(wva, ops.index[1:], (weight * vsigma[:,1]     ) * rho[1:4])
+    wva = jnp.empty((4,ngrid))
+    wva = ops.index_update(wva, ops.index[0], weight * vrho[:,0] * .5)
+    wva = ops.index_update(wva, ops.index[1:], 
+        ((weight * vsigma[:,0] * 2) * rhoa[1:4] + (weight * vsigma[:,1]) * rhob[1:4])
+    )
 
-    wvb     = jnp.empty((4,ngrid))
-    wvb[0]  = ops.index_update(wvb, ops.index[0],   weight * vrho[:,1]   * .5)   # v+v.T should be applied in the caller
-    wvb[1:] = ops.index_update(wvb, ops.index[1:], (weight * vsigma[:,2] *  2) * rho[1:4])
-    wvb[1:]+= ops.index_update(wvb, ops.index[1:], (weight * vsigma[:,1]     ) * rho[1:4])
+    wvb = jnp.empty((4,ngrid))
+    wvb = ops.index_update(wvb, ops.index[0], weight * vrho[:,1] * .5)
+    wvb = ops.index_update(wvb, ops.index[1:], 
+        ((weight * vsigma[:,2] * 2) * rhob[1:4] + (weight * vsigma[:,1]) * rhoa[1:4])
+    )
 
     return wva, wvb
 

@@ -1,11 +1,17 @@
+import jax
 import numpy
 
-from pyscf import lib
-from pyscfad.lib import numpy as jnp
-
+from pyscf     import __config__
+from pyscf.lib import current_memory
 from pyscf.lib import logger
-from pyscf.scf import uhf
-from pyscf.dft import rks
+
+from pyscfad import lib
+
+from pyscfad.lib import numpy as jnp
+from pyscfad.lib import stop_grad
+
+from pyscfad.scf import uhf
+from .           import rks
 
 @lib.dataclass
 class VXC():
@@ -39,7 +45,7 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
     if dm.ndim == 2:  # RHF DM
         dm = numpy.asarray((dm*.5,dm*.5))
     
-    ground_state = (getattr(dm, "ndim", None) == 3) and dm.shape[0] == 2)
+    ground_state = (getattr(dm, "ndim", None) == 3) and (dm.shape[0] == 2)
 
     t0 = (logger.process_clock(), logger.perf_counter())
 
@@ -61,7 +67,7 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
     if hermi == 2:  # because rho = 0
         n, vxc.exc, vxc.vxc = (0,0), 0, 0
     else:
-        max_memory          = ks.max_memory - lib.current_memory()[0]
+        max_memory          = ks.max_memory - current_memory()[0]
         n, vxc.exc, vxc.vxc = ni.nr_uks(mol, ks.grids, ks.xc, dm, max_memory=max_memory)
 
         if ks.nlc != '':
@@ -130,27 +136,14 @@ def energy_elec(ks, dm=None, h1e=None, vhf=None):
     
     return rks.energy_elec(ks, dm, h1e, vhf)
 
+@lib.dataclass
 class UKS(rks.KohnShamDFT, uhf.UHF):
-    '''Unrestricted Kohn-Sham
-    See pyscf/dft/rks.py RKS class for document of the attributes'''
-    def __init__(self, mol, xc='LDA,VWN'):
-        uhf.UHF.__init__(self, mol)
-        rks.KohnShamDFT.__init__(self, xc)
-
-    def dump_flags(self, verbose=None):
-        uhf.UHF.dump_flags(self, verbose)
-        rks.KohnShamDFT.dump_flags(self, verbose)
-        return self
+    def __post_init__(self):
+        uhf.UHF.__post_init__(self)
+        rks.KohnShamDFT.__post_init__(self)
 
     get_veff    = get_veff
     energy_elec = energy_elec
-
-    init_guess_by_vsap = rks.init_guess_by_vsap
-
-    def nuc_grad_method(self):
-        from pyscf.grad import uks
-        return uks.Gradients(self)
-
 
 if __name__ == '__main__':
     from pyscf import gto
