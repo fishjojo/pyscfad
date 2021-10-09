@@ -86,8 +86,8 @@ def _exc_partial_deriv(rho, exc, vxc, xctype="LDA"):
     if xctype == "LDA":
         exc1 = (vxc[0] - exc) / rho
     elif xctype in ["GGA", "MGGA"]:
-        exc1 = numpy.empty(rho.shape, dtype=rho.dtype)
-        exc1[0] = (vxc[0] - exc) / rho[0]
+        exc1      = numpy.empty(rho.shape, dtype=rho.dtype)
+        exc1[0]   = (vxc[0] - exc) / rho[0]
         exc1[1:4] = vxc[1] / rho[0] * 2. * rho[1:4]
         if xctype == "MGGA":
             exc1[4] = vxc[2] / rho[0]
