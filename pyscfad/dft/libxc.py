@@ -21,13 +21,22 @@ def _eval_xc(rho, hyb, fn_facs, spin=0, relativity=0, deriv=1, verbose=None):
 @_eval_xc.defjvp
 def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
                  primals, tangents):
-    rho, = primals
+    rho,   = primals
     rho_t, = tangents
 
     if deriv > 2:
         raise NotImplementedError
 
     exc, vxc, fxc, kxc = _eval_xc(rho, hyb, fn_facs, spin, relativity, deriv+1, verbose)
+
+    # print("rho = ", type(rho))
+    # print("exc = ", exc.shape)
+    # print("vxc = ", vxc[0].shape)
+    # print("vxc = ", vxc[1].shape)
+    # print("fxc = ", fxc[0].shape)
+    # print("fxc = ", fxc[1].shape)
+    # print("kxc = ", type(kxc))
+    # print("rho_t = ", rho_t.shape)
 
     fn_ids = [x[0] for x in fn_facs]
     n = len(fn_ids)
@@ -40,7 +49,7 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
         #exc_jvp += vxc[1] / rho[0] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
         #exc_jvp += vxc[2] / rho[0] * rho_t[4]
         #exc_jvp += vxc[3] / rho[0] * rho_t[5]
-        exc1 = _exc_partial_deriv(rho, exc, vxc, "MGGA")
+        exc1    = _exc_partial_deriv(rho, exc, vxc, "MGGA")
         exc_jvp = jnp.einsum('np,np->p', exc1, rho_t)
 
         #vrho1 = fxc[0] * rho_t[0] + fxc[1] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4]) \
@@ -79,6 +88,18 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
         fxc = kxc = fxc_jvp = kxc_jvp = None
     elif deriv == 2:
         kxc = kxc_jvp = None
+
+    print("exc_jvp = ", exc_jvp.shape)
+    print("vxc_jvp = ", vxc_jvp[0].shape)
+    print("vxc_jvp = ", vxc_jvp[1])
+    print("fxc_jvp = ", fxc_jvp)
+    print("kxc_jvp = ", kxc_jvp)
+
+    print("exc = ", exc.shape)
+    print("vxc = ", vxc)
+    print("fxc = ", fxc)
+    print("kxc = ", kxc)
+
     return (exc, vxc, fxc, kxc), (exc_jvp, vxc_jvp, fxc_jvp, kxc_jvp)
 
 
