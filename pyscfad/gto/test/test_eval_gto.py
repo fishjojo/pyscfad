@@ -15,7 +15,7 @@ def test_eval_gto_nuc():
     mol.build(trace_coords=True)
 
     grids = gen_grid.Grids(mol)
-    grids.atom_grid = {'H': (10, 26)}
+    grids.atom_grid = {'H': (10, 14)}
     grids.build(with_non0tab=True)
     coords = grids.coords
 

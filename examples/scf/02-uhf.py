@@ -4,18 +4,16 @@
 #
 
 import numpy
-
-import pyscf
-from   pyscfad import gto, scf
+from pyscfad import gto, scf
 
 #
 # 1. open-shell system
 #
 mol = gto.Mole()
 mol.atom = '''
-O 0.0  0     0
-H 0.0 -2.757 2.587
-H 0.0  2.757 2.587
+O 0.  0.    0.
+H 0. -0.757 0.587
+H 0.  0.757 0.587
 '''
 mol.basis = 'cc-pvdz'
 mol.spin   = 1
@@ -30,18 +28,11 @@ g1  = jac.coords
 grad = mf.nuc_grad_method()
 g2  = grad.kernel()
 
-assert numpy.linalg.norm(g1-g2) < 1e-6
+assert abs(g1-g2).max() < 1e-6
 
 #
 # 2. closed-shell system
 #
-mol = gto.Mole()
-mol.atom = '''
-O 0.0  0     0
-H 0.0 -2.757 2.587
-H 0.0  2.757 2.587
-'''
-mol.basis = 'cc-pvdz'
 mol.spin   = 0
 mol.charge = 0
 mol.build()
@@ -54,7 +45,7 @@ g1  = jac.coords
 grad = mf.nuc_grad_method()
 g2   = grad.kernel()
 
-assert numpy.linalg.norm(g1-g2) < 1e-6
+assert abs(g1-g2).max() < 1e-6
 
 mf = scf.UHF(mol)
 mf.kernel()
@@ -64,4 +55,4 @@ g1  = jac.coords
 grad = mf.nuc_grad_method()
 g2  = grad.kernel()
 
-assert numpy.linalg.norm(g1-g2) < 1e-6
+assert abs(g1-g2).max() < 1e-6

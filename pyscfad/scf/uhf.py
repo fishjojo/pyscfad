@@ -6,7 +6,7 @@ from pyscfad.scf import hf
 
 @lib.dataclass
 class UHF(hf.SCF, uhf.UHF):
-    _nelec: Optional[int] = None 
+    _nelec: Optional[int] = None
     init_guess_breaksym: Optional[bool] = None
 
     @property
@@ -15,7 +15,7 @@ class UHF(hf.SCF, uhf.UHF):
             return self._nelec
         else:
             return self.mol.nelec
-    
+
     @nelec.setter
     def nelec(self, x):
         self._nelec = x

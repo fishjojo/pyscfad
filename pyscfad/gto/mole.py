@@ -44,11 +44,12 @@ def _rr_jvp(primals, tangents):
     r = coords.reshape(-1,1,3) - coords
     natm = coords.shape[0]
     #tangent_out = jnp.zeros_like(primal_out)
-    grad = numpy.zeros((natm,natm,3), dtype=numpy.double)
+    grad = jnp.zeros((natm,natm,3), dtype=numpy.double)
     for i in range(natm):
         #tangent_out = ops.index_add(tangent_out, ops.index[i],
         #                            jnp.dot(r[i] / rnorm[i,:,None], coords_t[i]))
-        grad[i] += r[i] / rnorm[i,:,None]
+        #grad[i] += r[i] / rnorm[i,:,None]
+        grad = ops.index_add(grad, ops.index[i], r[i] / rnorm[i,:,None])
     tangent_out = jnp.einsum("ijx,ix->ij", grad, coords_t)
     tangent_out += tangent_out.T
     return primal_out, tangent_out
@@ -138,7 +139,7 @@ class Mole(gto.Mole):
     eval_ao = eval_gto = eval_gto
 
     def intor(self, intor, comp=None, hermi=0, aosym='s1', out=None,
-              shls_slice=None):
+              shls_slice=None, grids=None):
         if (self.coords is None and self.exp is None
                 and self.ctr_coeff is None and self.r0 is None):
             return gto.Mole.intor(self, intor, comp=comp, hermi=hermi,
