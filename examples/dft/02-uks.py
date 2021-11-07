@@ -15,7 +15,7 @@ mol.basis   = 'sto-3g'
 mol.verbose = 3
 mol.build()
 
-mf           = dft.RKS(mol)
+mf           = dft.UKS(mol)
 mf.xc        = 'LDA'
 mf.max_cycle = 100
 mf.kernel()

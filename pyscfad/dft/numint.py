@@ -269,7 +269,7 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
     make_rhob       = ni._gen_rho_evaluator(mol, dmb, hermi)[0]
 
     shls_slice = (0, mol.nbas)
-    ao_loc = mol.ao_loc_nr()
+    ao_loc     = mol.ao_loc_nr()
 
     nelec  = numpy.zeros((2,nset))
     excsum = numpy.zeros(nset)

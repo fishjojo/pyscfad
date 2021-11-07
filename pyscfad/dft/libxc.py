@@ -29,15 +29,6 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
 
     exc, vxc, fxc, kxc = _eval_xc(rho, hyb, fn_facs, spin, relativity, deriv+1, verbose)
 
-    # print("rho = ", type(rho))
-    # print("exc = ", exc.shape)
-    # print("vxc = ", vxc[0].shape)
-    # print("vxc = ", vxc[1].shape)
-    # print("fxc = ", fxc[0].shape)
-    # print("fxc = ", fxc[1].shape)
-    # print("kxc = ", type(kxc))
-    # print("rho_t = ", rho_t.shape)
-
     fn_ids = [x[0] for x in fn_facs]
     n = len(fn_ids)
     if (n == 0 or
@@ -88,17 +79,6 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
         fxc = kxc = fxc_jvp = kxc_jvp = None
     elif deriv == 2:
         kxc = kxc_jvp = None
-
-    print("exc_jvp = ", exc_jvp.shape)
-    print("vxc_jvp = ", vxc_jvp[0].shape)
-    print("vxc_jvp = ", vxc_jvp[1])
-    print("fxc_jvp = ", fxc_jvp)
-    print("kxc_jvp = ", kxc_jvp)
-
-    print("exc = ", exc.shape)
-    print("vxc = ", vxc)
-    print("fxc = ", fxc)
-    print("kxc = ", kxc)
 
     return (exc, vxc, fxc, kxc), (exc_jvp, vxc_jvp, fxc_jvp, kxc_jvp)
 
