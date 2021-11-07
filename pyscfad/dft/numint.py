@@ -137,6 +137,7 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 vrho = vxc[0]
                 den = rho * weight
                 nelec[idm] += stop_grad(den).sum()
+
                 excsum[idm] += jnp.dot(den, exc)
                 # *.5 because vmat + vmat.T
                 #:aow = numpy.einsum('pi,p->pi', ao, .5*weight*vrho, out=aow)
@@ -271,9 +272,9 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
     shls_slice = (0, mol.nbas)
     ao_loc     = mol.ao_loc_nr()
 
-    nelec  = numpy.zeros((2,nset))
-    excsum = numpy.zeros(nset)
-    vmat   = numpy.zeros((2,nset,nao,nao), dtype=numpy.result_type(dma, dmb))
+    nelec  = [[0]*nset] * 2
+    excsum = [0]*nset
+    vmat   = [[0]*nset] * 2
     aow    = None
 
     if xctype == 'LDA':
@@ -290,104 +291,30 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 vrho = vxc[0]
 
                 den            = rho_a * weight
-                nelec[0, idm] += stop_grad(den).sum()
+                nelec[0][idm] += stop_grad(den).sum()
                 excsum[idm]   += jnp.dot(den, exc)
 
                 den            = rho_b * weight
-                nelec[1, idm] += stop_grad(den).sum()
+                nelec[1][idm] += stop_grad(den).sum()
                 excsum[idm]   += jnp.dot(den, exc)
 
                 aow           = _scale_ao(ao, .5*weight*vrho[:,0], out=None)
-                vmat[0, idm] += _dot_ao_ao(mol, ao, aow, mask, shls_slice, ao_loc)
+                vmat[0][idm] += _dot_ao_ao(mol, ao, aow, mask, shls_slice, ao_loc)
                 aow           = _scale_ao(ao, .5*weight*vrho[:,1], out=None)
-                vmat[1, idm] += _dot_ao_ao(mol, ao, aow, mask, shls_slice, ao_loc)
+                vmat[1][idm] += _dot_ao_ao(mol, ao, aow, mask, shls_slice, ao_loc)
                 rho_a = rho_b = exc = vxc = vrho = None
 
-    elif xctype == 'GGA':
-        ao_deriv = 1
-        for ao, mask, weight, coords \
-                in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
-            #aow = numpy.ndarray(ao[0].shape, order='F', buffer=aow)
-            for idm in range(nset):
-                rho_a = make_rhoa(idm, ao, mask, "GGA")
-                rho_b = make_rhob(idm, ao, mask, "GGA")
-
-                exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
-                                      relativity=relativity, deriv=1,
-                                      verbose=verbose)[:2]
-
-                den            = rho_a[0] * weight
-                nelec[0, idm] += stop_grad(den).sum()
-                excsum[idm]   += jnp.dot(den, exc)
-
-                den            = rho_b[0] * weight
-                nelec[1, idm] += stop_grad(den).sum()
-                excsum[idm]   += jnp.dot(den, exc)
-
-                # ref eval_mat function
-                wva, wvb     = _uks_gga_wv0((rho_a,rho_b), vxc, weight)
-                aow          = _scale_ao(ao, wva, out=None)
-                vmat[0,idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
-                aow          = _scale_ao(ao, wvb, out=None)
-                vmat[1,idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
-                rho_a = rho_b = exc = vxc = wva = wvb = None
-
-    elif xctype == 'MGGA':
-        if any(x in xc_code.upper() for x in ('CC06', 'CS', 'BR89', 'MK00')):
-            raise NotImplementedError('laplacian in meta-GGA method')
-        
-        ao_deriv = 2
-        for ao, mask, weight, coords \
-                in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
-            #aow = numpy.ndarray(ao[0].shape, order='F', buffer=aow)
-            for idm in range(nset):
-                rho_a = make_rhoa(idm, ao, mask, "GGA")
-                rho_b = make_rhob(idm, ao, mask, "GGA")
-
-                exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
-                                      relativity=relativity, deriv=1,
-                                      verbose=verbose)[:2]
-
-                vrho, vsigma, vlapl, vtau = vxc[:4]
-
-                den            = rho_a * weight
-                nelec[0, idm] += stop_grad(den).sum()
-                excsum[idm]   += jnp.dot(den, exc)
-
-                den            = rho_b * weight
-                nelec[1, idm] += stop_grad(den).sum()
-                excsum[idm]   += jnp.dot(den, exc)
-
-                wva, wvb     = _uks_gga_wv0((rho_a,rho_b), vxc, weight)
-                aow          = _scale_ao(ao[:4], wva, out=aow)
-                vmat[0,idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
-                aow          = _scale_ao(ao[:4], wvb, out=aow)
-                vmat[1,idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
-
-# FIXME: .5 * .5   First 0.5 for v+v.T symmetrization.
-# Second 0.5 is due to the Libxc convention tau = 1/2 \nabla\phi\dot\nabla\phi
-                wv = (.25 * weight * vtau[:,0]).reshape(-1,1)
-                vmat[0,idm] += _dot_ao_ao(mol, ao[1], wv*ao[1], mask, shls_slice, ao_loc)
-                vmat[0,idm] += _dot_ao_ao(mol, ao[2], wv*ao[2], mask, shls_slice, ao_loc)
-                vmat[0,idm] += _dot_ao_ao(mol, ao[3], wv*ao[3], mask, shls_slice, ao_loc)
-                wv = (.25 * weight * vtau[:,1]).reshape(-1,1)
-                vmat[1,idm] += _dot_ao_ao(mol, ao[1], wv*ao[1], mask, shls_slice, ao_loc)
-                vmat[1,idm] += _dot_ao_ao(mol, ao[2], wv*ao[2], mask, shls_slice, ao_loc)
-                vmat[1,idm] += _dot_ao_ao(mol, ao[3], wv*ao[3], mask, shls_slice, ao_loc)
-                rho_a = rho_b = exc = vxc = vrho = wva = wvb = None
-    elif xctype == 'HF':
-        pass
     else:
         raise NotImplementedError(f'numint.nr_uks for functional {xc_code}')
 
     for i in range(nset):
-        vmat[0, i] = vmat[0, i] + vmat[0, i].conj().T
-        vmat[1, i] = vmat[1, i] + vmat[1, i].conj().T
+        vmat[0][i] = vmat[0][i] + vmat[0][i].conj().T
+        vmat[1][i] = vmat[1][i] + vmat[1][i].conj().T
 
     if isinstance(dma, jnp.ndarray) and dma.ndim == 2:
-        vmat   = vmat[:,0]
-        nelec  = nelec.reshape(2)
         excsum = excsum[0]
+        nelec  = jnp.asarray([nelec[0], nelec[1]])
+        vmat   = jnp.asarray([vmat[0][0], vmat[1][0]])
 
     return nelec, excsum, vmat
 

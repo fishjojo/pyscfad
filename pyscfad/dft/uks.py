@@ -40,10 +40,10 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
     if dm is None:
         dm = ks.make_rdm1()
     
-    if not isinstance(dm, numpy.ndarray):
-        dm = numpy.asarray(dm)
+    if not isinstance(dm, jnp.ndarray):
+        dm = jnp.asarray(dm)
     if dm.ndim == 2:  # RHF DM
-        dm = numpy.asarray((dm*.5,dm*.5))
+        dm = jnp.asarray((dm*.5,dm*.5))
     
     ground_state = (getattr(dm, "ndim", None) == 3) and (dm.shape[0] == 2)
 
@@ -115,10 +115,10 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
         vxc.vxc += vj - vk
 
         if ground_state:
-            vxc.exc -=(numpy.einsum('ij,ji', dm[0], vk[0]).real + numpy.einsum('ij,ji', dm[1], vk[1]).real) * .5
+            vxc.exc -=(jnp.einsum('ij,ji', dm[0], vk[0]).real + jnp.einsum('ij,ji', dm[1], vk[1]).real) * .5
 
     if ground_state:
-        vxc.ecoul = numpy.einsum('ij,ji', dm[0]+dm[1], vj).real * .5
+        vxc.ecoul = jnp.einsum('ij,ji', dm[0]+dm[1], vj).real * .5
     else:
         vxc.ecoul = None
 

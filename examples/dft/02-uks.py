@@ -15,9 +15,13 @@ mol.basis   = 'sto-3g'
 mol.verbose = 3
 mol.build()
 
-mf           = dft.UKS(mol)
-mf.xc        = 'LDA'
-mf.max_cycle = 100
+mf    = dft.UKS(mol)
+mf.xc = 'LDA'
 mf.kernel()
 jac = mf.energy_grad()
-print(jac.coords)
+g1  = jac.coords
+
+grad = mf.nuc_grad_method()
+g2  = grad.kernel()
+
+assert abs(g1-g2).max() < 1e-6

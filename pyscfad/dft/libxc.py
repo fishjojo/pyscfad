@@ -10,8 +10,10 @@ from pyscfad.lib import numpy as jnp
 
 def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
     hyb, fn_facs = parse_xc(xc_code)
+
     if omega is not None:
         hyb[2] = float(omega)
+
     return _eval_xc(rho, hyb, fn_facs, spin, relativity, deriv, verbose)
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
@@ -21,8 +23,8 @@ def _eval_xc(rho, hyb, fn_facs, spin=0, relativity=0, deriv=1, verbose=None):
 @_eval_xc.defjvp
 def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
                  primals, tangents):
-    rho,   = primals
-    rho_t, = tangents
+    rho,   = jnp.asarray(primals)
+    rho_t, = jnp.asarray(tangents)
 
     if deriv > 2:
         raise NotImplementedError
@@ -30,12 +32,38 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
     exc, vxc, fxc, kxc = _eval_xc(rho, hyb, fn_facs, spin, relativity, deriv+1, verbose)
 
     fn_ids = [x[0] for x in fn_facs]
-    n = len(fn_ids)
-    if (n == 0 or
-        all((is_lda(x) for x in fn_ids))):
-        exc_jvp = (vxc[0] - exc) / rho * rho_t
-        vxc_jvp = (fxc[0] * rho_t, None, None, None)
-    elif any((is_meta_gga(x) for x in fn_ids)):
+    n      = len(fn_ids)
+
+    fn_is_lda      = n == 0 or all((is_lda(x) for x in fn_ids))
+    fn_is_meta_gga = any((is_meta_gga(x) for x in fn_ids))
+
+    if fn_is_lda:
+        if spin == 0:
+            exc_jvp = (vxc[0] - exc) / rho * rho_t
+            vxc_jvp = (fxc[0] * rho_t, None, None, None)
+        else:
+            rho_u   = rho[0]
+            rho_d   = rho[1]
+            rho_t_u = rho_t[0]
+            rho_t_d = rho_t[1]
+
+            vxc_u = vxc[0][:, 0]
+            vxc_d = vxc[0][:, 1]
+
+            fxc_uu = fxc[0][:, 0]
+            fxc_ud = fxc[0][:, 1]
+            fxc_dd = fxc[0][:, 2]
+
+            exc_jvp_u = (vxc_u - exc) / rho_u * rho_t_u
+            exc_jvp_d = (vxc_d - exc) / rho_d * rho_t_d
+
+            vxc_jvp_u = fxc_uu * rho_t_u + fxc_ud * rho_t_d
+            vxc_jvp_d = fxc_dd * rho_t_d + fxc_ud * rho_t_u
+
+            exc_jvp = exc_jvp_u + exc_jvp_d
+            vxc_jvp = (jnp.vstack((vxc_jvp_u, vxc_jvp_d)).T, None, None, None)
+
+    elif fn_is_meta_gga:
         #exc_jvp = (vxc[0] - exc) / rho[0] * rho_t[0]
         #exc_jvp += vxc[1] / rho[0] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
         #exc_jvp += vxc[2] / rho[0] * rho_t[4]
@@ -58,6 +86,7 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
         vtau_jvp = jnp.einsum('np,np->p', vtau1, rho_t)
         vrho1 = vsigma1 = vlapl1 = vtau1 = None
         vxc_jvp = jnp.vstack((vrho_jvp, vsigma_jvp, vlapl_jvp, vtau_jvp))
+
     else:
         #exc_jvp = (vxc[0] - exc) / rho[0] * rho_t[0]
         #exc_jvp += vxc[1] / rho[0] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
