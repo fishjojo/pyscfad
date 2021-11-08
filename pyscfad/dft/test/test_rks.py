@@ -3,13 +3,14 @@ import numpy
 from pyscfad import gto, dft
 
 BOHR = 0.52917721092
+disp = 1e-4
 
 @pytest.fixture
 def get_mol():
     mol = gto.Mole()
     mol.atom = 'H 0 0 0; H 0 0 0.74'  # in Angstrom
     mol.basis = '631g'
-    mol.build(trace_coords=True)
+    mol.build(trace_exp=False, trace_ctr_coeff=False)
     return mol
 
 @pytest.fixture
@@ -28,14 +29,43 @@ def get_mol_m():
     mol.build()
     return mol
 
-def test_rks_nuc_grad(get_mol):
+def test_rks_nuc_grad_lda(get_mol, get_mol_p, get_mol_m):
+    mol = get_mol
+    mf = dft.RKS(mol)
+    mf.xc = 'lda,vwn'
+    g = mf.energy_grad(mode="rev").coords
+
+    molp = get_mol_p
+    mfp = dft.RKS(molp)
+    mfp.xc = 'lda,vwn'
+    ep = mfp.kernel()
+
+    molm = get_mol_m
+    mfm = dft.RKS(molm)
+    mfm.xc = 'lda,vwn'
+    em = mfm.kernel()
+
+    g_fd = (ep-em) / disp * BOHR
+    assert abs(g[1,2] - g_fd) < 1e-6
+
+def test_rks_nuc_grad_gga_hybrid(get_mol, get_mol_p, get_mol_m):
     mol = get_mol
     mf = dft.RKS(mol)
     mf.xc = 'b3lyp'
     g = mf.energy_grad(mode="rev").coords
-    g0 = numpy.array([[0, 0, 2.24114270e-03],
-                      [0, 0, -2.24114270e-03]])
-    assert abs(g-g0).max() < 1e-10
+
+    molp = get_mol_p
+    mfp = dft.RKS(molp)
+    mfp.xc = 'b3lyp'
+    ep = mfp.kernel()
+
+    molm = get_mol_m
+    mfm = dft.RKS(molm)
+    mfm.xc = 'b3lyp'
+    em = mfm.kernel()
+
+    g_fd = (ep-em) / disp * BOHR
+    assert abs(g[1,2] - g_fd) < 1e-6
 
 def test_rks_nuc_grad_mgga(get_mol, get_mol_p, get_mol_m):
     # meta-GGA
@@ -54,13 +84,28 @@ def test_rks_nuc_grad_mgga(get_mol, get_mol_p, get_mol_m):
     mfm.xc = 'm062x'
     em = mfm.kernel()
 
-    g_fd = (ep-em) / 1e-4 * BOHR
+    g_fd = (ep-em) / disp * BOHR
     assert abs(g[1,2] - g_fd) < 3e-6
 
-def test_rks_nuc_grad_nlc(get_mol):
+#FIXME NLC gradient may have bugs, need check
+def test_rks_nuc_grad_nlc(get_mol, get_mol_p, get_mol_m):
     mol = get_mol
     mf = dft.RKS(mol)
     mf.xc = 'B97M_V'
     mf.nlc = 'VV10'
     g = mf.energy_grad(mode="rev").coords
-    assert abs(g[1,2] - 2.68791294e-03) < 1e-9
+
+    molp = get_mol_p
+    mfp = dft.RKS(molp)
+    mfp.xc = 'B97M_V'
+    mfp.nlc = 'VV10'
+    ep = mfp.kernel()
+
+    molm = get_mol_m
+    mfm = dft.RKS(molm)
+    mfm.xc = 'B97M_V'
+    mfm.nlc = 'VV10'
+    em = mfm.kernel()
+
+    g_fd = (ep-em) / disp * BOHR
+    assert abs(g[1,2] - g_fd) < 2e-4
