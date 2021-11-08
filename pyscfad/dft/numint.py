@@ -312,8 +312,8 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
         vmat[1][i] = vmat[1][i] + vmat[1][i].conj().T
 
     if isinstance(dma, jnp.ndarray) and dma.ndim == 2:
-        excsum = excsum[0]
         nelec  = jnp.asarray([nelec[0], nelec[1]])
+        excsum = excsum[0]
         vmat   = jnp.asarray([vmat[0][0], vmat[1][0]])
 
     return nelec, excsum, vmat

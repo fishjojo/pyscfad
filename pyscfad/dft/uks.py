@@ -130,11 +130,8 @@ def energy_elec(ks, dm=None, h1e=None, vhf=None):
 
     if vhf is None or getattr(vhf, 'ecoul', None) is None:
         vhf = ks.get_veff(ks.mol, dm)
-
-    if not (isinstance(dm, numpy.ndarray) and dm.ndim == 2):
-        dm = dm[0] + dm[1]
     
-    return rks.energy_elec(ks, dm, h1e, vhf)
+    return rks.energy_elec(ks, dm[0] + dm[1], h1e, vhf)
 
 @lib.dataclass
 class UKS(rks.KohnShamDFT, uhf.UHF):
