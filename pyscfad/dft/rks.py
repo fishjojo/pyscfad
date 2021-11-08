@@ -172,3 +172,4 @@ class RKS(KohnShamDFT, hf.RHF):
 
     get_veff = get_veff
     energy_elec = energy_elec
+    nuc_grad_method = rks.RKS.nuc_grad_method #analytic nuclear gradient method
