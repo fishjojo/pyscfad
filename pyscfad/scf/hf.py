@@ -114,6 +114,9 @@ class SCF(hf.SCF):
     def energy_grad(self, dm0=None, mode="rev"):
         """
         Energy gradient wrt AO parameters computed by AD
+
+        NOTE:
+            The attributes of the SCF instance will not be modified
         """
         if self.converged:
             # NOTE this works because derivatives of MO coefficients

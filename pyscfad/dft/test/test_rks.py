@@ -29,50 +29,48 @@ def get_mol_m():
     mol.build()
     return mol
 
-def test_rks_nuc_grad_lda(get_mol, get_mol_p, get_mol_m):
+# pylint: disable=redefined-outer-name
+def test_rks_nuc_grad_lda(get_mol):
     mol = get_mol
     mf = dft.RKS(mol)
     mf.xc = 'lda,vwn'
-    g = mf.energy_grad(mode="rev").coords
+    g1 = mf.energy_grad(mode="rev").coords
+    mf.kernel()
+    g2 = mf.energy_grad(mode="rev").coords
+    g0 = mf.nuc_grad_method().kernel()
+    assert abs(g1-g0).max() < 1e-6
+    assert abs(g2-g0).max() < 1e-6
 
-    molp = get_mol_p
-    mfp = dft.RKS(molp)
-    mfp.xc = 'lda,vwn'
-    ep = mfp.kernel()
+def test_rks_nuc_grad_gga(get_mol):
+    mol = get_mol()
+    mf = dft.RKS(mol)
+    mf.xc = 'pbe,pbe'
+    g1 = mf.energy_grad(mode="rev").coords
+    mf.kernel()
+    g2 = mf.energy_grad(mode="rev").coords
+    g0 = mf.nuc_grad_method().kernel()
+    assert abs(g1-g0).max() < 1e-6
+    assert abs(g2-g0).max() < 1e-6
 
-    molm = get_mol_m
-    mfm = dft.RKS(molm)
-    mfm.xc = 'lda,vwn'
-    em = mfm.kernel()
-
-    g_fd = (ep-em) / disp * BOHR
-    assert abs(g[1,2] - g_fd) < 1e-6
-
-def test_rks_nuc_grad_gga_hybrid(get_mol, get_mol_p, get_mol_m):
-    mol = get_mol
+def test_rks_nuc_grad_hybrid(get_mol):
+    mol = get_mol()
     mf = dft.RKS(mol)
     mf.xc = 'b3lyp'
-    g = mf.energy_grad(mode="rev").coords
-
-    molp = get_mol_p
-    mfp = dft.RKS(molp)
-    mfp.xc = 'b3lyp'
-    ep = mfp.kernel()
-
-    molm = get_mol_m
-    mfm = dft.RKS(molm)
-    mfm.xc = 'b3lyp'
-    em = mfm.kernel()
-
-    g_fd = (ep-em) / disp * BOHR
-    assert abs(g[1,2] - g_fd) < 1e-6
+    g1 = mf.energy_grad(mode="rev").coords
+    mf.kernel()
+    g2 = mf.energy_grad(mode="rev").coords
+    g0 = mf.nuc_grad_method().kernel()
+    assert abs(g1-g0).max() < 1e-6
+    assert abs(g2-g0).max() < 1e-6
 
 def test_rks_nuc_grad_mgga(get_mol, get_mol_p, get_mol_m):
-    # meta-GGA
     mol = get_mol
     mf = dft.RKS(mol)
     mf.xc = 'm062x'
-    g = mf.energy_grad(mode="rev").coords
+    g1 = mf.energy_grad(mode="rev").coords
+    mf.kernel()
+    g2 = mf.energy_grad(mode="rev").coords
+    assert abs(g1 - g2).max() < 1e-6
 
     molp = get_mol_p
     mfp = dft.RKS(molp)
@@ -85,8 +83,9 @@ def test_rks_nuc_grad_mgga(get_mol, get_mol_p, get_mol_m):
     em = mfm.kernel()
 
     g_fd = (ep-em) / disp * BOHR
-    assert abs(g[1,2] - g_fd) < 3e-6
+    assert abs(g1[1,2] - g_fd) < 3e-6
 
+# pylint: disable=fixme
 #FIXME NLC gradient may have bugs, need check
 def test_rks_nuc_grad_nlc(get_mol, get_mol_p, get_mol_m):
     mol = get_mol
