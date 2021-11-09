@@ -440,7 +440,7 @@ def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
 
 @jit
 def _rks_gga_assemble_rho(rho, ao, dm):
-    c0 = _dot_ao_dm_incore(ao[0], dm)
+    c0  = _dot_ao_dm_incore(ao[0], dm)
     rho = ops.index_update(rho, ops.index[0], _contract_rho(c0, ao[0]))
     for i in range(1, 4):
         rho = ops.index_update(rho, ops.index[i], _contract_rho(c0, ao[i]) * 2)
@@ -575,7 +575,7 @@ class NumInt(numint.NumInt):
             if not hermi:
                 # For eval_rho when xctype==GGA, which requires hermitian DMs
                 dms = [(dm+dm.conj().T)*.5 for dm in dms]
-            nao = dms[0].shape[0]
+            nao  = dms[0].shape[0]
             ndms = len(dms)
             def make_rho(idm, ao, non0tab, xctype):
                 return self.eval_rho(mol, ao, dms[idm], non0tab, xctype, hermi=1)
