@@ -62,43 +62,38 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
             vxc_jvp = (jnp.vstack((vxc_jvp_u, vxc_jvp_d)).T, None, None, None)
 
     elif fn_is_meta_gga:
-        #exc_jvp = (vxc[0] - exc) / rho[0] * rho_t[0]
-        #exc_jvp += vxc[1] / rho[0] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
-        #exc_jvp += vxc[2] / rho[0] * rho_t[4]
-        #exc_jvp += vxc[3] / rho[0] * rho_t[5]
-        exc1    = _exc_partial_deriv(rho, exc, vxc, "MGGA")
-        exc_jvp = jnp.einsum('np,np->p', exc1, rho_t)
+        if spin == 0:
+            exc1    = _exc_partial_deriv(rho, exc, vxc, "MGGA")
+            exc_jvp = jnp.einsum('np,np->p', exc1, rho_t)
 
-        #vrho1 = fxc[0] * rho_t[0] + fxc[1] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4]) \
-        #      + fxc[5] * rho_t[4] + fxc[6] * rho_t[5]
-        #vsigma1 = fxc[1] * rho_t[0] + fxc[2] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4]) \
-        #        + fxc[8] * rho_t[4] + fxc[9] * rho_t[5]
-        #vlapl1 = fxc[5] * rho_t[0] + fxc[8] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4]) \
-        #       + fxc[3] * rho_t[4] + fxc[7] * rho_t[5]
-        #vtau1 = fxc[6] * rho_t[0] + fxc[9] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4]) \
-        #      + fxc[7] * rho_t[4] + fxc[4] * rho_t[5]
-        vrho1, vsigma1, vlapl1, vtau1 = _vxc_partial_deriv(rho, exc, vxc, fxc, "MGGA")
-        vrho_jvp = jnp.einsum('np,np->p', vrho1, rho_t)
-        vsigma_jvp = jnp.einsum('np,np->p', vsigma1, rho_t)
-        vlapl_jvp = jnp.einsum('np,np->p', vlapl1, rho_t)
-        vtau_jvp = jnp.einsum('np,np->p', vtau1, rho_t)
-        vrho1 = vsigma1 = vlapl1 = vtau1 = None
-        vxc_jvp = jnp.vstack((vrho_jvp, vsigma_jvp, vlapl_jvp, vtau_jvp))
+            vrho1, vsigma1, vlapl1, vtau1 = _vxc_partial_deriv(rho, exc, vxc, fxc, "MGGA")
+            vrho_jvp   = jnp.einsum('np,np->p', vrho1, rho_t)
+            vsigma_jvp = jnp.einsum('np,np->p', vsigma1, rho_t)
+            vlapl_jvp  = jnp.einsum('np,np->p', vlapl1, rho_t)
+            vtau_jvp   = jnp.einsum('np,np->p', vtau1, rho_t)
+            
+            vrho1 = vsigma1 = vlapl1 = vtau1 = None
+            vxc_jvp = jnp.vstack((vrho_jvp, vsigma_jvp, vlapl_jvp, vtau_jvp))
+        else:
+            raise NotImplementedError
 
     else:
-        #exc_jvp = (vxc[0] - exc) / rho[0] * rho_t[0]
-        #exc_jvp += vxc[1] / rho[0] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
-        exc1 = _exc_partial_deriv(rho, exc, vxc, "GGA")
-        exc_jvp = jnp.einsum('np,np->p', exc1, rho_t)
+        if spin == 0:
+            #exc_jvp = (vxc[0] - exc) / rho[0] * rho_t[0]
+            #exc_jvp += vxc[1] / rho[0] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
+            exc1 = _exc_partial_deriv(rho, exc, vxc, "GGA")
+            exc_jvp = jnp.einsum('np,np->p', exc1, rho_t)
 
-        #vrho1 = fxc[0] * rho_t[0] + fxc[1] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
-        #vsigma1 = fxc[1] * rho_t[0] + fxc[2] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
-        #vxc_jvp = (vrho1, vsigma1, None, None)
-        vrho1, vsigma1, _, _ = _vxc_partial_deriv(rho, exc, vxc, fxc, "GGA")
-        vrho_jvp = jnp.einsum('np,np->p', vrho1, rho_t)
-        vsigma_jvp = jnp.einsum('np,np->p', vsigma1, rho_t)
-        vrho1 = vsigma1 = None
-        vxc_jvp = (vrho_jvp, vsigma_jvp, None, None)
+            #vrho1 = fxc[0] * rho_t[0] + fxc[1] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
+            #vsigma1 = fxc[1] * rho_t[0] + fxc[2] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
+            #vxc_jvp = (vrho1, vsigma1, None, None)
+            vrho1, vsigma1, _, _ = _vxc_partial_deriv(rho, exc, vxc, fxc, "GGA")
+            vrho_jvp = jnp.einsum('np,np->p', vrho1, rho_t)
+            vsigma_jvp = jnp.einsum('np,np->p', vsigma1, rho_t)
+            vrho1 = vsigma1 = None
+            vxc_jvp = (vrho_jvp, vsigma_jvp, None, None)
+        else:
+            raise NotImplementedError
 
     if deriv == 0:
         vxc = fxc = kxc = vxc_jvp = fxc_jvp = kxc_jvp = None
