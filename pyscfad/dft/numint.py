@@ -375,9 +375,12 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 vmat[1,idm] += _dot_ao_ao(mol, ao[1], wv*ao[1], mask, shls_slice, ao_loc)
                 vmat[1,idm] += _dot_ao_ao(mol, ao[2], wv*ao[2], mask, shls_slice, ao_loc)
                 vmat[1,idm] += _dot_ao_ao(mol, ao[3], wv*ao[3], mask, shls_slice, ao_loc)
-                
+
                 rho_a = rho_b = exc = vxc = vrho = wva = wvb = None
 
+    elif xctype == 'HF':
+        pass
+    
     else:
         raise NotImplementedError(f'numint.nr_uks for functional {xc_code}')
 
