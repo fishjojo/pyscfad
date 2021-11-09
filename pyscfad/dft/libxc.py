@@ -52,17 +52,14 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
             fxc_ud = fxc[0][:, 1]
             fxc_dd = fxc[0][:, 2]
 
-            exc_jvp_u = (vxc_u - exc) / rho_u * rho_t_u
-            exc_jvp_d = (vxc_d - exc) / rho_d * rho_t_d
+            exc_jvp_u = ((vxc_u - exc) / rho_u * rho_t_u)/2
+            exc_jvp_d = ((vxc_d - exc) / rho_d * rho_t_d)/2
 
-            vxc_jvp_u = fxc_uu * rho_t_u + fxc_ud * rho_t_d
-            vxc_jvp_d = fxc_dd * rho_t_d + fxc_ud * rho_t_u
+            vxc_jvp_u = (fxc_uu * rho_t_u + fxc_ud * rho_t_d)/2
+            vxc_jvp_d = (fxc_dd * rho_t_d + fxc_ud * rho_t_u)/2
 
-            exc_jvp = exc_jvp_u + exc_jvp_d
-            print("\nspin = 1, exc_jvp = \n", exc_jvp[0])
+            exc_jvp = (exc_jvp_u + exc_jvp_d)
             vxc_jvp = (jnp.vstack((vxc_jvp_u, vxc_jvp_d)).T, None, None, None)
-            print("fxc[0] * rho_t = \n", vxc_jvp[0][0,0])
-            print("fxc[0] * rho_t = \n", vxc_jvp[0][0,1])
 
     elif fn_is_meta_gga:
         #exc_jvp = (vxc[0] - exc) / rho[0] * rho_t[0]
