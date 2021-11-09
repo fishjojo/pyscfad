@@ -1,6 +1,7 @@
 import jax
 import numpy
 
+from pyscf.dft import uks
 from pyscf     import __config__
 from pyscf.lib import current_memory
 from pyscf.lib import logger
@@ -43,7 +44,7 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
     if not isinstance(dm, jnp.ndarray):
         dm = jnp.asarray(dm)
     if dm.ndim == 2:  # RHF DM
-        dm = jnp.asarray((dm*.5,dm*.5))
+        dm = jnp.asarray((dm*.5, dm*.5))
     
     ground_state = (getattr(dm, "ndim", None) == 3) and (dm.shape[0] == 2)
 
@@ -139,8 +140,9 @@ class UKS(rks.KohnShamDFT, uhf.UHF):
         uhf.UHF.__post_init__(self)
         rks.KohnShamDFT.__post_init__(self)
 
-    get_veff    = get_veff
-    energy_elec = energy_elec
+    get_veff        = get_veff
+    energy_elec     = energy_elec
+    nuc_grad_method = uks.UKS.nuc_grad_method #analytic nuclear gradient method
 
 if __name__ == '__main__':
     from pyscf import gto

@@ -116,11 +116,14 @@ def energy_elec(ks, dm=None, h1e=None, vhf=None):
         h1e = ks.get_hcore()
     if vhf is None or getattr(vhf, 'ecoul', None) is None:
         vhf = ks.get_veff(ks.mol, dm)
+
     e1 = jnp.einsum('ij,ji->', h1e, dm)
     e2 = vhf.ecoul + vhf.exc
-    ks.scf_summary['e1'] = e1.real
+
+    ks.scf_summary['e1']   = e1.real
     ks.scf_summary['coul'] = vhf.ecoul.real
-    ks.scf_summary['exc'] = vhf.exc.real
+    ks.scf_summary['exc']  = vhf.exc.real
+
     logger.debug(ks, 'E1 = %s  Ecoul = %s  Exc = %s', e1, vhf.ecoul, vhf.exc)
     return (e1+e2).real, e2
 
@@ -169,6 +172,6 @@ class RKS(KohnShamDFT, hf.RHF):
         hf.RHF.__post_init__(self)
         KohnShamDFT.__post_init__(self)
 
-    get_veff = get_veff
-    energy_elec = energy_elec
+    get_veff        = get_veff
+    energy_elec     = energy_elec
     nuc_grad_method = rks.RKS.nuc_grad_method #analytic nuclear gradient method

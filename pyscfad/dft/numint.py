@@ -247,6 +247,80 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
         vmat = vmat[0]
     return nelec, excsum, vmat
 
+def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
+           max_memory=2000, verbose=None):
+
+    xctype = ni._xc_type(xc_code)
+
+    if xctype == 'NLC':
+        dms_sf = dms[0] + dms[1]
+        nelec, excsum, vmat = nr_rks(ni, mol, grids, xc_code, dms_sf, relativity, hermi, max_memory, verbose)
+        return [nelec,nelec], excsum, jnp.asarray([vmat,vmat])
+
+    dma, dmb = _format_uks_dm(dms)
+    nao      = dma.shape[-1]
+    make_rhoa, nset = ni._gen_rho_evaluator(mol, dma, hermi)[:2]
+    make_rhob       = ni._gen_rho_evaluator(mol, dmb, hermi)[0]
+
+    shls_slice = (0, mol.nbas)
+    ao_loc     = mol.ao_loc_nr()
+
+    nelec  = [[0]*nset for _ in range(2)]
+    excsum = [0]*nset
+    vmat   = [[0]*nset for _ in range(2)]
+    aow    = None
+
+    if xctype == 'LDA':
+        ao_deriv = 0
+        for ao, mask, weight, coords \
+                in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
+            #aow = numpy.ndarray(ao.shape, order='F', buffer=aow)
+            for idm in range(nset):
+                rho_a = make_rhoa(idm, ao, mask, "LDA")
+                rho_b = make_rhob(idm, ao, mask, "LDA")
+
+                exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
+                                      relativity=relativity, deriv=1,
+                                      verbose=verbose)[:2]
+
+                vrho = vxc[0]
+
+                den            = rho_a * weight
+                nelec[0][idm] += stop_grad(den).sum()
+                excsum[idm]   += jnp.dot(den, exc)
+
+                den            = rho_b * weight
+                nelec[1][idm] += stop_grad(den).sum()
+                excsum[idm]   += jnp.dot(den, exc)
+
+                aow           = _scale_ao(ao, .5*weight*vrho[:,0], out=None)
+                vmat[0][idm] += _dot_ao_ao(mol, ao, aow, mask, shls_slice, ao_loc)
+
+                aow           = _scale_ao(ao, .5*weight*vrho[:,1], out=None)
+                vmat[1][idm] += _dot_ao_ao(mol, ao, aow, mask, shls_slice, ao_loc)
+                rho_a = rho_b = exc = vxc = vrho = None
+
+    else:
+        raise NotImplementedError(f'numint.nr_uks for functional {xc_code}')
+
+    for i in range(nset):
+        vmat[0][i] = (vmat[0][i] + vmat[0][i].conj().T)
+        vmat[1][i] = (vmat[1][i] + vmat[1][i].conj().T)
+
+    if isinstance(dma, jnp.ndarray) and dma.ndim == 2:
+        excsum = excsum[0]
+        nelec  = jnp.asarray([nelec[0], nelec[1]])
+        vmat   = jnp.asarray([vmat[0][0], vmat[1][0]])
+
+    return nelec, excsum, vmat
+
+def _format_uks_dm(dms):
+    if isinstance(dms, jnp.ndarray) and dms.ndim == 2:  # RHF DM
+        dma = dmb = dms * .5
+    else:
+        dma, dmb = dms
+    return dma, dmb
+
 def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
     xctype = xctype.upper()
     if xctype in ('LDA', 'HF'):
@@ -438,3 +512,4 @@ class NumInt(numint.NumInt):
         return eval_rho(mol, ao, dm, non0tab, xctype, hermi, verbose)
 
     nr_rks = nr_rks
+    nr_uks = nr_uks
