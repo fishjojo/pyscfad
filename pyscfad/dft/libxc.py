@@ -209,9 +209,14 @@ def _vxc_partial_deriv(rho, exc, vxc, fxc, spin, xctype="LDA"):
             vrho1 = fxc[0]
 
         elif spin == 1:
-            fxc_uu = fxc[0][:, 0] / 2
-            fxc_ud = fxc[0][:, 1] / 2
-            fxc_dd = fxc[0][:, 2] / 2
+            v2rho2 = fxc[0]
+            v2rho2_uu = v2rho2[:, 0] / 2
+            v2rho2_ud = v2rho2[:, 1] / 2
+            v2rho2_dd = v2rho2[:, 2] / 2
+
+            fxc_uu = v2rho2_uu
+            fxc_ud = v2rho2_ud
+            fxc_dd = v2rho2_dd
 
             vrho1 = (fxc_uu, fxc_ud, fxc_dd)
         else:
@@ -247,19 +252,32 @@ def _vxc_partial_deriv(rho, exc, vxc, fxc, spin, xctype="LDA"):
                 vtau1[5] = fxc[4]
 
         elif spin == 1:
-            vrho1 = numpy.empty(rho.shape, dtype=rho.dtype)
-            vrho1[0] = fxc[0]
-            vrho1[1:4] = fxc[1] * 2. * rho[1:4]
+            rho_u = rho[0]
+            rho_d = rho[1]
 
-            fxc_uu = fxc[0][:, 0] / 2
-            fxc_ud = fxc[0][:, 1] / 2
-            fxc_dd = fxc[0][:, 2] / 2
+            vrho1_u = numpy.empty(rho_u.shape, dtype=rho_u.dtype)
+            vrho1_d = numpy.empty(rho_d.shape, dtype=rho_d.dtype)
 
-            vrho1 = (fxc_uu, fxc_ud, fxc_dd)
+            v2rho2 = fxc[0]
+            v2rho2_uu = v2rho2[:, 0] / 2
+            v2rho2_ud = v2rho2[:, 1] / 2
+            v2rho2_dd = v2rho2[:, 2] / 2
 
-            vsigma1 = numpy.empty(rho.shape, dtype=rho.dtype)
-            vsigma1[0] = fxc[1]
-            vsigma1[1:4] = fxc[2] * 2. * rho[1:4]
+            v2rhosigma = fxc[1]
+            v2rhosigma_uuu = v2rhosigma[:, 0] / 2
+            v2rhosigma_uud = v2rhosigma[:, 1] / 2
+            v2rhosigma_udd = v2rhosigma[:, 2] / 2
+            v2rhosigma_duu = v2rhosigma[:, 3] / 2
+            v2rhosigma_dud = v2rhosigma[:, 4] / 2
+            v2rhosigma_ddd = v2rhosigma[:, 5] / 2
+
+            v2sigma2 = fxc[2]
+            v2sigma2_uuuu = v2sigma2[:, 0] / 2
+            v2sigma2_uuud = v2sigma2[:, 1] / 2
+            v2sigma2_uudd = v2sigma2[:, 2] / 2
+            v2sigma2_udud = v2sigma2[:, 3] / 2
+            v2sigma2_uddd = v2sigma2[:, 4] / 2
+            v2sigma2_dddd = v2sigma2[:, 5] / 2
 
     else:
         raise KeyError
