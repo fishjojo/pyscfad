@@ -15,7 +15,7 @@ mol.basis   = 'cc-pvdz'
 mol.verbose = 0
 mol.build()
 
-mf    = dft.RKS(mol)
+mf    = dft.UKS(mol)
 mf.xc = 'PBE0'
 mf.kernel()
 jac = mf.energy_grad()
