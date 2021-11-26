@@ -37,16 +37,18 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
     fn_is_meta_gga = any((is_meta_gga(x) for x in fn_ids))
     fn_is_gga      = (not fn_is_lda) and (not fn_is_meta_gga)
 
+    v1_rho1 = v1_sigma1 = v1_lapl1 = v1_tau1 = None
+
     if fn_is_lda:
         if spin == 0:
             exc1    = _exc_partial_deriv(rho, exc, vxc, spin, xctype="LDA")
 
             vxc1    = _vxc_partial_deriv(rho, exc, vxc, fxc, spin, xctype="LDA")
-            vrho1   = vxc1
+            v1_rho1, v1_sigma1, v1_lapl1, v1_tau1 = vxc1
 
-            exc_jvp  = exc1 *  rho_t
+            exc_jvp  = exc1  * rho_t
 
-            vrho_jvp = vrho1 * rho_t
+            vrho_jvp = v1_rho1 * rho_t
             vxc_jvp  = (vrho_jvp, None, None, None)
 
         elif spin == 1:
@@ -57,84 +59,66 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
             exc1_u, exc1_d = exc1
 
             vxc1    = _vxc_partial_deriv(rho, exc, vxc, fxc, spin, "LDA")
-            vrho1   = vxc1
-            vrho1_uu, vrho1_ud, vrho1_dd = vrho1
+            v1_rho1, v1_sigma1, v1_lapl1, v1_tau1 = vxc1
+            v1_rho1_uu, v1_rho1_ud, v1_rho1_dd    = v1_rho1
             
-            exc_jvp = (exc1_u)/2 *  rho_t_u + (exc1_d)/2 *  rho_t_d
+            exc_jvp    = exc1_u * rho_t_u + exc1_d * rho_t_d
 
-            vrho_jvp_u = vrho1_uu/2 * rho_t_u + vrho1_ud/2 * rho_t_d
-            vrho_jvp_d = vrho1_dd/2 * rho_t_d + vrho1_ud/2 * rho_t_u
-            vrho_jvp   = jnp.vstack((vrho_jvp_u, vrho_jvp_d)).T
+            vrho_jvp_u = v1_rho1_uu * rho_t_u + v1_rho1_ud * rho_t_d
+            vrho_jvp_d = v1_rho1_dd * rho_t_d + v1_rho1_ud * rho_t_u
+            vrho_jvp   = jnp.vstack((vrho_jvp_u, vrho_jvp_d)).T            
             vxc_jvp    = (vrho_jvp, None, None, None)
 
         else:
             raise RuntimeError(f"spin = {spin}")
 
+        v1_rho1 = v1_sigma1 = v1_lapl1 = v1_tau1 = None
+
     elif fn_is_meta_gga:
-        if spin == 0:
-            exc1    = _exc_partial_deriv(rho, exc, vxc, spin, "MGGA")
-            exc_jvp = jnp.einsum('np,np->p', exc1, rho_t)
-
-            vxc1    = _vxc_partial_deriv(rho, exc, vxc, fxc, spin, "MGGA")
-            vrho1, vsigma1, vlapl1, vtau1 = vxc1
-
-            vrho_jvp   = jnp.einsum('np,np->p', vrho1,   rho_t)
-            vsigma_jvp = jnp.einsum('np,np->p', vsigma1, rho_t)
-            vlapl_jvp  = jnp.einsum('np,np->p', vlapl1,  rho_t)
-            vtau_jvp   = jnp.einsum('np,np->p', vtau1,   rho_t)
-            
-            vrho1 = vsigma1 = vlapl1 = vtau1 = None
-            vxc_jvp = jnp.vstack((vrho_jvp, vsigma_jvp, vlapl_jvp, vtau_jvp))
-
-        elif spin == 1:
-            rho_t_u = rho_t[0]
-            rho_t_d = rho_t[1]
-
-            exc1    = _exc_partial_deriv(rho, exc, vxc, spin, "MGGA")
-            exc1_u, exc1_d = exc1
-
-            vxc1    = _vxc_partial_deriv(rho, exc, vxc, fxc, spin, "MGGA")
-            vrho1, vsigma1, vlapl1, vtau1      = vxc1
-            vrho1_u,     vrho1_d = vrho1
-            vlapl1_u,     vlapl1_d = vlapl1
-            vtau1_uu,     vtau1_ud,   vtau1_dd = vtau1
-
-
-            vsigma1_uu, vsigma1_ud, vsigma1_dd = vsigma1
-            
-            
-
-            vrho_jvp_u   = jnp.einsum('np,np->p', vrho1_uu,   rho_t_u) + jnp.einsum('np,np->p', vrho1_ud,   rho_t_d)
-            vsigma_jvp_u = jnp.einsum('np,np->p', vsigma1_uu, rho_t_u) + jnp.einsum('np,np->p', vsigma1_ud,   rho_t_d)
-            vlapl_jvp_u  = jnp.einsum('np,np->p', vsigma1_uu, rho_t_u) + jnp.einsum('np,np->p', vsigma1_ud,   rho_t_d)
-            vtau_jvp_u   = jnp.einsum('np,np->p', vsigma1_uu, rho_t_u) + jnp.einsum('np,np->p', vsigma1_ud,   rho_t_d)
-
-            vrho_jvp   = jnp.einsum('np,np->p', vrho1,   rho_t)
-            vsigma_jvp = jnp.einsum('np,np->p', vsigma1, rho_t)
-            vlapl_jvp  = jnp.einsum('np,np->p', vlapl1,  rho_t)
-            vtau_jvp   = jnp.einsum('np,np->p', vtau1,   rho_t)
-
-        else:
-            raise NotImplementedError
+        raise NotImplementedError('meta-GGA')
 
     elif fn_is_gga:
         if spin == 0:
+            print("rho_t = ", rho_t.shape)
             exc1    = _exc_partial_deriv(rho, exc, vxc, spin, "GGA")
-            exc_jvp = jnp.einsum('np,np->p', exc1, rho_t)
 
             vxc1    = _vxc_partial_deriv(rho, exc, vxc, fxc, spin, "GGA")
-            vrho1, vsigma1, _, _ = vxc1
+            v1_rho1, v1_sigma1, v1_lapl1, v1_tau1 = vxc1
 
-            vrho_jvp   = jnp.einsum('np,np->p', vrho1,   rho_t)
-            vsigma_jvp = jnp.einsum('np,np->p', vsigma1, rho_t)
+            exc_jvp    = jnp.einsum('np,np->p', exc1, rho_t)
 
-            vrho1 = vsigma1 = None
-            vxc_jvp = (vrho_jvp, vsigma_jvp, None, None)
+            vrho_jvp   = jnp.einsum('np,np->p', v1_rho1,   rho_t)
+            vsigma_jvp = jnp.einsum('np,np->p', v1_sigma1, rho_t)
+            vxc_jvp    = (vrho_jvp, vsigma_jvp, None, None)
+
         else:
-            raise NotImplementedError
+            rho_t_u = rho_t[0]
+            rho_t_d = rho_t[1]
+
+            exc1    = _exc_partial_deriv(rho, exc, vxc, spin, "LDA")
+            exc1_u, exc1_d = exc1
+
+            vxc1    = _vxc_partial_deriv(rho, exc, vxc, fxc, spin, "LDA")
+            v1_rho1, v1_sigma1, v1_lapl1, v1_tau1    = vxc1
+            v1_rho1_uu, v1_rho1_ud, v1_rho1_dd       = v1_rho1
+            v1_sigma1_uu, v1_sigma1_ud, v1_sigma1_dd = v1_sigma1
+
+            exc_jvp    = jnp.einsum('np,np->p', exc1_u, rho_t_u) + jnp.einsum('np,np->p', exc1_d, rho_t_d)  
+
+            vrho_jvp_u = jnp.einsum('np,np->p', v1_rho1_uu, rho_t_u) + jnp.einsum('np,np->p', v1_rho1_ud, rho_t_d)
+            vrho_jvp_d = jnp.einsum('np,np->p', v1_rho1_dd, rho_t_d) + jnp.einsum('np,np->p', v1_rho1_ud, rho_t_u)
+            vrho_jvp   = jnp.vstack((vrho_jvp_u, vrho_jvp_d)).T  
+
+            vsigma_jvp_u = jnp.einsum('np,np->p', v1_sigma1_uu, rho_t_u) + jnp.einsum('np,np->p', v1_sigma1_ud, rho_t_d)
+            vsigma_jvp_d = jnp.einsum('np,np->p', v1_sigma1_dd, rho_t_d) + jnp.einsum('np,np->p', v1_sigma1_ud, rho_t_u)
+            vsigma_jvp   = jnp.vstack((vsigma_jvp_u, vsigma_jvp_d)).T  
+
+            vxc_jvp    = (vrho_jvp, vsigma_jvp, None, None)
+
+        v1_rho1 = v1_sigma1 = None
 
     else:
-        raise RuntimeError
+        raise NotImplementedError
 
     if deriv == 0:
         vxc = fxc = kxc = vxc_jvp = fxc_jvp = kxc_jvp = None
@@ -153,13 +137,15 @@ def _exc_partial_deriv(rho, exc, vxc, spin, xctype="LDA"):
             rho_u = rho[0]
             rho_d = rho[1]
 
-            vxc_u = vxc[0][:, 0]
-            vxc_d = vxc[0][:, 1]
+            v1_rho1 = vxc[0]
 
-            exc_u = (vxc_u - exc)/rho_u/2
-            exc_d = (vxc_d - exc)/rho_d/2
+            v1_rho1_u = v1_rho1[:, 0]
+            v1_rho1_d = v1_rho1[:, 1]
 
-            exc   = (exc_u, exc_d)
+            exc_u = (v1_rho1_u - exc) / rho_u / 2
+            exc_d = (v1_rho1_d - exc) / rho_d / 2
+
+            exc1  = (exc_u, exc_d)
         else:
             raise RuntimeError(f"spin = {spin}")
 
@@ -173,12 +159,40 @@ def _exc_partial_deriv(rho, exc, vxc, spin, xctype="LDA"):
                 exc1[5] = vxc[3] / rho[0]
 
         elif spin == 1:
-            exc1      = numpy.empty(rho.shape, dtype=rho.dtype)
-            exc1[0]   = (vxc[0] - exc) / rho[0]
-            exc1[1:4] = vxc[1] / rho[0] * 2. * rho[1:4]
+            rho_u = rho[0]
+            rho_d = rho[1]
+
+            exc_u = numpy.empty(rho_u.shape, dtype=rho_u.dtype)
+            exc_d = numpy.empty(rho_d.shape, dtype=rho_d.dtype)
+
+            v1_rho1   = vxc[0]
+            v1_rho1_u = v1_rho1[:, 0]
+            v1_rho1_d = v1_rho1[:, 1]
+
+            v1_sigma1 = vxc[1]
+            v1_rho1_uu = v1_sigma1[:, 0]
+            v1_rho1_ud = v1_sigma1[:, 1]
+            v1_rho1_dd = v1_sigma1[:, 2]
+
+            exc_u[0]   = (v1_rho1_u - exc) / rho_u[0] / 2 
+            exc_u[1:4] = v1_rho1_uu / rho_u[0] * rho_u[1:4] + v1_rho1_ud / rho_d[0] * rho_d[1:4]
+            exc_d[0]   = (v1_rho1_d - exc) / rho_d[0] / 2 
+            exc_d[1:4] = v1_rho1_dd / rho_d[0] * rho_d[1:4] + v1_rho1_ud / rho_u[0] * rho_u[1:4]
+
             if xctype == "MGGA":
-                exc1[4] = vxc[2] / rho[0]
-                exc1[5] = vxc[3] / rho[0]
+                v1_lapl1   = vxc[2]
+                v1_lapl1_u = v1_lapl1[:, 0]
+                v1_lapl1_d = v1_lapl1[:, 1]
+                exc_u[4]   = v1_lapl1_u / rho_u[0] / 2 
+                exc_d[4]   = v1_lapl1_d / rho_d[0] / 2 
+
+                v1_tau1    = vxc[3]
+                v1_tau1_u  = v1_tau1[:, 0]
+                v1_tau1_d  = v1_tau1[:, 1]
+                exc_u[4]   = v1_tau1_u / rho_u[0] / 2 
+                exc_d[4]   = v1_tau1_d / rho_d[0] / 2 
+
+            exc1       = (exc_u, exc_d)
 
         else:
             raise RuntimeError(f"spin = {spin}")
@@ -191,34 +205,62 @@ def _exc_partial_deriv(rho, exc, vxc, spin, xctype="LDA"):
 def _vxc_partial_deriv(rho, exc, vxc, fxc, spin, xctype="LDA"):
     vrho1 = vsigma1 = vlapl1 = vtau1 = None
     if xctype == "LDA":
-        vrho1 = fxc[0]
+        if   spin == 0:
+            vrho1 = fxc[0]
+
+        elif spin == 1:
+            fxc_uu = fxc[0][:, 0] / 2
+            fxc_ud = fxc[0][:, 1] / 2
+            fxc_dd = fxc[0][:, 2] / 2
+
+            vrho1 = (fxc_uu, fxc_ud, fxc_dd)
+        else:
+            raise RuntimeError(f"spin = {spin}")
+
     elif xctype in ["GGA", "MGGA"]:
-        vrho1 = numpy.empty(rho.shape, dtype=rho.dtype)
-        vrho1[0] = fxc[0]
-        vrho1[1:4] = fxc[1] * 2. * rho[1:4]
+        if spin == 0:
+            vrho1 = numpy.empty(rho.shape, dtype=rho.dtype)
+            vrho1[0]   = fxc[0]
+            vrho1[1:4] = fxc[1] * 2. * rho[1:4]
 
-        vsigma1 = numpy.empty(rho.shape, dtype=rho.dtype)
-        vsigma1[0] = fxc[1]
-        vsigma1[1:4] = fxc[2] * 2. * rho[1:4]
+            vsigma1 = numpy.empty(rho.shape, dtype=rho.dtype)
+            vsigma1[0]   = fxc[1]
+            vsigma1[1:4] = fxc[2] * 2. * rho[1:4]
 
-        if xctype == "MGGA":
-            vrho1[4] = fxc[5]
-            vrho1[5] = fxc[6]
+            if xctype == "MGGA":
+                vrho1[4] = fxc[5]
+                vrho1[5] = fxc[6]
 
-            vsigma1[4] = fxc[8]
-            vsigma1[5] = fxc[9]
+                vsigma1[4] = fxc[8]
+                vsigma1[5] = fxc[9]
 
-            vlapl1 = numpy.empty(rho.shape, dtype=rho.dtype)
-            vlapl1[0] = fxc[5]
-            vlapl1[1:4] = fxc[8] * 2. * rho[1:4]
-            vlapl1[4] = fxc[3]
-            vlapl1[5] = fxc[7]
+                vlapl1 = numpy.empty(rho.shape, dtype=rho.dtype)
+                vlapl1[0] = fxc[5]
+                vlapl1[1:4] = fxc[8] * 2. * rho[1:4]
+                vlapl1[4] = fxc[3]
+                vlapl1[5] = fxc[7]
 
-            vtau1 = numpy.empty(rho.shape, dtype=rho.dtype)
-            vtau1[0] = fxc[6]
-            vtau1[1:4] = fxc[9] * 2. * rho[1:4]
-            vtau1[4] = fxc[7]
-            vtau1[5] = fxc[4]
+                vtau1 = numpy.empty(rho.shape, dtype=rho.dtype)
+                vtau1[0] = fxc[6]
+                vtau1[1:4] = fxc[9] * 2. * rho[1:4]
+                vtau1[4] = fxc[7]
+                vtau1[5] = fxc[4]
+
+        elif spin == 1:
+            vrho1 = numpy.empty(rho.shape, dtype=rho.dtype)
+            vrho1[0] = fxc[0]
+            vrho1[1:4] = fxc[1] * 2. * rho[1:4]
+
+            fxc_uu = fxc[0][:, 0] / 2
+            fxc_ud = fxc[0][:, 1] / 2
+            fxc_dd = fxc[0][:, 2] / 2
+
+            vrho1 = (fxc_uu, fxc_ud, fxc_dd)
+
+            vsigma1 = numpy.empty(rho.shape, dtype=rho.dtype)
+            vsigma1[0] = fxc[1]
+            vsigma1[1:4] = fxc[2] * 2. * rho[1:4]
+
     else:
         raise KeyError
     return vrho1, vsigma1, vlapl1, vtau1

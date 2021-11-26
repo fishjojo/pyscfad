@@ -2,21 +2,21 @@ import pyscf
 from pyscfad import gto, dft
 
 """
-Analytic nuclear gradient for RKS computed by auto-differentiation
+Analytic nuclear gradient for UKS computed by auto-differentiation
 """
 
-mol = gto.Mole()
+mol      = gto.Mole()
 mol.atom = '''
   O   -0.0000000   -0.0184041    0.0000000
   H    0.0000000    0.5383516   -0.7830365
   H   -0.0000000    0.5383516    0.7830365
 '''
-mol.basis   = 'sto-3g'
-mol.verbose = 3
+mol.basis   = 'cc-pvdz'
+mol.verbose = 0
 mol.build()
 
 mf    = dft.RKS(mol)
-mf.xc = 'LDA'
+mf.xc = 'PBE0'
 mf.kernel()
 jac = mf.energy_grad()
 g1  = jac.coords
