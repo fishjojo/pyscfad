@@ -36,4 +36,6 @@ Running examples
 * Add the following line to the PySCF configure file ($HOME/.pyscf\_conf.py)
 ```
 pyscfad = True
+pyscf_numpy_backend = 'jax'
+pyscf_scipy_backend = 'pyscfad'
 ```
