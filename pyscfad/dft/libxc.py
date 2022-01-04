@@ -148,8 +148,6 @@ def _exc_partial_deriv(rho, exc, vxc, spin, xctype="LDA"):
             exc_d = (v1_rho1_d - exc) / rho_d / 2
 
             exc1  = (exc_u, exc_d)
-        else:
-            raise RuntimeError(f"spin = {spin}")
 
     elif xctype in ["GGA", "MGGA"]:
         if   spin == 0:
@@ -185,23 +183,9 @@ def _exc_partial_deriv(rho, exc, vxc, spin, xctype="LDA"):
             exc_d[1:4] += v1_sigma1_ud / rho_u[0] * rho_u[1:4] / 2
 
             if xctype == "MGGA":
-
-                v1_lapl1   = vxc[2]
-                v1_lapl1_u = v1_lapl1[:, 0]
-                v1_lapl1_d = v1_lapl1[:, 1]
-                exc_u[4]   = v1_lapl1_u / rho_u[0] / 2 
-                exc_d[4]   = v1_lapl1_d / rho_d[0] / 2 
-
-                v1_tau1    = vxc[3]
-                v1_tau1_u  = v1_tau1[:, 0]
-                v1_tau1_d  = v1_tau1[:, 1]
-                exc_u[4]   = v1_tau1_u / rho_u[0] / 2 
-                exc_d[4]   = v1_tau1_d / rho_d[0] / 2 
+                raise NotImplemented(f"xctype = {xctype}")
 
             exc1       = (exc_u, exc_d)
-
-        else:
-            raise RuntimeError(f"spin = {spin}")
 
     else:
         raise RuntimeError(f"xctype = {xctype}")
@@ -327,7 +311,7 @@ def _vxc_partial_deriv(rho, exc, vxc, fxc, spin, xctype="LDA"):
                        vsigma1_d_uu, vsigma1_d_ud, vsigma1_d_dd)
 
             if xctype == "MGGA":
-                raise RuntimeError(f"xctype = {xctype}")
+                raise NotImplemented(f"xctype = {xctype}")
 
     else:
         raise KeyError
