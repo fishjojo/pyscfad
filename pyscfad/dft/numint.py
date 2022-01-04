@@ -313,8 +313,6 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                                       relativity=relativity, deriv=1,
                                       verbose=verbose)[:2]
 
-                vrho = vxc[0]
-
                 den            = rho_a[0] * weight
                 nelec[0][idm] += stop_grad(den).sum()
                 excsum[idm]   += jnp.dot(den, exc)
@@ -325,10 +323,10 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
 
                 wva, wvb      = _uks_gga_wv0((rho_a,rho_b), vxc, weight)
 
-                aow           = _scale_ao(ao, wva, out=aow)
+                aow           = _scale_ao(ao, wva, out=None)
                 vmat[0][idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
 
-                aow           = _scale_ao(ao, wvb, out=aow)
+                aow           = _scale_ao(ao, wvb, out=None)
                 vmat[1][idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
 
                 rho_a = rho_b = exc = vxc = wva = wvb = None
@@ -548,7 +546,7 @@ def _uks_gga_wv0(rho, vxc, weight):
 
     wvb     = jnp.empty((4, ngrid))
     wvb = ops.index_update(wvb, ops.index[0], weight * vrho[:,1] * .5)
-    wvb = ops.index_update(wvb, ops.index[1:], (weight * vsigma[:,1] * 2) * rhob[1:4] + (weight * vsigma[:,0]) * rhoa[1:4])
+    wvb = ops.index_update(wvb, ops.index[1:], (weight * vsigma[:,2] * 2) * rhob[1:4] + (weight * vsigma[:,1]) * rhoa[1:4])
 
     return wva, wvb
 

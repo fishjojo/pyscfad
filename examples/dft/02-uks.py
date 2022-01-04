@@ -16,16 +16,12 @@ mol.verbose = 0
 mol.build()
 
 mf    = dft.UKS(mol)
-mf.xc = 'PBE0'
+mf.xc = "b3lyp"
 mf.kernel()
 jac = mf.energy_grad()
 g1  = jac.coords
 
-print("g1 = \n", g1)
-
 grad = mf.nuc_grad_method()
-g2  = grad.kernel()
-
-print("g2 = \n", g2)
+g2   = grad.kernel()
 
 assert abs(g1-g2).max() < 1e-6
