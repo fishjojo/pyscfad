@@ -350,11 +350,11 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
 
                 den            = rho_a[0]*weight
                 nelec[0][idm] += stop_grad(den).sum()
-                excsum[idm]   += numpy.dot(den, exc)
+                excsum[idm]   += jnp.dot(den, exc)
 
                 den            = rho_b[0]*weight
                 nelec[1][idm] += stop_grad(den).sum()
-                excsum[idm]   += numpy.dot(den, exc)
+                excsum[idm]   += jnp.dot(den, exc)
 
                 wva, wvb      = _uks_gga_wv0((rho_a,rho_b), vxc, weight)
 
@@ -365,14 +365,14 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 vmat[1][idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
 
                 wv = (.25 * weight * vtau[:,0]).reshape(-1,1)
-                vmat[0,idm] += _dot_ao_ao(mol, ao[1], wv*ao[1], mask, shls_slice, ao_loc)
-                vmat[0,idm] += _dot_ao_ao(mol, ao[2], wv*ao[2], mask, shls_slice, ao_loc)
-                vmat[0,idm] += _dot_ao_ao(mol, ao[3], wv*ao[3], mask, shls_slice, ao_loc)
+                vmat[0][idm] += _dot_ao_ao(mol, ao[1], wv*ao[1], mask, shls_slice, ao_loc)
+                vmat[0][idm] += _dot_ao_ao(mol, ao[2], wv*ao[2], mask, shls_slice, ao_loc)
+                vmat[0][idm] += _dot_ao_ao(mol, ao[3], wv*ao[3], mask, shls_slice, ao_loc)
 
                 wv = (.25 * weight * vtau[:,1]).reshape(-1,1)
-                vmat[1,idm] += _dot_ao_ao(mol, ao[1], wv*ao[1], mask, shls_slice, ao_loc)
-                vmat[1,idm] += _dot_ao_ao(mol, ao[2], wv*ao[2], mask, shls_slice, ao_loc)
-                vmat[1,idm] += _dot_ao_ao(mol, ao[3], wv*ao[3], mask, shls_slice, ao_loc)
+                vmat[1][idm] += _dot_ao_ao(mol, ao[1], wv*ao[1], mask, shls_slice, ao_loc)
+                vmat[1][idm] += _dot_ao_ao(mol, ao[2], wv*ao[2], mask, shls_slice, ao_loc)
+                vmat[1][idm] += _dot_ao_ao(mol, ao[3], wv*ao[3], mask, shls_slice, ao_loc)
 
                 rho_a = rho_b = exc = vxc = vrho = wva = wvb = None
 
