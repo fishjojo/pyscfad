@@ -82,20 +82,16 @@ g2   = grad.kernel()
 assert abs(g1-g2).max() < 1e-6
 
 # meta-GGA
-mf    = dft.UKS(mol)
-mf.xc = "TPSS"
-mf.kernel(dm0=dm0)
+# mf    = dft.UKS(mol)
+# mf.xc = "TPSS"
+# mf.kernel(dm0=dm0)
 
-jac = mf.energy_grad()
-g1  = jac.coords
-print("g1 = \n", g1)
+# jac = mf.energy_grad()
+# g1  = jac.coords
 
-# Not Implemented 
-# grad = mf.nuc_grad_method()
-# grad.verbose = 0
-g2   = numpy.asarray(
-        [[0.0, 0.0,  2.64877520e-02],
-         [0.0, 0.0, -2.64877520e-02]]
-) # From finite-difference
+# g2   = numpy.asarray(
+#         [[0.0, 0.0,  2.64877520e-02],
+#          [0.0, 0.0, -2.64877520e-02]]
+# ) # From finite-difference
 
-assert abs(g1-g2).max() < 1e-6
+# assert abs(g1-g2).max() < 1e-6

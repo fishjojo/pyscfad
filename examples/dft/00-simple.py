@@ -53,8 +53,6 @@ jac = mf.energy_grad()
 g1  = jac.coords
 
 # MGGA Gradient Not Implemented 
-# grad = mf.nuc_grad_method()
-# grad.verbose = 0
 g2   = numpy.asarray(
         [[0.0, 0.0, -4.14229185e-02],
          [0.0, 0.0,  4.14229185e-02]]

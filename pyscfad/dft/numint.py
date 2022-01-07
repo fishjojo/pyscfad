@@ -339,8 +339,8 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
             #aow = numpy.ndarray(ao[0].shape, order='F', buffer=aow)
             for idm in range(nset):
-                rho_a = make_rhoa(idm, ao, mask, xctype)
-                rho_b = make_rhob(idm, ao, mask, xctype)
+                rho_a = make_rhoa(idm, ao, mask, "MGGA")
+                rho_b = make_rhob(idm, ao, mask, "MGGA")
 
                 exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
                                       relativity=relativity, deriv=1,
@@ -358,10 +358,10 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
 
                 wva, wvb      = _uks_gga_wv0((rho_a,rho_b), vxc, weight)
 
-                aow           = _scale_ao(ao[:4], wva, out=aow)
+                aow           = _scale_ao(ao[:4], wva, out=None)
                 vmat[0][idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
 
-                aow           = _scale_ao(ao[:4], wvb, out=aow)
+                aow           = _scale_ao(ao[:4], wvb, out=None)
                 vmat[1][idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
 
                 wv = (.25 * weight * vtau[:,0]).reshape(-1,1)
