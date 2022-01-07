@@ -497,8 +497,9 @@ def _vxc_partial_deriv(rho, epsilonxc, vxc, fxc, spin, xctype="LDA"):
             vsigma1_dd_d[1:4] += exc2_sigma2_ud_dd * rho_u[1:4]
 
             if xctype == "MGGA": #TODO: should be a function
+                #FIXME: UKS-MGGA Gradient
                 raise NotImplemented
-                
+
                 exc2_lapl2     = fxc[3]
                 exc2_tau2      = fxc[4]
                 exc2_rholapl   = fxc[5]
