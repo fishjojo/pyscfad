@@ -211,6 +211,8 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
 
             exc1    = _exc_partial_deriv(rho, epsilonxc, vxc, spin, "MGGA")
             exc1_u, exc1_d = exc1
+            print("exc1_u = \n", exc1_u[:5])
+            print("exc1_d = \n", exc1_d[:5])
             exc_jvp        = jnp.einsum('np,np->p', exc1_u, rho_t_u) + jnp.einsum('np,np->p', exc1_d, rho_t_d)  
 
             vxc1    = _vxc_partial_deriv(rho, epsilonxc, vxc, fxc, spin, "MGGA")
@@ -223,8 +225,8 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
 
             vrho_jvp_u  = jnp.einsum('np,np->p', vrho1_u_u, rho_t_u) 
             vrho_jvp_u += jnp.einsum('np,np->p', vrho1_u_d, rho_t_d)
-            vrho_jvp_d  = jnp.einsum('np,np->p', vrho1_d_d, rho_t_d) 
-            vrho_jvp_d += jnp.einsum('np,np->p', vrho1_d_u, rho_t_u)
+            vrho_jvp_d  = jnp.einsum('np,np->p', vrho1_d_u, rho_t_u) 
+            vrho_jvp_d += jnp.einsum('np,np->p', vrho1_d_d, rho_t_d)
             vrho_jvp    = jnp.vstack((vrho_jvp_u, vrho_jvp_d)).T  
 
             vsigma1_uu_u = vsigma1[0]
@@ -611,7 +613,7 @@ def _vxc_partial_deriv(rho, epsilonxc, vxc, fxc, spin, xctype="LDA"):
 
                 vtau1 = (vtau1_u_u, vtau1_u_d, vtau1_d_u, vtau1_d_d)
             
-            vrho1 = (vrho1_u_u, vrho1_u_d, vrho1_d_d, vrho1_d_u)
+            vrho1 = (vrho1_u_u, vrho1_u_d, vrho1_d_u, vrho1_d_d)
 
             vsigma1 = (vsigma1_uu_u, vsigma1_uu_d, 
                        vsigma1_ud_u, vsigma1_ud_d,

@@ -94,8 +94,8 @@ print("g1 = \n", g1)
 # grad = mf.nuc_grad_method()
 # grad.verbose = 0
 g2   = numpy.asarray(
-        [[0.0, 0.0,  0.05297527],
-         [0.0, 0.0, -0.05297527]]
+        [[0.0, 0.0,  2.64877520e-02],
+         [0.0, 0.0, -2.64877520e-02]]
 ) # From finite-difference
 
 assert abs(g1-g2).max() < 1e-6
