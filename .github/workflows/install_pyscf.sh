@@ -2,7 +2,7 @@
 python -m pip install --upgrade pip
 pip install wheel
 pip install numpy scipy h5py 
-pip install jaxlib jax 
+pip install jaxlib jax jaxopt 
 pip install pytest
 
 #pyscf
