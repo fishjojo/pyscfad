@@ -33,7 +33,7 @@ def eigh(a, b=None, lower=True, eigvals_only=False, overwrite_a=False,
     else:
         return w, v
 
-@custom_jvp
+@partial(custom_jvp, nondiff_argnums=(2,3,4,5))
 def _eigh(a, b, lower=True,
           turbo=True, check_finite=True, driver=None):
     if scipy.__version__ >= "1.5.0":
@@ -43,10 +43,11 @@ def _eigh(a, b, lower=True,
     return w, v
 
 @_eigh.defjvp
-def _eigh_jvp(primals, tangents):
-    a, b = primals[:2]
-    at, bt = tangents[:2]
-    w, v = _eigh(*primals)
+def _eigh_jvp(lower, turbo, check_finite, driver, primals, tangents):
+    a, b = primals
+    at, bt = tangents
+    w, v = primal_out = _eigh(*primals,
+                              lower=lower, turbo=turbo, check_finite=check_finite, driver=driver)
     deg_thresh = DEG_THRESH
     eji = w[..., numpy.newaxis, :] - w[..., numpy.newaxis]
     idx = abs(eji) < deg_thresh
@@ -60,7 +61,7 @@ def _eigh_jvp(primals, tangents):
         dw, dv = _eigh_jvp_jitted_nob(v, Fmat, at)
     else:
         dw, dv = _eigh_jvp_jitted(w, v, Fmat, at, bt)
-    return (w,v), (dw,dv)
+    return primal_out, (dw,dv)
 
 @jit
 def _eigh_jvp_jitted(w, v, Fmat, at, bt):

@@ -29,9 +29,10 @@ def inter_distance(mol, coords=None):
 
 @jax.custom_jvp
 def _rr(coords):
-    coords = numpy.asarray(coords)
-    rr = numpy.linalg.norm(coords.reshape(-1,1,3) - coords, axis=2)
-    rr[numpy.diag_indices_from(rr)] = 1e200
+    coords = jnp.asarray(coords)
+    rr = jnp.linalg.norm(coords.reshape(-1,1,3) - coords, axis=2)
+    #rr[numpy.diag_indices_from(rr)] = 1e200
+    rr = ops.index_update(rr, jnp.diag_indices_from(rr), 1e200)
     return rr
 
 @_rr.defjvp
