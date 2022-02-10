@@ -29,8 +29,8 @@ class DF(pyscf_df.DF):
         if self._auxbasis is None:
             self._auxbasis = auxbasis
 
-        for key in kwargs.keys():
-                setattr(self, key, kwargs[key])
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
         if getattr(self, "stdout", None) is None:
             self.stdout = self.mol.stdout
@@ -90,6 +90,13 @@ class DF(pyscf_df.DF):
         self._vjopt = None
         self._rsh_df = {}
         return self
+
+    def get_naoaux(self):
+        # determine naoaux with self._cderi, because DF object may be used as CD
+        # object when self._cderi is provided.
+        if self._cderi is None:
+            self.build()
+        return self._cderi.shape[0]
 
     def get_jk(self, dm, hermi=1, with_j=True, with_k=True,
                direct_scf_tol=getattr(__config__, 'scf_hf_SCF_direct_scf_tol', 1e-13),

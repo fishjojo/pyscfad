@@ -13,15 +13,17 @@ from pyscfad.lib import stop_grad
 from . import _vhf
 from . import diis
 
-def _converged_scf(mo_coeff, mf, mo_occ, h1e, s1e, conv_tol=1e-10, conv_tol_grad=None, mf_diis=None):
+SCF_IMPLICIT_KERNEL = getattr(__config__, "pyscfad_scf_implicit_kernel", False)
+
+def _converged_scf(mo_coeff, mf, mo_occ, h1e, s1e,
+                   conv_tol=1e-10, conv_tol_grad=None, mf_diis=None):
     mol = getattr(mf, "cell", mf.mol)
     dm = mf.make_rdm1(mo_coeff, mo_occ)
     vhf = mf.get_veff(mol, dm)
     fock = mf.get_fock(h1e, s1e, vhf, dm)
-    mo_energy, mo_coeff_new = mf.eig(fock, s1e)
+    _, mo_coeff_new = mf.eig(fock, s1e)
     return mo_coeff_new - mo_coeff
 
-@implicit_diff.custom_root(_converged_scf, has_aux=True, solve=partial(linear_solve.solve_normal_cg, tol=1e-6))
 def _scf(mo_coeff, mf, mo_occ, h1e, s1e, conv_tol=1e-10, conv_tol_grad=None, mf_diis=None):
     mol = getattr(mf, "cell", mf.mol)
     dm = mf.make_rdm1(mo_coeff, mo_occ)
@@ -55,7 +57,12 @@ def _scf(mo_coeff, mf, mo_occ, h1e, s1e, conv_tol=1e-10, conv_tol_grad=None, mf_
             scf_conv = True
         if scf_conv:
             break
-    return mo_coeff, scf_conv#, mo_energy, mo_occ
+    return mo_coeff, scf_conv#, mo_energy, mo_occ, e_tot
+
+if SCF_IMPLICIT_KERNEL:
+    _scf = implicit_diff.custom_root(_converged_scf, has_aux=True,
+                solve=partial(linear_solve.solve_gmres, tol=1e-6, solve_method='incremental'))(_scf)
+
 
 def kernel(mf, conv_tol=1e-10, conv_tol_grad=None, dm0=None, **kwargs):
     mol = getattr(mf, "cell", mf.mol)
@@ -90,9 +97,9 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None, dm0=None, **kwargs):
     dm = mf.make_rdm1(mo_coeff, mo_occ)
     vhf = mf.get_veff(mol, dm)
     e_tot = mf.energy_tot(dm, h1e, vhf)
+    logger.info(mf, 'Extra cycle E= %.15g', e_tot)
     fock = mf.get_fock(h1e, s1e, vhf, dm)
     mo_energy, mo_coeff = mf.eig(fock, s1e)
-    logger.info(mf, 'Extra cycle E= %.15g', e_tot)
     return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
@@ -210,30 +217,25 @@ class SCF(hf.SCF):
         NOTE:
             The attributes of the SCF instance will not be modified
         """
-        if self.converged:
-            # NOTE this works because derivatives of MO coefficients
-            # do not contribute to the energy gradient
-            def e_tot(self, dm0=None):
-                mol = getattr(self, "cell", self.mol)
-                h1e = self.get_hcore()
-                vhf = self.get_veff(mol, dm0)
-                fock = self.get_fock(h1e=h1e, vhf=vhf, cycle=-1)
-                s1e = self.get_ovlp()
-                _, mo_coeff = self.eig(fock, s1e)
-                dm = self.make_rdm1(mo_coeff)
-                vhf = self.get_veff(mol, dm)
-                return self.energy_tot(dm, h1e, vhf)
-            func = e_tot
-            if dm0 is None:
+        if dm0 is None:
+            try:
                 dm0 = self.make_rdm1()
-            self.reset() # need to reset _eri to get its gradient
-        else:
-            func = self.__class__.kernel
+            except:
+                pass
+
+        def hf_energy(self, dm0=None):
+            self.reset()
+            e_tot = self.kernel(dm0=dm0)
+            return e_tot
 
         if mode == "rev":
-            jac = jax.jacrev(func)(self, dm0=dm0)
+            jac = jax.jacrev(hf_energy)(self, dm0=dm0)
         else:
-            jac = jax.jacfwd(func)(self, dm0=dm0)
+            if SCF_IMPLICIT_KERNEL:
+                msg = """Forward mode differentiation is not available
+                         when applying the implicit function differentiation."""
+                raise KeyError(msg)
+            jac = jax.jacfwd(hf_energy)(self, dm0=dm0)
         if hasattr(jac,"cell"):
             return jac.cell
         else:

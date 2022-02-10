@@ -7,6 +7,7 @@ from pyscf import lib
 from pyscf.lib import logger
 from pyscf import gto
 from pyscf.gto.moleintor import getints
+from pyscf.df.outcore import _guess_shell_ranges
 from pyscf import __config__
 from pyscfad.lib import ops
 from . import addons
@@ -23,7 +24,8 @@ def int3c_cross(mol, auxmol, intor="int3c2e", comp=1, aosym="s1", out=None, shls
     if shls_slice is None:
         shls_slice = (0, nbas, 0, nbas, nbas, nbas+nauxbas)
     pmol = mol + auxmol
-    ints = gto.moleintor.getints3c(int3c, pmol._atm, pmol._bas, pmol._env, shls_slice=shls_slice, comp=comp,
+    ints = gto.moleintor.getints3c(int3c, pmol._atm, pmol._bas, pmol._env,
+                                   shls_slice=shls_slice, comp=comp,
                                    aosym=aosym, ao_loc=None, cintopt=None, out=out)
     return ints
 
@@ -52,10 +54,8 @@ def int3c_cross_jvp(intor, comp, aosym, out, shls_slice, primals, tangents):
 
     if mol.ctr_coeff is not None:
         print("ctr_coeff derivative for int3c2e not implemented")
-        pass
     if mol.exp is not None:
         print("exp derivative for int3c2e not implemented")
-        pass
 
     return primal_out, tangent_out
 
@@ -87,8 +87,7 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
     '''
     Note: Only support s1 symmetry.
     '''
-    from pyscf.df.outcore import _guess_shell_ranges
-    assert(comp == 1)
+    assert comp == 1
     t0 = (logger.process_clock(), logger.perf_counter())
     log = logger.new_logger(mol, verbose)
     if auxmol is None:
@@ -98,7 +97,7 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
     try:
         low = scipy.linalg.cholesky(j2c, lower=True)
         tag = 'cd'
-    except scipy.linalg.LinAlgError:
+    except: #scipy.linalg.LinAlgError:
         w, v = scipy.linalg.eigh(j2c)
         idx = w > LINEAR_DEP_THR
         low = (v[:,idx] / jnp.sqrt(w[idx]))
@@ -110,14 +109,12 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
     log.timer_debug1('2c2e', *t0)
 
     nao = mol.nao
-    if aosym == 's1':
-        nao_pair = nao * nao
-    else:
+    if aosym != 's1':
         raise NotImplementedError
-        nao_pair = nao * (nao+1) // 2
 
     shls_slice = (0, mol.nbas, 0, mol.nbas, mol.nbas, mol.nbas+auxmol.nbas)
-    ints = int3c_cross(mol, auxmol, intor=int3c, comp=comp, aosym=aosym, out=None, shls_slice=shls_slice)
+    ints = int3c_cross(mol, auxmol, intor=int3c, comp=comp, aosym=aosym,
+                       out=None, shls_slice=shls_slice)
     ints = ints.reshape((-1,naoaux)).T
 
     if tag == 'cd':

@@ -6,7 +6,7 @@ from . import addons
 
 def density_fit(mf, auxbasis=None, with_df=None, only_dfj=False):
     from pyscfad import df
-    assert(isinstance(mf, scf.hf.SCF))
+    assert isinstance(mf, scf.hf.SCF)
 
     if with_df is None:
         #auxmol has to be defined before creating the DF object,

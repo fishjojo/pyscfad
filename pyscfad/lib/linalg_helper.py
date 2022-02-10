@@ -48,6 +48,7 @@ def _eigh_jvp(lower, turbo, check_finite, driver, primals, tangents):
     at, bt = tangents
     w, v = primal_out = _eigh(*primals,
                               lower=lower, turbo=turbo, check_finite=check_finite, driver=driver)
+
     deg_thresh = DEG_THRESH
     eji = w[..., numpy.newaxis, :] - w[..., numpy.newaxis]
     idx = abs(eji) < deg_thresh

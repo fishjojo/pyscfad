@@ -15,3 +15,10 @@ def rotate_mo1(mo_coeff, x):
     u = update_rotate_matrix(x)
     mo_coeff1 = rotate_mo(mo_coeff, u)
     return mo_coeff1
+
+def rotate_mo1_ov(mo_coeff, x, nocc):
+    u = update_rotate_matrix(x)
+    u = u.at[:nocc,:nocc].set(0.)
+    u = u.at[nocc:,nocc:].set(0.)
+    mo_coeff1 = rotate_mo(mo_coeff, u)
+    return mo_coeff1

@@ -152,11 +152,11 @@ class KohnShamDFT(rks.KohnShamDFT):
     def __post_init__(self):
         # pylint: disable=E1101
         if self.grids is None:
-            self.grids = gen_grid.Grids(self.mol)
+            self.grids = gen_grid.Grids(stop_grad(self.mol))
             self.grids.level = getattr(__config__, 'dft_rks_RKS_grids_level',
                                        self.grids.level)
         if self.nlcgrids is None:
-            self.nlcgrids = gen_grid.Grids(self.mol)
+            self.nlcgrids = gen_grid.Grids(stop_grad(self.mol))
             self.nlcgrids.level = getattr(__config__, 'dft_rks_RKS_nlcgrids_level',
                                           self.nlcgrids.level)
 

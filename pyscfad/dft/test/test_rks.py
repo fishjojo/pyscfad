@@ -70,7 +70,7 @@ def test_rks_nuc_grad_mgga(get_mol, get_mol_p, get_mol_m):
     g1 = mf.energy_grad(mode="rev").coords
     mf.kernel()
     g2 = mf.energy_grad(mode="rev").coords
-    assert abs(g1 - g2).max() < 1e-6
+    assert abs(g1 - g2).max() < 2e-6
 
     molp = get_mol_p
     mfp = dft.RKS(molp)
@@ -83,7 +83,7 @@ def test_rks_nuc_grad_mgga(get_mol, get_mol_p, get_mol_m):
     em = mfm.kernel()
 
     g_fd = (ep-em) / disp * BOHR
-    assert abs(g1[1,2] - g_fd) < 3e-6
+    assert abs(g2[1,2] - g_fd) < 3e-6
 
 # pylint: disable=fixme
 #FIXME NLC gradient may have bugs, need check
