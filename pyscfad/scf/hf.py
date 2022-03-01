@@ -1,19 +1,19 @@
 from functools import partial
-import tempfile
-from typing import Optional, Any
-import jax
+from jax import jit, jacrev, jacfwd
 from jaxopt import implicit_diff, linear_solve
 from pyscf import __config__
 from pyscf.lib import param, logger
-from pyscf.scf import hf
-from pyscf.scf.hf import MUTE_CHKFILE
-from pyscfad import lib, gto
+from pyscf.scf import hf as pyscf_hf
+from pyscfad import lib
+from pyscfad import util
+from pyscfad import gto
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import stop_grad
-from . import _vhf
-from . import diis
+from pyscfad.scf import _vhf
+from pyscfad.scf import diis
 
 SCF_IMPLICIT_KERNEL = getattr(__config__, "pyscfad_scf_implicit_kernel", False)
+Traced_Attributes = ['mol', 'mo_coeff', 'mo_energy', '_eri']
 
 def _converged_scf(mo_coeff, mf, mo_occ, h1e, s1e,
                    conv_tol=1e-10, conv_tol_grad=None, mf_diis=None):
@@ -113,7 +113,7 @@ def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
         vj, vk = _vhf.incore(eri, dm, hermi, with_j, with_k)
     return vj, vk
 
-@partial(jax.jit, static_argnums=(2,3))
+@partial(jit, static_argnums=(2,3))
 def _dot_eri_dm_nosymm(eri, dm, with_j, with_k):
     nao = dm.shape[-1]
     eri = eri.reshape((nao,)*4)
@@ -127,63 +127,27 @@ def _dot_eri_dm_nosymm(eri, dm, with_j, with_k):
         vk = vk.reshape(dm.shape)
     return vj, vk
 
-@lib.dataclass
-class SCF(hf.SCF):
-    # pylint: disable=too-many-instance-attributes
-    mol: gto.Mole = lib.field(pytree_node=True)
-    mo_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-    mo_energy: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-    _eri: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
+@util.pytree_node(Traced_Attributes, num_args=1)
+class SCF(pyscf_hf.SCF):
+    '''
+    A subclass of :class:`pyscf.scf.hf.SCF` where the following
+    attributes can be traced.
 
-    conv_tol: float = getattr(__config__, 'scf_hf_SCF_conv_tol', 1e-9)
-    conv_tol_grad: Optional[float] = getattr(__config__, 'scf_hf_SCF_conv_tol_grad', None)
-    max_cycle: int = getattr(__config__, 'scf_hf_SCF_max_cycle', 50)
-    init_guess: str = getattr(__config__, 'scf_hf_SCF_init_guess', 'minao')
+    Attributes:
+        mol : :class:`pyscfad.gto.Mole` object
+            Molecular structure and global options.
+        mo_coeff : array
+            Molecular orbital coefficients.
+        mo_energy : array
+            Molecular orbital energies.
+        _eri : array
+            Two electron repulsion integrals.
+    '''
+    DIIS = diis.SCF_DIIS
 
-    DIIS: Any = diis.SCF_DIIS
-    diis: Any = getattr(__config__, 'scf_hf_SCF_diis', True)
-    diis_space: int = getattr(__config__, 'scf_hf_SCF_diis_space', 8)
-    diis_start_cycle: int = getattr(__config__, 'scf_hf_SCF_diis_start_cycle', 1)
-    diis_file: Optional[str] = None
-    diis_space_rollback: bool = False
-
-    damp: float = getattr(__config__, 'scf_hf_SCF_damp', 0.)
-    level_shift: float = getattr(__config__, 'scf_hf_SCF_level_shift', 0.)
-    direct_scf: bool = getattr(__config__, 'scf_hf_SCF_direct_scf', True)
-    direct_scf_tol: float = getattr(__config__, 'scf_hf_SCF_direct_scf_tol', 1e-13)
-    conv_check: bool = getattr(__config__, 'scf_hf_SCF_conv_check', True)
-
-    verbose: int = None
-    max_memory: int = None
-    stdout: Any = None
-
-    chkfile: Optional[str] = None
-    _chkfile: Any = None
-
-    mo_occ: Optional[jnp.array] = None
-    e_tot: float = 0.
-    converged: bool = False
-    callback: Any = None
-    scf_summary: dict = lib.field(default_factory = dict)
-
-    opt: Any = None
-    _built: bool = False
-
-    def __post_init__(self):
-        if not MUTE_CHKFILE and self.chkfile is None:
-            # pylint: disable=R1732
-            self._chkfile = tempfile.NamedTemporaryFile(dir=param.TMPDIR)
-            self.chkfile = self._chkfile.name
-
-        if self.verbose is None:
-            self.verbose = self.mol.verbose
-        if self.max_memory is None:
-            self.max_memory = self.mol.max_memory
-        if self.stdout is None:
-            self.stdout = self.mol.stdout
-        if not self._built:
-            self._built = True
-        self._keys = set(self.__dict__.keys())
+    def __init__(self, mol, **kwargs):
+        pyscf_hf.SCF.__init__(self, mol)
+        self.__dict__.update(kwargs)
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
                omega=None):
@@ -200,7 +164,7 @@ class SCF(hf.SCF):
         if mol is None:
             mol = self.mol
         mol = stop_grad(mol)
-        return hf.SCF.get_init_guess(self, mol, key)
+        return pyscf_hf.SCF.get_init_guess(self, mol, key)
 
     def kernel(self, dm0=None, **kwargs):
         self.build(self.mol)
@@ -229,13 +193,13 @@ class SCF(hf.SCF):
             return e_tot
 
         if mode == "rev":
-            jac = jax.jacrev(hf_energy)(self, dm0=dm0)
+            jac = jacrev(hf_energy)(self, dm0=dm0)
         else:
             if SCF_IMPLICIT_KERNEL:
                 msg = """Forward mode differentiation is not available
                          when applying the implicit function differentiation."""
                 raise KeyError(msg)
-            jac = jax.jacfwd(hf_energy)(self, dm0=dm0)
+            jac = jacfwd(hf_energy)(self, dm0=dm0)
         if hasattr(jac,"cell"):
             return jac.cell
         else:
@@ -245,6 +209,6 @@ class SCF(hf.SCF):
         from pyscfad.df import df_jk
         return df_jk.density_fit(self, auxbasis, with_df, only_dfj)
 
-@lib.dataclass
-class RHF(SCF, hf.RHF):
+@util.pytree_node(Traced_Attributes, num_args=1)
+class RHF(SCF, pyscf_hf.RHF):
     pass

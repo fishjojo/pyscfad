@@ -1,13 +1,9 @@
-import sys
-from typing import Optional, Union, Any
-import numpy
-import jax
-
+from jax import custom_jvp
 from pyscf import __config__
 from pyscf import gto
 from pyscf.lib import logger, param
 from pyscf.gto.mole import PTR_ENV_START
-from pyscfad import lib
+from pyscfad import util
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import ops
 from pyscfad.gto import moleintor
@@ -27,7 +23,7 @@ def inter_distance(mol, coords=None):
     coords = mol.atom_coords()
     return _rr(coords)
 
-@jax.custom_jvp
+@custom_jvp
 def _rr(coords):
     coords = jnp.asarray(coords)
     rr = jnp.linalg.norm(coords.reshape(-1,1,3) - coords, axis=2)
@@ -45,7 +41,7 @@ def _rr_jvp(primals, tangents):
     r = coords.reshape(-1,1,3) - coords
     natm = coords.shape[0]
     #tangent_out = jnp.zeros_like(primal_out)
-    grad = jnp.zeros((natm,natm,3), dtype=numpy.double)
+    grad = jnp.zeros((natm,natm,3), dtype=float)
     for i in range(natm):
         #tangent_out = ops.index_add(tangent_out, ops.index[i],
         #                            jnp.dot(r[i] / rnorm[i,:,None], coords_t[i]))
@@ -55,60 +51,30 @@ def _rr_jvp(primals, tangents):
     tangent_out += tangent_out.T
     return primal_out, tangent_out
 
-@lib.dataclass
+@util.pytree_node(['coords', 'exp', 'ctr_coeff', 'r0'])
 class Mole(gto.Mole):
-    # traced attributes
-    # NOTE jax requires that at least one variable needs to be traced for AD
-    coords: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-    exp: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-    ctr_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-    r0: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
+    '''
+    A subclass of :class:`pyscf.gto.Mole`, where the following
+    attributes can be traced.
 
-    # attributes of the base class
-    verbose: int = getattr(__config__, 'VERBOSE', logger.NOTE)
-    unit: str = getattr(__config__, 'UNIT', 'angstrom')
-    incore_anyway: bool = getattr(__config__, 'INCORE_ANYWAY', False)
-    cart: bool = getattr(__config__, 'gto_mole_Mole_cart', False)
-
-    # attributes of the base class object
-    output: Optional[str] = None
-    max_memory: int = param.MAX_MEMORY
-    charge: int = 0
-    spin: int = 0
-    symmetry: bool = False
-    symmetry_subgroup: Optional[str] = None
-    cart: bool = False
-    atom: Union[list,str] = lib.field(default_factory = list)
-    basis: Union[dict,str] = 'sto-3g'
-    nucmod: Union[dict,str] = lib.field(default_factory = dict)
-    ecp: Union[dict,str] = lib.field(default_factory = dict)
-    nucprop: dict = lib.field(default_factory = dict)
-
-    # private attributes
-    _atm: numpy.ndarray = numpy.zeros((0,6), dtype=numpy.int32)
-    _bas: numpy.ndarray = numpy.zeros((0,8), dtype=numpy.int32)
-    _env: numpy.ndarray = numpy.zeros(PTR_ENV_START)
-    _ecpbas: numpy.ndarray = numpy.zeros((0,8), dtype=numpy.int32)
-
-    stdout: Any = sys.stdout
-    groupname: str = 'C1'
-    topgroup: str = 'C1'
-    symm_orb: Optional[list] = None
-    irrep_id: Optional[list] = None
-    irrep_name: Optional[list] = None
-    _symm_orig: Optional[numpy.ndarray] = None
-    _symm_axes: Optional[numpy.ndarray] = None
-    _nelectron: Optional[int] = None
-    _nao: Optional[int] = None
-    _enuc: Optional[float] = None
-    _atom: list = lib.field(default_factory = list)
-    _basis: dict = lib.field(default_factory = dict)
-    _ecp: dict = lib.field(default_factory = dict)
-    _built: bool = False
-    _pseudo: dict = lib.field(default_factory = dict)
-
-    def __post_init__(self):
-        self._keys = set(self.__dict__.keys())
+    Attributes:
+        coords : array
+            Atomic coordinates.
+        exp : array
+            Exponents of Gaussian basis functions.
+        ctr_coeff : array
+            Contraction coefficients of Gaussian basis functions.
+        r0 : array
+            Centers of Gaussian basis functions. Currently this is
+            not used as the basis functions are atom centered. This
+            is a placeholder for floating Gaussian basis sets.
+    '''
+    def __init__(self, **kwargs):
+        self.coords = None
+        self.exp = None
+        self.ctr_coeff = None
+        self.r0 = None
+        gto.Mole.__init__(self, **kwargs)
 
     def atom_coords(self, unit='Bohr'):
         if self.coords is None:
@@ -134,7 +100,7 @@ class Mole(gto.Mole):
         if trace_ctr_coeff:
             self.ctr_coeff, _, _ = setup_ctr_coeff(self)
         if trace_r0:
-            pass
+            raise NotImplementedError
 
     energy_nuc = energy_nuc
     eval_ao = eval_gto = eval_gto

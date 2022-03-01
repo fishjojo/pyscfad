@@ -1,8 +1,10 @@
-from typing import Optional
 from jax import numpy as jnp
 from pyscf.df import df_jk as pyscf_df_jk
-from pyscfad import lib, gto, scf
-from . import addons
+from pyscfad import lib
+from pyscfad import util
+from pyscfad import gto
+from pyscfad import scf
+from pyscfad.df import addons
 
 def density_fit(mf, auxbasis=None, with_df=None, only_dfj=False):
     from pyscfad import df
@@ -22,12 +24,8 @@ def density_fit(mf, auxbasis=None, with_df=None, only_dfj=False):
     kwargs = mf.__dict__.copy()
     mol = kwargs.pop("mol")
 
-    @lib.dataclass
+    @util.pytree_node(['mol', 'with_df'], num_args=1)
     class DFHF(pyscf_df_jk._DFHF, mf_class):
-        mol : gto.Mole = lib.field(pytree_node=True)
-        with_df : Optional[df.DF] = lib.field(pytree_node=True, default=None)
-        only_dfj : Optional[bool] = False
-
         def __init__(self, mol, with_df=None, only_dfj=False, **kwargs):
             self.with_df = with_df
             if getattr(self.with_df, "mol", None) is not None:
