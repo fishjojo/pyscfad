@@ -142,16 +142,11 @@ def prune_small_rho_grids_(ks, mol, dm, grids):
         grids.non0tab = grids.make_mask(mol, grids.coords)
     return grids
 
-
 def _dft_common_init_(mf, xc='LDA,VWN'):
     mf.xc = xc
     mf.nlc = ''
-    mf.grids = gen_grid.Grids(mf.mol)
-    mf.grids.level = getattr(__config__, 'dft_rks_RKS_grids_level',
-                             mf.grids.level)
-    mf.nlcgrids = gen_grid.Grids(mf.mol)
-    mf.nlcgrids.level = getattr(__config__, 'dft_rks_RKS_nlcgrids_level',
-                                mf.nlcgrids.level)
+    mf.grids = None
+    mf.nlcgrids = None
     # Use rho to filter grids
     mf.small_rho_cutoff = getattr(__config__, 'dft_rks_RKS_small_rho_cutoff', 1e-7)
 ##################################################
@@ -160,10 +155,20 @@ def _dft_common_init_(mf, xc='LDA,VWN'):
     mf._keys = mf._keys.union(['xc', 'nlc', 'omega', 'grids', 'nlcgrids',
                                'small_rho_cutoff'])
 
+def _dft_common_post_init_(mf):
+    if mf.grids is None:
+        mf.grids = gen_grid.Grids(stop_grad(mf.mol))
+        mf.grids.level = getattr(__config__, 'dft_rks_RKS_grids_level',
+                                 mf.grids.level)
+    if mf.nlcgrids is None:
+        mf.nlcgrids = gen_grid.Grids(stop_grad(mf.mol))
+        mf.nlcgrids.level = getattr(__config__, 'dft_rks_RKS_nlcgrids_level',
+                                    mf.nlcgrids.level)
+
 
 class KohnShamDFT(pyscf_rks.KohnShamDFT):
     __init__ = _dft_common_init_
-
+    __post_init__ = _dft_common_post_init_
 
 @util.pytree_node(hf.Traced_Attributes, num_args=1)
 class RKS(KohnShamDFT, hf.RHF):
@@ -171,6 +176,10 @@ class RKS(KohnShamDFT, hf.RHF):
         hf.RHF.__init__(self, mol)
         KohnShamDFT.__init__(self, xc)
         self.__dict__.update(kwargs)
+        # NOTE this has to be after __dict__ update,
+        # otherwise stop_grad(mol) won't work.
+        # Currently, no grid response is considered.
+        KohnShamDFT.__post_init__(self)
 
     get_veff = get_veff
     energy_elec = energy_elec

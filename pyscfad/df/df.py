@@ -1,55 +1,18 @@
 import tempfile
-from typing import Optional, Any
 from jax import numpy as jnp
 from pyscf import __config__
 from pyscf import lib as pyscf_lib
 from pyscf.lib import logger
 from pyscf.df import df as pyscf_df
-from pyscfad import lib, gto
-from . import addons, incore, df_jk
+from pyscfad import lib
+from pyscfad import util
+from pyscfad.df import addons, incore, df_jk
 
-@lib.dataclass
+@util.pytree_node(['mol', 'auxmol', '_cderi'], num_args=1)
 class DF(pyscf_df.DF):
-    mol : gto.Mole = lib.field(pytree_node=True)
-    auxmol : Optional[gto.Mole] = lib.field(pytree_node=True, default=None)
-    _cderi : Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-
-    stdout : Optional[Any] = None
-    verbose : Optional[int] = None
-    max_memory : Optional[int] = None
-
-    _auxbasis : Optional[Any] = None
-
-    _cderi_to_save : Optional[Any] = None
-    _vjopt : Optional[Any] = None
-    _rsh_df : Optional[dict] = lib.field(default_factory = dict)
-
     def __init__(self, mol, auxbasis=None, **kwargs):
-        self.mol = mol
-        if self._auxbasis is None:
-            self._auxbasis = auxbasis
-
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
-        if getattr(self, "stdout", None) is None:
-            self.stdout = self.mol.stdout
-        if getattr(self, "verbose", None) is None:
-            self.verbose = self.mol.verbose
-        if getattr(self, "max_memory", None) is None:
-            self.max_memory = self.mol.max_memory
-
-        if getattr(self, "auxmol", None) is None:
-            self.auxmol = None
-        if getattr(self, "_cderi_to_save", None) is None:
-            self._cderi_to_save = tempfile.NamedTemporaryFile(dir=pyscf_lib.param.TMPDIR)
-        if getattr(self, "_cderi", None) is None:
-            self._cderi = None
-        if getattr(self, "_vjopt", None) is None:
-            self._vjopt = None
-        if getattr(self, "_rsh_df", None) is None:
-            self._rsh_df = {}  # Range separated Coulomb DF objects
-        self._keys = set(self.__dict__.keys())
+        pyscf_df.DF.__init__(self, mol, auxbasis=auxbasis)
+        self.__dict__.update(kwargs)
 
     def build(self):
         #t0 = (logger.process_clock(), logger.perf_counter())

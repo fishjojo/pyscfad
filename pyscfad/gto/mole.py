@@ -53,7 +53,7 @@ def _rr_jvp(primals, tangents):
     tangent_out += tangent_out.T
     return primal_out, tangent_out
 
-@util.pytree_node(['coords', 'exp', 'ctr_coeff', 'r0'])
+@util.pytree_node(Traced_Attributes)
 class Mole(gto.Mole):
     '''
     A subclass of :class:`pyscf.gto.Mole`, where the following
