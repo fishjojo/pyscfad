@@ -3,6 +3,7 @@ jax.config.update("jax_enable_x64", True)
 import numpy
 import jax.scipy as scipy
 from pyscfad import lib
+from pyscfad import util
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import ops
 from pyscfad.lib.numpy_helper import unpack_triu
@@ -10,12 +11,12 @@ from pyscfad.tools import rotate_mo1
 from pyscfad import gto, scf
 from pyscfad import mp
 
-@lib.dataclass
+@util.pytree_node(['_scf', 'x'], num_args=1)
 class OOMP2(mp.MP2):
-    x: jnp.array = lib.field(pytree_node=True, default=None)
-
-    def __post_init__(self):
-        mp.MP2.__post_init__(self)
+    def __init__(self, mf, x=None, **kwargs):
+        mp.MP2.__init__(self, mf)
+        self.x = x
+        self.__dict__.update(kwargs)
         if self.x is None:
             nao = self.mol.nao
             assert nao == self.nmo

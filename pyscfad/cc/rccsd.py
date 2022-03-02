@@ -1,6 +1,7 @@
 from pyscf.lib import logger
 from pyscf.lib import direct_sum, current_memory
 from pyscfad import lib
+from pyscfad import util
 from pyscfad.lib import numpy as jnp
 from pyscfad import ao2mo
 from pyscfad.cc import ccsd
@@ -107,7 +108,7 @@ def update_amps(cc, t1, t2, eris):
     t2new /= eijab
     return t1new, t2new
 
-@lib.dataclass
+@util.pytree_node(ccsd.Traced_Attributes, num_args=1)
 class RCCSD(ccsd.CCSD):
     def kernel(self, t1=None, t2=None, eris=None, mbpt2=False):
         return self.ccsd(t1, t2, eris, mbpt2)

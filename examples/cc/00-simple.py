@@ -1,6 +1,10 @@
 import jax
 from pyscfad import gto, scf, cc
-
+'''
+Reference nuclear gradient
+[[ 3.51278232e-16  4.30055019e-17 -1.15101379e-01]
+ [-3.51278232e-16 -4.30055019e-17  1.15101379e-01]]
+'''
 mol = gto.Mole()
 mol.atom = 'H 0. 0. 0.; F 0. 0. 1.1'
 mol.basis = 'ccpvdz'

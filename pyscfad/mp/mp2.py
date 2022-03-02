@@ -1,6 +1,8 @@
 from pyscf.mp import mp2 as pyscf_mp2
+from pyscfad import util
 from pyscfad.lib import numpy as jnp
 
+@util.pytree_node(['_scf', 'mol'], num_args=1)
 class MP2(pyscf_mp2.MP2):
     def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None, **kwargs):
         pyscf_mp2.MP2.__init__(self, mf, frozen=frozen,

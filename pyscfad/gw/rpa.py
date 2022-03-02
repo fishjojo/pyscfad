@@ -1,11 +1,11 @@
-from typing import Optional, Any
 import numpy
 from jax import numpy as jnp
 from pyscf import lib as pyscf_lib
 from pyscf.lib import logger
 from pyscf import df as pyscf_df
 from pyscf.gw import rpa as pyscf_rpa
-from pyscfad import lib, gto, scf, dft, df
+from pyscfad import util
+from pyscfad import gto, scf, dft, df
 
 
 def kernel(rpa, mo_energy, mo_coeff, Lpq=None, nw=None, verbose=logger.NOTE):
@@ -70,41 +70,30 @@ def get_rpa_ecorr(rpa, Lpq, freqs, wts):
 
     return e_corr
 
-@lib.dataclass
+@util.pytree_node(['_scf','mol','with_df','mo_energy','mo_coeff'], num_args=1)
 class RPA(pyscf_rpa.RPA):
-    _scf : scf.hf.SCF = lib.field(pytree_node=True)
-    frozen : Optional[int] = None
-    mol : Optional[gto.Mole] = lib.field(pytree_node=True, default=None)
-    verbose: Optional[int] = None
-    stdout: Optional[Any] = None
-    max_memory: Optional[int] = None
-
-    with_df : Optional[df.DF] = lib.field(pytree_node=True, default=None)
-    mo_energy : Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-    mo_coeff : Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-    mo_occ : Optional[jnp.array] = None
-    e_hf : Optional[float] = None
-    e_corr : Optional[float] = None
-    e_tot : Optional[float] = None
-    _nocc : Optional[int] = None
-    _nmo : Optional[int] = None
-
-    def __init__(self, _scf, frozen=None, auxbasis=None, **kwargs):
-        self._scf = _scf
+    def __init__(self, mf, frozen=None, auxbasis=None, **kwargs):
+        self.mol = mf.mol
+        self._scf = mf
+        self.verbose = self.mol.verbose
+        self.stdout = self.mol.stdout
+        self.max_memory = mf.max_memory
         self.frozen = frozen
-        for key in kwargs.keys():
-            setattr(self, key, kwargs[key])
+        self.with_df = None
 
-        if getattr(self, "mol", None) is None:
-            self.mol = self._scf.mol
-        if getattr(self, "stdout", None) is None:
-            self.stdout = self.mol.stdout
-        if getattr(self, "verbose", None) is None:
-            self.verbose = self.mol.verbose
-        if getattr(self, "max_memory", None) is None:
-            self.max_memory = self.mol.max_memory
+##################################################
+# don't modify the following attributes, they are not input options
+        self._nocc = None
+        self._nmo = None
+        self.mo_energy = mf.mo_energy
+        self.mo_coeff = mf.mo_coeff
+        self.mo_occ = mf.mo_occ
+        self.e_corr = None
+        self.e_hf = None
+        self.e_tot = None
 
-        if getattr(self, "with_df", None) is None:
+        self.__dict__.update(kwargs)
+        if self.with_df is None:
             if getattr(self._scf, 'with_df', None):
                 self.with_df = self._scf.with_df
             else:
@@ -112,24 +101,6 @@ class RPA(pyscf_rpa.RPA):
                     auxbasis = pyscf_df.addons.make_auxbasis(self.mol, mp2fit=True)
                 auxmol = df.addons.make_auxmol(self.mol, auxbasis)
                 self.with_df = df.DF(self.mol, auxmol=auxmol)
-
-        if getattr(self, "_nocc", None) is None:
-            self._nocc = None
-        if getattr(self, "_nmo", None) is None:
-            self._nmo = None
-        if getattr(self, "mo_energy", None) is None:
-            self.mo_energy = self._scf.mo_energy
-        if getattr(self, "mo_coeff", None) is None:
-            self.mo_coeff = self._scf.mo_coeff
-        if getattr(self, "mo_occ", None) is None:
-            self.mo_occ = self._scf.mo_occ
-        if getattr(self, "e_corr", None) is None:
-            self.e_corr = None
-        if getattr(self, "e_hf", None) is None:
-            self.e_hf = None
-        if getattr(self, "e_tot", None) is None:
-            self.e_tot = None
-        self._keys = set(self.__dict__.keys())
 
     def kernel(self, mo_energy=None, mo_coeff=None, Lpq=None, nw=40):
         """
