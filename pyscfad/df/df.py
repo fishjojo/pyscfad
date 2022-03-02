@@ -49,6 +49,7 @@ class DF(pyscf_df.DF):
         #self.auxmol = None
         self._cderi = None
         if not isinstance(self._cderi_to_save, str):
+            # pylint: disable=consider-using-with
             self._cderi_to_save = tempfile.NamedTemporaryFile(dir=pyscf_lib.param.TMPDIR)
         self._vjopt = None
         self._rsh_df = {}

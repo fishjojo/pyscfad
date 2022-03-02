@@ -97,6 +97,7 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
     try:
         low = scipy.linalg.cholesky(j2c, lower=True)
         tag = 'cd'
+    # pylint: disable=bare-except
     except: #scipy.linalg.LinAlgError:
         w, v = scipy.linalg.eigh(j2c)
         idx = w > LINEAR_DEP_THR

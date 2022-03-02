@@ -7,6 +7,7 @@ from pyscf.scf import hf as pyscf_hf
 from pyscfad import lib
 from pyscfad import util
 from pyscfad import gto
+from pyscfad import df
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import stop_grad
 from pyscfad.scf import _vhf
@@ -166,6 +167,7 @@ class SCF(pyscf_hf.SCF):
         mol = stop_grad(mol)
         return pyscf_hf.SCF.get_init_guess(self, mol, key)
 
+    # pylint: disable=arguments-differ
     def kernel(self, dm0=None, **kwargs):
         self.build(self.mol)
         self.converged, self.e_tot, \
@@ -184,7 +186,7 @@ class SCF(pyscf_hf.SCF):
         if dm0 is None:
             try:
                 dm0 = self.make_rdm1()
-            except:
+            except TypeError:
                 pass
 
         def hf_energy(self, dm0=None):
@@ -206,8 +208,7 @@ class SCF(pyscf_hf.SCF):
             return jac.mol
 
     def density_fit(self, auxbasis=None, with_df=None, only_dfj=False):
-        from pyscfad.df import df_jk
-        return df_jk.density_fit(self, auxbasis, with_df, only_dfj)
+        return df.density_fit(self, auxbasis, with_df, only_dfj)
 
 @util.pytree_node(Traced_Attributes, num_args=1)
 class RHF(SCF, pyscf_hf.RHF):

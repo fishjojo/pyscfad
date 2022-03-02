@@ -1,6 +1,7 @@
 import pytest
 import jax
-from pyscfad import gto, scf, df
+from pyscfad import gto
+from pyscfad import scf
 
 @pytest.fixture
 def get_h2():
@@ -11,6 +12,7 @@ def get_h2():
     mol.build(trace_exp=False, trace_ctr_coeff=False)
     return mol
 
+# pylint: disable=redefined-outer-name
 def test_df_hf_nuc_grad(get_h2):
     mol = get_h2
     mf = scf.RHF(mol).density_fit()

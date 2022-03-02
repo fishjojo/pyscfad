@@ -17,7 +17,8 @@ fail-under=10.0
 # Files or directories to be skipped. They should be base names, not paths.
 ignore=CVS,
        pbc,
-       cc
+       cc,
+       prop
 
 # Files or directories matching the regex patterns are skipped. The regex
 # matches against base names, not paths.
@@ -161,7 +162,9 @@ disable=print-statement,
         too-many-branches,
         duplicate-code,
         consider-using-f-string,
-        deprecated-method
+        deprecated-method,
+        useless-import-alias,
+        super-init-not-called
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
@@ -549,7 +552,7 @@ valid-metaclass-classmethod-first-arg=cls
 max-args=5
 
 # Maximum number of attributes for a class (see R0902).
-max-attributes=7
+max-attributes=15
 
 # Maximum number of boolean expressions in an if statement (see R0916).
 max-bool-expr=5
