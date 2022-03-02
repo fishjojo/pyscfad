@@ -3,8 +3,10 @@ import numpy
 from pyscf import __config__
 from pyscf.lib import current_memory
 from pyscf.lib import logger
-from pyscf.dft import rks, gen_grid
+from pyscf.dft import rks as pyscf_rks
+from pyscf.dft import gen_grid
 from pyscfad import lib
+from pyscfad import util
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf
@@ -140,35 +142,36 @@ def prune_small_rho_grids_(ks, mol, dm, grids):
         grids.non0tab = grids.make_mask(mol, grids.coords)
     return grids
 
-@lib.dataclass
-class KohnShamDFT(rks.KohnShamDFT):
-    xc: str = 'LDA,VWN'
-    nlc: str = ''
-    grids: gen_grid.Grids = None
-    nlcgrids: gen_grid.Grids = None
-    small_rho_cutoff: float = getattr(__config__, 'dft_rks_RKS_small_rho_cutoff', 1e-7)
-    _numint: numint.NumInt = numint.NumInt()
 
-    def __post_init__(self):
-        # pylint: disable=E1101
-        if self.grids is None:
-            self.grids = gen_grid.Grids(stop_grad(self.mol))
-            self.grids.level = getattr(__config__, 'dft_rks_RKS_grids_level',
-                                       self.grids.level)
-        if self.nlcgrids is None:
-            self.nlcgrids = gen_grid.Grids(stop_grad(self.mol))
-            self.nlcgrids.level = getattr(__config__, 'dft_rks_RKS_nlcgrids_level',
-                                          self.nlcgrids.level)
+def _dft_common_init_(mf, xc='LDA,VWN'):
+    mf.xc = xc
+    mf.nlc = ''
+    mf.grids = gen_grid.Grids(mf.mol)
+    mf.grids.level = getattr(__config__, 'dft_rks_RKS_grids_level',
+                             mf.grids.level)
+    mf.nlcgrids = gen_grid.Grids(mf.mol)
+    mf.nlcgrids.level = getattr(__config__, 'dft_rks_RKS_nlcgrids_level',
+                                mf.nlcgrids.level)
+    # Use rho to filter grids
+    mf.small_rho_cutoff = getattr(__config__, 'dft_rks_RKS_small_rho_cutoff', 1e-7)
+##################################################
+# don't modify the following attributes, they are not input options
+    mf._numint = numint.NumInt()
+    mf._keys = mf._keys.union(['xc', 'nlc', 'omega', 'grids', 'nlcgrids',
+                               'small_rho_cutoff'])
 
-        self._keys = self._keys.union(['xc', 'nlc', 'omega', 'grids', 'nlcgrids',
-                                       'small_rho_cutoff'])
 
-@lib.dataclass
+class KohnShamDFT(pyscf_rks.KohnShamDFT):
+    __init__ = _dft_common_init_
+
+
+@util.pytree_node(hf.Traced_Attributes, num_args=1)
 class RKS(KohnShamDFT, hf.RHF):
-    def __post_init__(self):
-        hf.RHF.__post_init__(self)
-        KohnShamDFT.__post_init__(self)
+    def __init__(self, mol, xc='LDA,VWN', **kwargs):
+        hf.RHF.__init__(self, mol)
+        KohnShamDFT.__init__(self, xc)
+        self.__dict__.update(kwargs)
 
     get_veff = get_veff
     energy_elec = energy_elec
-    nuc_grad_method = rks.RKS.nuc_grad_method #analytic nuclear gradient method
+    nuc_grad_method = pyscf_rks.RKS.nuc_grad_method #analytic nuclear gradient method

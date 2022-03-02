@@ -1,12 +1,12 @@
 import warnings
 from functools import partial
-from typing import Optional, Any
 import numpy
 from scipy.special import erfc
 from jax import custom_jvp
 from pyscf import __config__
 from pyscf.pbc.gto import cell as pyscf_cell
 from pyscfad import lib
+from pyscfad import util
 from pyscfad.lib import numpy as jnp
 from pyscfad.gto import mole
 from pyscfad.gto._mole_helper import setup_exp, setup_ctr_coeff
@@ -78,39 +78,33 @@ def _ewald_sr_jvp(charges, ew_eta, ew_cut, Lall, primals, tangents):
     tangent_out = jnp.einsum('nx,nx->', grad, coords_t)
     return primal_out, tangent_out
 
-@lib.dataclass
+@util.pytree_node(mole.Traced_Attributes)
 class Cell(mole.Mole, pyscf_cell.Cell):
-    precision: float = getattr(__config__, 'pbc_gto_cell_Cell_precision', 1e-8)
-    exp_to_discard: Optional[float] = getattr(__config__, 'pbc_gto_cell_Cell_exp_to_discard', None)
+    def __init__(self, **kwargs):
+        mole.Mole.__init__(self, **kwargs)
+        self.a = None # lattice vectors, (a1,a2,a3)
+        # if set, defines a spherical cutoff
+        # of fourier components, with .5 * G**2 < ke_cutoff
+        self.ke_cutoff = None
 
-    a: Any = None
-    ke_cutoff: Optional[float] = None
-    pseudo: Any = None
-    dimension: int = 3
-    low_dim_ft_type: Optional[str] = None
+        self.pseudo = None
+        self.dimension = 3
+        # TODO: Simple hack for now; the implementation of ewald depends on the
+        #       density-fitting class.  This determines how the ewald produces
+        #       its energy.
+        self.low_dim_ft_type = None
 
-    _mesh: Any = None
-    _mesh_from_build: bool = True
-    _rcut: Optional[float] = None
+##################################################
+# These attributes are initialized by build function if not given
+        self.mesh = None
+        self.rcut = None
 
-    @property
-    def mesh(self):
-        return self._mesh
-    @mesh.setter
-    def mesh(self, x):
-        self._mesh = x
-        self._mesh_from_build = False
+##################################################
+# don't modify the following variables, they are not input arguments
+        keys = ('precision', 'exp_to_discard')
+        self._keys = self._keys.union(self.__dict__).union(keys)
+        self.__dict__.update(kwargs)
 
-    @property
-    def rcut(self):
-        return self._rcut
-    @rcut.setter
-    def rcut(self, x):
-        self._rcut = x
-        self._rcut_from_build = False
-
-    def __post_init__(self):
-        mole.Mole.__post_init__(self)
 
     def build(self, *args, **kwargs):
         trace_coords = kwargs.pop("trace_coords", True)

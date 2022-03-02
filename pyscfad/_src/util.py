@@ -8,7 +8,7 @@ def pytree_node(leaf_names, num_args=0):
 
     Args:
         leaf_names : list or tuple
-            Attributes of ``cls`` that are traced as pytree leaves.
+            Attributes of the class that are traced as pytree leaves.
 
     Kwargs:
         num_args: int

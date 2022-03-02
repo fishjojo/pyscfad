@@ -10,6 +10,8 @@ from pyscfad.gto import moleintor
 from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
 
+Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
+
 def energy_nuc(mol, charges=None, coords=None):
     if charges is None:
         charges = mol.atom_charges()

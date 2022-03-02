@@ -3,6 +3,7 @@ import numpy
 from pyscf import __config__
 from pyscf.pbc.scf import khf as pyscf_khf
 from pyscfad import lib
+from pyscfad import util
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf as mol_hf
@@ -24,28 +25,27 @@ def get_hcore(mf, cell=None, kpts=None):
     return nuc + t
 
 
-@lib.dataclass
+@util.pytree_node(pbchf.Traced_Attributes, num_args=1)
 class KSCF(pbchf.SCF, pyscf_khf.KSCF):
-    kpts: numpy.ndarray = numpy.zeros((1,3))
-    exx_built: bool = False
-
-    def __init__(self, cell, **kwargs):
+    def __init__(self, cell, kpts=numpy.zeros((1,3)),
+                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'), **kwargs):
         if not cell._built:
             sys.stderr.write('Warning: cell.build() is not called in input\n')
             cell.build()
         self.cell = cell
-        for key in kwargs.keys():
-            setattr(self, key, kwargs[key])
-        if not self._built:
-            mol_hf.SCF.__init__(self, cell)
-            mol_hf.SCF.__post_init__(self)
-            self.direct_scf = getattr(__config__, 'pbc_scf_SCF_direct_scf', True)
-            self.conv_tol_grad = getattr(__config__, 'pbc_scf_KSCF_conv_tol_grad', None)
-            self.conv_tol = self.cell.precision * 10
-        if self.with_df is None:
-            self.with_df = df.FFTDF(self.cell)
+        mol_hf.SCF.__init__(self, cell)
 
+        self.with_df = df.FFTDF(cell)
+        # Range separation JK builder
+        self.rsjk = None
+
+        self.exxdiv = exxdiv
+        self.kpts = kpts
+        self.conv_tol = cell.precision * 10
+
+        self.exx_built = False
         self._keys = self._keys.union(['cell', 'exx_built', 'exxdiv', 'with_df', 'rsjk'])
+        self.__dict__.update(kwargs)
 
     def get_jk(self, cell=None, dm_kpts=None, hermi=1, kpts=None, kpts_band=None,
                with_j=True, with_k=True, omega=None, **kwargs):

@@ -1,43 +1,39 @@
 import sys
-from typing import Any, Optional
 import numpy
 from pyscf import __config__
 from pyscf.lib import logger
 from pyscf.pbc.scf import hf as pyscf_pbc_hf
 from pyscf.pbc.scf.hf import _format_jks
 from pyscfad import lib
+from pyscfad import util
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf as mol_hf
-from pyscfad.pbc.gto import Cell
 from pyscfad.pbc import df
 
-@lib.dataclass
-class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
-    # NOTE every field must have a default value
-    cell: Cell = lib.field(pytree_node=True, default=None)
-    kpt: numpy.ndarray = numpy.zeros(3)
-    with_df: Any = lib.field(pytree_node=True, default=None)
-    exxdiv: str = getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')
-    rsjk: Any = None
-    no_incore: bool = True
+Traced_Attributes = ['cell', 'mo_coeff', 'mo_energy', 'with_df']
 
-    def __init__(self, cell, **kwargs):
+@util.pytree_node(Traced_Attributes, num_args=1)
+class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
+    def __init__(self, cell, kpt=numpy.zeros(3),
+                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'), **kwargs):
         if not cell._built:
             sys.stderr.write('Warning: cell.build() is not called in input\n')
             cell.build()
         self.cell = cell
-        for key in kwargs.keys():
-            setattr(self, key, kwargs[key])
-        if not self._built:
-            mol_hf.SCF.__init__(self, cell)
-            mol_hf.SCF.__post_init__(self)
-            self.direct_scf = getattr(__config__, 'pbc_scf_SCF_direct_scf', False)
-            self.conv_tol = self.cell.precision * 10
-        if self.with_df is None:
-            self.with_df = df.FFTDF(self.cell)
+        mol_hf.SCF.__init__(self, cell)
+
+        self.with_df = df.FFTDF(cell)
+        # Range separation JK builder
+        self.rsjk = None
+
+        self.exxdiv = exxdiv
+        self.kpt = kpt
+        self.conv_tol = cell.precision * 10
+        self.no_incore = True
 
         self._keys = self._keys.union(['cell', 'exxdiv', 'with_df'])
+        self.__dict__.update(kwargs)
 
     def get_init_guess(self, cell=None, key='minao'):
         if cell is None: cell = self.cell
