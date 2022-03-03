@@ -3,7 +3,7 @@ python -m pip install --upgrade pip
 pip install wheel
 pip install numpy scipy h5py 
 pip install jaxlib jax jaxopt 
-pip install pytest
+pip install pytest pytest-cov
 
 #pyscf
 git clone https://github.com/fishjojo/pyscf.git
