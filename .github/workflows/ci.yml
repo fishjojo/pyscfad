@@ -9,6 +9,7 @@ jobs:
       matrix:
         os: [ubuntu-18.04]
         python-version: [3.7, 3.8, 3.9]
+    environment: ci
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -21,3 +22,8 @@ jobs:
         run: ./.github/workflows/build_lib.sh
       - name: test
         run: ./.github/workflows/run_test.sh
+      - name: Upload coverage to codecov
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
+          files: ./pyscfad/coverage.xml
