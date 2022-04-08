@@ -113,7 +113,7 @@ def test_e_tot(get_cell, get_cell_ref):
     cell = get_cell
     mf = scf.RHF(cell, exxdiv=None)
     e_tot = mf.kernel()
-    jac_fwd = mf.energy_grad(mode='fwd')
+    #jac_fwd = mf.energy_grad(mode='fwd')
     jac_bwd = mf.energy_grad(mode='rev')
 
     cell_ref = get_cell_ref
@@ -124,5 +124,5 @@ def test_e_tot(get_cell, get_cell_ref):
     g0 = mf_grad.kernel()
 
     assert abs(e_tot - e_tot_ref) < 1e-10
-    assert abs(jac_fwd.coords - g0).max() < 1e-8
+    #assert abs(jac_fwd.coords - g0).max() < 1e-8
     assert abs(jac_bwd.coords - g0).max() < 1e-8

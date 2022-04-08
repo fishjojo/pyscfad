@@ -119,12 +119,13 @@ class RPA(pyscf_rpa.RPA):
         if mo_energy is None:
             mo_energy = pyscf_rpa._mo_energy_without_core(self, self._scf.mo_energy)
 
-        #cput0 = (logger.process_clock(), logger.perf_counter())
+        log = logger.new_logger(self)
         self.dump_flags()
         self.e_tot, self.e_hf, self.e_corr = \
                         kernel(self, mo_energy, mo_coeff, Lpq=Lpq, nw=nw, verbose=self.verbose)
 
-        #logger.timer(self, 'RPA', *cput0)
+        log.timer('RPA')
+        del(log)
         return self.e_corr
 
     def ao2mo(self, mo_coeff=None):

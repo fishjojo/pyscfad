@@ -15,8 +15,7 @@ class DF(pyscf_df.DF):
         self.__dict__.update(kwargs)
 
     def build(self):
-        #t0 = (logger.process_clock(), logger.perf_counter())
-        log = logger.Logger(self.stdout, self.verbose)
+        log = logger.new_logger(self)
 
         self.check_sanity()
         self.dump_flags()
@@ -39,6 +38,7 @@ class DF(pyscf_df.DF):
                                               max_memory=max_memory, verbose=log)
         else:
             raise NotImplementedError("Outcore density fitting is not implemented.")
+        del(log)
         return self
 
     def reset(self, mol=None):

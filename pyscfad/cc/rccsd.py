@@ -139,7 +139,7 @@ class RCCSD(ccsd.CCSD):
     update_amps = update_amps
 
 def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
-    cput0 = (logger.process_clock(), logger.perf_counter())
+    log = logger.new_logger(mycc)
     eris = _ChemistsERIs()
     eris._common_init_(mycc, mo_coeff)
     nocc = eris.nocc
@@ -157,7 +157,8 @@ def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
     eris.ovvo = eri1[:nocc,nocc:,nocc:,:nocc]#.copy()
     eris.ovvv = eri1[:nocc,nocc:,nocc:,nocc:]#.copy()
     eris.vvvv = eri1[nocc:,nocc:,nocc:,nocc:]#.copy()
-    logger.timer(mycc, 'CCSD integral transformation', *cput0)
+    log.timer('CCSD integral transformation')
+    del(log)
     return eris
 
 class _ChemistsERIs(ccsd._ChemistsERIs):

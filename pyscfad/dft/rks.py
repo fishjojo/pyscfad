@@ -35,7 +35,7 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
         mol = ks.mol
     if dm is None:
         dm = ks.make_rdm1()
-    t0 = (logger.process_clock(), logger.perf_counter())
+    log = logger.new_logger(ks)
 
     ground_state = getattr(dm, "ndim", None) == 2
 
@@ -44,14 +44,14 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
         if ks.small_rho_cutoff > 1e-20 and ground_state:
             # Filter grids the first time setup grids
             ks.grids = prune_small_rho_grids_(ks, mol, dm, ks.grids)
-        t0 = logger.timer(ks, 'setting up grids', *t0)
+        log.timer('setting up grids')
     if ks.nlc != '':
         if ks.nlcgrids.coords is None:
             ks.nlcgrids.build(with_non0tab=True)
             if ks.small_rho_cutoff > 1e-20 and ground_state:
                 # Filter grids the first time setup grids
                 ks.nlcgrids = prune_small_rho_grids_(ks, mol, dm, ks.nlcgrids)
-            t0 = logger.timer(ks, 'setting up nlc grids', *t0)
+            log.timer('setting up nlc grids')
 
     ni = ks._numint
     vxc = VXC()
@@ -66,8 +66,8 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
                                       max_memory=max_memory)
             vxc.exc += enlc
             vxc.vxc += vnlc
-        logger.debug(ks, 'nelec by numeric integration = %s', n)
-        t0 = logger.timer(ks, 'vxc', *t0)
+        log.debug('nelec by numeric integration = %s', n)
+        log.timer('vxc')
 
     #enabling range-separated hybrids
     omega, alpha, hyb = ni.rsh_and_hybrid_coeff(ks.xc, spin=mol.spin)
@@ -109,6 +109,7 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
     else:
         vxc.ecoul = None
 
+    del(log)
     return vxc
 
 def energy_elec(ks, dm=None, h1e=None, vhf=None):

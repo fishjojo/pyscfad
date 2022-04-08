@@ -1,10 +1,9 @@
 from functools import partial
 import ctypes
 import numpy
-from jax import vmap
 from jax import custom_jvp
 from jax import jit
-from jax.lax import dynamic_slice, dynamic_update_slice
+from jax import vmap
 from pyscf import ao2mo
 from pyscf.gto import mole, moleintor
 from pyscf.gto.mole import Mole
@@ -141,7 +140,7 @@ def getints4c(mol, intor,
         eri8 = Mole.intor(mol, intor, comp=comp, aosym='s8',
                           shls_slice=shls_slice, out=out)
         eri = ao2mo.restore(aosym, eri8, mol.nao)
-        eri8 = None
+        del(eri8)
     else:
         eri = Mole.intor(mol, intor,
                 comp=comp, aosym=aosym,
@@ -244,33 +243,35 @@ def promote_xyz(xyz, x, l):
 
 def _int1e_jvp_r0(mol, mol_t, intor):
     s1 = -getints2c(mol, intor, comp=3)
-    grad = _int1e_fill_grad_r0(mol, s1)
+    aoslices = mol.aoslice_by_atom()[:,2:4]
+    grad = _fill_grad_r0(s1, aoslices)
     tangent_out = _int1e_dot_grad_tangent_r0(grad, mol_t.coords)
     return tangent_out
 
-# pylint: disable=fixme
-# TODO unrolling the for loop can be slow,
-# and vmap does not work with dynamically shaped sub-array.
-# How to make in-place assignment efficient?
-# jit breaks pytest
-#@jit
-def _int1e_fill_grad_r0(mol, s1):
-    shape = [mol.natm,] + list(s1.shape)
-    grad = np.zeros(shape, dtype=s1.dtype)
-    aoslices = mol.aoslice_by_atom()
-    for ia in range(mol.natm):
-        p0, p1 = aoslices[ia,2:]
-        grad = ops.index_update(grad, ops.index[ia,:,p0:p1], s1[:,p0:p1])
-    #def func(grad_k, ia):
-    #    p0, p1 = aoslices[ia, 2:]
-    #    return ops.index_update(grad_k, ops.index[:,p0:p1], s1[:,p0:p1])
-    #grad = vmap(func)(grad, np.arange(mol.natm))
+@jit
+def _fill_grad_r0(eri1, aoslices):
+    nao = eri1.shape[-1]
+    shape = [1,] * eri1.ndim
+    shape[1] = nao
+    idx = np.arange(nao)
+    idx = idx.reshape(shape)
+    def body(slices):
+        p0, p1 = slices[:]
+        mask = (idx >= p0) & (idx < p1)
+        return np.where(mask, eri1, np.array(0, dtype=eri1.dtype))
+    grad = vmap(body)(aoslices)
     return grad
+
+@jit
+def _int1e_dot_grad_tangent_r0(grad, tangent):
+    tangent_out = np.einsum('nxij,nx->ij', grad, tangent)
+    tangent_out += tangent_out.T
+    return tangent_out
 
 def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b, rc_deriv=None):
     coords_t = mol_t.coords
     #atmlst = range(mol.natm)
-    #aoslices = mol.aoslice_by_atom()
+    aoslices = mol.aoslice_by_atom()[:,2:4]
     nao = mol.nao
 
     s1a = -getints2c(mol, intor_a).reshape(3,-1,nao,nao)
@@ -282,21 +283,30 @@ def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b, rc_deriv=None):
     #    tb = np.einsum('xyij,x->yij', s1b[...,p0:p1], coords_t[k])
     #    jvp = ops.index_add(jvp, ops.index[:,p0:p1], ta)
     #    jvp = ops.index_add(jvp, ops.index[:,:,p0:p1], tb)
-    grad = _gen_int1e_fill_grad_r0(mol, s1a, s1b)
+    grad = _gen_int1e_fill_grad_r0(s1a, s1b, aoslices)
     if rc_deriv is not None:
         grad = ops.index_add(grad, ops.index[rc_deriv], -s1a-s1b)
     jvp = _gen_int1e_dot_grad_tangent_r0(grad, coords_t)
     return jvp
 
 @jit
-def _gen_int1e_fill_grad_r0(mol, s1a, s1b):
-    shape = [mol.natm,] + list(s1a.shape)
-    grad = np.zeros(shape, dtype=s1a.dtype)
-    aoslices = mol.aoslice_by_atom()
-    for ia in range(mol.natm):
-        p0, p1 = aoslices[ia,2:]
-        grad = ops.index_add(grad, ops.index[ia,:,:,p0:p1], s1a[...,p0:p1,:])
-        grad = ops.index_add(grad, ops.index[ia,...,p0:p1], s1b[...,p0:p1])
+def _gen_int1e_fill_grad_r0(s1a, s1b, aoslices):
+    nao = s1a.shape[-1]
+    idx = np.arange(nao)
+    shape = [1,] * s1a.ndim
+    shape[-2] = nao
+    idx_a = idx.reshape(shape)
+    shape[-2] = 1
+    shape[-1] = nao
+    idx_b = idx.reshape(shape)
+    def body(slices):
+        p0, p1 = slices[:]
+        mask = (idx_a >= p0) & (idx_a < p1)
+        grad_a = np.where(mask, s1a, np.array(0, dtype=s1a.dtype))
+        mask = (idx_b >= p0) & (idx_b < p1)
+        grad_b = np.where(mask, s1b, np.array(0, dtype=s1b.dtype))
+        return grad_a + grad_b
+    grad = vmap(body)(aoslices)
     return grad
 
 @jit
@@ -316,6 +326,12 @@ def _int1e_r_jvp_r0(mol, mol_t, intor):
         p0, p1 = aoslices [ia,2:]
         grad[k,...,p0:p1] = s1[...,p0:p1]
     tangent_out = _int1e_r_dot_grad_tangent_r0(grad, coords_t)
+    return tangent_out
+
+@jit
+def _int1e_r_dot_grad_tangent_r0(grad, tangent):
+    tangent_out = np.einsum('nxpij,nx->pij', grad, tangent)
+    tangent_out += tangent_out.transpose(0,2,1)
     return tangent_out
 
 def _int1e_nuc_jvp_rc(mol, mol_t, intor):
@@ -346,19 +362,6 @@ def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b):
                 vrinv *= -mol.atom_charge(ia)
         grad = ops.index_update(grad, ops.index[k], vrinv)
     tangent_out = _gen_int1e_dot_grad_tangent_r0(grad, coords_t)
-    return tangent_out
-
-
-@jit
-def _int1e_dot_grad_tangent_r0(grad, tangent):
-    tangent_out = np.einsum('nxij,nx->ij', grad, tangent)
-    tangent_out += tangent_out.T
-    return tangent_out
-
-@jit
-def _int1e_r_dot_grad_tangent_r0(grad, tangent):
-    tangent_out = np.einsum('nxpij,nx->pij', grad, tangent)
-    tangent_out += tangent_out.transpose(0,2,1)
     return tangent_out
 
 def _int1e_jvp_cs(mol, mol_t, intor):
@@ -497,7 +500,9 @@ def _int2e_jvp_r0(mol, mol_t, intor):
     #        ctypes.c_int(mol.natm), ctypes.c_int(nao))
     #eri1 = None
     eri1 = -getints4c(mol, intor, comp=None, aosym='s1')
-    grad = _int2e_fill_grad_r0(mol, eri1)
+    aoslices = mol.aoslice_by_atom()[:,2:4]
+    grad = _fill_grad_r0(eri1, aoslices)
+
     #for k, ia in enumerate(atmlst):
     #    p0, p1 = aoslices [ia,2:]
     #    tmp = np.einsum("xijkl,x->ijkl", eri1[:,p0:p1], coords_t[k])
@@ -506,16 +511,6 @@ def _int2e_jvp_r0(mol, mol_t, intor):
     #    tangent_out = ops.index_add(tangent_out, ops.index[:,:,p0:p1], tmp.transpose((2,3,0,1)))
     #    tangent_out = ops.index_add(tangent_out, ops.index[:,:,:,p0:p1], tmp.transpose((2,3,1,0)))
     return _int2e_dot_grad_tangent_r0(grad, coords_t)
-
-#@jit
-def _int2e_fill_grad_r0(mol, eri1):
-    shape = [mol.natm,] + list(eri1.shape)
-    grad = np.zeros(shape, dtype=eri1.dtype)
-    aoslices = mol.aoslice_by_atom()
-    for ia in range(mol.natm):
-        p0, p1 = aoslices[ia,2:]
-        grad = ops.index_update(grad, ops.index[ia,:,p0:p1], eri1[:,p0:p1])
-    return grad
 
 @jit
 def _int2e_dot_grad_tangent_r0(grad, tangent):
@@ -543,20 +538,39 @@ def _gen_int2e_jvp_r0(mol, mol_t, intors):
         eri1_d = eri1_d.reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
     else:
         eri1_d = eri1_c.transpose(0,1,2,3,5,4)
-    grad = _gen_int2e_fill_grad_r0(mol, eri1_a, eri1_b, eri1_c, eri1_d)
+
+    aoslices = mol.aoslice_by_atom()[:,2:4]
+    grad = _gen_int2e_fill_grad_r0(eri1_a, eri1_b, eri1_c, eri1_d, aoslices)
     return _gen_int2e_dot_grad_tangent_r0(grad, coords_t)
 
 @jit
-def _gen_int2e_fill_grad_r0(mol, eri1_a, eri1_b, eri1_c, eri1_d):
-    shape = [mol.natm,] + list(eri1_a.shape)
-    grad = np.zeros(shape, dtype=eri1_a.dtype)
-    aoslices = mol.aoslice_by_atom()
-    for ia in range(mol.natm):
-        p0, p1 = aoslices[ia,2:]
-        grad = ops.index_add(grad, ops.index[ia,:,:,p0:p1], eri1_a[:,:,p0:p1])
-        grad = ops.index_add(grad, ops.index[ia,:,:,:,p0:p1], eri1_b[:,:,:,p0:p1])
-        grad = ops.index_add(grad, ops.index[ia,...,p0:p1,:], eri1_c[...,p0:p1,:])
-        grad = ops.index_add(grad, ops.index[ia,...,p0:p1], eri1_d[...,p0:p1])
+def _gen_int2e_fill_grad_r0(eri1_a, eri1_b, eri1_c, eri1_d, aoslices):
+    nao = eri1_a.shape[-1]
+    idx = np.arange(nao)
+    shape_a = [1,] * eri1_a.ndim
+    shape_a[-4] = nao
+    idx_a = idx.reshape(shape_a)
+    shape_b = [1,] * eri1_b.ndim
+    shape_b[-3] = nao
+    idx_b = idx.reshape(shape_b)
+    shape_c = [1,] * eri1_c.ndim
+    shape_c[-2] = nao
+    idx_c = idx.reshape(shape_c)
+    shape_d = [1,] * eri1_d.ndim
+    shape_d[-1] = nao
+    idx_d = idx.reshape(shape_d)
+    def body(slices):
+        p0, p1 = slices[:]
+        mask_a = (idx_a >= p0) & (idx_a < p1)
+        mask_b = (idx_b >= p0) & (idx_b < p1)
+        mask_c = (idx_c >= p0) & (idx_c < p1)
+        mask_d = (idx_d >= p0) & (idx_d < p1)
+        grad_a = np.where(mask_a, eri1_a, np.array(0, dtype=eri1_a.dtype))
+        grad_b = np.where(mask_b, eri1_b, np.array(0, dtype=eri1_b.dtype))
+        grad_c = np.where(mask_c, eri1_c, np.array(0, dtype=eri1_c.dtype))
+        grad_d = np.where(mask_d, eri1_d, np.array(0, dtype=eri1_d.dtype))
+        return grad_a + grad_b + grad_c + grad_d
+    grad = vmap(body)(aoslices)
     return grad
 
 @jit
@@ -582,7 +596,7 @@ def _int2e_jvp_cs(mol, mol_t, intor):
     _, cs_of, _ = setup_ctr_coeff(mol)
     nao = mol.nao
     #grad = np.zeros((len(ctr_coeff), nao, nao, nao, nao), dtype=float)
-    grad = numpy.zeros((len(ctr_coeff), nao, nao, nao, nao), dtype=numpy.double)
+    grad = numpy.zeros((len(ctr_coeff), nao, nao, nao, nao), dtype=eri.dtype)
 
     off = 0
     ibas = 0

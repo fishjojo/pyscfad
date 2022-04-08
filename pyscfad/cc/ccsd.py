@@ -32,6 +32,8 @@ class CCSD(pyscf_ccsd.CCSD):
     def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None, **kwargs):
         pyscf_ccsd.CCSD.__init__(self, mf, frozen=frozen,
                                  mo_coeff=mo_coeff, mo_occ=mo_occ)
+        if self.diis is True:
+            self.diis = lib.diis.DIIS(self, self.diis_file, incore=self.incore_complete)
         self.__dict__.update(kwargs)
 
     def amplitudes_to_vector(self, t1, t2, out=None):

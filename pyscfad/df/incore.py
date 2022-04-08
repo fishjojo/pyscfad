@@ -88,8 +88,8 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
     Note: Only support s1 symmetry.
     '''
     assert comp == 1
-    t0 = (logger.process_clock(), logger.perf_counter())
     log = logger.new_logger(mol, verbose)
+    t0 = (log._t0, log._w0)
     if auxmol is None:
         auxmol = addons.make_auxmol(mol, auxbasis)
 
@@ -125,4 +125,5 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
         cderi = jnp.dot(low.T, ints)
 
     log.timer('cholesky_eri', *t0)
+    del(log)
     return cderi.reshape(-1,nao,nao)
