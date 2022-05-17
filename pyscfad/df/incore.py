@@ -125,5 +125,5 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
         cderi = jnp.dot(low.T, ints)
 
     log.timer('cholesky_eri', *t0)
-    del(log)
+    del log
     return cderi.reshape(-1,nao,nao)

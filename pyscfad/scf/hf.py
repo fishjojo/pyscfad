@@ -15,14 +15,14 @@ from pyscfad import df
 from pyscfad.lib import numpy as jnp
 from pyscfad.lib import stop_grad
 from pyscfad.scf import _vhf
-from pyscfad.scf import diis
+from pyscfad.scf.diis import SCF_DIIS
+from pyscfad.scf._eigh import eigh
 
 SCF_IMPLICIT_DIFF = getattr(__config__, "pyscfad_scf_implicit_diff", False)
 Traced_Attributes = ['mol', 'mo_coeff', 'mo_energy', '_eri']
 
 def eig(h, s, x0=None):
-    from . import _eigh
-    e, c = _eigh.eigh(h, s, x0)
+    e, c = eigh(h, s, x0)
     return e, c
 
 def _converged_scf(mo_coeff, mf, s1e, h1e, mo_occ):
@@ -94,9 +94,11 @@ def _scf(mo_coeff, mf, s1e, h1e, mo_occ, *,
     return mo_coeff, scf_conv, mo_occ, mo_energy
 
 if SCF_IMPLICIT_DIFF:
-    _scf = implicit_diff.custom_fixed_point(_converged_scf,
-                solve=partial(linear_solve.solve_gmres, tol=1e-5, solve_method='incremental', maxiter=30),
-                has_aux=True, nondiff_argnums=(4,), use_converged_args={4:2})(_scf)
+    solver = partial(linear_solve.solve_gmres, tol=1e-5,
+                     solve_method='incremental', maxiter=30)
+    _scf = implicit_diff.custom_fixed_point(
+                _converged_scf, solve=solver, has_aux=True,
+                nondiff_argnums=(4,), use_converged_args={4:2})(_scf)
 
 
 def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
@@ -199,7 +201,7 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
             mf.dump_chk(locals())
 
     log.timer('scf_cycle', *cput0)
-    del(log)
+    del log
     # A post-processing hook before return
     #mf.post_kernel(locals())
     return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
@@ -245,7 +247,7 @@ class SCF(pyscf_hf.SCF):
         _eri : array
             Two electron repulsion integrals.
     '''
-    DIIS = diis.SCF_DIIS
+    DIIS = SCF_DIIS
 
     def __init__(self, mol, **kwargs):
         pyscf_hf.SCF.__init__(self, mol)

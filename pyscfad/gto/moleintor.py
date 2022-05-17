@@ -140,7 +140,7 @@ def getints4c(mol, intor,
         eri8 = Mole.intor(mol, intor, comp=comp, aosym='s8',
                           shls_slice=shls_slice, out=out)
         eri = ao2mo.restore(aosym, eri8, mol.nao)
-        del(eri8)
+        del eri8
     else:
         eri = Mole.intor(mol, intor,
                 comp=comp, aosym=aosym,

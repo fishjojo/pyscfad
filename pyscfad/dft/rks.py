@@ -109,7 +109,7 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
     else:
         vxc.ecoul = None
 
-    del(log)
+    del log
     return vxc
 
 def energy_elec(ks, dm=None, h1e=None, vhf=None):

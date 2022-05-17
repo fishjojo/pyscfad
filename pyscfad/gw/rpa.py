@@ -125,7 +125,7 @@ class RPA(pyscf_rpa.RPA):
                         kernel(self, mo_energy, mo_coeff, Lpq=Lpq, nw=nw, verbose=self.verbose)
 
         log.timer('RPA')
-        del(log)
+        del log
         return self.e_corr
 
     def ao2mo(self, mo_coeff=None):

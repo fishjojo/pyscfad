@@ -9,6 +9,7 @@ class UHF(hf.SCF, pyscf_uhf.UHF):
         pyscf_uhf.UHF.__init__(self, mol)
         self.__dict__.update(kwargs)
 
+    # pylint: disable=arguments-differ
     def eig(self, fock, s, x0=None):
         if x0 is not None:
             e_a, c_a = self._eigh(fock[0], s, x0[0])

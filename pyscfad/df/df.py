@@ -38,7 +38,7 @@ class DF(pyscf_df.DF):
                                               max_memory=max_memory, verbose=log)
         else:
             raise NotImplementedError("Outcore density fitting is not implemented.")
-        del(log)
+        del log
         return self
 
     def reset(self, mol=None):

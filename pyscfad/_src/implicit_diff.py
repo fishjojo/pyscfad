@@ -66,9 +66,9 @@ def _custom_root(solver_fun, optimality_fun, solve,
             try:
                 _ = optimality_fun_sig.bind(*args)
             except TypeError as err:
-                raise TypeError("The optimality function has arguments "
-                                "not compatible with the solver function: "
-                                f"{err}")
+                msg = ("The optimality function has arguments that "
+                       "are not compatible with the solver function.")
+                raise TypeError(msg) from err
 
             vjps = root_vjp(optimality_fun, sol,
                             args[1:], cotangent, solve=solve,
