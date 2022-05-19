@@ -151,6 +151,7 @@ def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
         eri1 = ao2mo.incore.full(mycc._scf._eri, eris.mo_coeff, compact=False)
         #eri1 = ao2mo.restore(1, eri1, nmo)
     eris.oooo = eri1[:nocc,:nocc,:nocc,:nocc]#.copy()
+    eris.ooov = eri1[:nocc,:nocc,:nocc,nocc:]
     eris.ovoo = eri1[:nocc,nocc:,:nocc,:nocc]#.copy()
     eris.ovov = eri1[:nocc,nocc:,:nocc,nocc:]#.copy()
     eris.oovv = eri1[:nocc,:nocc,nocc:,nocc:]#.copy()
