@@ -287,7 +287,11 @@ class SCF(pyscf_hf.SCF):
 
     def energy_grad(self, dm0=None, mode="rev"):
         """
-        Energy gradient wrt AO parameters computed by AD
+        Energy gradient wrt AO parameters computed by AD.
+        In principle, MO response is not needed, and we can just take
+        the derivative of eigen decomposition with converged
+        density matrix. But here it is implemented in this way to show
+        the difference between unrolling for loops and implicit differentiation.
 
         NOTE:
             The attributes of the SCF instance will not be modified

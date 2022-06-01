@@ -5,6 +5,8 @@ from jax import numpy as jnp
 from jax.config import config as jax_config
 jax_config.update("jax_enable_x64", True)
 
+# pylint: disable=no-member
+
 index = jnp.index_exp
 if LooseVersion(jax.__version__) < '0.2.22':
     index_update = jax.ops.index_update

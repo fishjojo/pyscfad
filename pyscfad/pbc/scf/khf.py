@@ -10,6 +10,9 @@ from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
 from pyscfad.pbc.scf import hf as pbchf
 
+# TODO add mo_coeff, which requires AD wrt complex numbers
+Traced_Attributes = ['cell', 'mo_energy', 'with_df']
+
 def get_hcore(mf, cell=None, kpts=None):
     if cell is None: cell = mf.cell
     if kpts is None: kpts = mf.kpts
@@ -25,7 +28,7 @@ def get_hcore(mf, cell=None, kpts=None):
     return nuc + t
 
 
-@util.pytree_node(pbchf.Traced_Attributes, num_args=1)
+@util.pytree_node(Traced_Attributes, num_args=1)
 class KSCF(pbchf.SCF, pyscf_khf.KSCF):
     def __init__(self, cell, kpts=numpy.zeros((1,3)),
                  exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'), **kwargs):
@@ -69,6 +72,19 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         cell = stop_grad(cell)
         return pyscf_khf.KSCF.get_init_guess(self, cell, key)
 
+    def eig(self, h_kpts, s_kpts, x0=None):
+        nkpts = len(h_kpts)
+        eig_kpts = []
+        mo_coeff_kpts = []
+        if x0 is None:
+            x0 = [None] * nkpts
+
+        for k in range(nkpts):
+            e, c = self._eigh(h_kpts[k], s_kpts[k], x0[k])
+            eig_kpts.append(e)
+            mo_coeff_kpts.append(c)
+        return eig_kpts, mo_coeff_kpts
+
 
     get_hcore = get_hcore
     get_ovlp = pyscf_khf.KSCF.get_ovlp
@@ -82,6 +98,6 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
     get_k = pyscf_khf.KSCF.get_k
     get_grad = pyscf_khf.KSCF.get_grad
     make_rdm1 = pyscf_khf.KSCF.make_rdm1
-    eig = pyscf_khf.KSCF.eig
+    #eig = pyscf_khf.KSCF.eig
 
 KRHF = KSCF
