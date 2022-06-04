@@ -66,6 +66,40 @@ def _int1e_get_dr_order(intor):
         orders = [0, 0]
     return orders
 
+def _int2e_dr1_name(intor):
+    if 'sph' in intor:
+        suffix = '_sph'
+    elif 'cart' in intor:
+        suffix = '_cart'
+    else:
+        suffix = ''
+    fname = intor.replace('_sph', '').replace('_cart', '')
+
+    if fname[-6:-4] == 'dr':
+        orders = _int2e_get_dr_order(intor)
+        str1 = str(orders[0]+1) + str(orders[1]) + str(orders[2]) + str(orders[3])
+        str2 = str(orders[0]) + str(orders[1]+1) + str(orders[2]) + str(orders[3])
+        str3 = str(orders[0]) + str(orders[1]) + str(orders[2]+1) + str(orders[3])
+        str4 = str(orders[0]) + str(orders[1]) + str(orders[2]) + str(orders[3]+1)
+        intor1 = fname[:-4] + str1 + suffix
+        intor2 = fname[:-4] + str2 + suffix
+        intor3 = fname[:-4] + str3 + suffix
+        intor4 = fname[:-4] + str4 + suffix
+    else:
+        intor1 = fname + '_dr1000' + suffix
+        intor2 = fname + '_dr0100' + suffix
+        intor3 = fname + '_dr0010' + suffix
+        intor4 = fname + '_dr0001' + suffix
+    return intor1, intor2, intor3, intor4
+
+def _int2e_get_dr_order(intor):
+    fname = intor.replace('_sph', '').replace('_cart', '')
+    if fname[-6:-4] == 'dr':
+        orders = [int(fname[-4]), int(fname[-3]), int(fname[-2]), int(fname[-1])]
+    else:
+        orders = [0,] * 4
+    return orders
+
 def getints2c_rc(mol, intor, shls_slice=None, comp=None,
                  hermi=0, aosym='s1', out=None, rc_deriv=None):
     if rc_deriv is None or not any(rc in intor for rc in SET_RC):
@@ -128,7 +162,7 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
             raise NotImplementedError(f'Integral {intor} is not supported for AD.')
 
         if intor_ip_bra or intor_ip_ket:
-            tangent_out += _gen_int1e_jvp_r0(mol, mol_t, 
+            tangent_out += _gen_int1e_jvp_r0(mol, mol_t,
                                 intor_ip_bra, intor_ip_ket, hermi=hermi).reshape(tangent_out.shape)
             if "nuc" in intor_ip_bra and "nuc" in intor_ip_ket:
                 intor_ip_bra = intor_ip_bra.replace("nuc", "rinv")
@@ -163,9 +197,8 @@ def getints4c(mol, intor,
         eri = ao2mo.restore(aosym, eri8, mol.nao)
         del eri8
     else:
-        eri = Mole.intor(mol, intor,
-                comp=comp, aosym=aosym,
-                shls_slice=shls_slice, out=out)
+        eri = Mole.intor(mol, intor, comp=comp, aosym=aosym,
+                         shls_slice=shls_slice, out=out)
     return eri
 
 @getints4c.defjvp
@@ -182,54 +215,24 @@ def getints4c_jvp(intor, shls_slice, comp, aosym, out,
     mol_t, = tangents
     tangent_out = np.zeros_like(primal_out)
 
+    fname = intor.replace('_sph', '').replace('_cart', '')
     if mol.coords is not None:
-        if "ip" in intor:
-            str12 = intor.replace("int2e_","").replace("_sph","").replace("_cart","")
-            if "1" in str12:
-                str1 = str12[:str12.index("1")+1]
-                str_a = "ip" + str12
-                if not "v" in str1:
-                    str_b = str12.replace("1", "vip1")
-                else:
-                    str_b = str12.replace("1", "ip1")
-            else:
-                str_a = "ip1" + str12
-                str_b = None
-            if "2" in str12:
-                if "1" in str12:
-                    str_c = str12.replace("1", "1ip")
-                    str2 = str12[str12.index("1")+1:]
-                else:
-                    str_c = "ip" + str12
-                    str2 = str12
-                if not "v" in str2:
-                    str_d = str12.replace("2", "vip2")
-                else:
-                    str_d = str12.replace("2", "ip2")
-            else:
-                str_c = str12 + "ip2"
-                str_d = None
-
-            if "sph" in intor:
-                suffix = "_sph"
-            elif "cart" in intor:
-                suffix = "_cart"
-            else:
-                suffix = ""
-            intors = [str_a, str_b, str_c, str_d]
-            for i, intor_i in enumerate(intors):
-                if intor_i:
-                    intors[i] = "int2e_" + intor_i + suffix
-            tangent_out += _gen_int2e_jvp_r0(mol, mol_t, intors)
+        intor1, intor2, intor3, intor4 = _int2e_dr1_name(intor)
+        if fname[-6:-4] == 'dr':
+            orders = _int2e_get_dr_order(intor)
+            if orders[0] == 0 and orders[1] == 0:
+                intor2 = None
+            if orders[2] == 0 and orders[3] == 0:
+                intor4 = None
+            tangent_out += _gen_int2e_jvp_r0(mol, mol_t, [intor1, intor2, intor3, intor4])
         else:
-            intor_ip = intor.replace("int2e", "int2e_ip1")
-            tangent_out += _int2e_jvp_r0(mol, mol_t, intor_ip)
+            tangent_out += _int2e_jvp_r0(mol, mol_t, intor1)
+
     if mol.ctr_coeff is not None:
         tangent_out += _int2e_jvp_cs(mol, mol_t, intor)
     if mol.exp is not None:
         tangent_out += _int2e_jvp_exp(mol, mol_t, intor)
     return primal_out, tangent_out
-
 
 def _get_fakemol_cs(mol):
     mol1 = uncontract(mol)
@@ -298,8 +301,9 @@ def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b, rc_deriv=None, hermi=0):
     s1a = -getints2c_rc(mol, intor_a, hermi=0, rc_deriv=rc_deriv).reshape(3,-1,nao,nao)
     s1b = None
     if hermi == 0:
-        order_a, order_b = _int1e_get_dr_order(intor_b)
-        s1b = -getints2c_rc(mol, intor_b, hermi=0, rc_deriv=rc_deriv).reshape(3**order_a,3,-1,nao,nao).transpose(1,0,2,3,4).reshape(3,-1,nao,nao)
+        order_a = _int1e_get_dr_order(intor_b)[0]
+        s1b = -getints2c_rc(mol, intor_b, hermi=0, rc_deriv=rc_deriv)
+        s1b = s1b.reshape(3**order_a,3,-1,nao,nao).transpose(1,0,2,3,4).reshape(3,-1,nao,nao)
     #jvp = np.zeros(s1a.shape[1:])
     #for k, ia in enumerate(atmlst):
     #    p0, p1 = aoslices[ia,2:]
@@ -375,7 +379,10 @@ def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b, hermi=0):
         with mol.with_rinv_at_nucleus(ia):
             vrinv = getints2c_rc(mol, intor_a, rc_deriv=ia).reshape(3,-1,nao,nao)
             if hermi == 0:
-                vrinv+= getints2c_rc(mol, intor_b, rc_deriv=ia).reshape(-1,3,nao,nao).transpose(1,0,2,3)
+                order_a = _int1e_get_dr_order(intor_b)[0]
+                s1b = getints2c_rc(mol, intor_b, rc_deriv=ia)
+                s1b = s1b.reshape(3**order_a,3,-1,nao,nao).transpose(1,0,2,3,4)
+                vrinv += s1b.reshape(3,-1,nao,nao)
             if "ECP" not in intor_a:
                 vrinv *= -mol.atom_charge(ia)
         grad = ops.index_update(grad, ops.index[k], vrinv)
@@ -543,42 +550,44 @@ def _gen_int2e_jvp_r0(mol, mol_t, intors):
     coords_t = mol_t.coords
     nao = mol.nao
     intor_a, intor_b, intor_c, intor_d = intors
-    # pylint: disable=fixme
-    # FIXME the shapes of eris are wrong for 3rd and higher order derivatives
     eri1_a = -getints4c(mol, intor_a, aosym='s1').reshape(3,-1,nao,nao,nao,nao)
     if intor_b:
+        orders = _int2e_get_dr_order(intor_b)
+        off = 3**orders[0]
         eri1_b = -getints4c(mol, intor_b, aosym='s1')
-        eri1_b = eri1_b.reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
+        eri1_b = eri1_b.reshape(off,3,-1,nao,nao,nao,nao)
+        eri1_b = eri1_b.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
     else:
         eri1_b = eri1_a.transpose(0,1,3,2,4,5)
+
+    orders = _int2e_get_dr_order(intor_c)
+    off = 3**(orders[0]+orders[1])
     eri1_c = -getints4c(mol, intor_c, aosym='s1')
-    eri1_c = eri1_c.reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
+    eri1_c = eri1_c.reshape(off,3,-1,nao,nao,nao,nao)
+    eri1_c = eri1_c.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
     if intor_d:
+        orders = _int2e_get_dr_order(intor_d)
+        off = 3**(orders[0]+orders[1]+orders[2])
         eri1_d = -getints4c(mol, intor_d, aosym='s1')
-        eri1_d = eri1_d.reshape(-1,3,nao,nao,nao,nao).transpose(1,0,2,3,4,5)
+        eri1_d = eri1_d.reshape(off,3,-1,nao,nao,nao,nao)
+        eri1_d = eri1_d.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
     else:
         eri1_d = eri1_c.transpose(0,1,2,3,5,4)
 
     aoslices = mol.aoslice_by_atom()[:,2:4]
-    grad = _gen_int2e_fill_grad_r0(eri1_a, eri1_b, eri1_c, eri1_d, aoslices)
-    return _gen_int2e_dot_grad_tangent_r0(grad, coords_t)
+    idx = np.arange(nao)
+    idx_a = idx[None,None,:,None,None,None]
+    idx_b = idx[None,None,None,:,None,None]
+    idx_c = idx[None,None,None,None,:,None]
+    idx_d = idx[None,None,None,None,None,:]
+    grad = _gen_int2e_fill_grad_r0(eri1_a, eri1_b, eri1_c, eri1_d, aoslices,
+                                   idx_a, idx_b, idx_c, idx_d)
+    jvp = np.einsum("nxyijkl,nx->yijkl", grad, coords_t)
+    return jvp
 
 @jit
-def _gen_int2e_fill_grad_r0(eri1_a, eri1_b, eri1_c, eri1_d, aoslices):
-    nao = eri1_a.shape[-1]
-    idx = np.arange(nao)
-    shape_a = [1,] * eri1_a.ndim
-    shape_a[-4] = nao
-    idx_a = idx.reshape(shape_a)
-    shape_b = [1,] * eri1_b.ndim
-    shape_b[-3] = nao
-    idx_b = idx.reshape(shape_b)
-    shape_c = [1,] * eri1_c.ndim
-    shape_c[-2] = nao
-    idx_c = idx.reshape(shape_c)
-    shape_d = [1,] * eri1_d.ndim
-    shape_d[-1] = nao
-    idx_d = idx.reshape(shape_d)
+def _gen_int2e_fill_grad_r0(eri1_a, eri1_b, eri1_c, eri1_d, aoslices,
+                            idx_a, idx_b, idx_c, idx_d):
     def body(slices):
         p0, p1 = slices[:]
         mask_a = (idx_a >= p0) & (idx_a < p1)
@@ -589,14 +598,10 @@ def _gen_int2e_fill_grad_r0(eri1_a, eri1_b, eri1_c, eri1_d, aoslices):
         grad_b = np.where(mask_b, eri1_b, np.array(0, dtype=eri1_b.dtype))
         grad_c = np.where(mask_c, eri1_c, np.array(0, dtype=eri1_c.dtype))
         grad_d = np.where(mask_d, eri1_d, np.array(0, dtype=eri1_d.dtype))
-        return grad_a + grad_b + grad_c + grad_d
+        grad = grad_a + grad_b + grad_c + grad_d
+        return grad
     grad = vmap(body)(aoslices)
     return grad
-
-@jit
-def _gen_int2e_dot_grad_tangent_r0(grad, tangent):
-    tangent_out = np.einsum("nxyijkl,nx->yijkl", grad, tangent)
-    return tangent_out
 
 def _int2e_jvp_cs(mol, mol_t, intor):
     ctr_coeff = mol.ctr_coeff

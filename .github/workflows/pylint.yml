@@ -16,6 +16,6 @@ jobs:
       - name: build lib
         run: ./.github/workflows/build_lib.sh
       - name: install pylint
-        run: pip install pylint
+        run: pip install 'pylint<2.14'
       - name: style check
         run: ./.github/workflows/lint.sh
