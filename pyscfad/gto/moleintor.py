@@ -1,3 +1,4 @@
+import warnings
 from functools import partial
 import ctypes
 import numpy
@@ -20,7 +21,15 @@ SET_RC = ["rinv",]
 def getints(mol, intor, shls_slice=None,
             comp=None, hermi=0, aosym='s1', out=None):
     if intor.endswith("_spinor"):
-        raise NotImplementedError
+        raise NotImplementedError('Spinors are not supported for AD.')
+    if hermi == 2:
+        hermi = 0
+        msg = f'Anti-hermitian symmetry is not supported. Setting hermi = {hermi}.'
+        warnings.warn(msg)
+    if aosym != 's1':
+        aosym = 's1'
+        msg = f'AO symmetry is not supported. Setting aosym = {aosym}.'
+        warnings.warn(msg)
 
     if (intor.startswith("int1e") or
         intor.startswith("int2c2e") or
@@ -30,6 +39,32 @@ def getints(mol, intor, shls_slice=None,
         return getints4c(mol, intor, shls_slice, comp, aosym, out)
     else:
         raise NotImplementedError
+
+def _int1e_dr1_name(intor):
+    if 'sph' in intor:
+        suffix = '_sph'
+    elif 'cart' in intor:
+        suffix = '_cart'
+    else:
+        suffix = ''
+    fname = intor.replace('_sph', '').replace('_cart', '')
+
+    if fname[-4:-2] == 'dr':
+        orders = [int(fname[-2]), int(fname[-1])]
+        intor_ip_bra = fname[:-2] + str(orders[0]+1) + str(orders[1]) + suffix
+        intor_ip_ket = fname[:-2] + str(orders[0]) + str(orders[1]+1) + suffix
+    else:
+        intor_ip_bra = fname + '_dr10' + suffix
+        intor_ip_ket = fname + '_dr01' + suffix
+    return intor_ip_bra, intor_ip_ket
+
+def _int1e_get_dr_order(intor):
+    fname = intor.replace('_sph', '').replace('_cart', '')
+    if fname[-4:-2] == 'dr':
+        orders = [int(fname[-2]), int(fname[-1])]
+    else:
+        orders = [0, 0]
+    return orders
 
 def getints2c_rc(mol, intor, shls_slice=None, comp=None,
                  hermi=0, aosym='s1', out=None, rc_deriv=None):
@@ -55,72 +90,58 @@ def _getints2c_rc_jvp(intor, shls_slice, comp, hermi, aosym, out, rc_deriv,
     primal_out = _getints2c_rc(mol, intor, shls_slice, comp,
                                hermi, aosym, out)
     tangent_out = np.zeros_like(primal_out)
+
     if mol.coords is not None:
-        intor_ip_bra = intor.replace("int1e_", "int1e_ip")
-        if "sph" in intor:
-            intor_ip_ket = intor.replace("_sph","") + "ip" + "_sph"
-        elif "cart" in intor:
-            intor_ip_ket = intor.replace("_cart","") + "ip" + "_cart"
-        else:
-            intor_ip_ket = intor + "ip"
+        intor_ip_bra, intor_ip_ket = _int1e_dr1_name(intor)
         tangent_out += _gen_int1e_jvp_r0(mol, mol_t, intor_ip_bra, intor_ip_ket, rc_deriv)
     return primal_out, tangent_out
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
-def getints2c(mol, intor,
-              shls_slice=None, comp=None, hermi=0, aosym='s1', out=None):
-    return Mole.intor(mol, intor,
-                      comp=comp, hermi=hermi, aosym=aosym,
+def getints2c(mol, intor, shls_slice=None, comp=None, hermi=0, aosym='s1', out=None):
+    return Mole.intor(mol, intor, comp=comp, hermi=hermi, aosym=aosym,
                       shls_slice=shls_slice, out=out)
 
 @getints2c.defjvp
 def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
                   primals, tangents):
     if shls_slice is not None:
-        raise NotImplementedError
+        msg = 'AD for integrals with subblock of shells are not supported yet.'
+        raise NotImplementedError(msg)
 
     mol, = primals
     mol_t, = tangents
 
-    primal_out = getints2c(mol, intor, shls_slice=None,
+    primal_out = getints2c(mol, intor, shls_slice=shls_slice,
                            comp=comp, hermi=hermi, aosym=aosym, out=out)
 
     tangent_out = np.zeros_like(primal_out)
+    fname = intor.replace('_sph', '').replace('_cart', '')
     if mol.coords is not None:
         intor_ip_bra = intor_ip_ket = intor_ip = None
         if intor.startswith("ECPscalar"):
             intor_ip = intor.replace("ECPscalar", "ECPscalar_ipnuc")
-        elif intor.startswith("int2c2e"):
-            intor_ip = intor.replace("int2c2e", "int2c2e_ip1")
-        elif intor.startswith("int1e"):
-            if "ip" in intor:
-                intor_ip_bra = intor.replace("int1e_", "int1e_ip")
-                if "sph" in intor:
-                    intor_ip_ket = intor.replace("_sph","") + "ip" + "_sph"
-                elif "cart" in intor:
-                    intor_ip_ket = intor.replace("_cart","") + "ip" + "_cart"
-                else:
-                    intor_ip_ket = intor + "ip"
-            elif intor in ['int1e_r', 'int1e_r_sph', 'int1e_r_cart']:
-                intor_ip = intor.replace('int1e_r', 'int1e_irp')
-            else:
-                intor_ip = intor.replace("int1e_", "int1e_ip")
+        elif fname == 'int1e_r':
+            intor_ip = intor.replace('int1e_r', 'int1e_irp')
+        elif fname.startswith("int1e") or fname.startswith("int2c2e"):
+            intor_ip_bra, intor_ip_ket = _int1e_dr1_name(intor)
+        else:
+            raise NotImplementedError(f'Integral {intor} is not supported for AD.')
+
         if intor_ip_bra or intor_ip_ket:
-            tangent_out += _gen_int1e_jvp_r0(mol, mol_t, intor_ip_bra, intor_ip_ket)
+            tangent_out += _gen_int1e_jvp_r0(mol, mol_t, 
+                                intor_ip_bra, intor_ip_ket, hermi=hermi).reshape(tangent_out.shape)
             if "nuc" in intor_ip_bra and "nuc" in intor_ip_ket:
                 intor_ip_bra = intor_ip_bra.replace("nuc", "rinv")
                 intor_ip_ket = intor_ip_ket.replace("nuc", "rinv")
-                tangent_out += _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_ip_bra, intor_ip_ket)
-            return primal_out, tangent_out
-        elif intor_ip.startswith("int1e_ir"):
+                tangent_out += _gen_int1e_nuc_jvp_rc(mol, mol_t,
+                                intor_ip_bra, intor_ip_ket, hermi=hermi).reshape(tangent_out.shape)
+        elif fname == 'int1e_r':
             tangent_out += _int1e_r_jvp_r0(mol, mol_t, intor_ip)
         else:
             tangent_out += _int1e_jvp_r0(mol, mol_t, intor_ip)
 
         intor_ip = None
-        if intor.startswith("int1e_nuc"):
-            intor_ip = intor.replace("int1e_nuc", "int1e_iprinv")
-        elif intor.startswith("ECPscalar"):
+        if intor.startswith("ECPscalar"):
             intor_ip = intor.replace("ECPscalar", "ECPscalar_iprinv")
         if intor_ip:
             tangent_out += _int1e_nuc_jvp_rc(mol, mol_t, intor_ip)
@@ -268,14 +289,17 @@ def _int1e_dot_grad_tangent_r0(grad, tangent):
     tangent_out += tangent_out.T
     return tangent_out
 
-def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b, rc_deriv=None):
+def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b, rc_deriv=None, hermi=0):
     coords_t = mol_t.coords
     #atmlst = range(mol.natm)
     aoslices = mol.aoslice_by_atom()[:,2:4]
     nao = mol.nao
 
-    s1a = -getints2c(mol, intor_a).reshape(3,-1,nao,nao)
-    s1b = -getints2c(mol, intor_b).reshape(-1,3,nao,nao).transpose(1,0,2,3)
+    s1a = -getints2c_rc(mol, intor_a, hermi=0, rc_deriv=rc_deriv).reshape(3,-1,nao,nao)
+    s1b = None
+    if hermi == 0:
+        order_a, order_b = _int1e_get_dr_order(intor_b)
+        s1b = -getints2c_rc(mol, intor_b, hermi=0, rc_deriv=rc_deriv).reshape(3**order_a,3,-1,nao,nao).transpose(1,0,2,3,4).reshape(3,-1,nao,nao)
     #jvp = np.zeros(s1a.shape[1:])
     #for k, ia in enumerate(atmlst):
     #    p0, p1 = aoslices[ia,2:]
@@ -283,43 +307,36 @@ def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b, rc_deriv=None):
     #    tb = np.einsum('xyij,x->yij', s1b[...,p0:p1], coords_t[k])
     #    jvp = ops.index_add(jvp, ops.index[:,p0:p1], ta)
     #    jvp = ops.index_add(jvp, ops.index[:,:,p0:p1], tb)
-    grad = _gen_int1e_fill_grad_r0(s1a, s1b, aoslices)
+    idx = np.arange(nao)
+    grad = _gen_int1e_fill_grad_r0(s1a, aoslices, idx[None,None,:,None])
+    if hermi == 0:
+        grad = grad + _gen_int1e_fill_grad_r0(s1b, aoslices, idx[None,None,None,:])
     if rc_deriv is not None:
-        grad = ops.index_add(grad, ops.index[rc_deriv], -s1a-s1b)
-    jvp = _gen_int1e_dot_grad_tangent_r0(grad, coords_t)
+        grad_rc = -s1a
+        if hermi == 0:
+            grad_rc -= s1b
+        grad = ops.index_add(grad, ops.index[rc_deriv], grad_rc)
+    jvp = np.einsum('nxyij,nx->yij', grad, coords_t)
+    if hermi == 1:
+        jvp += jvp.transpose(0,2,1)
     return jvp
 
 @jit
-def _gen_int1e_fill_grad_r0(s1a, s1b, aoslices):
-    nao = s1a.shape[-1]
-    idx = np.arange(nao)
-    shape = [1,] * s1a.ndim
-    shape[-2] = nao
-    idx_a = idx.reshape(shape)
-    shape[-2] = 1
-    shape[-1] = nao
-    idx_b = idx.reshape(shape)
+def _gen_int1e_fill_grad_r0(s1, aoslices, idx):
     def body(slices):
         p0, p1 = slices[:]
-        mask = (idx_a >= p0) & (idx_a < p1)
-        grad_a = np.where(mask, s1a, np.array(0, dtype=s1a.dtype))
-        mask = (idx_b >= p0) & (idx_b < p1)
-        grad_b = np.where(mask, s1b, np.array(0, dtype=s1b.dtype))
-        return grad_a + grad_b
+        mask = (idx >= p0) & (idx < p1)
+        grad = np.where(mask, s1, np.array(0, dtype=s1.dtype))
+        return grad
     grad = vmap(body)(aoslices)
     return grad
-
-@jit
-def _gen_int1e_dot_grad_tangent_r0(grad, tangent):
-    tangent_out = np.einsum('nxyij,nx->yij', grad, tangent)
-    return tangent_out
 
 def _int1e_r_jvp_r0(mol, mol_t, intor):
     coords_t = mol_t.coords
     atmlst = range(mol.natm)
     aoslices = mol.aoslice_by_atom()
     nao = mol.nao
-    s1 = -Mole.intor(mol, intor).reshape(3,-1,nao,nao)
+    s1 = -getints2c(mol, intor).reshape(-1,3,nao,nao)
     grad = [numpy.zeros_like(s1) for ia in atmlst]
     grad = numpy.asarray(grad)
     for k, ia in enumerate(atmlst):
@@ -330,7 +347,7 @@ def _int1e_r_jvp_r0(mol, mol_t, intor):
 
 @jit
 def _int1e_r_dot_grad_tangent_r0(grad, tangent):
-    tangent_out = np.einsum('nxpij,nx->pij', grad, tangent)
+    tangent_out = np.einsum('npxij,nx->pij', grad, tangent)
     tangent_out += tangent_out.transpose(0,2,1)
     return tangent_out
 
@@ -348,7 +365,7 @@ def _int1e_nuc_jvp_rc(mol, mol_t, intor):
     tangent_out = _int1e_dot_grad_tangent_r0(grad, coords_t)
     return tangent_out
 
-def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b):
+def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b, hermi=0):
     coords_t = mol_t.coords
     atmlst = range(mol.natm)
     nao = mol.nao
@@ -357,12 +374,15 @@ def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b):
     for k, ia in enumerate(atmlst):
         with mol.with_rinv_at_nucleus(ia):
             vrinv = getints2c_rc(mol, intor_a, rc_deriv=ia).reshape(3,-1,nao,nao)
-            vrinv+= getints2c_rc(mol, intor_b, rc_deriv=ia).reshape(-1,3,nao,nao).transpose(1,0,2,3)
+            if hermi == 0:
+                vrinv+= getints2c_rc(mol, intor_b, rc_deriv=ia).reshape(-1,3,nao,nao).transpose(1,0,2,3)
             if "ECP" not in intor_a:
                 vrinv *= -mol.atom_charge(ia)
         grad = ops.index_update(grad, ops.index[k], vrinv)
-    tangent_out = _gen_int1e_dot_grad_tangent_r0(grad, coords_t)
-    return tangent_out
+    jvp = np.einsum('nxyij,nx->yij', grad, coords_t)
+    if hermi == 1:
+        jvp = jvp + jvp.transpose(0,2,1)
+    return jvp
 
 def _int1e_jvp_cs(mol, mol_t, intor):
     ctr_coeff = mol.ctr_coeff
