@@ -95,7 +95,7 @@ def _scf(mo_coeff_energy, mf, s1e, h1e, mo_occ, *,
     return (mo_coeff, mo_energy), scf_conv, mo_occ
 
 if SCF_IMPLICIT_DIFF:
-    solver = partial(linear_solve.solve_gmres, tol=1e-5,
+    solver = partial(linear_solve.solve_gmres, tol=1e-9,
                      solve_method='incremental', maxiter=30)
     _scf = implicit_diff.custom_fixed_point(
                 _converged_scf, solve=solver, has_aux=True,
