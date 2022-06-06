@@ -25,17 +25,19 @@ def eig(h, s, x0=None):
     e, c = eigh(h, s, x0)
     return e, c
 
-def _converged_scf(mo_coeff, mf, s1e, h1e, mo_occ):
+def _converged_scf(mo_coeff_energy, mf, s1e, h1e, mo_occ):
+    mo_coeff, mo_energy = mo_coeff_energy
     mol = getattr(mf, "cell", mf.mol)
     dm = mf.make_rdm1(mo_coeff, mo_occ)
     vhf = mf.get_veff(mol, dm)
     fock = mf.get_fock(h1e, s1e, vhf, dm)
-    _, mo_coeff_new = mf.eig(fock, s1e, mo_coeff)
-    return mo_coeff_new
+    mo_energy_new, mo_coeff_new = mf.eig(fock, s1e, mo_coeff)
+    return (mo_coeff_new, mo_energy_new)
 
-def _scf(mo_coeff, mf, s1e, h1e, mo_occ, *,
+def _scf(mo_coeff_energy, mf, s1e, h1e, mo_occ, *,
          dm0=None, conv_tol=1e-10, conv_tol_grad=None, diis=None,
          dump_chk=True, callback=None, log=None):
+    mo_coeff, mo_energy = mo_coeff_energy
     if conv_tol_grad is None:
         conv_tol_grad = numpy.sqrt(conv_tol)
     if log is None:
@@ -90,8 +92,7 @@ def _scf(mo_coeff, mf, s1e, h1e, mo_occ, *,
 
         if scf_conv:
             break
-
-    return mo_coeff, scf_conv, mo_occ, mo_energy
+    return (mo_coeff, mo_energy), scf_conv, mo_occ
 
 if SCF_IMPLICIT_DIFF:
     solver = partial(linear_solve.solve_gmres, tol=1e-5,
@@ -159,11 +160,8 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     #mf.pre_kernel(locals())
 
     # SCF iteration
-    # NOTE if implicit differentiation is applied,
-    #      the gradient of mo_energy will be lost,
-    #      and an extra diagonalization is needed to restore it.
-    mo_coeff, scf_conv, mo_occ, mo_energy = \
-            _scf(mo_coeff, mf, s1e, h1e, mo_occ, dm0=dm,
+    (mo_coeff, mo_energy), scf_conv, mo_occ = \
+            _scf((mo_coeff, mo_energy), mf, s1e, h1e, mo_occ, dm0=dm,
                  conv_tol=conv_tol, conv_tol_grad=conv_tol_grad,
                  diis=mf_diis, dump_chk=dump_chk, callback=callback, log=log)
 
