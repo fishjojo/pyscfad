@@ -1,3 +1,4 @@
+from jax import jit
 from jax import vmap
 from pyscf import lib
 from pyscf.lib import logger
@@ -28,14 +29,6 @@ def kernel(mycc, eris, t1=None, t2=None, verbose=logger.NOTE):
     eris_vooo = np.asarray(eris.ovoo).conj().transpose(1,0,3,2)
     eris_vvoo = np.asarray(eris.ovov).conj().transpose(1,3,0,2)
     fvo = eris.fock[nocc:,:nocc]
-    def get_w(a, b, c):
-        w = np.einsum('if,fkj->ijk', eris_vvov[a,b], t2T[c,:])
-        w-= np.einsum('ijm,mk->ijk', eris_vooo[a,:], t2T[b,c])
-        return w
-    def get_v(a, b, c):
-        v = np.einsum('ij,k->ijk', eris_vvoo[a,b], t1T[c])
-        v+= np.einsum('ij,k->ijk', t2T[a,b], fvo[c])
-        return v
 
     idx = []
     scal = []
@@ -53,6 +46,32 @@ def kernel(mycc, eris, t1=None, t2=None, verbose=logger.NOTE):
 
     idx = np.asarray(idx, dtype=np.int32)
     scal = np.asarray(scal, dtype=float)
+
+    et = _compute_et(t1, t2, eris_vvov, eris_vooo, eris_vvoo,
+                     fvo, eijk, e_vir, idx, scal)
+    log.info('CCSD(T) correction = %.15g', et)
+    return et
+
+@jit
+def _compute_et(t1, t2, eris_vvov, eris_vooo, eris_vvoo,
+                fvo, eijk, e_vir, idx, scal):
+    t1T = t1.T
+    t2T = t2.transpose(2,3,0,1)
+
+    def get_w(a, b, c):
+        w = np.einsum('if,fkj->ijk', eris_vvov[a,b], t2T[c,:])
+        w-= np.einsum('ijm,mk->ijk', eris_vooo[a,:], t2T[b,c])
+        return w
+
+    def get_v(a, b, c):
+        v = np.einsum('ij,k->ijk', eris_vvoo[a,b], t1T[c])
+        v+= np.einsum('ij,k->ijk', t2T[a,b], fvo[c])
+        return v
+
+    def r3(w):
+        return (4 * w + w.transpose(1,2,0) + w.transpose(2,0,1)
+                - 2 * w.transpose(2,1,0) - 2 * w.transpose(0,2,1)
+                - 2 * w.transpose(1,0,2))
 
     def body(index, fac):
         a, b, c = index[:]
@@ -122,12 +141,5 @@ def kernel(mycc, eris, t1=None, t2=None, verbose=logger.NOTE):
         return et
 
     et = vmap(body, in_axes=(0,0))(idx, scal)
-    et = np.sum(et)
-    et *= 2
-    log.info('CCSD(T) correction = %.15g', et)
+    et = np.sum(et) * 2
     return et
-
-def r3(w):
-    return (4 * w + w.transpose(1,2,0) + w.transpose(2,0,1)
-            - 2 * w.transpose(2,1,0) - 2 * w.transpose(0,2,1)
-            - 2 * w.transpose(1,0,2))
