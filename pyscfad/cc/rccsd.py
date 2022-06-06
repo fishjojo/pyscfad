@@ -108,7 +108,7 @@ def update_amps(cc, t1, t2, eris):
     t2new /= eijab
     return t1new, t2new
 
-@util.pytree_node(ccsd.Traced_Attributes, num_args=1)
+@util.pytree_node(ccsd.CC_Tracers, num_args=1)
 class RCCSD(ccsd.CCSD):
     def kernel(self, t1=None, t2=None, eris=None, mbpt2=False):
         return self.ccsd(t1, t2, eris, mbpt2)
@@ -162,6 +162,7 @@ def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
     del(log)
     return eris
 
+@util.pytree_node(ccsd.ERI_Tracers)
 class _ChemistsERIs(ccsd._ChemistsERIs):
     def get_ovvv(self, *slices):
         '''To access a subblock of ovvv tensor'''

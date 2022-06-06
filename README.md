@@ -41,4 +41,5 @@ pyscf_numpy_backend = 'jax'
 pyscf_scipy_linalg_backend = 'pyscfad'
 pyscf_scipy_backend = 'jax'
 pyscfad_scf_implicit_diff = True
+pyscfad_ccsd_implicit_diff = True
 ```
