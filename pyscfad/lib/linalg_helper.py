@@ -40,6 +40,7 @@ def _eigh(a, b, lower=True,
         w, v = scipy.linalg.eigh(a, b=b, lower=lower, check_finite=check_finite, driver=driver)
     else:
         w, v = scipy.linalg.eigh(a, b=b, lower=lower, check_finite=check_finite, turbo=turbo)
+    w = np.asarray(w, dtype=v.dtype)
     return w, v
 
 @_eigh.defjvp
@@ -70,7 +71,7 @@ def _eigh_jvp_jitted(w, v, Fmat, at, bt):
     vt_bt_v = np.dot(v.conj().T, np.dot(bt, v))
     vt_bt_v_w = np.dot(vt_bt_v, np.diag(w))
     da_minus_ds = vt_at_v - vt_bt_v_w
-    dw = np.diag(da_minus_ds).real
+    dw = np.diag(da_minus_ds)#.real
 
     eye_n = np.eye(vt_bt_v.shape[-1])
     dv = np.dot(v, np.multiply(Fmat, da_minus_ds) - np.multiply(eye_n, vt_bt_v) * .5)

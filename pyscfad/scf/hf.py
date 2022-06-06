@@ -31,8 +31,8 @@ def _converged_scf(mo_coeff_energy, mf, s1e, h1e, mo_occ):
     dm = mf.make_rdm1(mo_coeff, mo_occ)
     vhf = mf.get_veff(mol, dm)
     fock = mf.get_fock(h1e, s1e, vhf, dm)
-    mo_energy_new, mo_coeff_new = mf.eig(fock, s1e, mo_coeff)
-    return (mo_coeff_new, mo_energy_new)
+    mo_energy, mo_coeff = mf.eig(fock, s1e, mo_coeff)
+    return (mo_coeff, mo_energy)
 
 def _scf(mo_coeff_energy, mf, s1e, h1e, mo_occ, *,
          dm0=None, conv_tol=1e-10, conv_tol_grad=None, diis=None,
