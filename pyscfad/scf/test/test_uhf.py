@@ -1,21 +1,7 @@
-import pytest
-import pyscf
-from pyscfad import gto, scf
+from pyscfad import scf
 
-@pytest.fixture
-def get_h2o():
-    mol = gto.Mole()
-    mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
-    mol.basis = 'sto3g'
-    mol.spin = 1
-    mol.charge = 1
-    mol.verbose=0
-    mol.build(trace_exp=False, trace_ctr_coeff=False)
-    return mol
-
-# pylint: disable=redefined-outer-name
-def test_nuc_grad(get_h2o):
-    mol = get_h2o
+def test_nuc_grad(get_h2o_plus):
+    mol = get_h2o_plus
     mf = scf.UHF(mol)
     g1 = mf.energy_grad().coords
     mf.kernel()

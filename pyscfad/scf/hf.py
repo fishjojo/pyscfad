@@ -25,19 +25,17 @@ def eig(h, s, x0=None):
     e, c = eigh(h, s, x0)
     return e, c
 
-def _converged_scf(mo_coeff_energy, mf, s1e, h1e, mo_occ):
-    mo_coeff, mo_energy = mo_coeff_energy
+def _converged_scf(mo_coeff, mf, s1e, h1e, mo_occ):
     mol = getattr(mf, "cell", mf.mol)
     dm = mf.make_rdm1(mo_coeff, mo_occ)
     vhf = mf.get_veff(mol, dm)
     fock = mf.get_fock(h1e, s1e, vhf, dm)
-    mo_energy, mo_coeff = mf.eig(fock, s1e, mo_coeff)
-    return (mo_coeff, mo_energy)
+    _, mo_coeff = mf.eig(fock, s1e, mo_coeff)
+    return mo_coeff
 
-def _scf(mo_coeff_energy, mf, s1e, h1e, mo_occ, *,
+def _scf(mo_coeff, mf, s1e, h1e, mo_occ, *,
          dm0=None, conv_tol=1e-10, conv_tol_grad=None, diis=None,
          dump_chk=True, callback=None, log=None):
-    mo_coeff, mo_energy = mo_coeff_energy
     if conv_tol_grad is None:
         conv_tol_grad = numpy.sqrt(conv_tol)
     if log is None:
@@ -92,7 +90,7 @@ def _scf(mo_coeff_energy, mf, s1e, h1e, mo_occ, *,
 
         if scf_conv:
             break
-    return (mo_coeff, mo_energy), scf_conv, mo_occ
+    return mo_coeff, scf_conv, mo_occ, mo_energy
 
 if SCF_IMPLICIT_DIFF:
     solver = partial(linear_solve.solve_gmres, tol=1e-9,
@@ -160,8 +158,8 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     #mf.pre_kernel(locals())
 
     # SCF iteration
-    (mo_coeff, mo_energy), scf_conv, mo_occ = \
-            _scf((mo_coeff, mo_energy), mf, s1e, h1e, mo_occ, dm0=dm,
+    mo_coeff, scf_conv, mo_occ, mo_energy = \
+            _scf(mo_coeff, mf, s1e, h1e, mo_occ, dm0=dm,
                  conv_tol=conv_tol, conv_tol_grad=conv_tol_grad,
                  diis=mf_diis, dump_chk=dump_chk, callback=callback, log=log)
 
@@ -170,7 +168,14 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     vhf = mf.get_veff(mol, dm)
     e_tot = mf.energy_tot(dm, h1e, vhf)
 
-    if scf_conv and conv_check:
+    run_extra_cycle = False
+    if SCF_IMPLICIT_DIFF and (not conv_check or not scf_conv):
+        log.warn('\tAn extra scf cycle is going to be run\n'
+                 '\tin order to restore the mo_energy derivatives\n'
+                 '\tmissing in implicit differentiation.')
+        run_extra_cycle = True
+
+    if (scf_conv and conv_check) or run_extra_cycle:
         # An extra diagonalization, to remove level shift
         fock = mf.get_fock(h1e, s1e, vhf, dm)
         mo_energy, mo_coeff = mf.eig(fock, s1e)
