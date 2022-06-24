@@ -8,7 +8,7 @@ from pyscfad import ao2mo
 from pyscfad.cc import ccsd
 from pyscfad.cc import rintermediates as imd
 
-@jit
+#@jit
 def update_amps(cc, t1, t2, eris):
     nocc, nvir = t1.shape
     fock = eris.fock

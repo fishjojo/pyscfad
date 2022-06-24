@@ -116,7 +116,8 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
 
     h1e = mf.get_hcore(mol)
     if mf._eri is None:
-        mf._eri = mol.intor('int2e', aosym='s1')
+        if getattr(mf, 'with_df', None) is None:
+            mf._eri = mol.intor('int2e', aosym='s1')
 
     scf_conv = False
     mo_energy = mo_coeff = mo_occ = None

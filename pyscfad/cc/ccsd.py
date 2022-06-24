@@ -20,15 +20,17 @@ ERI_Tracers = ['fock', 'mo_energy', #'mol', 'mo_coeff', 'e_hf',
                'oooo', 'ooov', 'ovoo', 'ovov', 'oovv', 'ovvo', 'ovvv', 'vvvv']
 
 def _converged_iter(amp, mycc, eris):
-    t1, t2 = mycc.update_amps(amp[0], amp[1], eris)
-    return (t1, t2)
+    t1, t2 = mycc.vector_to_amplitudes(amp)
+    t1, t2 = mycc.update_amps(t1, t2, eris)
+    amp = mycc.amplitudes_to_vector(t1, t2)
+    return amp
 
 def _iter(amp, mycc, eris, *,
           diis=None, max_cycle=50, tol=1e-8,
           tolnormt=1e-6, verbose=None):
     log = logger.new_logger(mycc, verbose)
 
-    t1, t2 = amp
+    t1, t2 = mycc.vector_to_amplitudes(amp)
     eold = 0
     eccsd = mycc.energy(t1, t2, eris)
     log.info('Init E_corr(CCSD) = %.15g', eccsd)
@@ -56,7 +58,8 @@ def _iter(amp, mycc, eris, *,
         if abs(eccsd-eold) < tol and normt < tolnormt:
             conv = True
             break
-    return (t1, t2), conv
+    amp = mycc.amplitudes_to_vector(t1, t2)
+    return amp, conv
 
 if CCSD_IMPLICIT_DIFF:
     solver = partial(linear_solve.solve_gmres, tol=1e-5,
@@ -83,9 +86,11 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
     else:
         adiis = None
 
-    (t1, t2), conv = _iter((t1, t2), mycc, eris,
-                           diis=adiis, max_cycle=max_cycle, tol=tol,
-                           tolnormt=tolnormt, verbose=log)
+    vec = mycc.amplitudes_to_vector(t1, t2)
+    vec, conv = _iter(vec, mycc, eris,
+                      diis=adiis, max_cycle=max_cycle, tol=tol,
+                      tolnormt=tolnormt, verbose=log)
+    t1, t2 = mycc.vector_to_amplitudes(vec)
     eccsd = mycc.energy(t1, t2, eris)
     log.timer('CCSD', *cput0)
     return conv, eccsd, t1, t2
@@ -189,15 +194,4 @@ class _ChemistsERIs(pyscf_ccsd._ChemistsERIs):
         self.mol = mycc.mol
 
         mo_e = self.mo_energy = self.fock.diagonal().real
-        """
-        try:
-            gap = abs(mo_e[:nocc,None] - mo_e[None,nocc:]).min()
-            if gap < 1e-5:
-                logger.warn(mycc, 'HOMO-LUMO gap %s too small for CCSD.\n'
-                            'CCSD may be difficult to converge. Increasing '
-                            'CCSD Attribute level_shift may improve '
-                            'convergence.', gap)
-        except ValueError:  # gap.size == 0
-            pass
-        """
         return self

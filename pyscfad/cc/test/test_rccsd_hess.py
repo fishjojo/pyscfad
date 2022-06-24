@@ -4,7 +4,7 @@ import jax
 from pyscf import lib
 from pyscfad import gto, scf, cc
 
-def test_nuc_grad(get_mol):
+def test_nuc_hessian(get_mol):
     mol = get_mol
     def energy(mol):
         mf = scf.RHF(mol)

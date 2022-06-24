@@ -8,6 +8,7 @@ def test_df_hf_nuc_grad(get_h2):
     dm = mf.make_rdm1()
     def hf_energy(mf, dm0=None):
         mf.reset()
+        mf.with_df.build() #avoid rebuilding the integrals
         e_tot = mf.kernel(dm0=dm0)
         return e_tot
     jac = jax.grad(hf_energy)(mf)

@@ -1,4 +1,4 @@
-from jax import custom_jvp
+from jax import vmap, custom_jvp
 from pyscf import __config__
 from pyscf import gto
 from pyscf.lib import logger, param
@@ -12,44 +12,31 @@ from ._mole_helper import setup_exp, setup_ctr_coeff
 
 Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
 
-def energy_nuc(mol, charges=None, coords=None):
+def energy_nuc(mol, charges=None, **kwargs):
     if charges is None:
         charges = mol.atom_charges()
     if len(charges) <= 1:
-        return 0
-    rr = inter_distance(mol, coords)
-    e = np.einsum('i,ij,j->', charges, 1./rr, charges) * .5
-    return e
-
-def inter_distance(mol, coords=None):
-    coords = mol.atom_coords()
-    return _rr(coords)
+        return 0.0
+    rr = distance_matrix(mol.atom_coords())
+    enuc = np.einsum('i,ij,j->', charges, 1./rr, charges) * .5
+    return enuc
 
 @custom_jvp
-def _rr(coords):
-    coords = np.asarray(coords)
-    rr = np.linalg.norm(coords.reshape(-1,1,3) - coords, axis=2)
-    #rr[numpy.diag_indices_from(rr)] = 1e200
-    rr = ops.index_update(rr, np.diag_indices_from(rr), 1e200)
+def distance_matrix(coords):
+    rr = np.linalg.norm(coords[:,None,:] - coords[None,:,:], axis=2)
+    rr = rr.at[np.diag_indices_from(rr)].set(1e200)
     return rr
 
-@_rr.defjvp
-def _rr_jvp(primals, tangents):
+@distance_matrix.defjvp
+def distance_matrix_jvp(primals, tangents):
     coords, = primals
     coords_t, = tangents
-
-    rnorm = primal_out = _rr(coords)
-
-    r = coords.reshape(-1,1,3) - coords
-    natm = coords.shape[0]
-    #tangent_out = np.zeros_like(primal_out)
-    grad = np.zeros((natm,natm,3), dtype=float)
-    for i in range(natm):
-        #tangent_out = ops.index_add(tangent_out, ops.index[i],
-        #                            np.dot(r[i] / rnorm[i,:,None], coords_t[i]))
-        #grad[i] += r[i] / rnorm[i,:,None]
-        grad = ops.index_add(grad, ops.index[i], r[i] / rnorm[i,:,None])
-    tangent_out = np.einsum("ijx,ix->ij", grad, coords_t)
+    rnorm = primal_out = distance_matrix(coords)
+    def body(r1, r2, rnorm, coords_t):
+        r = r1 - r2
+        jvp = np.dot(r / rnorm[:,None], coords_t)
+        return jvp
+    tangent_out = vmap(body, (0,None,0,0))(coords, coords, rnorm, coords_t)
     tangent_out += tangent_out.T
     return primal_out, tangent_out
 
