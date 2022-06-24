@@ -4,7 +4,7 @@ from pyscf import __config__
 from pyscf.pbc.scf import khf as pyscf_khf
 from pyscfad import lib
 from pyscfad import util
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
@@ -24,7 +24,7 @@ def get_hcore(mf, cell=None, kpts=None):
     if len(cell._ecpbas) > 0:
         raise NotImplementedError
         #nuc += lib.asarray(ecp.ecp_int(cell, kpts))
-    t = jnp.asarray(cell.pbc_intor('int1e_kin', 1, 1, kpts))
+    t = np.asarray(cell.pbc_intor('int1e_kin', 1, 1, kpts))
     return nuc + t
 
 

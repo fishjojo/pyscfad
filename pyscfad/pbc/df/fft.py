@@ -5,7 +5,7 @@ from pyscf import lib as pyscf_lib
 from pyscf.pbc.lib.kpts_helper import gamma_point
 from pyscf.pbc.df import fft as pyscf_fft
 from pyscfad import lib
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.pbc import tools 
 from pyscfad.pbc.gto import Cell
 
@@ -25,7 +25,7 @@ def get_pp(mydf, kpts=None, cell=None):
     SI = cell.get_SI()
     Gv = cell.get_Gv(mesh)
     vpplocG = pseudo.get_vlocG(cell, Gv)
-    vpplocG = -jnp.einsum('ij,ij->j', SI, vpplocG)
+    vpplocG = -np.einsum('ij,ij->j', SI, vpplocG)
     ngrids = len(vpplocG)
 
     # vpploc evaluated in real-space
@@ -34,7 +34,7 @@ def get_pp(mydf, kpts=None, cell=None):
     for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts_lst, cell=cell):
         ao_ks = ao_ks_etc[0]
         for k, ao in enumerate(ao_ks):
-            vpp[k] += jnp.dot(ao.T.conj()*vpplocR[p0:p1], ao)
+            vpp[k] += np.dot(ao.T.conj()*vpplocR[p0:p1], ao)
         ao = ao_ks = None
 
     # vppnonloc evaluated in reciprocal space
@@ -88,7 +88,7 @@ def get_pp(mydf, kpts=None, cell=None):
             if p1 > 0:
                 SPG_lmi = buf[:p1]
                 SPG_lmi *= SI[ia].conj()
-                SPG_lm_aoGs = jnp.dot(SPG_lmi, aokG)
+                SPG_lm_aoGs = np.dot(SPG_lmi, aokG)
                 p1 = 0
                 for l, proj in enumerate(pp[5:]):
                     rl, nl, hl = proj
@@ -96,8 +96,8 @@ def get_pp(mydf, kpts=None, cell=None):
                         p0, p1 = p1, p1+nl*(l*2+1)
                         hl = numpy.asarray(hl)
                         SPG_lm_aoG = SPG_lm_aoGs[p0:p1].reshape(nl,l*2+1,-1)
-                        tmp = jnp.einsum('ij,jmp->imp', hl, SPG_lm_aoG)
-                        vppnl += jnp.einsum('imp,imq->pq', SPG_lm_aoG.conj(), tmp)
+                        tmp = np.einsum('ij,jmp->imp', hl, SPG_lm_aoG)
+                        vppnl += np.einsum('imp,imq->pq', SPG_lm_aoG.conj(), tmp)
         #return vppnl * (1./cell.vol)
         return vppnl * (1./ngrids**2)
 
@@ -110,7 +110,7 @@ def get_pp(mydf, kpts=None, cell=None):
 
     if kpts is None or numpy.shape(kpts) == (3,):
         vpp = vpp[0]
-    return jnp.asarray(vpp)
+    return np.asarray(vpp)
 
 
 @lib.dataclass

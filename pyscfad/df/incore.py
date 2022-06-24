@@ -1,6 +1,5 @@
 from functools import partial
 import numpy
-from jax import numpy as jnp
 from jax import scipy
 from jax import custom_jvp
 from pyscf import lib
@@ -10,6 +9,7 @@ from pyscf.gto.moleintor import getints
 from pyscf.df.outcore import _guess_shell_ranges
 from pyscf import __config__
 from pyscfad.lib import ops
+from pyscfad.lib import numpy as np
 from . import addons
 
 MAX_MEMORY = getattr(__config__, 'df_outcore_max_memory', 2000)
@@ -36,7 +36,7 @@ def int3c_cross_jvp(intor, comp, aosym, out, shls_slice, primals, tangents):
 
     primal_out = int3c_cross(mol, auxmol, intor=intor, comp=comp,
                              aosym=aosym, out=out, shls_slice=shls_slice)
-    tangent_out = jnp.zeros_like(primal_out)
+    tangent_out = np.zeros_like(primal_out)
 
     if intor.startswith("int3c2e") and not "spinor" in intor:
         intor_ip1 = intor.replace("int3c2e", "int3c2e_ip1")
@@ -61,23 +61,23 @@ def int3c_cross_jvp(intor, comp, aosym, out, shls_slice, primals, tangents):
 
 def _int3c_fill_grad_r0_ip1(mol, mol_dot, ints):
     shape = [mol.natm,] + list(ints.shape)
-    grad = jnp.zeros(shape, dtype=ints.dtype)
+    grad = np.zeros(shape, dtype=ints.dtype)
     aoslices = mol.aoslice_by_atom()
     for ia in range(mol.natm):
         p0, p1 = aoslices[ia,2:]
         grad = ops.index_update(grad, ops.index[ia,:,p0:p1], ints[:,p0:p1])
-    tangent_out = jnp.einsum('nxijk,nx->ijk', grad, mol_dot.coords)
+    tangent_out = np.einsum('nxijk,nx->ijk', grad, mol_dot.coords)
     tangent_out += tangent_out.transpose(1,0,2)
     return tangent_out
 
 def _int3c_fill_grad_r0_ip2(mol, mol_dot, ints):
     shape = [mol.natm,] + list(ints.shape)
-    grad = jnp.zeros(shape, dtype=ints.dtype)
+    grad = np.zeros(shape, dtype=ints.dtype)
     aoslices = mol.aoslice_by_atom()
     for ia in range(mol.natm):
         p0, p1 = aoslices[ia,2:]
         grad = ops.index_update(grad, ops.index[ia,...,p0:p1], ints[...,p0:p1])
-    tangent_out = jnp.einsum('nxijk,nx->ijk', grad, mol_dot.coords)
+    tangent_out = np.einsum('nxijk,nx->ijk', grad, mol_dot.coords)
     return tangent_out
 
 
@@ -101,7 +101,7 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
     except: #scipy.linalg.LinAlgError:
         w, v = scipy.linalg.eigh(j2c)
         idx = w > LINEAR_DEP_THR
-        low = (v[:,idx] / jnp.sqrt(w[idx]))
+        low = (v[:,idx] / np.sqrt(w[idx]))
         v = None
         tag = 'eig'
     j2c = None
@@ -122,7 +122,7 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
         cderi = scipy.linalg.solve_triangular(low, ints, lower=True,
                                               overwrite_b=True, check_finite=False)
     else:
-        cderi = jnp.dot(low.T, ints)
+        cderi = np.dot(low.T, ints)
 
     log.timer('cholesky_eri', *t0)
     del log

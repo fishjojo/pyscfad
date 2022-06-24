@@ -1,5 +1,4 @@
 import tempfile
-from jax import numpy as jnp
 from pyscf import __config__
 from pyscf import lib as pyscf_lib
 from pyscf.lib import logger

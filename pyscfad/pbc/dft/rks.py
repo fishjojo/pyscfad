@@ -6,7 +6,7 @@ from pyscf.pbc.dft import rks as pyscf_rks
 from pyscf.pbc.dft import gen_grid, multigrid
 from pyscf.pbc.dft.rks import prune_small_rho_grids_
 from pyscfad import lib
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.dft import rks as mol_ks
 from pyscfad.dft.rks import VXC
@@ -66,10 +66,10 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
         vxc += vj - vk * .5
 
         if ground_state:
-            exc -= jnp.einsum('ij,ji', dm, vk).real * .5 * .5
+            exc -= np.einsum('ij,ji', dm, vk).real * .5 * .5
 
     if ground_state:
-        ecoul = jnp.einsum('ij,ji', dm, vj).real * .5
+        ecoul = np.einsum('ij,ji', dm, vj).real * .5
     else:
         ecoul = None
 

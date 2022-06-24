@@ -1,7 +1,7 @@
 import numpy
 from pyscf.gto.mole import (ATOM_OF, ANG_OF, NPRIM_OF, NCTR_OF,
                             KAPPA_OF, PTR_EXP, PTR_COEFF, PTR_ENV_START)
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 
 def uncontract(mol):
     """
@@ -44,7 +44,7 @@ def uncontract(mol):
 
 def setup_exp(mol):
     tmp = []
-    es = jnp.empty([0], dtype=float)
+    es = np.empty([0], dtype=float)
     _env_of = numpy.empty([0], dtype=numpy.int32)
     offset = 0
     es_of = []
@@ -53,7 +53,7 @@ def setup_exp(mol):
         ptr_exp = mol._bas[i,PTR_EXP]
         if ptr_exp not in tmp:
             tmp.append(ptr_exp)
-            es = jnp.append(es, mol._env[ptr_exp : ptr_exp+nprim])
+            es = np.append(es, mol._env[ptr_exp : ptr_exp+nprim])
             _env_of = numpy.append(_env_of, numpy.arange(ptr_exp,ptr_exp+nprim))
             es_of.append(offset)
             offset += nprim
@@ -69,7 +69,7 @@ def setup_exp(mol):
 
 def setup_ctr_coeff(mol):
     tmp = []
-    cs = jnp.empty([0], dtype=float)
+    cs = np.empty([0], dtype=float)
     _env_of = numpy.empty([0], dtype=numpy.int32)
     offset = 0
     cs_of = []
@@ -79,7 +79,7 @@ def setup_ctr_coeff(mol):
         ptr_coeff = mol._bas[i,PTR_COEFF]
         if ptr_coeff not in tmp:
             tmp.append(ptr_coeff)
-            cs = jnp.append(cs, mol._env[ptr_coeff : ptr_coeff+nprim*nctr])
+            cs = np.append(cs, mol._env[ptr_coeff : ptr_coeff+nprim*nctr])
             _env_of = numpy.append(_env_of, numpy.arange(ptr_coeff,ptr_coeff+nprim*nctr))
             cs_of.append(offset)
             offset += nprim*nctr

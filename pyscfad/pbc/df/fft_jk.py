@@ -4,7 +4,7 @@ from pyscf.lib import logger
 from pyscf.pbc.tools import get_coulG
 from pyscf.pbc.df.df_jk import _format_dms, _format_kpts_band, _format_jks
 from pyscf.pbc.lib.kpts_helper import is_zero, gamma_point
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.lib import ops
 from pyscfad.pbc import tools
 from pyscfad.pbc.df.df_jk import _ewald_exxdiv_for_G0
@@ -16,7 +16,7 @@ def get_j_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None, 
 
     ni = mydf._numint
     make_rho, nset, nao = ni._gen_rho_evaluator(cell, dm_kpts, hermi)
-    dm_kpts = jnp.asarray(dm_kpts)
+    dm_kpts = np.asarray(dm_kpts)
     dms = _format_dms(dm_kpts, kpts)
     nset, nkpts, nao = dms.shape[:3]
 
@@ -24,7 +24,7 @@ def get_j_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None, 
     ngrids = len(coulG)
 
     if hermi == 1 or gamma_point(kpts):
-        vR = rhoR = jnp.zeros((nset,ngrids))
+        vR = rhoR = np.zeros((nset,ngrids))
         for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts, cell=cell):
             ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
             for i in range(nset):
@@ -40,15 +40,15 @@ def get_j_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None, 
             vR = ops.index_update(vR, ops.index[i], tools.ifft(vG, mesh).real)
 
     else:  # vR may be complex if the underlying density is complex
-        vR = rhoR = jnp.zeros((nset,ngrids), dtype=jnp.complex128)
+        vR = rhoR = np.zeros((nset,ngrids), dtype=np.complex128)
         for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts, cell=cell):
             ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
             for i in range(nset):
                 for k, ao in enumerate(ao_ks):
-                    ao_dm = jnp.dot(ao, dms[i,k])
-                    #rhoR[i,p0:p1] += jnp.einsum('xi,xi->x', ao_dm, ao.conj())
+                    ao_dm = np.dot(ao, dms[i,k])
+                    #rhoR[i,p0:p1] += np.einsum('xi,xi->x', ao_dm, ao.conj())
                     rhoR = ops.index_add(rhoR, ops.index[i,p0:p1], 
-                                         jnp.einsum('xi,xi->x', ao_dm, ao.conj()))
+                                         np.einsum('xi,xi->x', ao_dm, ao.conj()))
         rhoR *= 1./nkpts
 
         for i in range(nset):
@@ -62,9 +62,9 @@ def get_j_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None, 
     weight = cell.vol / ngrids
     vR *= weight
     if gamma_point(kpts_band):
-        vj_kpts = jnp.zeros((nset,nband,nao,nao))
+        vj_kpts = np.zeros((nset,nband,nao,nao))
     else:
-        vj_kpts = jnp.zeros((nset,nband,nao,nao), dtype=jnp.complex128)
+        vj_kpts = np.zeros((nset,nband,nao,nao), dtype=np.complex128)
 
     for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts_band, cell=cell):
         ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
@@ -72,10 +72,10 @@ def get_j_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None, 
             # ni.eval_mat can handle real vR only
             # vj_kpts[i] += ni.eval_mat(cell, ao_ks, 1., None, vR[i,p0:p1], mask, 'LDA')
             for k, ao in enumerate(ao_ks):
-                aow = jnp.einsum('xi,x->xi', ao, vR[i,p0:p1])
+                aow = np.einsum('xi,x->xi', ao, vR[i,p0:p1])
                 #vj_kpts[i,k] += lib.dot(ao.conj().T, aow)
                 vj_kpts = ops.index_add(vj_kpts, ops.index[i,k],
-                                        jnp.dot(ao.conj().T, aow))
+                                        np.dot(ao.conj().T, aow))
 
     return _format_jks(vj_kpts, dm_kpts, input_band, kpts)
 
@@ -94,7 +94,7 @@ def get_k_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None,
         mo_coeff = None
 
     kpts = numpy.asarray(kpts)
-    dm_kpts = jnp.asarray(dm_kpts)
+    dm_kpts = np.asarray(dm_kpts)
     dms = _format_dms(dm_kpts, kpts)
     nset, nkpts, nao = dms.shape[:3]
 
@@ -104,22 +104,22 @@ def get_k_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None,
     nband = len(kpts_band)
 
     if gamma_point(kpts_band) and gamma_point(kpts):
-        vk_kpts = jnp.zeros((nset,nband,nao,nao), dtype=dms.dtype)
+        vk_kpts = np.zeros((nset,nband,nao,nao), dtype=dms.dtype)
     else:
-        vk_kpts = jnp.zeros((nset,nband,nao,nao), dtype=jnp.complex128)
+        vk_kpts = np.zeros((nset,nband,nao,nao), dtype=np.complex128)
 
     coords = mydf.grids.coords
-    ao2_kpts = [jnp.asarray(ao.T)
+    ao2_kpts = [np.asarray(ao.T)
                 for ao in mydf._numint.eval_ao(cell, coords, kpts=kpts)]
     if input_band is None:
         ao1_kpts = ao2_kpts
     else:
-        ao1_kpts = [jnp.asarray(ao.T)
+        ao1_kpts = [np.asarray(ao.T)
                     for ao in mydf._numint.eval_ao(cell, coords, kpts=kpts_band)]
     if mo_coeff is not None and nset == 1:
         mo_coeff = [mo_coeff[k][:,occ>0] * numpy.sqrt(occ[occ>0])
                     for k, occ in enumerate(mo_occ)]
-        ao2_kpts = [jnp.dot(mo_coeff[k].T, ao) for k, ao in enumerate(ao2_kpts)]
+        ao2_kpts = [np.dot(mo_coeff[k].T, ao) for k, ao in enumerate(ao2_kpts)]
 
     mem_now = pyscf_lib.current_memory()[0]
     max_memory = mydf.max_memory - mem_now
@@ -128,7 +128,7 @@ def get_k_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None,
                   max_memory, blksize)
     #ao1_dtype = np.result_type(*ao1_kpts)
     #ao2_dtype = np.result_type(*ao2_kpts)
-    vR_dm = jnp.empty((nset,nao,ngrids), dtype=vk_kpts.dtype)
+    vR_dm = np.empty((nset,nao,ngrids), dtype=vk_kpts.dtype)
 
     t1 = (logger.process_clock(), logger.perf_counter())
     for k2, ao2T in enumerate(ao2_kpts):
@@ -138,7 +138,7 @@ def get_k_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None,
         kpt2 = kpts[k2]
         naoj = ao2T.shape[0]
         if mo_coeff is None or nset > 1:
-            ao_dms = [jnp.dot(dms[i,k2], ao2T.conj()) for i in range(nset)]
+            ao_dms = [np.dot(dms[i,k2], ao2T.conj()) for i in range(nset)]
         else:
             ao_dms = [ao2T.conj()]
 
@@ -158,25 +158,25 @@ def get_k_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None,
                 expmikr = numpy.exp(-1j * numpy.dot(coords, kpt2-kpt1))
 
             for p0, p1 in pyscf_lib.prange(0, nao, blksize):
-                rho1 = jnp.einsum('ig,jg->ijg', ao1T[p0:p1].conj()*expmikr, ao2T)
+                rho1 = np.einsum('ig,jg->ijg', ao1T[p0:p1].conj()*expmikr, ao2T)
                 vG = tools.fft(rho1.reshape(-1,ngrids), mesh)
                 rho1 = None
                 vG *= coulG
                 vR = tools.ifft(vG, mesh).reshape(p1-p0,naoj,ngrids)
                 vG = None
-                if vR_dm.dtype == jnp.double:
+                if vR_dm.dtype == np.double:
                     vR = vR.real
                 for i in range(nset):
                     #np.einsum('ijg,jg->ig', vR, ao_dms[i], out=vR_dm[i,p0:p1])
                     vR_dm = ops.index_update(vR_dm, ops.index[i,p0:p1],
-                                             jnp.einsum('ijg,jg->ig', vR, ao_dms[i]))
+                                             np.einsum('ijg,jg->ig', vR, ao_dms[i]))
                 vR = None
             vR_dm *= expmikr.conj()
 
             for i in range(nset):
                 #vk_kpts[i,k1] += weight * lib.dot(vR_dm[i], ao1T.T)
                 vk_kpts = ops.index_add(vk_kpts, ops.index[i,k1],
-                                        weight * jnp.dot(vR_dm[i], ao1T.T))
+                                        weight * np.dot(vR_dm[i], ao1T.T))
         t1 = logger.timer_debug1(mydf, 'get_k_kpts: make_kpt (%d,*)'%k2, *t1)
 
     # Function _ewald_exxdiv_for_G0 to add back in the G=0 component to vk_kpts
@@ -191,7 +191,7 @@ def get_k_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None,
 
 def get_jk(mydf, dm, hermi=1, kpt=numpy.zeros(3), kpts_band=None,
            with_j=True, with_k=True, exxdiv=None, cell=None):
-    dm = jnp.asarray(dm)
+    dm = np.asarray(dm)
     vj = vk = None
     if with_j:
         vj = get_j(mydf, dm, hermi, kpt, kpts_band, cell=cell)
@@ -200,7 +200,7 @@ def get_jk(mydf, dm, hermi=1, kpt=numpy.zeros(3), kpts_band=None,
     return vj, vk
 
 def get_j(mydf, dm, hermi=1, kpt=numpy.zeros(3), kpts_band=None, cell=None):
-    dm = jnp.asarray(dm)
+    dm = np.asarray(dm)
     nao = dm.shape[-1]
     dm_kpts = dm.reshape(-1,1,nao,nao)
     vj = get_j_kpts(mydf, dm_kpts, hermi, kpt.reshape(1,3), kpts_band, cell=cell)
@@ -211,7 +211,7 @@ def get_j(mydf, dm, hermi=1, kpt=numpy.zeros(3), kpts_band=None, cell=None):
     return vj
 
 def get_k(mydf, dm, hermi=1, kpt=numpy.zeros(3), kpts_band=None, exxdiv=None, cell=None):
-    dm = jnp.asarray(dm)
+    dm = np.asarray(dm)
     nao = dm.shape[-1]
     dm_kpts = dm.reshape(-1,1,nao,nao)
     vk = get_k_kpts(mydf, dm_kpts, hermi, kpt.reshape(1,3), kpts_band, exxdiv, cell=cell)

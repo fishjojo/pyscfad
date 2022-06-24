@@ -6,7 +6,7 @@ from pyscf.cc import ccsd as pyscf_ccsd
 from pyscf.mp.mp2 import _mo_without_core
 from pyscfad import lib
 from pyscfad import util
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.gto import mole
 from pyscfad.scf import hf
 from pyscfad import implicit_diff
@@ -39,7 +39,7 @@ def _iter(amp, mycc, eris, *,
         t1new, t2new = mycc.update_amps(t1, t2, eris)
         tmpvec = mycc.amplitudes_to_vector(t1new, t2new)
         tmpvec -= mycc.amplitudes_to_vector(t1, t2)
-        normt = jnp.linalg.norm(tmpvec)
+        normt = np.linalg.norm(tmpvec)
         tmpvec = None
         if mycc.iterative_damping < 1.0:
             alpha = mycc.iterative_damping
@@ -94,8 +94,8 @@ def amplitudes_to_vector(t1, t2, out=None):
     nocc, nvir = t1.shape
     nov = nocc * nvir
     vector_t1 = t1.ravel()
-    vector_t2 = t2.transpose(0,2,1,3).reshape(nov,nov)[jnp.tril_indices(nov)]
-    vector = jnp.concatenate((vector_t1, vector_t2), axis=None)
+    vector_t2 = t2.transpose(0,2,1,3).reshape(nov,nov)[np.tril_indices(nov)]
+    vector = np.concatenate((vector_t1, vector_t2), axis=None)
     return vector
 
 def vector_to_amplitudes(vector, nmo, nocc):
@@ -183,7 +183,7 @@ class _ChemistsERIs(pyscf_ccsd._ChemistsERIs):
         dm = mycc._scf.make_rdm1(mycc.mo_coeff, mycc.mo_occ)
         vhf = mycc._scf.get_veff(mycc.mol, dm)
         fockao = mycc._scf.get_fock(vhf=vhf, dm=dm)
-        self.fock = reduce(jnp.dot, (mo_coeff.conj().T, fockao, mo_coeff))
+        self.fock = reduce(np.dot, (mo_coeff.conj().T, fockao, mo_coeff))
         self.e_hf = mycc._scf.energy_tot(dm=dm, vhf=vhf)
         nocc = self.nocc = mycc.nocc
         self.mol = mycc.mol

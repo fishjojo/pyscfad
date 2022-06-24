@@ -5,7 +5,7 @@ from pyscf.lib import logger
 from pyscf.pbc.dft import krks as pyscf_krks
 from pyscf.pbc.dft import gen_grid, multigrid
 from pyscfad import lib
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.dft.rks import VXC
 from pyscfad.pbc.scf import khf
@@ -65,10 +65,10 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
         vxc += vj - vk * .5
 
         if ground_state:
-            exc -= jnp.einsum('Kij,Kji', dm, vk).real * .5 * .5 * weight
+            exc -= np.einsum('Kij,Kji', dm, vk).real * .5 * .5 * weight
 
     if ground_state:
-        ecoul = jnp.einsum('Kij,Kji', dm, vj).real * .5 * weight
+        ecoul = np.einsum('Kij,Kji', dm, vj).real * .5 * weight
     else:
         ecoul = None
 
@@ -103,7 +103,7 @@ class KRKS(rks.KohnShamDFT, khf.KRHF):
             vhf = self.get_veff(self.cell, dm_kpts)
 
         weight = 1./len(h1e_kpts)
-        e1 = weight * jnp.einsum('kij,kji', h1e_kpts, dm_kpts)
+        e1 = weight * np.einsum('kij,kji', h1e_kpts, dm_kpts)
         tot_e = e1 + vhf.ecoul + vhf.exc
         self.scf_summary['e1'] = e1.real
         self.scf_summary['coul'] = vhf.ecoul.real

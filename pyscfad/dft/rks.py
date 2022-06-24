@@ -7,18 +7,18 @@ from pyscf.dft import rks as pyscf_rks
 from pyscf.dft import gen_grid
 from pyscfad import lib
 from pyscfad import util
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf
 from . import numint
 
 @lib.dataclass
 class VXC():
-    vxc: jnp.array = None
+    vxc: np.array = None
     ecoul: float = None
     exc: float = None
-    vj: jnp.array = None
-    vk: jnp.array = None
+    vj: np.array = None
+    vk: np.array = None
 
     def reset(self):
         self.vxc = None
@@ -75,7 +75,7 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
         vk = None
         if (ks._eri is None and ks.direct_scf and
             getattr(vhf_last, 'vj', None) is not None):
-            ddm = jnp.asarray(dm) - jnp.asarray(dm_last)
+            ddm = np.asarray(dm) - np.asarray(dm_last)
             vj = ks.get_j(mol, ddm, hermi)
             vj += vhf_last.vj
         else:
@@ -84,7 +84,7 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
     else:
         if (ks._eri is None and ks.direct_scf and
             getattr(vhf_last, 'vk', None) is not None):
-            ddm = jnp.asarray(dm) - jnp.asarray(dm_last)
+            ddm = np.asarray(dm) - np.asarray(dm_last)
             vj, vk = ks.get_jk(mol, ddm, hermi)
             vk *= hyb
             if abs(omega) > 1e-10:  # For range separated Coulomb operator
@@ -103,9 +103,9 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
         vxc.vxc += vj - vk * .5
 
         if ground_state:
-            vxc.exc -= jnp.einsum('ij,ji', dm, vk).real * .5 * .5
+            vxc.exc -= np.einsum('ij,ji', dm, vk).real * .5 * .5
     if ground_state:
-        vxc.ecoul = jnp.einsum('ij,ji', dm, vj).real * .5
+        vxc.ecoul = np.einsum('ij,ji', dm, vj).real * .5
     else:
         vxc.ecoul = None
 
@@ -119,7 +119,7 @@ def energy_elec(ks, dm=None, h1e=None, vhf=None):
         h1e = ks.get_hcore()
     if vhf is None or getattr(vhf, 'ecoul', None) is None:
         vhf = ks.get_veff(ks.mol, dm)
-    e1 = jnp.einsum('ij,ji->', h1e, dm)
+    e1 = np.einsum('ij,ji->', h1e, dm)
     e2 = vhf.ecoul + vhf.exc
     ks.scf_summary['e1'] = e1.real
     ks.scf_summary['coul'] = vhf.ecoul.real

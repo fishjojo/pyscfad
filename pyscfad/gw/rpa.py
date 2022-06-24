@@ -1,10 +1,10 @@
 import numpy
-from jax import numpy as jnp
 from pyscf import lib as pyscf_lib
 from pyscf.lib import logger
 from pyscf import df as pyscf_df
 from pyscf.gw import rpa as pyscf_rpa
 from pyscfad import util
+from pyscfad.lib import numpy as np
 from pyscfad import gto, scf, dft, df
 
 
@@ -64,8 +64,8 @@ def get_rpa_ecorr(rpa, Lpq, freqs, wts):
     e_corr = 0.
     for w in range(nw):
         Pi = pyscf_rpa.get_rho_response(freqs[w], mo_energy, Lpq[:, :nocc, nocc:])
-        ec_w = jnp.log(jnp.linalg.det(jnp.eye(naux) - Pi))
-        ec_w += jnp.trace(Pi)
+        ec_w = np.log(np.linalg.det(np.eye(naux) - Pi))
+        ec_w += np.trace(Pi)
         e_corr += 1./(2.*numpy.pi) * ec_w * wts[w]
 
     return e_corr
@@ -137,7 +137,7 @@ class RPA(pyscf_rpa.RPA):
         mem_now = pyscf_lib.current_memory()[0]
 
         if (mem_incore + mem_now < 0.99 * self.max_memory) or self.mol.incore_anyway:
-            Lpq = jnp.einsum("lpq,pi,qj->lij", self.with_df._cderi, mo_coeff, mo_coeff)
+            Lpq = np.einsum("lpq,pi,qj->lij", self.with_df._cderi, mo_coeff, mo_coeff)
             return Lpq
         else:
             raise RuntimeError("not enough memory")

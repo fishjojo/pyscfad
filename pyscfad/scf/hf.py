@@ -12,7 +12,7 @@ from pyscfad import util
 from pyscfad import implicit_diff
 from pyscfad import gto
 from pyscfad import df
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.scf import _vhf
 from pyscfad.scf.diis import SCF_DIIS
@@ -210,12 +210,12 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
-    dm = jnp.asarray(dm)
+    dm = np.asarray(dm)
     nao = dm.shape[-1]
-    if eri.dtype == jnp.complex128 or eri.size == nao**4:
+    if eri.dtype == np.complex128 or eri.size == nao**4:
         vj, vk = _dot_eri_dm_nosymm(eri, dm, with_j, with_k)
     else:
-        if dm.dtype == jnp.complex128:
+        if dm.dtype == np.complex128:
             raise NotImplementedError
         vj, vk = _vhf.incore(eri, dm, hermi, with_j, with_k)
     return vj, vk
@@ -227,10 +227,10 @@ def _dot_eri_dm_nosymm(eri, dm, with_j, with_k):
     dms = dm.reshape(-1,nao,nao)
     vj = vk = None
     if with_j:
-        vj = jnp.einsum('ijkl,xji->xkl', eri, dms)
+        vj = np.einsum('ijkl,xji->xkl', eri, dms)
         vj = vj.reshape(dm.shape)
     if with_k:
-        vk = jnp.einsum('ijkl,xjk->xil', eri, dms)
+        vk = np.einsum('ijkl,xjk->xil', eri, dms)
         vk = vk.reshape(dm.shape)
     return vj, vk
 

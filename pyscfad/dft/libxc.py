@@ -2,7 +2,7 @@ from functools import partial
 from jax import jit, custom_jvp
 from pyscf.dft import libxc
 from pyscf.dft.libxc import parse_xc, is_lda, is_meta_gga
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 
 def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
     # NOTE only consider exc and vxc
@@ -48,32 +48,32 @@ def _eval_xc_comp_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
     elif any((is_meta_gga(x) for x in fn_ids)):
         if deriv == 0:
             exc1 = _exc_partial_deriv(rho, val, val1, "MGGA")
-            jvp = jnp.einsum('np,np->p', exc1, rho_t)
+            jvp = np.einsum('np,np->p', exc1, rho_t)
         elif deriv == 1:
             vrho1, vsigma1, vlapl1, vtau1 = _vxc_partial_deriv(rho, val, val1, "MGGA")
-            vrho_jvp = jnp.einsum('np,np->p', vrho1, rho_t)
-            vsigma_jvp = jnp.einsum('np,np->p', vsigma1, rho_t)
-            vlapl_jvp = jnp.einsum('np,np->p', vlapl1, rho_t)
-            vtau_jvp = jnp.einsum('np,np->p', vtau1, rho_t)
+            vrho_jvp = np.einsum('np,np->p', vrho1, rho_t)
+            vsigma_jvp = np.einsum('np,np->p', vsigma1, rho_t)
+            vlapl_jvp = np.einsum('np,np->p', vlapl1, rho_t)
+            vtau_jvp = np.einsum('np,np->p', vtau1, rho_t)
             vrho1 = vsigma1 = vlapl1 = vtau1 = None
-            jvp = jnp.vstack((vrho_jvp, vsigma_jvp, vlapl_jvp, vtau_jvp))
+            jvp = np.vstack((vrho_jvp, vsigma_jvp, vlapl_jvp, vtau_jvp))
         else:
             raise NotImplementedError
     else:
         if deriv == 0:
             exc1 = _exc_partial_deriv(rho, val, val1, "GGA")
-            jvp = jnp.einsum('np,np->p', exc1, rho_t)
+            jvp = np.einsum('np,np->p', exc1, rho_t)
         elif deriv == 1:
             vrho1, vsigma1 = _vxc_partial_deriv(rho, val, val1, "GGA")[:2]
-            vrho_jvp = jnp.einsum('np,np->p', vrho1, rho_t)
-            vsigma_jvp = jnp.einsum('np,np->p', vsigma1, rho_t)
+            vrho_jvp = np.einsum('np,np->p', vrho1, rho_t)
+            vsigma_jvp = np.einsum('np,np->p', vsigma1, rho_t)
             vrho1 = vsigma1 = None
             jvp = (vrho_jvp, vsigma_jvp, None, None)
         else:
             v2rho2, v2rhosigma, v2sigma2 = _fxc_partial_deriv(rho, val, val1, "GGA")[:3]
-            v2rho2_jvp = jnp.einsum('np,np->p', v2rho2, rho_t)
-            v2rhosigma_jvp = jnp.einsum('np,np->p', v2rhosigma, rho_t)
-            v2sigma2_jvp = jnp.einsum('np,np->p', v2sigma2, rho_t)
+            v2rho2_jvp = np.einsum('np,np->p', v2rho2, rho_t)
+            v2rhosigma_jvp = np.einsum('np,np->p', v2rhosigma, rho_t)
+            v2sigma2_jvp = np.einsum('np,np->p', v2sigma2, rho_t)
             jvp = (v2rho2_jvp, v2rhosigma_jvp, v2sigma2_jvp) + (None,)*7
     return val, jvp
 
@@ -84,11 +84,11 @@ def _exc_partial_deriv(rho, exc, vxc, xctype="LDA"):
     elif xctype in ["GGA", "MGGA"]:
         drho = (vxc[0] - exc) / rho[0]
         dsigma = vxc[1] / rho[0] * 2. * rho[1:4]
-        exc1 = jnp.vstack((drho, dsigma))
+        exc1 = np.vstack((drho, dsigma))
         if xctype == "MGGA":
             dlap = vxc[2] / rho[0]
             dtau = vxc[3] / rho[0]
-            exc1 = jnp.vstack((exc1, dlap, dtau))
+            exc1 = np.vstack((exc1, dlap, dtau))
     else:
         raise KeyError
     return exc1
@@ -99,13 +99,13 @@ def _vxc_partial_deriv(rho, vxc, fxc, xctype="LDA"):
     if xctype == "LDA":
         vrho1 = fxc[0]
     elif xctype in ["GGA", "MGGA"]:
-        vrho1 = jnp.vstack((fxc[0], fxc[1] * 2. * rho[1:4]))
-        vsigma1 = jnp.vstack((fxc[1], fxc[2] * 2. * rho[1:4]))
+        vrho1 = np.vstack((fxc[0], fxc[1] * 2. * rho[1:4]))
+        vsigma1 = np.vstack((fxc[1], fxc[2] * 2. * rho[1:4]))
         if xctype == "MGGA":
-            vrho1 = jnp.vstack((vrho1, fxc[5], fxc[6]))
-            vsigma1 = jnp.vstack((vsigma1, fxc[8], fxc[9]))
-            vlapl1 = jnp.vstack((fxc[5], fxc[8] * 2. * rho[1:4], fxc[3], fxc[7]))
-            vtau1 = jnp.vstack((fxc[6], fxc[9] * 2. * rho[1:4], fxc[7], fxc[4]))
+            vrho1 = np.vstack((vrho1, fxc[5], fxc[6]))
+            vsigma1 = np.vstack((vsigma1, fxc[8], fxc[9]))
+            vlapl1 = np.vstack((fxc[5], fxc[8] * 2. * rho[1:4], fxc[3], fxc[7]))
+            vtau1 = np.vstack((fxc[6], fxc[9] * 2. * rho[1:4], fxc[7], fxc[4]))
     else:
         raise KeyError
     return vrho1, vsigma1, vlapl1, vtau1
@@ -116,9 +116,9 @@ def _fxc_partial_deriv(rho, fxc, kxc, xctype="LDA"):
     if xctype == "LDA":
         v2rho2_1 = kxc[0]
     elif xctype in ["GGA", "MGGA"]:
-        v2rho2_1 = jnp.vstack((kxc[0], kxc[1] * 2. * rho[1:4]))
-        v2rhosigma_1 = jnp.vstack((kxc[1], kxc[2] * 2. * rho[1:4]))
-        v2sigma2_1 = jnp.vstack((kxc[2], kxc[3] * 2. * rho[1:4]))
+        v2rho2_1 = np.vstack((kxc[0], kxc[1] * 2. * rho[1:4]))
+        v2rhosigma_1 = np.vstack((kxc[1], kxc[2] * 2. * rho[1:4]))
+        v2sigma2_1 = np.vstack((kxc[2], kxc[3] * 2. * rho[1:4]))
         if xctype == "MGGA":
             raise NotImplementedError
     else:

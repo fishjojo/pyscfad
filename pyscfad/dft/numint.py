@@ -8,7 +8,7 @@ import pyscf
 from pyscf.dft import numint
 from pyscf.dft.numint import SWITCH_SIZE
 from pyscf.dft.gen_grid import make_mask, BLKSIZE
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.lib import ops
 from pyscfad.lib import stop_grad
 from . import libxc
@@ -45,7 +45,7 @@ def eval_mat(mol, ao, weight, rho, vxc,
         #aow += numpy.einsum('pi,p->pi', ao[3], rho[3]*wv)
         #aow += numpy.einsum('pi,p->pi', ao[0], .5*weight*vrho)
         vrho, vsigma = vxc[:2]
-        wv = jnp.empty((4,ngrids))
+        wv = np.empty((4,ngrids))
         if spin == 0:
             assert(vsigma is not None and rho.ndim==2)
             #wv[0]  = weight * vrho * .5
@@ -136,7 +136,7 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 vrho = vxc[0]
                 den = rho * weight
                 nelec[idm] += stop_grad(den).sum()
-                excsum[idm] += jnp.dot(den, exc)
+                excsum[idm] += np.dot(den, exc)
                 # *.5 because vmat + vmat.T
                 #:aow = numpy.einsum('pi,p->pi', ao, .5*weight*vrho, out=aow)
                 aow = _scale_ao(ao, .5*weight*vrho, out=None)
@@ -154,7 +154,7 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                                       verbose=verbose)[:2]
                 den = rho[0] * weight
                 nelec[idm] += stop_grad(den).sum()
-                excsum[idm] += jnp.dot(den, exc)
+                excsum[idm] += np.dot(den, exc)
                 # ref eval_mat function
                 wv = _rks_gga_wv0(rho, vxc, weight)
                 #:aow = numpy.einsum('npi,np->pi', ao, wv, out=aow)
@@ -197,7 +197,7 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 exc, vxc = _vv10nlc(rho,coords,vvrho[idm],vvweight[idm],vvcoords[idm],nlc_pars)
                 den = rho[0] * weight
                 nelec[idm] += stop_grad(den).sum()
-                excsum[idm] += jnp.dot(den, exc)
+                excsum[idm] += np.dot(den, exc)
                 # ref eval_mat function
                 wv = _rks_gga_wv0(rho, vxc, weight)
                 #:aow = numpy.einsum('npi,np->pi', ao, wv, out=aow)
@@ -221,7 +221,7 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 vrho, vsigma, vlapl, vtau = vxc[:4]
                 den = rho[0] * weight
                 nelec[idm] += stop_grad(den).sum()
-                excsum[idm] += jnp.dot(den, exc)
+                excsum[idm] += np.dot(den, exc)
 
                 wv = _rks_gga_wv0(rho, vxc, weight)
                 #:aow = numpy.einsum('npi,np->pi', ao[:4], wv, out=aow)
@@ -239,8 +239,8 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
     for i in range(nset):
         vmat[i] = vmat[i] + vmat[i].conj().T
     nelec = numpy.asarray(nelec)
-    excsum = jnp.asarray(excsum)
-    vmat = jnp.asarray(vmat)
+    excsum = np.asarray(excsum)
+    vmat = np.asarray(vmat)
     if nset == 1:
         nelec = nelec[0]
         excsum = excsum[0]
@@ -269,7 +269,7 @@ def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
         #:rho = numpy.einsum('pi,pi->p', ao, c0)
         rho = _contract_rho(ao, c0)
     elif xctype in ('GGA', 'NLC'):
-        rho = jnp.empty((4,ngrids))
+        rho = np.empty((4,ngrids))
         #c0 = _dot_ao_dm(mol, ao[0], dm, non0tab, shls_slice, ao_loc)
         #:rho[0] = numpy.einsum('pi,pi->p', c0, ao[0])
         #rho = ops.index_update(rho, ops.index[0], _contract_rho(c0, ao[0]))
@@ -279,7 +279,7 @@ def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
         rho = _rks_gga_assemble_rho(rho, ao, dm)
     else: # meta-GGA
         # rho[4] = \nabla^2 rho, rho[5] = 1/2 |nabla f|^2
-        rho = jnp.empty((6,ngrids))
+        rho = np.empty((6,ngrids))
         #c0 = _dot_ao_dm(mol, ao[0], dm, non0tab, shls_slice, ao_loc)
         #:rho[0] = numpy.einsum('pi,pi->p', ao[0], c0)
         #rho = ops.index_update(rho, ops.index[0], _contract_rho(ao[0], c0))
@@ -335,7 +335,7 @@ def _scale_ao(ao, wv, out=None):
         ao = ao.T.reshape(1,nao,ngrids)
         wv = wv.reshape(1,ngrids)
 
-    aow = jnp.einsum('nip,np->pi', ao, wv)
+    aow = np.einsum('nip,np->pi', ao, wv)
     return aow
 
 def _dot_ao_ao(mol, ao1, ao2, non0tab, shls_slice, ao_loc, hermi=0):
@@ -348,7 +348,7 @@ def _dot_ao_ao(mol, ao1, ao2, non0tab, shls_slice, ao_loc, hermi=0):
 
 @jit
 def _dot_ao_ao_incore(ao1, ao2):
-    return jnp.dot(ao1.T.conj(), ao2)
+    return np.dot(ao1.T.conj(), ao2)
 
 def _dot_ao_dm(mol, ao, dm, non0tab, shls_slice, ao_loc, out=None):
     '''return numpy.dot(ao, dm)'''
@@ -360,22 +360,22 @@ def _dot_ao_dm(mol, ao, dm, non0tab, shls_slice, ao_loc, out=None):
 
 @jit
 def _dot_ao_dm_incore(ao, dm):
-    return jnp.dot(jnp.asarray(dm).T, ao.T).T
+    return np.dot(np.asarray(dm).T, ao.T).T
 
 @jit
 def _contract_rho(bra, ket):
     bra = bra.T
     ket = ket.T
 
-    rho  = jnp.einsum('ip,ip->p', bra.real, ket.real)
-    rho += jnp.einsum('ip,ip->p', bra.imag, ket.imag)
+    rho  = np.einsum('ip,ip->p', bra.real, ket.real)
+    rho += np.einsum('ip,ip->p', bra.imag, ket.imag)
     return rho
 
 @jit
 def _rks_gga_wv0(rho, vxc, weight):
     vrho, vgamma = vxc[:2]
     ngrid = vrho.size
-    wv = jnp.empty((4,ngrid))
+    wv = np.empty((4,ngrid))
     wv = ops.index_update(wv, ops.index[0], weight * vrho * .5)
     wv = ops.index_update(wv, ops.index[1:], (weight * vgamma * 2) * rho[1:4])
     #wv = ops.index_mul(wv, ops.index[0], .5)  # v+v.T should be applied in the caller
@@ -395,9 +395,9 @@ def _vv10nlc_jvp(coords, vvrho, vvweight, vvcoords, nlc_pars,
     exc, vxc = _vv10nlc(rho, coords, vvrho, vvweight, vvcoords, nlc_pars)
 
     exc_jvp = (vxc[0] - exc) / rho[0] * rho_t[0] \
-            + vxc[1] / rho[0] * 2. * jnp.einsum('np,np->p', rho[1:4], rho_t[1:4])
+            + vxc[1] / rho[0] * 2. * np.einsum('np,np->p', rho[1:4], rho_t[1:4])
     # pylint: disable=W0511
-    vxc_jvp = jnp.zeros_like(vxc) # FIXME gradient of vxc not implemented
+    vxc_jvp = np.zeros_like(vxc) # FIXME gradient of vxc not implemented
     return (exc,vxc), (exc_jvp, vxc_jvp)
 
 class NumInt(numint.NumInt):

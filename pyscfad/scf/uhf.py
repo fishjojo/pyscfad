@@ -1,6 +1,6 @@
 from pyscf.scf import uhf as pyscf_uhf
 from pyscfad import util
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.scf import hf
 
 @util.pytree_node(hf.Traced_Attributes, num_args=1)
@@ -16,4 +16,4 @@ class UHF(hf.SCF, pyscf_uhf.UHF):
         else:
             e_a, c_a = self._eigh(h[0], s)
             e_b, c_b = self._eigh(h[1], s)
-        return jnp.array((e_a,e_b)), jnp.array((c_a,c_b))
+        return np.array((e_a,e_b)), np.array((c_a,c_b))

@@ -2,7 +2,7 @@ import sys
 import numpy
 from pyscf.pbc.dft import numint as pyscf_numint
 from pyscf.pbc.dft.gen_grid import make_mask, BLKSIZE
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.lib import ops, stop_grad
 from pyscfad.dft import numint
 from pyscfad.dft.numint import eval_mat, _contract_rho, _dot_ao_dm
@@ -64,8 +64,8 @@ def nr_rks(ni, cell, grids, xc_code, dms, spin=0, relativity=0, hermi=0,
                                        mask, xctype, 0, verbose)
 
     nelec = numpy.asarray(nelec)
-    excsum = jnp.asarray(excsum)
-    vmat = jnp.asarray(vmat)
+    excsum = np.asarray(excsum)
+    vmat = np.asarray(vmat)
     if nset == 1:
         nelec = nelec[0]
         excsum = excsum[0]
@@ -109,10 +109,10 @@ def eval_rho(cell, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
         non0tab[:] = 0xff
 
     # complex orbitals or density matrix
-    if jnp.iscomplexobj(ao) or jnp.iscomplexobj(dm):
+    if np.iscomplexobj(ao) or np.iscomplexobj(dm):
         shls_slice = (0, cell.nbas)
         ao_loc = cell.ao_loc_nr()
-        dm = jnp.asarray(dm, dtype=jnp.complex128)
+        dm = np.asarray(dm, dtype=np.complex128)
 
 # For GGA, function eval_rho returns   real(|\nabla i> D_ij <j| + |i> D_ij <\nabla j|)
 #       = real(|\nabla i> D_ij <j| + |i> D_ij <\nabla j|)
@@ -135,7 +135,7 @@ def eval_rho(cell, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
             c0 = _dot_ao_dm(cell, ao, dm, non0tab, shls_slice, ao_loc)
             rho = dot_bra(ao, c0)
         elif xctype == 'GGA':
-            rho = jnp.empty((4,ngrids))
+            rho = np.empty((4,ngrids))
             c0 = _dot_ao_dm(cell, ao[0], dm, non0tab, shls_slice, ao_loc)
             #rho[0] = dot_bra(ao[0], c0)
             rho = ops.index_update(rho, ops.index[0], dot_bra(ao[0], c0))
@@ -144,7 +144,7 @@ def eval_rho(cell, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
                 rho = ops.index_update(rho, ops.index[i], dot_bra(ao[i], c0) * 2)
         else:
             # rho[4] = \nabla^2 rho, rho[5] = 1/2 |nabla f|^2
-            rho = jnp.empty((6,ngrids))
+            rho = np.empty((6,ngrids))
             c0 = _dot_ao_dm(cell, ao[0], dm, non0tab, shls_slice, ao_loc)
             #rho[0] = dot_bra(ao[0], c0)
             rho = ops.index_update(rho, ops.index[0], dot_bra(ao[0], c0))
@@ -199,7 +199,7 @@ class NumInt(numint.NumInt):
         else:
             nkpts = len(ao)
             nao = ao[0].shape[-1]
-            mat = jnp.empty((nkpts,nao,nao), dtype=jnp.complex128)
+            mat = np.empty((nkpts,nao,nao), dtype=np.complex128)
             for k in range(nkpts):
                 mat[k] = eval_mat(cell, ao[k], weight, rho, vxc,
                                   non0tab, xctype, spin, verbose)
@@ -271,13 +271,13 @@ class KNumInt(numint.NumInt):
                  non0tab=None, xctype='LDA', spin=0, verbose=None):
         nkpts = len(ao_kpts)
         nao = ao_kpts[0].shape[-1]
-        #dtype = jnp.result_type(*ao_kpts)
-        #mat = jnp.empty((nkpts,nao,nao), dtype=dtype)
+        #dtype = np.result_type(*ao_kpts)
+        #mat = np.empty((nkpts,nao,nao), dtype=dtype)
         mat = [0] * nkpts
         for k in range(nkpts):
             mat[k] = eval_mat(cell, ao_kpts[k], weight, rho, vxc,
                               non0tab, xctype, spin, verbose)
-        return jnp.asarray(mat)
+        return np.asarray(mat)
 
     def eval_ao(self, cell, coords, kpts=numpy.zeros((1,3)), deriv=0, relativity=0,
                 shls_slice=None, non0tab=None, out=None, verbose=None, **kwargs):
@@ -299,7 +299,7 @@ class KNumInt(numint.NumInt):
             raise NotImplementedError
         else:
             if getattr(dms[0], "ndim", 0) == 2:
-                dms = [jnp.stack(dms)]
+                dms = [np.stack(dms)]
             nao = dms[0].shape[-1]
             ndms = len(dms)
 

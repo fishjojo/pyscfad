@@ -6,7 +6,7 @@ from pyscf.pbc.scf import hf as pyscf_pbc_hf
 from pyscf.pbc.scf.hf import _format_jks
 from pyscfad import lib
 from pyscfad import util
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
@@ -61,7 +61,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
         if kpt is None: kpt = self.kpt
 
         #cpu0 = (logger.process_clock(), logger.perf_counter())
-        dm = jnp.asarray(dm)
+        dm = np.asarray(dm)
         nao = dm.shape[-1]
 
         if (not omega and kpts_band is None and

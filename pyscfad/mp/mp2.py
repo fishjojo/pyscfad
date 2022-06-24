@@ -1,6 +1,6 @@
 from pyscf.mp import mp2 as pyscf_mp2
 from pyscfad import util
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 
 @util.pytree_node(['_scf', 'mol'], num_args=1)
 class MP2(pyscf_mp2.MP2):
@@ -15,7 +15,7 @@ class MP2(pyscf_mp2.MP2):
         mo_coeff = eris.mo_coeff
 
         nocc = self.nocc
-        co = jnp.asarray(mo_coeff[:,:nocc])
-        cv = jnp.asarray(mo_coeff[:,nocc:])
-        eris.ovov = jnp.einsum("uvst,ui,va,sj,tb->iajb", self._scf._eri, co,cv,co,cv)
+        co = np.asarray(mo_coeff[:,:nocc])
+        cv = np.asarray(mo_coeff[:,nocc:])
+        eris.ovov = np.einsum("uvst,ui,va,sj,tb->iajb", self._scf._eri, co,cv,co,cv)
         return eris

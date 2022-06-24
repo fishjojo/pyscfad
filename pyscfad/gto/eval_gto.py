@@ -3,7 +3,7 @@ import numpy
 from jax import custom_jvp
 from pyscf.gto.moleintor import make_loc
 from pyscf.gto.eval_gto import eval_gto as pyscf_eval_gto
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.lib import ops
 from .moleintor import get_bas_label
 
@@ -35,7 +35,7 @@ def _eval_gto_jvp(eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc, out
     mol_t, = tangents
 
     primal_out = _eval_gto(mol, eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc, out)
-    tangent_out = jnp.zeros_like(primal_out)
+    tangent_out = np.zeros_like(primal_out)
 
     if mol.coords is not None:
         tangent_out += _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords,
@@ -64,9 +64,9 @@ def _eval_gto_fill_grad_r0(mol, intor, shls_slice, ao_loc, ao1, order, ngrids):
     aoslices = mol.aoslice_by_atom(ao_loc)
 
     #if nc == 1:
-    #    tangent_out = jnp.zeros((ng,nao))
+    #    tangent_out = np.zeros((ng,nao))
     #else:
-    #    tangent_out = jnp.zeros((nc,ng,nao))
+    #    tangent_out = np.zeros((nc,ng,nao))
     #for iorder in range(order+1):
     #    for k, ia in enumerate(atmlst):
     #        p0, p1 = aoslices [ia, 2:]
@@ -75,7 +75,7 @@ def _eval_gto_fill_grad_r0(mol, intor, shls_slice, ao_loc, ao1, order, ngrids):
     #        id0 = max(0, p0 - ao_start)
     #        id1 = min(p1, ao_end) - ao_start
     #        if order == 0:
-    #            tmp = jnp.einsum('xgi,x->gi', ao1[1:4,:,id0:id1], coords_t[k])
+    #            tmp = np.einsum('xgi,x->gi', ao1[1:4,:,id0:id1], coords_t[k])
     #            tangent_out = ops.index_add(tangent_out, ops.index[:,id0:id1], tmp)
     #        else:
     #            start0 = iorder * (iorder+1) * (iorder+2) // 6
@@ -126,7 +126,7 @@ def _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
     ngrids = len(grid_coords)
     grad = _eval_gto_fill_grad_r0(mol, new_eval, shls_slice, ao_loc, ao1, order, ngrids)
     ao1 = None
-    tangent_out = jnp.einsum("nxlgi,nx->lgi", grad, mol_t.coords)
+    tangent_out = np.einsum("nxlgi,nx->lgi", grad, mol_t.coords)
     grad = None
     if order == 0:
         tangent_out = tangent_out[0]

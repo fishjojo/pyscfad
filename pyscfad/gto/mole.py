@@ -4,7 +4,7 @@ from pyscf import gto
 from pyscf.lib import logger, param
 from pyscf.gto.mole import PTR_ENV_START
 from pyscfad import util
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.lib import ops
 from pyscfad.gto import moleintor
 from pyscfad.gto.eval_gto import eval_gto
@@ -18,7 +18,7 @@ def energy_nuc(mol, charges=None, coords=None):
     if len(charges) <= 1:
         return 0
     rr = inter_distance(mol, coords)
-    e = jnp.einsum('i,ij,j->', charges, 1./rr, charges) * .5
+    e = np.einsum('i,ij,j->', charges, 1./rr, charges) * .5
     return e
 
 def inter_distance(mol, coords=None):
@@ -27,10 +27,10 @@ def inter_distance(mol, coords=None):
 
 @custom_jvp
 def _rr(coords):
-    coords = jnp.asarray(coords)
-    rr = jnp.linalg.norm(coords.reshape(-1,1,3) - coords, axis=2)
+    coords = np.asarray(coords)
+    rr = np.linalg.norm(coords.reshape(-1,1,3) - coords, axis=2)
     #rr[numpy.diag_indices_from(rr)] = 1e200
-    rr = ops.index_update(rr, jnp.diag_indices_from(rr), 1e200)
+    rr = ops.index_update(rr, np.diag_indices_from(rr), 1e200)
     return rr
 
 @_rr.defjvp
@@ -42,14 +42,14 @@ def _rr_jvp(primals, tangents):
 
     r = coords.reshape(-1,1,3) - coords
     natm = coords.shape[0]
-    #tangent_out = jnp.zeros_like(primal_out)
-    grad = jnp.zeros((natm,natm,3), dtype=float)
+    #tangent_out = np.zeros_like(primal_out)
+    grad = np.zeros((natm,natm,3), dtype=float)
     for i in range(natm):
         #tangent_out = ops.index_add(tangent_out, ops.index[i],
-        #                            jnp.dot(r[i] / rnorm[i,:,None], coords_t[i]))
+        #                            np.dot(r[i] / rnorm[i,:,None], coords_t[i]))
         #grad[i] += r[i] / rnorm[i,:,None]
         grad = ops.index_add(grad, ops.index[i], r[i] / rnorm[i,:,None])
-    tangent_out = jnp.einsum("ijx,ix->ij", grad, coords_t)
+    tangent_out = np.einsum("ijx,ix->ij", grad, coords_t)
     tangent_out += tangent_out.T
     return primal_out, tangent_out
 
@@ -96,7 +96,7 @@ class Mole(gto.Mole):
         gto.Mole.build(self, *args, **kwargs)
 
         if trace_coords:
-            self.coords = jnp.asarray(self.atom_coords())
+            self.coords = np.asarray(self.atom_coords())
         if trace_exp:
             self.exp, _, _ = setup_exp(self)
         if trace_ctr_coeff:
