@@ -1,3 +1,4 @@
+import warnings
 from jax import tree_util
 
 def pytree_node(leaf_names, num_args=0):
@@ -31,7 +32,9 @@ def pytree_node(leaf_names, num_args=0):
                     raise KeyError(f"Pytree leaf {leaf_name} is not defined in class {cls}.")
             children =  tuple(getattr(obj, leaf_name, None) for leaf_name in leaf_names)
             if len(children) <= 0:
-                raise KeyError("Empty pytree node is not supported.")
+                #raise KeyError("Empty pytree node is not supported.")
+                warnings.warn(f"Not taking derivatives wrt the leaves in "
+                              f"the node {obj.__class__} as none of those was specified.")
 
             aux_keys = set(keys) - set(leaf_names)
             aux_data = tuple(getattr(obj, key, None) for key in aux_keys)

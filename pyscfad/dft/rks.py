@@ -1,4 +1,3 @@
-import jax
 import numpy
 from pyscf import __config__
 from pyscf.lib import current_memory
@@ -10,22 +9,17 @@ from pyscfad import util
 from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf
-from . import numint
+from pyscfad.dft import numint
 
-@lib.dataclass
+@util.pytree_node([])
 class VXC():
-    vxc: np.array = None
-    ecoul: float = None
-    exc: float = None
-    vj: np.array = None
-    vk: np.array = None
-
-    def reset(self):
+    def __init__(self, **kwargs):
         self.vxc = None
         self.ecoul = None
         self.exc = None
         self.vj = None
         self.vk = None
+        self.__dict__.update(kwargs)
 
     def __repr__(self):
         return self.vxc.__repr__()
@@ -121,9 +115,9 @@ def energy_elec(ks, dm=None, h1e=None, vhf=None):
         vhf = ks.get_veff(ks.mol, dm)
     e1 = np.einsum('ij,ji->', h1e, dm)
     e2 = vhf.ecoul + vhf.exc
-    ks.scf_summary['e1'] = e1.real
-    ks.scf_summary['coul'] = vhf.ecoul.real
-    ks.scf_summary['exc'] = vhf.exc.real
+    ks.scf_summary['e1'] = stop_grad(e1).real
+    ks.scf_summary['coul'] = stop_grad(vhf.ecoul).real
+    ks.scf_summary['exc'] = stop_grad(vhf.exc).real
     logger.debug(ks, 'E1 = %s  Ecoul = %s  Exc = %s', e1, vhf.ecoul, vhf.exc)
     return (e1+e2).real, e2
 
