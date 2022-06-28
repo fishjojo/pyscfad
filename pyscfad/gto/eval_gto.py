@@ -60,7 +60,7 @@ def _eval_gto_fill_grad_r0(mol, intor, shls_slice, ao_loc, ao1, order, ngrids):
     ao_end = ao_loc[sh1]
     nao = ao_end - ao_start
     ng = ngrids
-    atmlst = range(mol.natm)
+    atmlst = np.asarray(range(mol.natm))
     aoslices = mol.aoslice_by_atom(ao_loc)
 
     #if nc == 1:
@@ -85,12 +85,12 @@ def _eval_gto_fill_grad_r0(mol, intor, shls_slice, ao_loc, ao1, order, ngrids):
     #                idx_x = _DERIV_LABEL.index("".join(sorted(label + 'x')), start, end)
     #                idx_y = _DERIV_LABEL.index("".join(sorted(label + 'y')), start, end)
     #                idx_z = _DERIV_LABEL.index("".join(sorted(label + 'z')), start, end)
-    #                tmp = (ao1[idx_x,:,id0:id1] * coords_t[k,0]
+    #                tmp = (  ao1[idx_x,:,id0:id1] * coords_t[k,0]
     #                       + ao1[idx_y,:,id0:id1] * coords_t[k,1]
     #                       + ao1[idx_z,:,id0:id1] * coords_t[k,2])
     #                tangent_out = ops.index_add(tangent_out, ops.index[start0+il,:,id0:id1], tmp)
 
-    grad = numpy.zeros([mol.natm,3,nc,ng,nao], dtype=ao1.dtype)
+    grad = np.zeros([mol.natm,3,nc,ng,nao], dtype=ao1.dtype)
     for iorder in range(order+1):
         for k, ia in enumerate(atmlst):
             p0, p1 = aoslices [ia, 2:]
@@ -106,9 +106,9 @@ def _eval_gto_fill_grad_r0(mol, intor, shls_slice, ao_loc, ao1, order, ngrids):
                 idx_x = _DERIV_LABEL.index("".join(sorted(label + 'x')), start, end)
                 idx_y = _DERIV_LABEL.index("".join(sorted(label + 'y')), start, end)
                 idx_z = _DERIV_LABEL.index("".join(sorted(label + 'z')), start, end)
-                grad[k,0,start0+il,:,id0:id1] -= ao1[idx_x,:,id0:id1]
-                grad[k,1,start0+il,:,id0:id1] -= ao1[idx_y,:,id0:id1]
-                grad[k,2,start0+il,:,id0:id1] -= ao1[idx_z,:,id0:id1]
+                grad = grad.at[k,0,start0+il,:,id0:id1].add(-ao1[idx_x,:,id0:id1])
+                grad = grad.at[k,1,start0+il,:,id0:id1].add(-ao1[idx_y,:,id0:id1])
+                grad = grad.at[k,2,start0+il,:,id0:id1].add(-ao1[idx_z,:,id0:id1])
     return grad
 
 def _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc):
@@ -122,7 +122,7 @@ def _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
         order = int(tmp[1])
         new_eval = tmp[0] + "deriv" + str(order + 1)
 
-    ao1 = pyscf_eval_gto(mol, new_eval, grid_coords, None, shls_slice, non0tab, ao_loc)
+    ao1 = _eval_gto(mol, new_eval, grid_coords, None, shls_slice, non0tab, ao_loc, None)
     ngrids = len(grid_coords)
     grad = _eval_gto_fill_grad_r0(mol, new_eval, shls_slice, ao_loc, ao1, order, ngrids)
     ao1 = None

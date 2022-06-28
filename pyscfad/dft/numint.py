@@ -1,19 +1,17 @@
 import warnings
 from functools import partial
 import numpy
-import jax
-from jax import jit
-from jax import custom_jvp
-import pyscf
+from jax import jit, vmap, custom_jvp
+from pyscf.lib import load_library
 from pyscf.dft import numint
 from pyscf.dft.numint import SWITCH_SIZE
 from pyscf.dft.gen_grid import make_mask, BLKSIZE
 from pyscfad.lib import numpy as np
 from pyscfad.lib import ops
 from pyscfad.lib import stop_grad
-from . import libxc
+from pyscfad.dft import libxc
 
-libdft = pyscf.lib.load_library('libdft')
+libdft = load_library('libdft')
 
 def eval_mat(mol, ao, weight, rho, vxc,
              non0tab=None, xctype='LDA', spin=0, verbose=None):
@@ -39,28 +37,18 @@ def eval_mat(mol, ao, weight, rho, vxc,
         aow = _scale_ao(ao, .5*weight*vrho)
         mat = _dot_ao_ao(mol, ao, aow, non0tab, shls_slice, ao_loc)
     else:
-        #wv = weight * vsigma * 2
-        #aow  = numpy.einsum('pi,p->pi', ao[1], rho[1]*wv)
-        #aow += numpy.einsum('pi,p->pi', ao[2], rho[2]*wv)
-        #aow += numpy.einsum('pi,p->pi', ao[3], rho[3]*wv)
-        #aow += numpy.einsum('pi,p->pi', ao[0], .5*weight*vrho)
         vrho, vsigma = vxc[:2]
-        wv = np.empty((4,ngrids))
         if spin == 0:
             assert(vsigma is not None and rho.ndim==2)
-            #wv[0]  = weight * vrho * .5
-            #wv[1:4] = rho[1:4] * (weight * vsigma * 2)
-            wv = ops.index_update(wv, ops.index[0], weight * vrho * .5)
-            wv = ops.index_update(wv, ops.index[1:4], rho[1:4] * (weight * vsigma * 2))
+            wv_rho = weight * vrho * .5
+            wv_sigma = rho[1:4] * (weight * vsigma * 2)
+            wv = np.concatenate((wv_rho.reshape(1,-1), wv_sigma))
         else:
             rho_a, rho_b = rho
-            #wv[0]  = weight * vrho * .5
-            wv = ops.index_update(wv, ops.index[0], weight * vrho * .5)
+            wv_rho = weight * vrho * .5
             try:
-                #wv[1:4] = rho_a[1:4] * (weight * vsigma[0] * 2)  # sigma_uu
-                #wv[1:4]+= rho_b[1:4] * (weight * vsigma[1])      # sigma_ud
-                tmp = rho_a[1:4] * (weight * vsigma[0] * 2) + rho_b[1:4] * (weight * vsigma[1])
-                wv = ops.index_update(wv, ops.index[1:4], tmp)
+                wv_sigma  = rho_a[1:4] * (weight * vsigma[0] * 2)
+                wv_sigma += rho_b[1:4] * (weight * vsigma[1])
             except ValueError:
                 warnings.warn('Note the output of libxc.eval_xc cannot be '
                               'directly used in eval_mat.\nvsigma from eval_xc '
@@ -68,10 +56,9 @@ def eval_mat(mol, ao, weight, rho, vxc,
                               '(vsigma[:,0],vsigma[:,1])\n')
                 transpose_for_uks = True
                 vsigma = vsigma.T
-                #wv[1:4] = rho_a[1:4] * (weight * vsigma[0] * 2)  # sigma_uu
-                #wv[1:4]+= rho_b[1:4] * (weight * vsigma[1])      # sigma_ud
-                tmp = rho_a[1:4] * (weight * vsigma[0] * 2) + rho_b[1:4] * (weight * vsigma[1])
-                wv = ops.index_update(wv, ops.index[1:4], tmp)
+                wv_sigma  = rho_a[1:4] * (weight * vsigma[0] * 2)
+                wv_sigma += rho_b[1:4] * (weight * vsigma[1])
+            wv = np.concatenate((wv_rho.reshape(1,-1), wv_sigma))
         #:aow = numpy.einsum('npi,np->pi', ao[:4], wv)
         aow = _scale_ao(ao[:4], wv)
         mat = _dot_ao_ao(mol, ao[0], aow, non0tab, shls_slice, ao_loc)
@@ -269,14 +256,7 @@ def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
         #:rho = numpy.einsum('pi,pi->p', ao, c0)
         rho = _contract_rho(ao, c0)
     elif xctype in ('GGA', 'NLC'):
-        rho = np.empty((4,ngrids))
-        #c0 = _dot_ao_dm(mol, ao[0], dm, non0tab, shls_slice, ao_loc)
-        #:rho[0] = numpy.einsum('pi,pi->p', c0, ao[0])
-        #rho = ops.index_update(rho, ops.index[0], _contract_rho(c0, ao[0]))
-        #for i in range(1, 4):
-        #    #:rho[i] = numpy.einsum('pi,pi->p', c0, ao[i])
-        #    rho = ops.index_update(rho, ops.index[i], _contract_rho(c0, ao[i]) * 2)
-        rho = _rks_gga_assemble_rho(rho, ao, dm)
+        rho = _rks_gga_assemble_rho(ao, dm)
     else: # meta-GGA
         # rho[4] = \nabla^2 rho, rho[5] = 1/2 |nabla f|^2
         rho = np.empty((6,ngrids))
@@ -301,11 +281,10 @@ def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
     return rho
 
 @jit
-def _rks_gga_assemble_rho(rho, ao, dm):
+def _rks_gga_assemble_rho(ao, dm):
     c0 = _dot_ao_dm_incore(ao[0], dm)
-    rho = ops.index_update(rho, ops.index[0], _contract_rho(c0, ao[0]))
-    for i in range(1, 4):
-        rho = ops.index_update(rho, ops.index[i], _contract_rho(c0, ao[i]) * 2)
+    factor = np.asarray([1., 2., 2., 2.])
+    rho = vmap(_contract_rho, (None,0,0))(c0, ao, factor)
     return rho
 
 @jit
@@ -363,21 +342,20 @@ def _dot_ao_dm_incore(ao, dm):
     return np.dot(np.asarray(dm).T, ao.T).T
 
 @jit
-def _contract_rho(bra, ket):
+def _contract_rho(bra, ket, factor=1.0):
     bra = bra.T
     ket = ket.T
 
     rho  = np.einsum('ip,ip->p', bra.real, ket.real)
     rho += np.einsum('ip,ip->p', bra.imag, ket.imag)
-    return rho
+    return rho * factor
 
 @jit
 def _rks_gga_wv0(rho, vxc, weight):
     vrho, vgamma = vxc[:2]
-    ngrid = vrho.size
-    wv = np.empty((4,ngrid))
-    wv = ops.index_update(wv, ops.index[0], weight * vrho * .5)
-    wv = ops.index_update(wv, ops.index[1:], (weight * vgamma * 2) * rho[1:4])
+    wv_rho = weight * vrho * .5
+    wv_sigma = (weight * vgamma * 2) * rho[1:4]
+    wv = np.concatenate((wv_rho.reshape(1,-1), wv_sigma))
     #wv = ops.index_mul(wv, ops.index[0], .5)  # v+v.T should be applied in the caller
     return wv
 
