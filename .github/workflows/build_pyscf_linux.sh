@@ -5,8 +5,8 @@ sudo apt-get -qq install \
     cmake
 
 cd pyscf/pyscf/lib
-#curl http://www.sunqm.net/pyscf/files/bin/pyscf-2.0a-deps.tar.gz | tar xzf -
+curl -L https://github.com/fishjojo/pyscf-deps/blob/master/pyscf-2.0.1-ad-deps.tar.gz?raw=true | tar xzf -
 mkdir build; cd build
-#cmake -DBUILD_LIBXC=OFF -DBUILD_XCFUN=OFF -DBUILD_LIBCINT=OFF ..
-cmake ..
+cmake -DBUILD_LIBXC=OFF -DBUILD_XCFUN=OFF -DBUILD_LIBCINT=OFF ..
+#cmake ..
 make -j4
