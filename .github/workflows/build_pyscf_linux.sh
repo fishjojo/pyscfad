@@ -6,6 +6,9 @@ rm GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
 sudo echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
 sudo apt-get update
 sudo apt-get install -y intel-oneapi-mkl
+source /opt/intel/oneapi/setvars.sh
+echo $MKLROOT
+printenv >> $GITHUB_ENV
 
 sudo apt-get -qq install \
     gcc \
