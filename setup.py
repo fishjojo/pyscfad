@@ -80,8 +80,8 @@ setup(
     install_requires=[
         'numpy>=1.17',
         'scipy',
-        'jax>=0.1.65',
-        'jaxlib>=0.1.65',
+        'jax>=0.1.65,<0.3.14',
+        'jaxlib>=0.1.65,<0.3.14',
         'jaxopt>=0.2',
         'pyscf @ git+https://github.com/fishjojo/pyscf.git@ad#egg=pyscf',
         'pyscf-properties @ git+https://github.com/fishjojo/properties.git@ad',

@@ -44,7 +44,7 @@ def get_rho_response(omega, mo_energy, Lpq):
     """
     Compute density response function in auxiliary basis at freq iw.
     """
-    naux, nocc, nvir = Lpq.shape
+    nocc = Lpq.shape[1]
     eia = mo_energy[:nocc, None] - mo_energy[None, nocc:]
     eia = eia / (omega**2 + eia * eia)
     # Response from both spin-up and spin-down density
@@ -69,7 +69,6 @@ def get_rpa_ecorr(rpa, Lpq, freqs, wts):
     #mo_energy = _mo_energy_without_core(rpa, rpa._scf.mo_energy)
     mo_energy = pyscf_rpa._mo_energy_without_core(rpa, mo_energy)
     nocc = rpa.nocc
-    nw = len(freqs)
     naux = Lpq.shape[0]
 
     if (mo_energy[nocc] - mo_energy[nocc-1]) < 1e-3:

@@ -40,7 +40,7 @@ def _iterative_kernel(mp, eris, verbose=None):
             conv = True
             break
     log.timer('MP2', *cput0)
-    del(log)
+    del log
     return conv, emp2, t2
 
 @util.pytree_node(['_scf', 'mol'], num_args=1)
