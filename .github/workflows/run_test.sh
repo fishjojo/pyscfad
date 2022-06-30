@@ -9,4 +9,5 @@ echo "pyscfad_scf_implicit_diff = True" >> $HOME/.pyscf_conf.py
 echo "pyscfad_ccsd_implicit_diff = True" >> $HOME/.pyscf_conf.py
 
 cd pyscfad
-pytest --cov-report xml --cov=. --verbosity=1 --durations=10
+#pytest --cov-report xml --cov=. --verbosity=1 --durations=10
+pytest dft
