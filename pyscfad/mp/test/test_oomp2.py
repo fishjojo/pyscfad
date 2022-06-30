@@ -4,7 +4,6 @@ import jax
 from scipy.optimize import minimize
 from pyscfad import util
 from pyscfad.lib import numpy as np
-from pyscfad.lib import ops
 from pyscfad.tools import rotate_mo1
 from pyscfad import gto, scf, mp
 

@@ -1,15 +1,10 @@
-import jax
-jax.config.update("jax_enable_x64", True)
 import numpy
-import jax.scipy as scipy
-from pyscfad import lib
+from scipy.optimize import minimize
+import jax
 from pyscfad import util
-from pyscfad.lib import numpy as jnp
-from pyscfad.lib import ops
-from pyscfad.lib.numpy_helper import unpack_triu
+from pyscfad.lib import numpy as np
 from pyscfad.tools import rotate_mo1
-from pyscfad import gto, scf
-from pyscfad import mp
+from pyscfad import gto, scf, mp
 
 @util.pytree_node(['_scf', 'x'], num_args=1)
 class OOMP2(mp.MP2):
@@ -21,7 +16,7 @@ class OOMP2(mp.MP2):
             nao = self.mol.nao
             assert nao == self.nmo
             size = nao*(nao+1)//2
-            self.x = jnp.zeros([size,])
+            self.x = np.zeros([size,])
         self.mo_coeff = rotate_mo1(self._scf.mo_coeff, self.x) 
         self._scf.converged = False
 
@@ -34,7 +29,7 @@ mf.kernel()
 
 def func(x0, mf):
     def energy(x0, mf):
-        mymp = OOMP2(mf, x=jnp.asarray(x0))
+        mymp = OOMP2(mf, x=np.asarray(x0))
         mymp.kernel()
         return mymp.e_tot
 
@@ -45,7 +40,6 @@ def func(x0, mf):
     f, g = grad(x0, mf)
     return (numpy.array(f), numpy.array(g))
 
-from scipy.optimize import minimize
 nao = mol.nao
 size = nao*(nao+1)//2
 x0 = numpy.zeros([size,])
