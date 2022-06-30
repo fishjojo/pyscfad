@@ -49,7 +49,7 @@ from scipy.optimize import minimize
 nao = mol.nao
 size = nao*(nao+1)//2
 x0 = numpy.zeros([size,])
-options = {"gtol":1e-6}
+options = {"gtol":1e-5}
 res = minimize(func, x0, args=(mf,), jac=True, method="BFGS", options = options)
 e = func(res.x, mf)[0]
 print(e)
