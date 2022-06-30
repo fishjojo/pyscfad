@@ -21,3 +21,7 @@ mkdir build; cd build
 cmake -DBUILD_LIBXC=OFF -DBUILD_XCFUN=OFF -DBUILD_LIBCINT=OFF ..
 #cmake ..
 make -j4
+
+cd ..
+cd deps/lib
+ldd libxc.so
