@@ -1,4 +1,5 @@
 import numpy
+from jax import vmap, jit
 from pyscf import lib as pyscf_lib
 from pyscf.lib import logger
 from pyscf import df as pyscf_df
@@ -38,6 +39,19 @@ def kernel(rpa, mo_energy, mo_coeff, Lpq=None, nw=None, verbose=logger.NOTE):
 
     return e_tot, e_hf, e_corr
 
+@jit
+def get_rho_response(omega, mo_energy, Lpq):
+    """
+    Compute density response function in auxiliary basis at freq iw.
+    """
+    naux, nocc, nvir = Lpq.shape
+    eia = mo_energy[:nocc, None] - mo_energy[None, nocc:]
+    eia = eia / (omega**2 + eia * eia)
+    # Response from both spin-up and spin-down density
+    Pia = Lpq * (eia * 4.0)
+    Pi = np.einsum('Pia, Qia -> PQ', Pia, Lpq)
+    return Pi
+
 def get_rpa_ecorr(rpa, Lpq, freqs, wts):
     """
     Compute RPA correlation energy
@@ -61,13 +75,14 @@ def get_rpa_ecorr(rpa, Lpq, freqs, wts):
     if (mo_energy[nocc] - mo_energy[nocc-1]) < 1e-3:
         logger.warn(rpa, 'Current RPA code not well-defined for degeneracy!')
 
-    e_corr = 0.
-    for w in range(nw):
-        Pi = pyscf_rpa.get_rho_response(freqs[w], mo_energy, Lpq[:, :nocc, nocc:])
-        ec_w = np.log(np.linalg.det(np.eye(naux) - Pi))
+    def body(omega, weight):
+        Pi = get_rho_response(omega, mo_energy, Lpq[:, :nocc, nocc:])
+        ec_w  = np.log(np.linalg.det(np.eye(naux) - Pi))
         ec_w += np.trace(Pi)
-        e_corr += 1./(2.*numpy.pi) * ec_w * wts[w]
-
+        e_corr_i = 1./(2.*numpy.pi) * ec_w * weight
+        return e_corr_i
+    e_corr_i = vmap(body)(freqs, wts)
+    e_corr = np.sum(e_corr_i)
     return e_corr
 
 @util.pytree_node(['_scf','mol','with_df','mo_energy','mo_coeff'], num_args=1)
