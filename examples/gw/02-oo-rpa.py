@@ -1,15 +1,14 @@
 '''
 Orbital optimized RPA
 '''
-from functools import partial
 import numpy
+from scipy.optimize import minimize
 import jax
-from jax import numpy as jnp
+from jax import numpy as np
 from pyscf import df as pyscf_df
-from pyscfad import gto, dft, scf, df
-from pyscfad.lib import ops
+from pyscfad import gto, dft, df
 from pyscfad.gw import rpa
-from pyscfad.tools import rotate_mo1, rotate_mo1_ov
+from pyscfad.tools import rotate_mo1
 
 mol = gto.Mole()
 mol.verbose = 3
@@ -32,7 +31,7 @@ auxmol = df.addons.make_auxmol(mol, auxbasis)
 
 nocc = 1
 def energy(mol, auxmol, x):
-    x = jnp.asarray(x)
+    x = np.asarray(x)
     mf = dft.RKS(mol)
     mf.xc = 'pbe'
     mf.kernel(dm0=None)
@@ -59,7 +58,6 @@ def func(x0, mol, auxmol):
     print("energy:", f, "norm g:", numpy.linalg.norm(g))
     return (numpy.asarray(f), numpy.asarray(g))
 
-from scipy.optimize import minimize
 options ={"disp": True, "gtol": 1e-5}
 res = minimize(func, x0, args=(mol, auxmol), jac=True, method="BFGS", options = options)
 e,g = func(res.x, mol, auxmol)
