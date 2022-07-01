@@ -1,64 +1,41 @@
 '''
-Orbital optimized RPA
+Orbital optimized density-fitted RPA
 '''
 import numpy
 from scipy.optimize import minimize
 import jax
-from jax import numpy as np
-from pyscf import df as pyscf_df
+from pyscf.df.addons import make_auxbasis
 from pyscfad import gto, dft, df
 from pyscfad.gw import rpa
 from pyscfad.tools import rotate_mo1
 
+# molecular structure
 mol = gto.Mole()
-mol.verbose = 3
-mol.atom = [
-    [2 , (0. , 0.     , 0.)],
-    [2 , (0. , 0. , 2.6)]]
+mol.atom = [['He', (0., 0., 0.)],
+            ['He', (0., 0., 2.6)]]
 mol.basis = 'def2-svp'
-mol.build(trace_exp=False, trace_ctr_coeff=False)
+mol.build()
 
-mf = dft.RKS(mol)
-mf.xc = 'pbe'
+# RKS/PBE
+mf = dft.RKS(mol, xc='PBE')
 mf.kernel()
+mo_coeff = mf.mo_coeff
 
-mymp=rpa.RPA(mf)
-mymp.kernel()
-print("PBE-RPA energy:", mymp.e_tot)
+# density fitting basis
+dfobj = df.DF(mol, make_auxbasis(mol, mp2fit=True))
 
-auxbasis = pyscf_df.addons.make_auxbasis(mol, mp2fit=True)
-auxmol = df.addons.make_auxmol(mol, auxbasis)
+def rpa_energy(x):
+    # apply orbital rotation
+    mf.mo_coeff = rotate_mo1(mo_coeff, x)
+    # density-fitted RPA
+    myrpa = rpa.RPA(mf)
+    myrpa.with_df = dfobj
+    myrpa.kernel()
+    return myrpa.e_tot
 
-nocc = 1
-def energy(mol, auxmol, x):
-    x = np.asarray(x)
-    mf = dft.RKS(mol)
-    mf.xc = 'pbe'
-    mf.kernel(dm0=None)
-
-    mo_coeff = rotate_mo1(mf.mo_coeff, x)
-    mf.mo_coeff = mo_coeff
-
-    mymp = rpa.RPA(mf)
-    mymp.mo_coeff = mo_coeff
-    mymp.with_df = df.DF(mol, auxmol=auxmol)
-    mymp.kernel()
-    return mymp.e_tot
-
-nao = mol.nao
-size = nao*(nao+1)//2
-x0 = numpy.zeros([size,])
-
-def func(x0, mol, auxmol):
-    def grad(x0, mol, auxmol):
-        f, g = jax.value_and_grad(energy, 2)(mol, auxmol, x0)
-        return f, g
-
-    f, g = grad(x0, mol, auxmol)
-    print("energy:", f, "norm g:", numpy.linalg.norm(g))
-    return (numpy.asarray(f), numpy.asarray(g))
-
-options ={"disp": True, "gtol": 1e-5}
-res = minimize(func, x0, args=(mol, auxmol), jac=True, method="BFGS", options = options)
-e,g = func(res.x, mol, auxmol)
-print("PBE-OO-RPA energy:", e)
+x0 = numpy.zeros([mol.nao*(mol.nao+1)//2,])
+value_and_grad = lambda x : jax.value_and_grad(rpa_energy)(x)
+res = minimize(value_and_grad, x0, jac=True,
+               method="BFGS", options={'gtol': 1e-5})
+etot = rpa_energy(res.x)
+print("OO-RPA/PBE energy:", etot)
