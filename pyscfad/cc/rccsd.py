@@ -17,6 +17,36 @@ def update_amps(cc, t1, t2, eris):
     mo_oo = np.diagflat(mo_e_o)
     mo_vv = np.diagflat(mo_e_v)
 
+    foo = fock[:nocc,:nocc]#.copy()
+    fvv = fock[nocc:,nocc:]#.copy()
+
+    t1new, t2new = cc.amplitude_equation(t1, t2, eris)
+    # Move energy terms to the other side
+    t1new +=   np.einsum('ac,ic->ia', -mo_vv, t1)
+    t1new +=  -np.einsum('ki,ka->ia', -mo_oo, t1)
+    if cc.cc2:
+        Lvv2 = -np.diagflat(np.diag(fvv))
+        tmp = np.einsum('ac,ijcb->ijab', Lvv2, t2)
+        t2new += (tmp + tmp.transpose(1,0,3,2))
+        Loo2 = -np.diagflat(np.diag(foo))
+        tmp = np.einsum('ki,kjab->ijab', Loo2, t2)
+        t2new -= (tmp + tmp.transpose(1,0,3,2))
+    else:
+        tmp = np.einsum('ac,ijcb->ijab', -mo_vv, t2)
+        t2new += tmp + tmp.transpose(1,0,3,2)
+        tmp = np.einsum('ki,kjab->ijab', -mo_oo, t2)
+        t2new -= tmp + tmp.transpose(1,0,3,2)
+
+    eia = mo_e_o[:,None] - mo_e_v
+    eijab = direct_sum('ia,jb->ijab',eia,eia)
+    t1new /= eia
+    t2new /= eijab
+    return t1new, t2new
+
+def amplitude_equation(cc, t1, t2, eris):
+    nocc, nvir = t1.shape
+    fock = eris.fock
+
     fov = fock[:nocc,nocc:]#.copy()
     foo = fock[:nocc,:nocc]#.copy()
     fvv = fock[nocc:,nocc:]#.copy()
@@ -24,10 +54,6 @@ def update_amps(cc, t1, t2, eris):
     Foo = imd.cc_Foo(t1,t2,eris)
     Fvv = imd.cc_Fvv(t1,t2,eris)
     Fov = imd.cc_Fov(t1,t2,eris)
-
-    # Move energy terms to the other side
-    Foo -= mo_oo
-    Fvv -= mo_vv
 
     # T1 equation
     t1new  =-2*np.einsum('kc,ka,ic->ia', fov, t1, t1)
@@ -71,18 +97,16 @@ def update_amps(cc, t1, t2, eris):
         Wvvvv += eris.vvvv.transpose(0,2,1,3)
         t2new += np.einsum('abcd,ic,jd->ijab', Wvvvv, t1, t1)
         Lvv2 = fvv - np.einsum('kc,ka->ac', fov, t1)
-        Lvv2 -= np.diagflat(np.diag(fvv))
+        #Lvv2 -= np.diagflat(np.diag(fvv))
         tmp = np.einsum('ac,ijcb->ijab', Lvv2, t2)
         t2new += (tmp + tmp.transpose(1,0,3,2))
         Loo2 = foo + np.einsum('kc,ic->ki', fov, t1)
-        Loo2 -= np.diagflat(np.diag(foo))
+        #Loo2 -= np.diagflat(np.diag(foo))
         tmp = np.einsum('ki,kjab->ijab', Loo2, t2)
         t2new -= (tmp + tmp.transpose(1,0,3,2))
     else:
         Loo = imd.Loo(t1, t2, eris)
         Lvv = imd.Lvv(t1, t2, eris)
-        Loo -= mo_oo
-        Lvv -= mo_vv
 
         Woooo = imd.cc_Woooo(t1, t2, eris)
         Wvoov = imd.cc_Wvoov(t1, t2, eris)
@@ -103,11 +127,6 @@ def update_amps(cc, t1, t2, eris):
         t2new -= tmp + tmp.transpose(1,0,3,2)
         tmp = np.einsum('bkci,kjac->ijab', Wvovo, t2)
         t2new -= tmp + tmp.transpose(1,0,3,2)
-
-    eia = mo_e_o[:,None] - mo_e_v
-    eijab = direct_sum('ia,jb->ijab',eia,eia)
-    t1new /= eia
-    t2new /= eijab
     return t1new, t2new
 
 @util.pytree_node(ccsd.CC_Tracers, num_args=1)
@@ -139,6 +158,7 @@ class RCCSD(ccsd.CCSD):
             raise NotImplementedError
 
     update_amps = update_amps
+    amplitude_equation = amplitude_equation
 
 def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
     log = logger.new_logger(mycc)
