@@ -18,7 +18,6 @@ mol.atom = '''B  ,  0.   0.   0.
 mol.basis = 'aug-cc-pvdz'
 mol.unit = 'B'
 mol.build(trace_exp=False, trace_ctr_coeff=False)
-natm = mol.natm
 
 # CCSD energy
 def energy(mol):

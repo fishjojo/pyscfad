@@ -15,7 +15,6 @@ mol.atom =[['O', [0.0000,  0.0000,  0.1212]],
            ['H', [0.0000, -0.7508, -0.4848]]]
 mol.basis = 'cc-pvdz'
 mol.build(trace_exp=False, trace_ctr_coeff=False)
-natm = mol.natm
 
 # CCSD energy
 def energy(mol):

@@ -1,29 +1,60 @@
 '''
-Raman susceptibility
+Raman activity
+
+Vibrational frequency in cm^-1:
+[1775.68298016 4113.24151671 4211.55679665]
+Raman activity in A^4/amu:
+[ 4.78998643 68.87902111 34.78821604]
+Depolarization ration:
+[0.52686036 0.17011081 0.75      ]
 '''
-import numpy
 import jax
 from pyscfad import gto, scf
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
+from pyscfad.prop.polarizability.rhf import Polarizability
+from pyscfad.prop.thermo import vib
 
 mol = gto.Mole()
-mol.atom = '''H  ,  0.   0.   0.
-              F  ,  0.   0.   .917'''
-mol.basis = '631g'
+mol.atom =[['O', [0.0000,  0.0000,  0.1157]],
+           ['H', [0.0000,  0.7488, -0.4629]],
+           ['H', [0.0000, -0.7488, -0.4629]]]
+mol.basis = 'cc-pvdz'
 mol.build(trace_exp=False, trace_ctr_coeff=False)
 
-def polarizability(mol):
+def energy(mol):
     mf = scf.RHF(mol)
-    ao_dip = mol.intor_symmetric('int1e_r', comp=3)
-    h1 = mf.get_hcore()
-    E = numpy.zeros((3))
-    def dip_moment(E):
-        mf.get_hcore = lambda *args, **kwargs: h1 + jnp.einsum('x,xij->ij', E, ao_dip)
-        mf.kernel()
-        dip = mf.dip_moment(mol, mf.make_rdm1(), unit='AU', verbose=0)
-        return dip
-    polar = jax.jacrev(dip_moment)(E)
-    return polar
+    e_tot = mf.kernel()
+    return e_tot
 
-chi = jax.jacrev(polarizability)(mol).coords
-print(chi)
+hess = jax.jacrev(jax.jacrev(energy))(mol).coords.coords
+
+def apply_E(mol, E):
+    field = np.einsum('x,xij->ij', E, mol.intor('int1e_r'))
+    mf = scf.RHF(mol)
+    h1 = mf.get_hcore() + field
+    mf.get_hcore = lambda *args, **kwargs: h1
+    e_tot = mf.kernel()
+    return e_tot
+
+def polarizability(mol, freq=0.0):
+    mf = scf.RHF(mol)
+    mf.kernel()
+    alpha = Polarizability(mf).polarizability_with_freq(freq=freq)
+    return alpha
+
+# equivalent ways to compute chi
+# method2 allows frequency dependent polarizability
+method = 2
+if method == 1:
+    E0 = np.zeros((3))
+    chi = -jax.jacrev(jax.jacrev(jax.jacrev(apply_E,1),1),0)(mol, E0).coords
+else:
+    chi = jax.jacrev(polarizability)(mol, freq=0.0).coords
+
+vibration, _, raman = vib.harmonic_analysis(mol, hess, raman_tensor=chi)
+print("Vibrational frequency in cm^-1:")
+print(vibration['freq_wavenumber'])
+print('Raman activity in A^4/amu:')
+print(raman['activity'])
+print('Depolarization ration:')
+print(raman['depolar_ratio'])
