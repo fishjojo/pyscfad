@@ -40,6 +40,8 @@ def distance_matrix_jvp(primals, tangents):
     tangent_out += tangent_out.T
     return primal_out, tangent_out
 
+intor_cross = moleintor.intor_cross
+
 @util.pytree_node(Traced_Attributes)
 class Mole(gto.Mole):
     '''
