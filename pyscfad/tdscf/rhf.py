@@ -12,13 +12,15 @@ def get_ab(mf, mo_energy=None, mo_coeff=None, mo_occ=None):
     A[i,a,j,b] = \delta_{ab}\delta_{ij}(E_a - E_i) + (ia||bj)
     B[i,a,j,b] = (ia||jb)
     '''
-    if mo_energy is None: mo_energy = mf.mo_energy
-    if mo_coeff is None: mo_coeff = mf.mo_coeff
-    if mo_occ is None: mo_occ = mf.mo_occ
+    if mo_energy is None:
+        mo_energy = mf.mo_energy
+    if mo_coeff is None:
+        mo_coeff = mf.mo_coeff
+    if mo_occ is None:
+        mo_occ = mf.mo_occ
     assert mo_coeff.dtype == np.double
 
-    mol = mf.mol
-    nao, nmo = mo_coeff.shape
+    nmo = mo_coeff.shape[-1]
     occidx = np.where(mo_occ==2)[0]
     viridx = np.where(mo_occ==0)[0]
     orbv = mo_coeff[:,viridx]
@@ -55,7 +57,8 @@ class TDMixin(pyscf_tdrhf.TDMixin):
         self.__dict__.update(kwargs)
 
     def get_ab(self, mf=None):
-        if mf is None: mf = self._scf
+        if mf is None:
+            mf = self._scf
         return get_ab(mf)
 
 @util.pytree_node(Traced_Attributes, num_args=1)
