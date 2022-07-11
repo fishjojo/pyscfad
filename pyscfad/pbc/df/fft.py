@@ -6,6 +6,7 @@ from pyscf.pbc.lib.kpts_helper import gamma_point
 from pyscf.pbc.df import fft as pyscf_fft
 from pyscfad import lib
 from pyscfad.lib import numpy as np
+from pyscfad.lib import ops, stop_grad
 from pyscfad.pbc import tools 
 from pyscfad.pbc.gto import Cell
 
@@ -14,12 +15,13 @@ def get_pp(mydf, kpts=None, cell=None):
     '''
     from pyscf import gto
     from pyscf.pbc.gto import pseudo
+    from pyscfad.gto.mole import Mole
     if cell is None:
         cell = mydf.cell
     if kpts is None:
         kpts_lst = numpy.zeros((1,3))
     else:
-        kpts_lst = numpy.reshape(kpts, (-1,3))
+        kpts_lst = np.reshape(kpts, (-1,3))
 
     mesh = mydf.mesh
     SI = cell.get_SI()
@@ -38,7 +40,7 @@ def get_pp(mydf, kpts=None, cell=None):
         ao = ao_ks = None
 
     # vppnonloc evaluated in reciprocal space
-    fakemol = gto.Mole()
+    fakemol = Mole()
     fakemol._atm = numpy.zeros((1,gto.ATM_SLOTS), dtype=numpy.int32)
     fakemol._bas = numpy.zeros((1,gto.BAS_SLOTS), dtype=numpy.int32)
     ptr = gto.PTR_ENV_START
@@ -49,16 +51,16 @@ def get_pp(mydf, kpts=None, cell=None):
     fakemol._bas[0,gto.PTR_COEFF] = ptr+4
 
     # buf for SPG_lmi upto l=0..3 and nl=3
-    buf = numpy.empty((48,ngrids), dtype=numpy.complex128)
+    #buf = np.empty((48,ngrids), dtype=np.complex128)
     def vppnl_by_k(kpt):
         Gk = Gv + kpt
-        G_rad = pyscf_lib.norm(Gk, axis=1)
+        G_rad = np.linalg.norm(Gk, axis=1)
         #aokG = ft_ao.ft_ao(cell, Gv, kpt=kpt) * (1/cell.vol)**.5
         # use numerical fft for now
         coords = mydf.grids.coords
-        aoR = cell.pbc_eval_gto('GTOval', coords, kpt=kpt)
+        aoR = cell.pbc_eval_gto('PBCGTOval', coords, kpt=kpt)
         assert numpy.prod(mesh) == len(coords) == ngrids
-        aokG = tools.fftk(aoR.T, mesh, numpy.exp(-1j*numpy.dot(coords, kpt))).T
+        aokG = tools.fftk(aoR.T, mesh, np.exp(-1j*np.dot(coords, kpt))).T
 
         vppnl = 0
         for ia in range(cell.natm):
@@ -67,6 +69,7 @@ def get_pp(mydf, kpts=None, cell=None):
                 continue
             pp = cell._pseudo[symb]
             p1 = 0
+            buf = []
             for l, proj in enumerate(pp[5:]):
                 rl, nl, hl = proj
                 if nl > 0:
@@ -77,16 +80,21 @@ def get_pp(mydf, kpts=None, cell=None):
 
                     p0, p1 = p1, p1+nl*(l*2+1)
                     # pYlm is real, SI[ia] is complex
-                    pYlm = numpy.ndarray((nl,l*2+1,ngrids), dtype=numpy.complex128, buffer=buf[p0:p1])
+                    #pYlm = np.array((nl,l*2+1,ngrids), dtype=numpy.complex128, buffer=buf[p0:p1])
+                    pYlm = []
                     for k in range(nl):
                         qkl = pseudo.pp._qli(G_rad*rl, l, k)
-                        pYlm[k] = pYlm_part.T * qkl
+                        pYlm.append(pYlm_part.T * qkl)
+                    buf.append(np.asarray(pYlm).reshape(-1,ngrids))
+
                     #:SPG_lmi = numpy.einsum('g,nmg->nmg', SI[ia].conj(), pYlm)
                     #:SPG_lm_aoG = numpy.einsum('nmg,gp->nmp', SPG_lmi, aokG)
                     #:tmp = numpy.einsum('ij,jmp->imp', hl, SPG_lm_aoG)
                     #:vppnl += numpy.einsum('imp,imq->pq', SPG_lm_aoG.conj(), tmp)
+
+            buf = np.vstack(buf)
             if p1 > 0:
-                SPG_lmi = buf[:p1]
+                SPG_lmi = buf #buf[:p1]
                 SPG_lmi *= SI[ia].conj()
                 SPG_lm_aoGs = np.dot(SPG_lmi, aokG)
                 p1 = 0
@@ -103,7 +111,7 @@ def get_pp(mydf, kpts=None, cell=None):
 
     for k, kpt in enumerate(kpts_lst):
         vppnl = vppnl_by_k(kpt)
-        if gamma_point(kpt):
+        if gamma_point(stop_grad(kpt)):
             vpp[k] = vpp[k].real + vppnl.real
         else:
             vpp[k] += vppnl

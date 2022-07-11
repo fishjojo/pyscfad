@@ -2,10 +2,51 @@ from functools import partial
 import numpy
 from jax import custom_jvp
 from pyscf.gto.moleintor import make_loc
+from pyscf.pbc.gto.eval_gto import _get_intor_and_comp
 from pyscf.pbc.gto.eval_gto import eval_gto as pyscf_eval_gto
-from pyscfad.lib import numpy as jnp
+from pyscfad.lib import numpy as np
 from pyscfad.gto.eval_gto import _eval_gto_fill_grad_r0
 
+def eval_gto(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
+             shls_slice=None, non0tab=None, ao_loc=None, out=None):
+    from pyscfad.gto import mole
+    from pyscfad.pbc.gto.cell import shift_bas_center
+    if eval_name[:3] == 'PBC':  # PBCGTOval_xxx
+        eval_name_mol, comp = _get_intor_and_comp(cell, eval_name[3:], comp)
+    else:
+        eval_name_mol, comp = _get_intor_and_comp(cell, eval_name, comp)
+
+    if kpts is None:
+        if kpt is not None:
+            kpts_lst = np.reshape(kpt, (1,3))
+        else:
+            kpts_lst = np.zeros((1,3))
+    else:
+        kpts_lst = np.reshape(kpts, (-1,3))
+
+    Ls = cell.get_lattice_Ls()
+    expkL = np.exp(1j*np.dot(kpts_lst, Ls.T))
+
+    aos = []
+    for i in range(len(Ls)):
+        shifted_cell = shift_bas_center(cell, Ls[i])
+        ao = mole.eval_gto(shifted_cell, eval_name_mol, coords, comp=comp,
+                           shls_slice=shls_slice, non0tab=non0tab,
+                           ao_loc=ao_loc, out=out)
+        aos.append(ao)
+
+    aos = np.asarray(aos)
+    if comp == 1:
+        out = np.einsum('kl,lgi->kgi', expkL, aos)
+    else:
+        out = np.einsum('kl,lcgi->kcij', expkL, ints)
+
+    if kpts is None or np.shape(kpts) == (3,):  # A single k-point
+        out = out[0]
+    return out
+
+
+'''
 def eval_gto(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
              shls_slice=None, non0tab=None, ao_loc=None, out=None):
     if "ip" in eval_name:
@@ -13,6 +54,7 @@ def eval_gto(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
                               shls_slice, non0tab, ao_loc, out)
     return _eval_gto(cell, eval_name, coords, comp, kpts, kpt,
                      shls_slice, non0tab, ao_loc, out)
+'''
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,10)))
 def _eval_gto(cell, eval_name, coords, comp, kpts, kpt,
@@ -76,7 +118,7 @@ def _eval_gto_jvp_r0(cell, cell_t, eval_name, coords,
     tangent_out = []
     for k in range(nkpts):
         grad = _eval_gto_fill_grad_r0(cell, intor_ip, shls_slice, ao_loc, ao1[k], order, ngrids)
-        tangent_out_k = jnp.einsum("nxlgi,nx->lgi", grad, cell_t.coords)
+        tangent_out_k = np.einsum("nxlgi,nx->lgi", grad, cell_t.coords)
         grad = None
         if order == 0:
             tangent_out_k = tangent_out_k[0]

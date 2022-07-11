@@ -35,7 +35,7 @@ def intor_cross_jvp(intor, comp, grids,
         nao1 = mol1.nao
         aoslices1 = mol1.aoslice_by_atom()[:,2:4]
         intor_ip_bra, _ = _int1e_dr1_name(intor)
-        s1a = -intor_cross(intor_ip_bra, mol1, mol2, comp=comp, grids=grids).reshape(3,-1,nao1,nao1)
+        s1a = -intor_cross(intor_ip_bra, mol1, mol2, comp=None, grids=grids).reshape(3,-1,nao1,nao1)
 
         idx1 = np.arange(nao1)
         grad1 = _gen_int1e_fill_grad_r0(s1a, aoslices1, idx1[None,None,:,None])
@@ -45,7 +45,7 @@ def intor_cross_jvp(intor, comp, grids,
         nao2 = mol2.nao
         aoslices2 = mol2.aoslice_by_atom()[:,2:4]
         _, intor_ip_ket = _int1e_dr1_name(intor)
-        s1b = -intor_cross(intor_ip_ket, mol1, mol2, comp=comp, grids=grids)
+        s1b = -intor_cross(intor_ip_ket, mol1, mol2, comp=None, grids=grids)
 
         order_a = _int1e_get_dr_order(intor_ip_ket)[0]
         s1b = s1b.reshape(3**order_a,3,-1,nao2,nao2).transpose(1,0,2,3,4).reshape(3,-1,nao2,nao2)
