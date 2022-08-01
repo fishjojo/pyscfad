@@ -3,7 +3,7 @@ import numpy
 import scipy
 import scipy.linalg
 from jax import jit
-from pyscfad.lib import numpy as np
+from pyscf import numpy as np
 from pyscfad.lib import ops, custom_jvp
 
 # threshold for degenerate eigenvalues
