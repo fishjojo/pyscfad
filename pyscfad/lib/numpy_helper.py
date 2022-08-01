@@ -1,12 +1,12 @@
 from functools import partial
 import numpy as onp
-from jax import jit
-from jax import numpy
-from jax.config import config as jax_config
-from . import ops
-jax_config.update("jax_enable_x64", True)
+#from jax import numpy
+#from jax.config import config as jax_config
+from pyscf import numpy
+from pyscf.lib import ops
+from .jax_helper import jit
+#jax_config.update("jax_enable_x64", True)
 
-jnp = numpy
 einsum = numpy.einsum
 dot = numpy.dot
 
@@ -27,7 +27,7 @@ def unpack_triu(triu, filltril=PLAIN):
     assert triu.ndim == 1
     nd = int(onp.sqrt(2*triu.size))
     shape = (nd, nd)
-    out = jnp.zeros(shape, dtype=triu.dtype)
+    out = numpy.zeros(shape, dtype=triu.dtype)
     idx = onp.triu_indices(nd)
     out = ops.index_update(out, idx, triu)
     if filltril == PLAIN:
@@ -54,7 +54,7 @@ def unpack_tril(tril, filltriu=PLAIN):
     assert tril.ndim == 1
     nd = int(onp.sqrt(2*tril.size))
     shape = (nd, nd)
-    out = jnp.zeros(shape, dtype=tril.dtype)
+    out = numpy.zeros(shape, dtype=tril.dtype)
     idx = onp.tril_indices(nd)
     out = ops.index_update(out, idx, tril)
     if filltriu == PLAIN:

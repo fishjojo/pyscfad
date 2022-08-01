@@ -1,6 +1,6 @@
+from pyscf import numpy as np
 from pyscf.scf import uhf as pyscf_uhf
 from pyscfad import util
-from pyscfad.lib import numpy as np
 from pyscfad.scf import hf
 
 @util.pytree_node(hf.Traced_Attributes, num_args=1)

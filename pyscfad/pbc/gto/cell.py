@@ -28,79 +28,13 @@ def get_SI(cell, Gv=None):
 
 energy_nuc = pyscf_cell.ewald
 
-def _ewald_sr(cell, coords=None, charges=None, ew_eta=None, ew_cut=None, Lall=None):
-    if coords is None:
-        coords = cell.atom_coords()
-    if charges is None:
-        charges = cell.atom_charges()
-    if ew_eta is None:
-        ew_eta = cell.get_ewald_params()[0]
-    if ew_cut is None:
-        ew_cut = cell.get_ewald_params()[1]
-    if Lall is None:
-        Lall = cell.get_lattice_Ls(rcut=ew_cut)
-
-    rLij = coords[:,None,:] - coords[None,:,:] + Lall[:,None,None,:]
-    r = np.sqrt(np.einsum('Lijx,Lijx->Lij', rLij, rLij))
-    rLij = None
-    #r[r<1e-16] = 1e200
-    r = np.where(r > 1e-16, r, 1e200)
-    ewovrl = .5 * np.einsum('i,j,Lij->', charges, charges, erfc(ew_eta *  r) / r)
-    return ewovrl
-
-#def _ewald_sr(cell, coords=None, charges=None, ew_eta=None, ew_cut=None, Lall=None):
-#    return _ewald_sr_wrap(cell, coords, charges, ew_eta, ew_cut, Lall)
-
-@partial(custom_jvp, nondiff_argnums=tuple(range(2,6)))
-def _ewald_sr_wrap(cell, coords, charges, ew_eta, ew_cut, Lall):
-    return pyscf_cell._ewald_sr(cell, coords, charges, ew_eta, ew_cut, Lall)
-
-@_ewald_sr_wrap.defjvp
-def _ewald_sr_jvp(charges, ew_eta, ew_cut, Lall, primals, tangents):
-    cell, coords, = primals
-    cell_t, coords_t, = tangents
-
-    primal_out = _ewald_sr_wrap(cell, coords, charges, ew_eta, ew_cut, Lall)
-
-    if coords is None:
-        coords = cell.coords
-        coords_t = cell_t.coords_t
- 
-    if charges is None:
-        charges = cell.atom_charges()
-    if ew_eta is None:
-        ew_eta = cell.get_ewald_params()[0]
-    if ew_cut is None:
-        ew_cut = cell.get_ewald_params()[1]
-    if Lall is None:
-        Lall = cell.get_lattice_Ls(rcut=ew_cut)
-
-    natm = cell.natm
-    grad = numpy.zeros((natm,3), dtype=numpy.double)
-    coords = numpy.asarray(coords)
-    rLij = coords[:,None,:] - coords[None,:,:] + Lall[:,None,None,:]
-    r2 = numpy.einsum('Lijx,Lijx->Lij', rLij, rLij)
-    r = numpy.sqrt(r2)
-    r = numpy.where(r > 1e-16, r, 1e200)
-    r2 = numpy.where(r2 > 1e-16, r2, 1e200)
-
-    tmp = - erfc(ew_eta *  r) / r2 
-    tmp += - 2. * ew_eta / (numpy.sqrt(numpy.pi) * r) * numpy.exp(-r2 * ew_eta**2)
-    r2 = None
-    for i in range(natm):
-        dr = rLij[:,i] / r[:,i,:,None]
-        grad[i] += charges[i] * numpy.einsum('j,Lj,Ljx->', charges, tmp[:,i], dr)
-    tmp = rLij = r = None
-    tangent_out = np.einsum('nx,nx->', grad, coords_t)
-    return primal_out, tangent_out
-
 def shift_bas_center(cell0, r):
     cell = cell0.copy()
     cell.coords = cell0.atom_coords() + r[None,:]
 
     ptr = cell._atm[:,PTR_COORD]
-    for i, p0 in enumerate(ptr):
-        cell._env[p0:p0+3] = stop_grad(cell.coords[i])
+    idx = numpy.vstack((ptr, ptr+1, ptr+2)).T.flatten()
+    numpy.put(cell._env, idx, stop_grad(cell.coords).flatten())
     return cell
 
 def intor_cross(intor, cell1, cell2, comp=None, hermi=0, kpts=None, kpt=None,
@@ -125,8 +59,8 @@ def intor_cross(intor, cell1, cell2, comp=None, hermi=0, kpts=None, kpt=None,
     for i in range(nL):
         shifted_cell = shift_bas_center(cell2, Ls[i])
         ints.append(mole.intor_cross(intor, cell1, shifted_cell, comp=comp))
-
     ints = np.asarray(ints)
+
     if comp == 1:
         out = np.einsum('kl,lij->kij', expkL, ints)
     else:
@@ -146,11 +80,12 @@ def pbc_intor(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
                       kpt=kpt, shls_slice=shls_slice, **kwargs)
     return res
 
-@util.pytree_node(mole.Traced_Attributes)
+@util.pytree_node(mole.Traced_Attributes+['abc'])
 class Cell(mole.Mole, pyscf_cell.Cell):
     def __init__(self, **kwargs):
         mole.Mole.__init__(self, **kwargs)
         self.a = None # lattice vectors, (a1,a2,a3)
+        self.abc = None # traced lattice vectors
         # if set, defines a spherical cutoff
         # of fourier components, with .5 * G**2 < ke_cutoff
         self.ke_cutoff = None
@@ -179,6 +114,7 @@ class Cell(mole.Mole, pyscf_cell.Cell):
         trace_exp = kwargs.pop("trace_exp", False)
         trace_ctr_coeff = kwargs.pop("trace_ctr_coeff", False)
         trace_r0 = kwargs.pop("trace_r0", False)
+        trace_lattice_vectors = kwargs.pop("trace_lattice_vectors", False)
 
         pyscf_cell.Cell.build(self, *args, **kwargs)
 
@@ -190,6 +126,14 @@ class Cell(mole.Mole, pyscf_cell.Cell):
             self.ctr_coeff, _, _ = setup_ctr_coeff(self)
         if trace_r0:
             pass
+        if trace_lattice_vectors:
+            self.abc = np.asarray(self.lattice_vectors())
+
+    def lattice_vectors(self):
+        if self.abc is None:
+            return pyscf_cell.Cell.lattice_vectors(self)
+        else:
+            return self.abc
 
     def pbc_eval_gto(self, eval_name, coords, comp=None, kpts=None, kpt=None,
                      shls_slice=None, non0tab=None, ao_loc=None, out=None):
@@ -206,7 +150,6 @@ class Cell(mole.Mole, pyscf_cell.Cell):
             return mole.eval_gto(self, eval_name, coords, comp,
                                  shls_slice, non0tab, ao_loc, out)
     eval_ao = eval_gto
-    _ewald_sr = _ewald_sr
     pbc_intor = pbc_intor
     get_SI = get_SI
     energy_nuc = energy_nuc

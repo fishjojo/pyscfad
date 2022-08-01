@@ -1,10 +1,10 @@
 '''
 Intermediates for restricted CCSD.  Complex integrals are supported.
 '''
-from jax import jit
-from pyscf.lib import logger
-from pyscfad import lib
-from pyscfad.lib import numpy as np
+from pyscf import numpy as np
+#from pyscf.lib import logger
+#from pyscfad import lib
+#from pyscfad.lib import jit
 
 # This is restricted (R)CCSD
 # Ref: Hirata et al., J. Chem. Phys. 120, 2581 (2004)

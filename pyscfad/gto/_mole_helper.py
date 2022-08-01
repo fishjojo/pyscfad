@@ -1,7 +1,7 @@
 import numpy
+from pyscf import numpy as np
 from pyscf.gto.mole import (ATOM_OF, ANG_OF, NPRIM_OF, NCTR_OF,
                             KAPPA_OF, PTR_EXP, PTR_COEFF, PTR_ENV_START)
-from pyscfad.lib import numpy as np
 
 def uncontract(mol):
     """

@@ -1,4 +1,5 @@
 import numpy
+from jax import vmap
 from pyscf import lib as pyscf_lib
 from pyscf.lib import logger
 from pyscf.pbc.tools import get_coulG
@@ -23,42 +24,62 @@ def get_j_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None, 
     coulG = get_coulG(cell, mesh=mesh)
     ngrids = len(coulG)
 
-    if hermi == 1 or gamma_point(kpts):
-        vR = rhoR = np.zeros((nset,ngrids))
-        for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts, cell=cell):
-            ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
-            for i in range(nset):
-                #rhoR[i,p0:p1] += make_rho(i, ao_ks, mask, 'LDA')
-                rhoR = ops.index_add(rhoR, ops.index[i,p0:p1],
-                                     make_rho(i, ao_ks, mask, 'LDA'))
-            ao = ao_ks = None
-
-        for i in range(nset):
-            rhoG = tools.fft(rhoR[i], mesh)
-            vG = coulG * rhoG
-            #vR[i] = tools.ifft(vG, mesh).real
-            vR = ops.index_update(vR, ops.index[i], tools.ifft(vG, mesh).real)
-
-    else:  # vR may be complex if the underlying density is complex
-        vR = rhoR = np.zeros((nset,ngrids), dtype=np.complex128)
-        for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts, cell=cell):
-            ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
-            for i in range(nset):
-                for k, ao in enumerate(ao_ks):
-                    ao_dm = np.dot(ao, dms[i,k])
-                    #rhoR[i,p0:p1] += np.einsum('xi,xi->x', ao_dm, ao.conj())
-                    rhoR = ops.index_add(rhoR, ops.index[i,p0:p1], 
-                                         np.einsum('xi,xi->x', ao_dm, ao.conj()))
-        rhoR *= 1./nkpts
-
-        for i in range(nset):
-            rhoG = tools.fft(rhoR[i], mesh)
-            vG = coulG * rhoG
-            #vR[i] = tools.ifft(vG, mesh)
-            vR = ops.index_update(vR, ops.index[i], tools.ifft(vG, mesh))
-
     kpts_band, input_band = _format_kpts_band(kpts_band, kpts), kpts_band
     nband = len(kpts_band)
+
+    coords = mydf.grids.coords
+    mask = mydf.grids.non0tab
+    ao2_kpts = mydf._numint.eval_ao(cell, coords, kpts=kpts, non0tab=mask)
+    if input_band is None:
+        ao1_kpts = ao2_kpts
+    else:
+        ao1_kpts = mydf._numint.eval_ao(cell, coords, kpts=kpts_band, non0tab=mask)
+
+    if hermi == 1 or gamma_point(kpts):
+        #rhoR = np.zeros((nset,ngrids))
+        #for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts, cell=cell):
+        #    ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
+        #    for i in range(nset):
+        #        #rhoR[i,p0:p1] += make_rho(i, ao_ks, mask, 'LDA')
+        #        rhoR = ops.index_add(rhoR, ops.index[i,p0:p1],
+        #                             make_rho(i, ao_ks, mask, 'LDA'))
+        #    ao = ao_ks = None
+
+        rhoR = [make_rho(i, ao2_kpts, mask, 'LDA') for i in range(nset)]
+        rhoR = np.asarray(rhoR, dtype=np.double)
+
+        def _rhoR_to_vR_real(rhoR):
+            rhoG = tools.fft(rhoR, mesh)
+            vG = coulG * rhoG
+            vR = tools.ifft(vG, mesh).real
+            return vR
+        vR = vmap(_rhoR_to_vR_real)(rhoR)
+
+    else:  # vR may be complex if the underlying density is complex
+        rhoR = np.zeros((nset,ngrids), dtype=np.complex128)
+        #for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts, cell=cell):
+        #    ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
+        #    for i in range(nset):
+        #        for k, ao in enumerate(ao_ks):
+        #            ao_dm = np.dot(ao, dms[i,k])
+        #            #rhoR[i,p0:p1] += np.einsum('xi,xi->x', ao_dm, ao.conj())
+        #            rhoR = ops.index_add(rhoR, ops.index[i,p0:p1], 
+        #                                 np.einsum('xi,xi->x', ao_dm, ao.conj()))
+        for i in range(nset):
+            for k, ao in enumerate(ao2_kpts):
+                ao_dm = np.dot(ao, dms[i,k])
+                rhoR = rhoR.at[i].add(np.einsum('xi,xi->x', ao_dm, ao.conj()))
+        rhoR *= 1./nkpts
+
+        def _rhoR_to_vR_complex(rhoR):
+            rhoG = tools.fft(rhoR, mesh)
+            vG = coulG * rhoG
+            vR = tools.ifft(vG, mesh)
+            return vR
+        vR = vmap(_rhoR_to_vR_complex)(rhoR)
+
+    #kpts_band, input_band = _format_kpts_band(kpts_band, kpts), kpts_band
+    #nband = len(kpts_band)
     weight = cell.vol / ngrids
     vR *= weight
     if gamma_point(kpts_band):
@@ -66,16 +87,21 @@ def get_j_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None, 
     else:
         vj_kpts = np.zeros((nset,nband,nao,nao), dtype=np.complex128)
 
-    for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts_band, cell=cell):
-        ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
-        for i in range(nset):
-            # ni.eval_mat can handle real vR only
-            # vj_kpts[i] += ni.eval_mat(cell, ao_ks, 1., None, vR[i,p0:p1], mask, 'LDA')
-            for k, ao in enumerate(ao_ks):
-                aow = np.einsum('xi,x->xi', ao, vR[i,p0:p1])
-                #vj_kpts[i,k] += lib.dot(ao.conj().T, aow)
-                vj_kpts = ops.index_add(vj_kpts, ops.index[i,k],
-                                        np.dot(ao.conj().T, aow))
+    #for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts_band, cell=cell):
+    #    ao_ks, mask = ao_ks_etc[0], ao_ks_etc[2]
+    #    for i in range(nset):
+    #        # ni.eval_mat can handle real vR only
+    #        # vj_kpts[i] += ni.eval_mat(cell, ao_ks, 1., None, vR[i,p0:p1], mask, 'LDA')
+    #        for k, ao in enumerate(ao_ks):
+    #            aow = np.einsum('xi,x->xi', ao, vR[i,p0:p1])
+    #            #vj_kpts[i,k] += lib.dot(ao.conj().T, aow)
+    #            vj_kpts = ops.index_add(vj_kpts, ops.index[i,k],
+    #                                    np.dot(ao.conj().T, aow))
+
+    for i in range(nset):
+        for k, ao in enumerate(ao1_kpts):
+            aow = np.einsum('xi,x->xi', ao, vR[i])
+            vj_kpts = vj_kpts.at[i,k].add(np.dot(ao.conj().T, aow))
 
     return _format_jks(vj_kpts, dm_kpts, input_band, kpts)
 
@@ -93,7 +119,7 @@ def get_k_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None,
     else:
         mo_coeff = None
 
-    kpts = numpy.asarray(kpts)
+    kpts = np.asarray(kpts)
     dm_kpts = np.asarray(dm_kpts)
     dms = _format_dms(dm_kpts, kpts)
     nset, nkpts, nao = dms.shape[:3]
@@ -130,7 +156,7 @@ def get_k_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None,
     #ao2_dtype = np.result_type(*ao2_kpts)
     vR_dm = np.empty((nset,nao,ngrids), dtype=vk_kpts.dtype)
 
-    t1 = (logger.process_clock(), logger.perf_counter())
+    #t1 = (logger.process_clock(), logger.perf_counter())
     for k2, ao2T in enumerate(ao2_kpts):
         if ao2T.size == 0:
             continue
@@ -155,7 +181,7 @@ def get_k_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None,
             if is_zero(kpt1-kpt2):
                 expmikr = numpy.array(1.)
             else:
-                expmikr = numpy.exp(-1j * numpy.dot(coords, kpt2-kpt1))
+                expmikr = np.exp(-1j * np.dot(coords, kpt2-kpt1))
 
             for p0, p1 in pyscf_lib.prange(0, nao, blksize):
                 rho1 = np.einsum('ig,jg->ijg', ao1T[p0:p1].conj()*expmikr, ao2T)
@@ -177,7 +203,7 @@ def get_k_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None,
                 #vk_kpts[i,k1] += weight * lib.dot(vR_dm[i], ao1T.T)
                 vk_kpts = ops.index_add(vk_kpts, ops.index[i,k1],
                                         weight * np.dot(vR_dm[i], ao1T.T))
-        t1 = logger.timer_debug1(mydf, 'get_k_kpts: make_kpt (%d,*)'%k2, *t1)
+        #t1 = logger.timer_debug1(mydf, 'get_k_kpts: make_kpt (%d,*)'%k2, *t1)
 
     # Function _ewald_exxdiv_for_G0 to add back in the G=0 component to vk_kpts
     # Note in the _ewald_exxdiv_for_G0 implementation, the G=0 treatments are

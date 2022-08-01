@@ -1,8 +1,6 @@
-from jax import jit
-from jax import vmap
-from pyscf import lib
+from pyscf import numpy as np
 from pyscf.lib import logger
-from pyscfad.lib import numpy as np
+from pyscfad.lib import jit, vmap
 
 '''
 CCSD(T)
@@ -23,7 +21,8 @@ def kernel(mycc, eris, t1=None, t2=None, verbose=logger.NOTE):
     nocc, nvir = t1.shape
     mo_e = eris.mo_energy
     e_occ, e_vir = mo_e[:nocc], mo_e[nocc:]
-    eijk = lib.direct_sum('i,j,k->ijk', e_occ, e_occ, e_occ)
+    #eijk = lib.direct_sum('i,j,k->ijk', e_occ, e_occ, e_occ)
+    eijk = e_occ[:,None,None] + e_occ[None,:,None] + e_occ[None,None,:]
 
     eris_vvov = eris.get_ovvv().conj().transpose(1,3,0,2)
     eris_vooo = np.asarray(eris.ovoo).conj().transpose(1,0,3,2)
@@ -73,7 +72,7 @@ def _compute_et(t1, t2, eris_vvov, eris_vooo, eris_vvoo,
                 - 2 * w.transpose(2,1,0) - 2 * w.transpose(0,2,1)
                 - 2 * w.transpose(1,0,2))
 
-    def body(index, fac):
+    def body(fac, index):
         a, b, c = index[:]
         d3  = eijk - e_vir[a] - e_vir[b] - e_vir[c]
         d3 *= fac
@@ -140,6 +139,6 @@ def _compute_et(t1, t2, eris_vvov, eris_vooo, eris_vvoo,
         et+= np.einsum('kji,ijk', wabc, zcba.conj())
         return et
 
-    et = vmap(body, in_axes=(0,0))(idx, scal)
+    et = vmap(body, in_axes=(0,0), signature='(),(x)->()')(scal, idx)
     et = np.sum(et) * 2
     return et

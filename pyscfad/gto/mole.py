@@ -1,11 +1,11 @@
-from jax import vmap, custom_jvp
+from jax import vmap
 from pyscf import __config__
+from pyscf import numpy as np
 from pyscf import gto
 from pyscf.lib import logger, param
 from pyscf.gto.mole import PTR_ENV_START
 from pyscfad import util
-from pyscfad.lib import numpy as np
-from pyscfad.lib import ops
+from pyscfad.lib import ops, custom_jvp
 from pyscfad.gto import moleintor
 from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
@@ -23,8 +23,8 @@ def energy_nuc(mol, charges=None, **kwargs):
 
 @custom_jvp
 def distance_matrix(coords):
-    rr = np.linalg.norm(coords[:,None,:] - coords[None,:,:], axis=2)
-    rr = rr.at[np.diag_indices_from(rr)].set(1e200)
+    rr  = np.linalg.norm(coords[:,None,:] - coords[None,:,:], axis=2)
+    rr += np.eye(rr.shape[-1]) * 1e200
     return rr
 
 @distance_matrix.defjvp

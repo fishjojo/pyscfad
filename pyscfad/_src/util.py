@@ -1,5 +1,8 @@
 import warnings
 from jax import tree_util
+from pyscf import __config__
+
+PYSCFAD = getattr(__config__, "pyscfad", False)
 
 def pytree_node(leaf_names, num_args=0):
     '''
@@ -24,6 +27,9 @@ def pytree_node(leaf_names, num_args=0):
         than 0, the sequence of positional arguments in ``leaf_names`` must
         follow that in the ``__init__`` method.
     '''
+    def class_orig(cls):
+        return cls
+
     def class_as_pytree_node(cls):
         def tree_flatten(obj):
             keys = obj.__dict__.keys()
@@ -52,4 +58,8 @@ def pytree_node(leaf_names, num_args=0):
 
         tree_util.register_pytree_node(cls, tree_flatten, tree_unflatten)
         return cls
-    return class_as_pytree_node
+
+    if PYSCFAD:
+        return class_as_pytree_node
+    else:
+        return class_orig
