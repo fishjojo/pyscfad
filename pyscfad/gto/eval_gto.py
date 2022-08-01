@@ -34,6 +34,8 @@ def _eval_gto_jvp(eval_name, comp, shls_slice, non0tab, ao_loc, out,
                   primals, tangents):
     mol, grid_coords = primals
     mol_t, grid_coords_t = tangents
+    #mol, = primals
+    #mol_t, = tangents
 
     primal_out = _eval_gto(mol, eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc, out)
     tangent_out = np.zeros_like(primal_out)

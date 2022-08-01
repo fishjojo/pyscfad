@@ -3,9 +3,8 @@ import numpy
 import scipy
 import scipy.linalg
 from jax import jit
-from jax import custom_jvp
 from pyscfad.lib import numpy as np
-from pyscfad.lib import ops
+from pyscfad.lib import ops, custom_jvp
 
 # threshold for degenerate eigenvalues
 DEG_THRESH = 1e-10

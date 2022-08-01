@@ -1,12 +1,13 @@
 from functools import reduce, partial
 from jaxopt import linear_solve
 from pyscf import __config__
+from pyscf import numpy as np
 from pyscf.lib import logger
 from pyscf.cc import ccsd as pyscf_ccsd
 from pyscf.mp.mp2 import _mo_without_core
 from pyscfad import lib
+from pyscfad.lib import jit
 from pyscfad import util
-from pyscfad.lib import numpy as np
 from pyscfad.gto import mole
 from pyscfad.scf import hf
 from pyscfad import implicit_diff
@@ -95,6 +96,7 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
     log.timer('CCSD', *cput0)
     return conv, eccsd, t1, t2
 
+@jit
 def amplitudes_to_vector(t1, t2, out=None):
     nocc, nvir = t1.shape
     nov = nocc * nvir

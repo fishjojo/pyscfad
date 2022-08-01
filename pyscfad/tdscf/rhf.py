@@ -1,8 +1,11 @@
+import numpy
+from jax import vmap
 from pyscf.lib import direct_sum
 from pyscf.tdscf import rhf as pyscf_tdrhf
 from pyscfad import util
 from pyscfad import ao2mo
 from pyscfad.lib import numpy as np
+from pyscfad.gto import mole
 
 Traced_Attributes = ['_scf', 'mol']
 
@@ -48,6 +51,42 @@ def get_ab(mf, mo_energy=None, mo_coeff=None, mo_occ=None):
     a += a_hf
     b += b_hf
     return a, b
+
+def cis_ovlp(mol1, mol2, mo1, mo2, nocc1, nocc2, nmo1, nmo2, x1, x2):
+    s_ao = mole.intor_cross('int1e_ovlp', mol1, mol2)
+    nvir1 = nmo1 - nocc1
+    nvir2 = nmo2 - nocc2
+
+    idx1 = []
+    for i in range(nocc1):
+        for a in range(nocc1,nmo1):
+            idx = numpy.arange(nocc1)
+            idx[i] = a
+            idx1.append(idx)
+    idx1 = np.asarray(idx1)
+
+    if nocc1 == nocc2 and nmo1 == nmo2:
+        idx2 = idx1
+    else:
+        idx2 = []
+        for j in range(nocc2):
+            for b in range(nocc2,nmo2):
+                idx = numpy.arange(nocc2)
+                idx[j] = b
+                idx2.append(idx)
+        idx2 = np.asarray(idx2)
+
+    def body(idx, mo1_occ):
+        s_mo = np.einsum('ui,uv,vj->ij', mo1_occ, s_ao, mo2[:,idx])
+        return np.linalg.det(s_mo)
+
+    res = 0.
+    for i in range(nocc1):
+        for a in range(nvir1):
+            mo1_occ = mo1[:,idx1[i*nvir1+a]]
+            s12 = vmap(body, (0,None))(idx2, mo1_occ)
+            res += x1[i,a] * (s12 * x2.ravel()).sum()
+    return res
 
 # pylint: disable=abstract-method
 @util.pytree_node(Traced_Attributes, num_args=1)

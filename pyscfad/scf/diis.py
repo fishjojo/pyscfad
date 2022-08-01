@@ -1,8 +1,8 @@
 from functools import reduce
-from jax import jit
 from jax import vmap
-from pyscf.lib import numpy as np
+from pyscf import numpy as np
 from pyscf.scf import diis as pyscf_cdiis
+from pyscfad.lib import jit
 from pyscfad.lib import diis
 
 class CDIIS(diis.DIIS, pyscf_cdiis.CDIIS):

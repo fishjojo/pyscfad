@@ -2,7 +2,6 @@ import warnings
 from functools import partial
 import ctypes
 import numpy
-from jax import custom_jvp
 from jax import jit
 from jax import vmap
 from pyscf import ao2mo
@@ -10,7 +9,7 @@ from pyscf.gto import mole, moleintor
 from pyscf.gto.mole import Mole
 from pyscf.gto.moleintor import _get_intor_and_comp
 from pyscfad.lib import numpy as np
-from pyscfad.lib import ops
+from pyscfad.lib import ops, custom_jvp
 from pyscfad.lib.misc import load_library
 from ._mole_helper import uncontract, setup_exp, setup_ctr_coeff
 

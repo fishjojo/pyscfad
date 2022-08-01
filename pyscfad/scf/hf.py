@@ -1,18 +1,19 @@
 from functools import partial
 import numpy
-from jax import jit, jacrev, jacfwd
+from jax import jacrev, jacfwd
 from jaxopt import linear_solve
 from pyscf import __config__
+from pyscf import numpy as np
 from pyscf.lib import param, logger
 from pyscf.scf import hf as pyscf_hf
 from pyscf.scf import chkfile
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
 from pyscfad import lib
+from pyscfad.lib import jit
 from pyscfad import util
 from pyscfad import implicit_diff
 from pyscfad import gto
 from pyscfad import df
-from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.scf import _vhf
 from pyscfad.scf.diis import SCF_DIIS

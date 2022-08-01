@@ -1,14 +1,13 @@
-from jax import jit
+from pyscf import numpy as np
 from pyscf.lib import logger
-from pyscf.lib import direct_sum, current_memory
-from pyscfad import lib
+from pyscf.lib import current_memory
 from pyscfad import util
-from pyscfad.lib import numpy as np
+from pyscfad.lib import jit
 from pyscfad import ao2mo
 from pyscfad.cc import ccsd
 from pyscfad.cc import rintermediates as imd
 
-#@jit
+@jit
 def update_amps(cc, t1, t2, eris):
     nocc, nvir = t1.shape
     fock = eris.fock
@@ -38,11 +37,13 @@ def update_amps(cc, t1, t2, eris):
         t2new -= tmp + tmp.transpose(1,0,3,2)
 
     eia = mo_e_o[:,None] - mo_e_v
-    eijab = direct_sum('ia,jb->ijab',eia,eia)
+    #eijab = direct_sum('ia,jb->ijab',eia,eia)
+    eijab = eia[:,None,:,None] + eia[None,:,None,:]
     t1new /= eia
     t2new /= eijab
     return t1new, t2new
 
+@jit
 def amplitude_equation(cc, t1, t2, eris):
     nocc, nvir = t1.shape
     fock = eris.fock

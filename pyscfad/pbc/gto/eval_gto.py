@@ -1,6 +1,6 @@
 from functools import partial
 import numpy
-from jax import custom_jvp
+from jax import custom_jvp, vmap
 from pyscf.gto.moleintor import make_loc
 from pyscf.pbc.gto.eval_gto import _get_intor_and_comp
 from pyscf.pbc.gto.eval_gto import eval_gto as pyscf_eval_gto
@@ -27,19 +27,19 @@ def eval_gto(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
     Ls = cell.get_lattice_Ls()
     expkL = np.exp(1j*np.dot(kpts_lst, Ls.T))
 
-    aos = []
-    for i in range(len(Ls)):
-        shifted_cell = shift_bas_center(cell, Ls[i])
+    def body(L):
+        shifted_cell = shift_bas_center(cell, L)
         ao = mole.eval_gto(shifted_cell, eval_name_mol, coords, comp=comp,
                            shls_slice=shls_slice, non0tab=non0tab,
                            ao_loc=ao_loc, out=out)
-        aos.append(ao)
+        return ao
 
-    aos = np.asarray(aos)
+    aos = np.asarray([body(L) for L in Ls])
+
     if comp == 1:
         out = np.einsum('kl,lgi->kgi', expkL, aos)
     else:
-        out = np.einsum('kl,lcgi->kcij', expkL, ints)
+        out = np.einsum('kl,lcgi->kcij', expkL, aos)
 
     if kpts is None or np.shape(kpts) == (3,):  # A single k-point
         out = out[0]

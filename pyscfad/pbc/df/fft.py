@@ -5,8 +5,9 @@ from pyscf import lib as pyscf_lib
 from pyscf.pbc.lib.kpts_helper import gamma_point
 from pyscf.pbc.df import fft as pyscf_fft
 from pyscfad import lib
+from pyscfad import util
 from pyscfad.lib import numpy as np
-from pyscfad.lib import ops, stop_grad
+from pyscfad.lib import ops
 from pyscfad.pbc import tools 
 from pyscfad.pbc.gto import Cell
 
@@ -54,7 +55,9 @@ def get_pp(mydf, kpts=None, cell=None):
     #buf = np.empty((48,ngrids), dtype=np.complex128)
     def vppnl_by_k(kpt):
         Gk = Gv + kpt
-        G_rad = np.linalg.norm(Gk, axis=1)
+        #G_rad = np.linalg.norm(Gk, axis=1)
+        absG2 = np.einsum('gx,gx->g', Gk, Gk)
+        G_rad = np.sqrt(np.where(absG2>1e-16, absG2, 0.))
         #aokG = ft_ao.ft_ao(cell, Gv, kpt=kpt) * (1/cell.vol)**.5
         # use numerical fft for now
         coords = mydf.grids.coords
@@ -111,7 +114,7 @@ def get_pp(mydf, kpts=None, cell=None):
 
     for k, kpt in enumerate(kpts_lst):
         vppnl = vppnl_by_k(kpt)
-        if gamma_point(stop_grad(kpt)):
+        if gamma_point(kpt):
             vpp[k] = vpp[k].real + vppnl.real
         else:
             vpp[k] += vppnl
@@ -121,41 +124,30 @@ def get_pp(mydf, kpts=None, cell=None):
     return np.asarray(vpp)
 
 
-@lib.dataclass
+@util.pytree_node(['cell','kpts'])
 class FFTDF(pyscf_fft.FFTDF):
-    #from pyscf.pbc.dft import gen_grid
-    #from pyscfad.pbc.dft import numint
-
-    cell: Cell = lib.field(pytree_node=True)
-    kpts: numpy.ndarray = numpy.zeros((1,3))
-
-    stdout: Any = None
-    verbose: Optional[int] = None
-    max_memory: Optional[int] = None
-
-    #grids: Optional[gen_grid.UniformGrids] = None
-    grids: Any = None
-    blockdim: int = getattr(__config__, 'pbc_df_df_DF_blockdim', 240)
-
-    exxdiv: Optional[str] = None
-    #_numint: numint.KNumInt = numint.KNumInt()
-    _numint: Any = None # can't import numint here
-    _rsh_df: dict = lib.field(default_factory = dict)
-
-    def __post_init__(self):
+    def __init__(self, cell, kpts=numpy.zeros((1,3)), **kwargs):
         from pyscf.pbc.dft import gen_grid
         from pyscfad.pbc.dft import numint
-        if self.stdout is None:
-            self.stdout = self.cell.stdout
-        if self.verbose is None:
-            self.verbose = self.cell.verbose
-        if self.max_memory is None:
-            self.max_memory = self.cell.max_memory
-        if self.grids is None:
-            self.grids = gen_grid.UniformGrids(self.cell)
-        if self._numint is None:
-            self._numint = numint.KNumInt()
+        self.cell = cell
+        self.stdout = cell.stdout
+        self.verbose = cell.verbose
+        self.max_memory = cell.max_memory
+
+        self.kpts = kpts
+        self.grids = gen_grid.UniformGrids(cell)
+
+        # to mimic molecular DF object
+        self.blockdim = getattr(__config__, 'pbc_df_df_DF_blockdim', 240)
+
+        # The following attributes are not input options.
+        # self.exxdiv has no effects. It was set in the get_k_kpts function to
+        # mimic the KRHF/KUHF object in the call to tools.get_coulG.
+        self.exxdiv = None
+        self._numint = numint.KNumInt()
+        self._rsh_df = {}  # Range separated Coulomb DF objects
         self._keys = set(self.__dict__.keys())
+        self.__dict__.update(kwargs)
 
     def get_jk(self, dm, hermi=1, kpts=None, kpts_band=None,
                with_j=True, with_k=True, omega=None, exxdiv=None, cell=None):
@@ -171,7 +163,7 @@ class FFTDF(pyscf_fft.FFTDF):
             else:
                 kpts = self.kpts
         else:
-            kpts = numpy.asarray(kpts)
+            kpts = np.asarray(kpts)
 
         vj = vk = None
         if kpts.shape == (3,):
@@ -183,6 +175,5 @@ class FFTDF(pyscf_fft.FFTDF):
             if with_j:
                 vj = fft_jk.get_j_kpts(self, dm, hermi, kpts, kpts_band, cell=cell)
         return vj, vk
-
 
     get_pp = get_pp

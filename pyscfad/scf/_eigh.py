@@ -1,17 +1,15 @@
 from functools import partial
-import numpy
 import scipy.linalg
-from jax import custom_jvp
 from jax import jit
+from pyscf import numpy as np
 from pyscfad import lib
-from pyscfad.lib import ops
-from pyscfad.lib import numpy as np
+from pyscfad.lib import ops, custom_jvp, linalg_helper
 
 DEG_THRESH = 1e-10
 
 def eigh(a, b=None, x0=None, eigvals_only=False, **kwargs):
     if x0 is None:
-        return lib.linalg_helper.eigh(a, b, eigvals_only=eigvals_only, **kwargs)
+        return linalg_helper.eigh(a, b, eigvals_only=eigvals_only, **kwargs)
 
     a = 0.5 * (a + a.T.conj())
     if b is not None:
@@ -37,13 +35,13 @@ def _eigh_jvp(v, primals, tangents):
     w, _ = primal_out = _eigh(a, b, v)
 
     deg_thresh = DEG_THRESH
-    eji = w[..., numpy.newaxis, :] - w[..., numpy.newaxis]
+    eji = w[..., np.newaxis, :] - w[..., np.newaxis]
     idx = abs(eji) < deg_thresh
     #eji[idx] = 1.e200
     #eji[numpy.diag_indices_from(eji)] = 1
     eji = ops.index_update(eji, idx, 1.e200)
     eji = ops.index_update(eji, np.diag_indices_from(eji), 1.)
-    eye_n = numpy.eye(a.shape[-1], dtype=a.dtype)
+    eye_n = np.eye(a.shape[-1], dtype=a.dtype)
     Fmat = np.reciprocal(eji) - eye_n
     if b is None:
         dw, dv = _eigh_jvp_jitted_nob(v, Fmat, at)
