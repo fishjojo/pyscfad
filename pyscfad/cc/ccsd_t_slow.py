@@ -1,8 +1,8 @@
-from jax import jit
 from jax import vmap
 from pyscf import lib
 from pyscf.lib import logger
 from pyscfad.lib import numpy as np
+from pyscfad.lib import jit
 
 '''
 CCSD(T)
