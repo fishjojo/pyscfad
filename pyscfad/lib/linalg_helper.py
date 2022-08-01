@@ -62,6 +62,12 @@ def _eigh_jvp(lower, turbo, check_finite, driver, primals, tangents):
         dw, dv = _eigh_jvp_jitted_nob(v, Fmat, at)
     else:
         dw, dv = _eigh_jvp_jitted(w, v, Fmat, at, bt)
+        if idx.sum() > 0:
+            mask = np.zeros_like(b, dtype=np.int32)
+            mask = mask.at[idx].set(1)
+            mask -= eye_n
+            tmp = -.5 * np.dot(v.conj().T, np.dot(bt, v))
+            dv += np.dot(v, np.multiply(mask, tmp))
     return primal_out, (dw,dv)
 
 @jit
