@@ -54,8 +54,10 @@ def get_pp(mydf, kpts=None, cell=None):
     #buf = np.empty((48,ngrids), dtype=np.complex128)
     def vppnl_by_k(kpt):
         Gk = Gv + kpt
-        G_rad = np.linalg.norm(Gk, axis=1)
-        G_rad = np.where(G_rad>1e-16, G_rad, 0.)
+        #G_rad = np.linalg.norm(Gk, axis=1)
+        #G_rad = np.where(G_rad>1e-16, G_rad, 0.)
+        absG2 = np.einsum('gx,gx->g', Gk, Gk)
+        G_rad = np.where(absG2>1e-16, np.sqrt(np.where(absG2>1e-16, absG2, 0.)), 0.)
         #aokG = ft_ao.ft_ao(cell, Gv, kpt=kpt) * (1/cell.vol)**.5
         # use numerical fft for now
         coords = mydf.grids.coords
