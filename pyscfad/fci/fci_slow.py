@@ -1,8 +1,8 @@
-from jax import vmap
 from pyscf import numpy as np
 from pyscf.fci import cistring
 from pyscf.fci import fci_slow as pyscf_fci_slow
 #from pyscfad.lib import numpy as np
+from pyscfad.lib import vmap
 from pyscfad.gto import mole
 
 def get_occ_loc(strs, norb):
@@ -85,11 +85,11 @@ def fci_ovlp(mol1, mol2, fcivec1, fcivec2, norb1, norb2, nelec1, nelec2, mo1, mo
         mo_ia = mo_a1[:,locs_a1[ia]]
         for ib in range(nb1):
             mo_ib = mo_b1[:,locs_b1[ib]]
-            #val = vmap(body, (None,None,0,0))(mo_ia, mo_ib, idxa, idxb)
-            val = []
-            for i in range(len(idxa)):
-                val.append(body(mo_ia, mo_ib, idxa[i], idxb[i]))
-            val = np.asarray(val)
+            val = vmap(body, (None,None,0,0), signature='(i),(j)->()')(mo_ia, mo_ib, idxa, idxb)
+            #val = []
+            #for i in range(len(idxa)):
+            #    val.append(body(mo_ia, mo_ib, idxa[i], idxb[i]))
+            #val = np.asarray(val)
             res += ci1[ia,ib] * (val * ci2.ravel()).sum()
     return res
 
