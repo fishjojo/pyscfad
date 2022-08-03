@@ -1,4 +1,3 @@
-from typing import Optional, Any
 import numpy
 from pyscf import __config__
 from pyscf import lib as pyscf_lib
@@ -55,9 +54,8 @@ def get_pp(mydf, kpts=None, cell=None):
     #buf = np.empty((48,ngrids), dtype=np.complex128)
     def vppnl_by_k(kpt):
         Gk = Gv + kpt
-        #G_rad = np.linalg.norm(Gk, axis=1)
-        absG2 = np.einsum('gx,gx->g', Gk, Gk)
-        G_rad = np.sqrt(np.where(absG2>1e-16, absG2, 0.))
+        G_rad = np.linalg.norm(Gk, axis=1)
+        G_rad = np.where(G_rad>1e-16, G_rad, 0.)
         #aokG = ft_ao.ft_ao(cell, Gv, kpt=kpt) * (1/cell.vol)**.5
         # use numerical fft for now
         coords = mydf.grids.coords
@@ -97,8 +95,8 @@ def get_pp(mydf, kpts=None, cell=None):
 
             buf = np.vstack(buf)
             if p1 > 0:
-                SPG_lmi = buf #buf[:p1]
-                SPG_lmi *= SI[ia].conj()
+                #SPG_lmi = buf #buf[:p1]
+                SPG_lmi = buf * SI[ia].conj()
                 SPG_lm_aoGs = np.dot(SPG_lmi, aokG)
                 p1 = 0
                 for l, proj in enumerate(pp[5:]):

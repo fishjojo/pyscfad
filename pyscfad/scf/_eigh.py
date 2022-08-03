@@ -1,9 +1,7 @@
 from functools import partial
 import scipy.linalg
-from jax import jit
 from pyscf import numpy as np
-from pyscfad import lib
-from pyscfad.lib import ops, custom_jvp, linalg_helper
+from pyscfad.lib import ops, custom_jvp, jit, linalg_helper
 
 DEG_THRESH = 1e-10
 

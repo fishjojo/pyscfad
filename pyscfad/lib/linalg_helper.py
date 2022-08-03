@@ -2,9 +2,8 @@ from functools import partial
 import numpy
 import scipy
 import scipy.linalg
-from jax import jit
-from pyscfad.lib import numpy as np
-from pyscfad.lib import ops, custom_jvp
+from pyscf import numpy as np
+from pyscfad.lib import ops, custom_jvp, jit
 
 # threshold for degenerate eigenvalues
 DEG_THRESH = 1e-10

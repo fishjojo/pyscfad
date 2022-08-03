@@ -66,7 +66,9 @@ def vmap_numpy(fun, in_axes=0, out_axes=0, axis_name=None, axis_size=None, signa
 
 if PYSCFAD:
     def vmap(fun, in_axes=0, out_axes=0, axis_name=None, axis_size=None, signature=None):
-        return jax.vmap(fun, in_axes=in_axes, out_axes=out_axes, axis_name=axis_name, axis_size=axis_size)
+        f_vmap = jax.vmap(fun, in_axes=in_axes, out_axes=out_axes,
+                          axis_name=axis_name, axis_size=axis_size)
+        return f_vmap
 else:
     vmap = vmap_numpy
 
@@ -79,13 +81,15 @@ else:
         '''
         def __init__(self, fun, *args, **kwargs):
             self.fun = fun
-            
+            self.jvp = None
+
         def defjvp(self, jvp):
+            self.jvp = jvp
             return jvp
 
         def __call__(self, *args, **kwargs):
             return self.fun(*args, **kwargs)
-        
+
 
 def dataclass(cls):
     data_cls = dataclasses.dataclass()(cls)

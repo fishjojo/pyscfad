@@ -251,7 +251,7 @@ class NumInt(numint.NumInt):
 class KNumInt(numint.NumInt):
     def __init__(self, kpts=numpy.zeros((1,3))):
         numint.NumInt.__init__(self)
-        self.kpts = numpy.reshape(kpts, (-1,3))
+        self.kpts = kpts #numpy.reshape(kpts, (-1,3))
 
     def nr_rks(self, cell, grids, xc_code, dms, hermi=0, kpts=None, kpts_band=None,
                max_memory=2000, verbose=None, **kwargs):

@@ -3,7 +3,6 @@ import numpy
 import jax
 from pyscf.pbc import gto as pyscf_gto
 from pyscf.pbc.df import fft as pyscf_fft
-from pyscfad.lib import numpy as jnp
 from pyscfad.pbc import gto
 from pyscfad.pbc.df import fft
 
@@ -19,7 +18,7 @@ def get_cell():
              2.6935121974  2.6935121974    0.    '''
     cell.basis = 'gth-szv'
     cell.pseudo = 'gth-pade'
-    cell.build(trace_coords=True)
+    cell.build(trace_exp=False, trace_ctr_coeff=False)
     return cell
 
 @pytest.fixture

@@ -1,12 +1,12 @@
 import sys
 import numpy
 from pyscf import __config__
+from pyscf import numpy as np
 from pyscf.lib import logger
 from pyscf.pbc.scf import hf as pyscf_pbc_hf
 from pyscf.pbc.scf.hf import _format_jks
 from pyscfad import lib
 from pyscfad import util
-from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df

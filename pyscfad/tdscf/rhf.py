@@ -55,7 +55,6 @@ def get_ab(mf, mo_energy=None, mo_coeff=None, mo_occ=None):
 def cis_ovlp(mol1, mol2, mo1, mo2, nocc1, nocc2, nmo1, nmo2, x1, x2):
     s_ao = mole.intor_cross('int1e_ovlp', mol1, mol2)
     nvir1 = nmo1 - nocc1
-    nvir2 = nmo2 - nocc2
 
     idx1 = []
     for i in range(nocc1):

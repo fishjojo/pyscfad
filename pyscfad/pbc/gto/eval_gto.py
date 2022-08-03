@@ -1,14 +1,23 @@
 from functools import partial
 import numpy
-from jax import custom_jvp, vmap
 from pyscf.gto.moleintor import make_loc
 from pyscf.pbc.gto.eval_gto import _get_intor_and_comp
 from pyscf.pbc.gto.eval_gto import eval_gto as pyscf_eval_gto
 from pyscfad.lib import numpy as np
+from pyscfad.lib import stop_grad, custom_jvp, vmap
 from pyscfad.gto.eval_gto import _eval_gto_fill_grad_r0
 
 def eval_gto(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
              shls_slice=None, non0tab=None, ao_loc=None, out=None):
+    if cell.abc is None:
+        fn = eval_gto_diff_cell
+    else:
+        fn = eval_gto_diff_full
+    return fn(cell, eval_name, coords, comp=comp, kpts=kpts, kpt=kpt,
+              shls_slice=shls_slice, non0tab=non0tab, ao_loc=ao_loc, out=out)
+
+def eval_gto_diff_full(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
+                       shls_slice=None, non0tab=None, ao_loc=None, out=None):
     from pyscfad.gto import mole
     from pyscfad.pbc.gto.cell import shift_bas_center
     if eval_name[:3] == 'PBC':  # PBCGTOval_xxx
@@ -31,30 +40,42 @@ def eval_gto(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
         shifted_cell = shift_bas_center(cell, L)
         ao = mole.eval_gto(shifted_cell, eval_name_mol, coords, comp=comp,
                            shls_slice=shls_slice, non0tab=non0tab,
-                           ao_loc=ao_loc, out=out)
+                           ao_loc=ao_loc, out=None)
         return ao
 
-    aos = np.asarray([body(L) for L in Ls])
+    # use for loop to reduce memory in fwd-mode AD
+    #nk = len(kpts_lst)
+    #ng = len(coords)
+    #nao = cell.nao
+    #if out is None:
+    #    if comp == 1:
+    #        out = np.zeros((nk,ng,nao), dtype=np.complex128)
+    #    else:
+    #        out = np.zeros((nk,comp,ng,nao), dtype=np.complex128)
+    #for i, L in enumerate(Ls):
+    #    ao = body(L)
+    #    if comp == 1:
+    #        out += expkL[:,i][:,None,None] * ao[None,...]
+    #    else:
+    #        out += expkL[:,i][:,None,None,None] * ao[None,...]
 
+    aos = np.asarray([body(L) for L in Ls])
     if comp == 1:
         out = np.einsum('kl,lgi->kgi', expkL, aos)
     else:
-        out = np.einsum('kl,lcgi->kcij', expkL, aos)
+        out = np.einsum('kl,lcgi->kcgi', expkL, aos)
 
     if kpts is None or np.shape(kpts) == (3,):  # A single k-point
         out = out[0]
     return out
 
-
-'''
-def eval_gto(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
-             shls_slice=None, non0tab=None, ao_loc=None, out=None):
+def eval_gto_diff_cell(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
+                       shls_slice=None, non0tab=None, ao_loc=None, out=None):
     if "ip" in eval_name:
         return pyscf_eval_gto(cell, eval_name, coords, comp, kpts, kpt,
                               shls_slice, non0tab, ao_loc, out)
     return _eval_gto(cell, eval_name, coords, comp, kpts, kpt,
                      shls_slice, non0tab, ao_loc, out)
-'''
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,10)))
 def _eval_gto(cell, eval_name, coords, comp, kpts, kpt,

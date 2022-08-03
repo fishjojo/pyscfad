@@ -1,5 +1,4 @@
 import pytest
-import numpy
 import jax
 from pyscf import lib
 from pyscfad import gto, scf, cc
@@ -12,7 +11,8 @@ def test_nuc_hessian(get_mol):
         mycc = cc.RCCSD(mf)
         mycc.kernel()
         return mycc.e_tot
-    h1 = jax.jacrev(jax.jacrev(energy))(mol).coords.coords
+    with jax.disable_jit():
+        h1 = jax.jacrev(jax.jacrev(energy))(mol).coords.coords
     #h0 = numpy.array(
     #    [[[[ 4.20246014e-02, 0, 0],
     #       [-4.20246014e-02, 0, 0]],

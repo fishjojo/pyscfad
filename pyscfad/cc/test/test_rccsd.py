@@ -11,7 +11,8 @@ def test_nuc_grad(get_mol):
         mycc = cc.RCCSD(mf)
         mycc.kernel()
         return mycc.e_tot
-    g1 = jax.jacrev(energy)(mol).coords
+    with jax.disable_jit():
+        g1 = jax.jacrev(energy)(mol).coords
     g0 = numpy.array([[0., 0., -0.0873564848],
                       [0., 0.,  0.0873564848]])
     assert(abs(g1-g0).max() < 1e-6)

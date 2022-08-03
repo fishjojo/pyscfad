@@ -80,12 +80,10 @@ def test_get_hcore(get_cell, get_cell_ref):
     g_fwd = jax.jacfwd(mf.__class__.get_hcore)(mf).cell.coords
     #g_bwd = jax.jacrev(mf.__class__.get_hcore)(mf).cell.coords
 
-    print(g_fwd.shape)
     mf_grad = pyscf_grad.krhf.Gradients(mf_ref)
     hcore_deriv = mf_grad.hcore_generator(cell_ref, kpts)
     for ia in range(cell_ref.natm):
         g0 = hcore_deriv(ia).transpose(1,2,3,0)
-        print(g0.shape)
         assert abs(g_fwd[...,ia,:] - g0).max() < 1e-10
         #assert abs(g_bwd[...,ia,:] - g0).max() < 1e-10
 

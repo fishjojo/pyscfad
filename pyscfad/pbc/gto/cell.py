@@ -70,14 +70,17 @@ def intor_cross(intor, cell1, cell2, comp=None, hermi=0, kpts=None, kpt=None,
         out = out[0]
     return out
 
-def pbc_intor(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
+def pbc_intor(cell, intor, comp=None, hermi=0, kpts=None, kpt=None,
               shls_slice=None, **kwargs):
     if kwargs:
         warnings.warn("Keyword arguments %s are ignored" % list(kwargs.keys()))
-    #res = _pbcintor._pbc_intor(mol, intor, comp=comp, hermi=hermi, kpts=kpts,
-    #                           kpt=kpt, shls_slice=shls_slice)
-    res = intor_cross(intor, mol, mol, comp=comp, hermi=hermi, kpts=kpts,
-                      kpt=kpt, shls_slice=shls_slice, **kwargs)
+
+    if cell.abc is None:
+        res = _pbcintor._pbc_intor(cell, intor, comp=comp, hermi=hermi, kpts=kpts,
+                                   kpt=kpt, shls_slice=shls_slice)
+    else:
+        res = intor_cross(intor, cell, cell, comp=comp, hermi=hermi, kpts=kpts,
+                          kpt=kpt, shls_slice=shls_slice, **kwargs)
     return res
 
 @util.pytree_node(mole.Traced_Attributes+['abc'])

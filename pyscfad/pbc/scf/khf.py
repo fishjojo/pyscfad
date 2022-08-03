@@ -1,10 +1,10 @@
 import sys
 import numpy
 from pyscf import __config__
+from pyscf import numpy as np
 from pyscf.pbc.scf import khf as pyscf_khf
 from pyscfad import lib
 from pyscfad import util
-from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
@@ -38,12 +38,12 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         self.cell = cell
         mol_hf.SCF.__init__(self, cell)
 
-        self.with_df = df.FFTDF(cell)
+        self.with_df = df.FFTDF(cell, kpts=kpts)
         # Range separation JK builder
         self.rsjk = None
 
         self.exxdiv = exxdiv
-        self.kpts = kpts
+        #self.kpts = kpts
         self.conv_tol = cell.precision * 10
 
         self.exx_built = False
