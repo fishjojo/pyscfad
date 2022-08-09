@@ -74,9 +74,9 @@ setup(
     include_package_data=True,
     packages=find_packages(exclude=["examples","*test*"]),
     python_requires='>=3.7',
-    ext_modules=[Extension('pyscfad_lib_placeholder', [])],
-    cmdclass={'build_py': BuildExtFirst,
-              'build_ext': CMakeBuildExt},
+    #ext_modules=[Extension('pyscfad_lib_placeholder', [])],
+    #cmdclass={'build_py': BuildExtFirst,
+    #          'build_ext': CMakeBuildExt},
     install_requires=[
         'numpy>=1.17',
         'scipy',
