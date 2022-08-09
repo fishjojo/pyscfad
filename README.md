@@ -8,15 +8,20 @@ PySCF with Auto-differentiation
 Installation
 ------------
 
-* Install to the python site-packages folder
+* To install the latest release, use the following command:
+```
+pip install pyscfad
+```
+
+* To install the development version, use the following command instead:
 ```
 pip install git+https://github.com/fishjojo/pyscfad.git
 ```
 
-* Install manually
+* Install dependencies manually
 ```
 pip install numpy scipy h5py
-pip install jaxlib jax
+pip install jax jaxlib jaxopt
 
 # install pyscf
 cd $HOME; git clone https://github.com/fishjojo/pyscf.git
@@ -24,12 +29,7 @@ cd pyscf; git checkout ad
 cd pyscf/lib; mkdir build 
 cd build; cmake ..; make
 
-# install pyscfad
-cd $HOME; git clone https://github.com/fishjojo/pyscfad.git
-cd pyscfad/pyscfad/lib; mkdir build
-cd build; cmake ..; make
-
-export PYTHONPATH=$HOME/pyscf:$HOME/pyscfad:$PYTHONPATH
+export PYTHONPATH=$HOME/pyscf:$PYTHONPATH
 ```
 
 Running examples
@@ -41,6 +41,7 @@ pyscfad = True
 pyscf_numpy_backend = 'jax'
 pyscf_scipy_linalg_backend = 'pyscfad'
 pyscf_scipy_backend = 'jax'
+# The followings are optional
 pyscfad_scf_implicit_diff = True
 pyscfad_ccsd_implicit_diff = True
 ```
