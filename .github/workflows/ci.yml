@@ -18,8 +18,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install pyscf
         run: ./.github/workflows/install_pyscf.sh
-      - name: build lib
-        run: ./.github/workflows/build_lib.sh
+     #- name: build lib
+        #run: ./.github/workflows/build_lib.sh
       - name: test
         run: ./.github/workflows/run_test.sh
       - name: Upload coverage to codecov
