@@ -3,20 +3,6 @@ from setuptools import setup, find_packages, Extension
 from setuptools.command.build_py import build_py
 from setuptools.command.build_ext import build_ext
 
-CLASSIFIERS = """\
-Development Status :: 3 - Alpha
-Intended Audience :: Science/Research
-License :: OSI Approved :: MIT License
-Programming Language :: C
-Programming Language :: Python :: 3.7
-Programming Language :: Python :: 3.8
-Programming Language :: Python :: 3.9
-Topic :: Scientific/Engineering
-Operating System :: POSIX
-Operating System :: Unix
-Operating System :: MacOS
-"""
-
 _dct = {}
 with open('pyscfad/version.py') as f:
   exec(f.read(), _dct)
@@ -88,6 +74,15 @@ setup(
     ],
     url='https://github.com/fishjojo/pyscfad',
     license='MIT',
-    classifiers=CLASSIFIERS,
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Topic :: Scientific/Engineering",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+    ],
     zip_safe=False,
 )

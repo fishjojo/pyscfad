@@ -10,6 +10,10 @@ Installation
 
 * To install the latest release, use the following command:
 ```
+# install pyscf
+pip install 'pyscf @ git+https://github.com/fishjojo/pyscf.git@ad#egg=pyscf',
+pip install 'pyscf-properties @ git+https://github.com/fishjojo/properties.git@ad',
+# install pyscfad
 pip install pyscfad
 ```
 
