@@ -36,6 +36,12 @@ cd build; cmake ..; make
 export PYTHONPATH=$HOME/pyscf:$PYTHONPATH
 ```
 
+* Running pyscfad inside a docker container:
+```
+docker pull fishjojo/pyscfad:latest
+docker run -rm -t -i fishjojo/pyscfad:latest /bin/bash
+```
+
 Running examples
 ----------------
 
