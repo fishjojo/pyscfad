@@ -4,7 +4,6 @@ from pyscf.lib import current_memory
 from pyscf.lib import logger
 from pyscf.dft import rks as pyscf_rks
 from pyscf.dft import gen_grid
-from pyscfad import lib
 from pyscfad import util
 from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
@@ -31,7 +30,7 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
         dm = ks.make_rdm1()
     log = logger.new_logger(ks)
 
-    ground_state = getattr(dm, "ndim", None) == 2
+    ground_state = getattr(dm, 'ndim', None) == 2
 
     if ks.grids.coords is None:
         ks.grids.build(with_non0tab=True)

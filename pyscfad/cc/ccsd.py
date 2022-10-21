@@ -8,11 +8,9 @@ from pyscf.mp.mp2 import _mo_without_core
 from pyscfad import lib
 from pyscfad.lib import jit
 from pyscfad import util
-from pyscfad.gto import mole
-from pyscfad.scf import hf
 from pyscfad import implicit_diff
 
-CCSD_IMPLICIT_DIFF = getattr(__config__, "pyscfad_ccsd_implicit_diff", False)
+CCSD_IMPLICIT_DIFF = getattr(__config__, 'pyscfad_ccsd_implicit_diff', False)
 # assume 'mol', 'mo_coeff', etc. come from '_scf',
 # otherwise they need to be traced
 CC_Tracers = ['_scf']
@@ -78,7 +76,7 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
     elif t2 is None:
         t2 = mycc.get_init_guess(eris)[1]
 
-    cput1 = cput0 = (logger.process_clock(), logger.perf_counter())
+    cput0 = (logger.process_clock(), logger.perf_counter())
     if isinstance(mycc.diis, lib.diis.DIIS):
         adiis = mycc.diis
     elif mycc.diis:
@@ -132,8 +130,8 @@ class CCSD(pyscf_ccsd.CCSD):
         return vector_to_amplitudes(vec, nmo, nocc)
 
     def ccsd(self, t1=None, t2=None, eris=None):
-        assert(self.mo_coeff is not None)
-        assert(self.mo_occ is not None)
+        assert self.mo_coeff is not None
+        assert self.mo_occ is not None
 
         if self.verbose >= logger.WARN:
             self.check_sanity()
@@ -162,19 +160,22 @@ class CCSD(pyscf_ccsd.CCSD):
 
     def ipccsd(self, nroots=1, left=False, koopmans=False, guess=None,
                partition=None, eris=None):
-        from pyscfad.cc import eom_rccsd
-        return eom_rccsd.EOMIP(self).kernel(nroots, left, koopmans, guess,
-                                            partition, eris)
+        raise NotImplementedError
+        #from pyscfad.cc import eom_rccsd
+        #return eom_rccsd.EOMIP(self).kernel(nroots, left, koopmans, guess,
+        #                                    partition, eris)
 
     def eaccsd(self, nroots=1, left=False, koopmans=False, guess=None,
                partition=None, eris=None):
-        from pyscfad.cc import eom_rccsd
-        return eom_rccsd.EOMEA(self).kernel(nroots, left, koopmans, guess,
-                                            partition, eris)
+        raise NotImplementedError
+        #from pyscfad.cc import eom_rccsd
+        #return eom_rccsd.EOMEA(self).kernel(nroots, left, koopmans, guess,
+        #                                    partition, eris)
 
     def eeccsd(self, nroots=1, koopmans=False, guess=None, eris=None):
-        from pyscfad.cc import eom_rccsd
-        return eom_rccsd.EOMEE(self).kernel(nroots, koopmans, guess, eris)
+        raise NotImplementedError
+        #from pyscfad.cc import eom_rccsd
+        #return eom_rccsd.EOMEE(self).kernel(nroots, koopmans, guess, eris)
 
 @util.pytree_node(ERI_Tracers)
 class _ChemistsERIs(pyscf_ccsd._ChemistsERIs):

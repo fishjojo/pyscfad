@@ -63,7 +63,7 @@ def get_j_kpts(mydf, dm_kpts, hermi=1, kpts=numpy.zeros((1,3)), kpts_band=None, 
         #        for k, ao in enumerate(ao_ks):
         #            ao_dm = np.dot(ao, dms[i,k])
         #            #rhoR[i,p0:p1] += np.einsum('xi,xi->x', ao_dm, ao.conj())
-        #            rhoR = ops.index_add(rhoR, ops.index[i,p0:p1], 
+        #            rhoR = ops.index_add(rhoR, ops.index[i,p0:p1],
         #                                 np.einsum('xi,xi->x', ao_dm, ao.conj()))
         for i in range(nset):
             for k, ao in enumerate(ao2_kpts):

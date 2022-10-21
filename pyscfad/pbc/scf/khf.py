@@ -3,7 +3,6 @@ import numpy
 from pyscf import __config__
 from pyscf import numpy as np
 from pyscf.pbc.scf import khf as pyscf_khf
-from pyscfad import lib
 from pyscfad import util
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf as mol_hf
@@ -20,10 +19,8 @@ def get_hcore(mf, cell=None, kpts=None):
         nuc = mf.with_df.get_pp(kpts, cell=cell)
     else:
         raise NotImplementedError
-        #nuc = lib.asarray(mf.with_df.get_nuc(kpts))
     if len(cell._ecpbas) > 0:
         raise NotImplementedError
-        #nuc += lib.asarray(ecp.ecp_int(cell, kpts))
     t = np.asarray(cell.pbc_intor('int1e_kin', 1, 1, kpts))
     return nuc + t
 

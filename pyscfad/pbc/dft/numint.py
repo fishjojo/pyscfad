@@ -1,8 +1,8 @@
 import sys
 import numpy
+from pyscf import numpy as np
 from pyscf.pbc.dft import numint as pyscf_numint
-from pyscf.pbc.dft.gen_grid import make_mask, BLKSIZE
-from pyscfad.lib import numpy as np
+from pyscf.pbc.dft.gen_grid import BLKSIZE
 from pyscfad.lib import ops, stop_grad
 from pyscfad.dft import numint
 from pyscfad.dft.numint import eval_mat, _contract_rho, _dot_ao_dm
@@ -91,9 +91,9 @@ def eval_ao_kpts(cell, coords, kpts=None, deriv=0, relativity=0,
 
     comp = (deriv+1)*(deriv+2)*(deriv+3)//6
     if cell.cart:
-        feval = 'GTOval_cart_deriv%d' % deriv
+        feval = f'GTOval_cart_deriv{deriv}'
     else:
-        feval = 'GTOval_sph_deriv%d' % deriv
+        feval = f'GTOval_sph_deriv{deriv}'
     return cell.pbc_eval_gto(feval, coords, comp, kpts,
                              shls_slice=shls_slice, non0tab=non0tab, out=out)
 
@@ -131,7 +131,7 @@ def eval_rho(cell, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
             #:return rho
             return _contract_rho(bra, aodm)
 
-        if xctype == 'LDA' or xctype == 'HF':
+        if xctype in ('LDA', 'HF'):
             c0 = _dot_ao_dm(cell, ao, dm, non0tab, shls_slice, ao_loc)
             rho = dot_bra(ao, c0)
         elif xctype == 'GGA':
@@ -298,7 +298,7 @@ class KNumInt(numint.NumInt):
         if getattr(dms, 'mo_coeff', None) is not None:
             raise NotImplementedError
         else:
-            if getattr(dms[0], "ndim", 0) == 2:
+            if getattr(dms[0], 'ndim', 0) == 2:
                 dms = [np.stack(dms)]
             nao = dms[0].shape[-1]
             ndms = len(dms)

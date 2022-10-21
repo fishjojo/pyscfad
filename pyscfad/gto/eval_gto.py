@@ -1,18 +1,16 @@
 from functools import partial
-import numpy
 from jax import custom_jvp
+from pyscf import numpy as np
 from pyscf.gto.moleintor import make_loc
 from pyscf.gto.eval_gto import _get_intor_and_comp
 from pyscf.gto.eval_gto import eval_gto as pyscf_eval_gto
-from pyscfad.lib import numpy as np
-from pyscfad.lib import ops
 from .moleintor import get_bas_label
 
 _MAX_DERIV_ORDER = 4
 _DERIV_LABEL = []
 for i in range(_MAX_DERIV_ORDER+1):
     if i == 0:
-        _label = ["",]
+        _label = ['',]
     else:
         _label = get_bas_label(i)
     _DERIV_LABEL += _label
@@ -57,15 +55,15 @@ def _eval_gto_jvp(eval_name, comp, shls_slice, non0tab, ao_loc, out,
 
 def _eval_gto_jvp_r(mol, eval_name, grid_coords, grid_coords_t,
                     comp, shls_slice, non0tab, ao_loc, nao):
-    if "deriv"+str(_MAX_DERIV_ORDER) in eval_name:
+    if 'deriv'+str(_MAX_DERIV_ORDER) in eval_name:
         raise NotImplementedError
-    if "deriv" not in eval_name:
-        new_eval = eval_name + "_deriv1"
+    if 'deriv' not in eval_name:
+        new_eval = eval_name + '_deriv1'
         order = 0
     else:
-        tmp = eval_name.split("deriv", 1)
+        tmp = eval_name.split('deriv', 1)
         order = int(tmp[1])
-        new_eval = tmp[0] + "deriv" + str(order + 1)
+        new_eval = tmp[0] + 'deriv' + str(order + 1)
 
     ng = grid_coords.shape[0]
     ao1 = _eval_gto(mol, new_eval, grid_coords, None, shls_slice, non0tab, ao_loc, None)
@@ -77,14 +75,14 @@ def _eval_gto_jvp_r(mol, eval_name, grid_coords, grid_coords_t,
         start = (iorder+1) * (iorder+2) * (iorder+3) // 6
         end = (iorder+2) * (iorder+3) * (iorder+4) // 6
         for il, label in enumerate(get_bas_label(iorder)):
-            idx_x = _DERIV_LABEL.index("".join(sorted(label + 'x')), start, end)
-            idx_y = _DERIV_LABEL.index("".join(sorted(label + 'y')), start, end)
-            idx_z = _DERIV_LABEL.index("".join(sorted(label + 'z')), start, end)
+            idx_x = _DERIV_LABEL.index(''.join(sorted(label + 'x')), start, end)
+            idx_y = _DERIV_LABEL.index(''.join(sorted(label + 'y')), start, end)
+            idx_z = _DERIV_LABEL.index(''.join(sorted(label + 'z')), start, end)
             grad = grad.at[0,start0+il].add(ao1[idx_x])
             grad = grad.at[1,start0+il].add(ao1[idx_y])
             grad = grad.at[2,start0+il].add(ao1[idx_z])
 
-    tangent_out = np.einsum("xygi,gx->ygi", grad, grid_coords_t)
+    tangent_out = np.einsum('xygi,gx->ygi', grad, grid_coords_t)
     if order == 0:
         tangent_out = tangent_out[0]
     return tangent_out
@@ -122,9 +120,9 @@ def _eval_gto_fill_grad_r0(mol, intor, shls_slice, ao_loc, ao1, order, ngrids):
     #            start = (iorder+1) * (iorder+2) * (iorder+3) // 6
     #            end = (iorder+2) * (iorder+3) * (iorder+4) // 6
     #            for il, label in enumerate(get_bas_label(iorder)):
-    #                idx_x = _DERIV_LABEL.index("".join(sorted(label + 'x')), start, end)
-    #                idx_y = _DERIV_LABEL.index("".join(sorted(label + 'y')), start, end)
-    #                idx_z = _DERIV_LABEL.index("".join(sorted(label + 'z')), start, end)
+    #                idx_x = _DERIV_LABEL.index(''.join(sorted(label + 'x')), start, end)
+    #                idx_y = _DERIV_LABEL.index(''.join(sorted(label + 'y')), start, end)
+    #                idx_z = _DERIV_LABEL.index(''.join(sorted(label + 'z')), start, end)
     #                tmp = (  ao1[idx_x,:,id0:id1] * coords_t[k,0]
     #                       + ao1[idx_y,:,id0:id1] * coords_t[k,1]
     #                       + ao1[idx_z,:,id0:id1] * coords_t[k,2])
@@ -143,30 +141,30 @@ def _eval_gto_fill_grad_r0(mol, intor, shls_slice, ao_loc, ao1, order, ngrids):
             start = (iorder+1) * (iorder+2) * (iorder+3) // 6
             end = (iorder+2) * (iorder+3) * (iorder+4) // 6
             for il, label in enumerate(get_bas_label(iorder)):
-                idx_x = _DERIV_LABEL.index("".join(sorted(label + 'x')), start, end)
-                idx_y = _DERIV_LABEL.index("".join(sorted(label + 'y')), start, end)
-                idx_z = _DERIV_LABEL.index("".join(sorted(label + 'z')), start, end)
+                idx_x = _DERIV_LABEL.index(''.join(sorted(label + 'x')), start, end)
+                idx_y = _DERIV_LABEL.index(''.join(sorted(label + 'y')), start, end)
+                idx_z = _DERIV_LABEL.index(''.join(sorted(label + 'z')), start, end)
                 grad = grad.at[k,0,start0+il,:,id0:id1].add(-ao1[idx_x,:,id0:id1])
                 grad = grad.at[k,1,start0+il,:,id0:id1].add(-ao1[idx_y,:,id0:id1])
                 grad = grad.at[k,2,start0+il,:,id0:id1].add(-ao1[idx_z,:,id0:id1])
     return grad
 
 def _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc):
-    if "deriv"+str(_MAX_DERIV_ORDER) in eval_name:
+    if 'deriv'+str(_MAX_DERIV_ORDER) in eval_name:
         raise NotImplementedError
-    if "deriv" not in eval_name:
-        new_eval = eval_name + "_deriv1"
+    if 'deriv' not in eval_name:
+        new_eval = eval_name + '_deriv1'
         order = 0
     else:
-        tmp = eval_name.split("deriv", 1)
+        tmp = eval_name.split('deriv', 1)
         order = int(tmp[1])
-        new_eval = tmp[0] + "deriv" + str(order + 1)
+        new_eval = tmp[0] + 'deriv' + str(order + 1)
 
     ao1 = _eval_gto(mol, new_eval, grid_coords, None, shls_slice, non0tab, ao_loc, None)
     ngrids = len(grid_coords)
     grad = _eval_gto_fill_grad_r0(mol, new_eval, shls_slice, ao_loc, ao1, order, ngrids)
     ao1 = None
-    tangent_out = np.einsum("nxlgi,nx->lgi", grad, mol_t.coords)
+    tangent_out = np.einsum('nxlgi,nx->lgi', grad, mol_t.coords)
     grad = None
     if order == 0:
         tangent_out = tangent_out[0]

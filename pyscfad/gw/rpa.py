@@ -6,7 +6,7 @@ from pyscf import df as pyscf_df
 from pyscf.gw import rpa as pyscf_rpa
 from pyscfad import util
 from pyscfad.lib import numpy as np
-from pyscfad import gto, scf, dft, df
+from pyscfad import scf, dft, df
 
 
 def kernel(rpa, mo_energy, mo_coeff, Lpq=None, nw=None, verbose=logger.NOTE):
@@ -41,9 +41,9 @@ def kernel(rpa, mo_energy, mo_coeff, Lpq=None, nw=None, verbose=logger.NOTE):
 
 @jit
 def get_rho_response(omega, mo_energy, Lpq):
-    """
+    '''
     Compute density response function in auxiliary basis at freq iw.
-    """
+    '''
     nocc = Lpq.shape[1]
     eia = mo_energy[:nocc, None] - mo_energy[None, nocc:]
     eia = eia / (omega**2 + eia * eia)
@@ -53,9 +53,9 @@ def get_rho_response(omega, mo_energy, Lpq):
     return Pi
 
 def get_rpa_ecorr(rpa, Lpq, freqs, wts):
-    """
+    '''
     Compute RPA correlation energy
-    """
+    '''
     mol = rpa.mol
     mf = rpa._scf
     dm = mf.make_rdm1()
@@ -117,7 +117,7 @@ class RPA(pyscf_rpa.RPA):
                 self.with_df = df.DF(self.mol, auxmol=auxmol)
 
     def kernel(self, mo_energy=None, mo_coeff=None, Lpq=None, nw=40):
-        """
+        '''
         Args:
             mo_energy : 1D array (nmo), mean-field mo energy
             mo_coeff : 2D array (nmo, nmo), mean-field mo coefficient
@@ -127,7 +127,7 @@ class RPA(pyscf_rpa.RPA):
             self.e_tot : RPA total eenrgy
             self.e_hf : EXX energy
             self.e_corr : RPA correlation energy
-        """
+        '''
         if mo_coeff is None:
             mo_coeff = pyscf_rpa._mo_without_core(self, self._scf.mo_coeff)
         if mo_energy is None:
@@ -151,7 +151,7 @@ class RPA(pyscf_rpa.RPA):
         mem_now = pyscf_lib.current_memory()[0]
 
         if (mem_incore + mem_now < 0.99 * self.max_memory) or self.mol.incore_anyway:
-            Lpq = np.einsum("lpq,pi,qj->lij", self.with_df._cderi, mo_coeff, mo_coeff)
+            Lpq = np.einsum('lpq,pi,qj->lij', self.with_df._cderi, mo_coeff, mo_coeff)
             return Lpq
         else:
-            raise RuntimeError("not enough memory")
+            raise RuntimeError('not enough memory')

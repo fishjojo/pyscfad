@@ -5,7 +5,6 @@ from pyscf import numpy as np
 from pyscf.lib import logger
 from pyscf.pbc.scf import hf as pyscf_pbc_hf
 from pyscf.pbc.scf.hf import _format_jks
-from pyscfad import lib
 from pyscfad import util
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf as mol_hf
@@ -105,7 +104,7 @@ RHF = SCF
 def normalize_dm_(mf, dm):
     cell = mf.cell
     s = stop_grad(mf.get_ovlp(cell))
-    if getattr(dm, "ndim", 0) == 2:
+    if getattr(dm, 'ndim', 0) == 2:
         ne = numpy.einsum('ij,ji->', stop_grad(dm), s).real
     else:
         ne = numpy.einsum('xij,ji->', stop_grad(dm), s).real

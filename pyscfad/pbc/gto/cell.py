@@ -1,16 +1,11 @@
 import warnings
-from functools import partial
 import numpy
-#from scipy.special import erfc
-from jax import custom_jvp
-from jax.scipy.special import erfc
 from pyscf import __config__
+from pyscf import numpy as np
 from pyscf.gto.mole import PTR_COORD
 from pyscf.gto.moleintor import _get_intor_and_comp
 from pyscf.pbc.gto import cell as pyscf_cell
-from pyscfad import lib
 from pyscfad import util
-from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.gto import mole
 from pyscfad.gto._mole_helper import setup_exp, setup_ctr_coeff
@@ -52,8 +47,6 @@ def intor_cross(intor, cell1, cell2, comp=None, hermi=0, kpts=None, kpt=None,
     Ls = cell2.get_lattice_Ls(rcut=max(cell1.rcut, cell2.rcut))
     expkL = np.exp(1j*np.dot(kpts_lst, Ls.T))
 
-    ni = cell1.nao
-    nj = cell2.nao
     nL = len(Ls)
     ints = []
     for i in range(nL):
@@ -73,7 +66,7 @@ def intor_cross(intor, cell1, cell2, comp=None, hermi=0, kpts=None, kpt=None,
 def pbc_intor(cell, intor, comp=None, hermi=0, kpts=None, kpt=None,
               shls_slice=None, **kwargs):
     if kwargs:
-        warnings.warn("Keyword arguments %s are ignored" % list(kwargs.keys()))
+        warnings.warn(f'Keyword arguments {list(kwargs.keys())} are ignored')
 
     if cell.abc is None:
         res = _pbcintor._pbc_intor(cell, intor, comp=comp, hermi=hermi, kpts=kpts,
@@ -113,11 +106,11 @@ class Cell(mole.Mole, pyscf_cell.Cell):
 
 
     def build(self, *args, **kwargs):
-        trace_coords = kwargs.pop("trace_coords", True)
-        trace_exp = kwargs.pop("trace_exp", False)
-        trace_ctr_coeff = kwargs.pop("trace_ctr_coeff", False)
-        trace_r0 = kwargs.pop("trace_r0", False)
-        trace_lattice_vectors = kwargs.pop("trace_lattice_vectors", False)
+        trace_coords = kwargs.pop('trace_coords', True)
+        trace_exp = kwargs.pop('trace_exp', False)
+        trace_ctr_coeff = kwargs.pop('trace_ctr_coeff', False)
+        trace_r0 = kwargs.pop('trace_r0', False)
+        trace_lattice_vectors = kwargs.pop('trace_lattice_vectors', False)
 
         pyscf_cell.Cell.build(self, *args, **kwargs)
 

@@ -8,6 +8,7 @@ from pyscfad.lib import ops, custom_jvp, jit
 # threshold for degenerate eigenvalues
 DEG_THRESH = 1e-10
 
+# pylint: disable = redefined-builtin
 def eigh(a, b=None, lower=True, eigvals_only=False, overwrite_a=False,
          overwrite_b=False, turbo=True, eigvals=None, type=1,
          check_finite=True, subset_by_index=None, subset_by_value=None,

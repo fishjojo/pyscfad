@@ -4,7 +4,7 @@ from jax import jacrev, jacfwd
 from jaxopt import linear_solve
 from pyscf import __config__
 from pyscf import numpy as np
-from pyscf.lib import param, logger
+from pyscf.lib import logger
 from pyscf.scf import hf as pyscf_hf
 from pyscf.scf import chkfile
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
@@ -12,14 +12,13 @@ from pyscfad import lib
 from pyscfad.lib import jit
 from pyscfad import util
 from pyscfad import implicit_diff
-from pyscfad import gto
 from pyscfad import df
 from pyscfad.lib import stop_grad
 from pyscfad.scf import _vhf
 from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scf._eigh import eigh
 
-SCF_IMPLICIT_DIFF = getattr(__config__, "pyscfad_scf_implicit_diff", False)
+SCF_IMPLICIT_DIFF = getattr(__config__, 'pyscfad_scf_implicit_diff', False)
 Traced_Attributes = ['mol', 'mo_coeff', 'mo_energy', '_eri']
 
 def eig(h, s, x0=None):
@@ -27,7 +26,7 @@ def eig(h, s, x0=None):
     return e, c
 
 def _converged_scf(mo_coeff, mf, s1e, h1e, mo_occ):
-    mol = getattr(mf, "cell", mf.mol)
+    mol = getattr(mf, 'cell', mf.mol)
     dm = mf.make_rdm1(mo_coeff, mo_occ)
     vhf = mf.get_veff(mol, dm)
     fock = mf.get_fock(h1e, s1e, vhf, dm)
@@ -43,13 +42,13 @@ def _scf(mo_coeff, mf, s1e, h1e, mo_occ, *,
         log = logger.new_logger(mf)
     scf_conv = False
 
-    mol = getattr(mf, "cell", mf.mol)
+    mol = getattr(mf, 'cell', mf.mol)
     if dm0 is not None:
         dm = dm0
     elif mo_coeff is not None and mo_occ is not None:
         dm = mf.make_rdm1(mo_coeff, mo_occ)
     else:
-        raise KeyError("Either dm or mo_coeff and mo_occ need to be given.")
+        raise KeyError('Either dm or mo_coeff and mo_occ need to be given.')
 
     vhf = mf.get_veff(mol, dm)
     e_tot = mf.energy_tot(dm, h1e, vhf)
@@ -87,7 +86,7 @@ def _scf(mo_coeff, mf, s1e, h1e, mo_occ, *,
         if callable(callback):
             callback(locals())
 
-        cput1 = log.timer('cycle= %d'%(cycle+1), *cput1)
+        cput1 = log.timer(f'cycle= {cycle+1}', *cput1)
 
         if scf_conv:
             break
@@ -109,7 +108,7 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
         conv_tol_grad = numpy.sqrt(conv_tol)
         log.info('Set gradient conv threshold to %g', conv_tol_grad)
 
-    mol = getattr(mf, "cell", mf.mol)
+    mol = getattr(mf, 'cell', mf.mol)
     if dm0 is None:
         dm = mf.get_init_guess(mol, mf.init_guess)
     else:
@@ -290,8 +289,8 @@ class SCF(pyscf_hf.SCF):
     def eig(self, h, s, x0=None):
         return self._eigh(h, s, x0)
 
-    def energy_grad(self, dm0=None, mode="rev"):
-        """
+    def energy_grad(self, dm0=None, mode='rev'):
+        '''
         Energy gradient wrt AO parameters computed by AD.
         In principle, MO response is not needed, and we can just take
         the derivative of eigen decomposition with converged
@@ -300,7 +299,7 @@ class SCF(pyscf_hf.SCF):
 
         NOTE:
             The attributes of the SCF instance will not be modified
-        """
+        '''
         if dm0 is None:
             try:
                 dm0 = self.make_rdm1()
@@ -312,7 +311,7 @@ class SCF(pyscf_hf.SCF):
             e_tot = self.kernel(dm0=dm0)
             return e_tot
 
-        if mode == "rev":
+        if mode.lower().startswith('rev'):
             jac = jacrev(hf_energy)(self, dm0=dm0)
         else:
             if SCF_IMPLICIT_DIFF:
@@ -320,7 +319,7 @@ class SCF(pyscf_hf.SCF):
                          when applying the implicit function differentiation."""
                 raise KeyError(msg)
             jac = jacfwd(hf_energy)(self, dm0=dm0)
-        if hasattr(jac,"cell"):
+        if hasattr(jac, 'cell'):
             return jac.cell
         else:
             return jac.mol

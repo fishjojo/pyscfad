@@ -2,10 +2,9 @@ from jax import vmap
 from pyscf import __config__
 from pyscf import numpy as np
 from pyscf import gto
-from pyscf.lib import logger, param
-from pyscf.gto.mole import PTR_ENV_START
+from pyscf.lib import param
 from pyscfad import util
-from pyscfad.lib import ops, custom_jvp
+from pyscfad.lib import custom_jvp
 from pyscfad.gto import moleintor
 from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
@@ -77,10 +76,10 @@ class Mole(gto.Mole):
                 return self.coords
 
     def build(self, *args, **kwargs):
-        trace_coords = kwargs.pop("trace_coords", True)
-        trace_exp = kwargs.pop("trace_exp", True)
-        trace_ctr_coeff = kwargs.pop("trace_ctr_coeff", True)
-        trace_r0 = kwargs.pop("trace_r0", False)
+        trace_coords = kwargs.pop('trace_coords', True)
+        trace_exp = kwargs.pop('trace_exp', True)
+        trace_ctr_coeff = kwargs.pop('trace_ctr_coeff', True)
+        trace_r0 = kwargs.pop('trace_r0', False)
 
         gto.Mole.build(self, *args, **kwargs)
 

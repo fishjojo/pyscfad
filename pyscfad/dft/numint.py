@@ -6,7 +6,7 @@ from pyscf import numpy as np
 from pyscf.lib import load_library
 from pyscf.dft import numint
 from pyscf.dft.numint import SWITCH_SIZE
-from pyscf.dft.gen_grid import make_mask, BLKSIZE
+from pyscf.dft.gen_grid import BLKSIZE
 from pyscfad.lib import ops
 from pyscfad.lib import stop_grad
 from pyscfad.dft import libxc
@@ -151,9 +151,8 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
     elif xctype == 'NLC':
         nlc_pars = ni.nlc_coeff(xc_code[:-6])
         if nlc_pars == [0,0]:
-            raise NotImplementedError('VV10 cannot be used with %s. '
-                                      'The supported functionals are %s' %
-                                      (xc_code[:-6], ni.libxc.VV10_XC))
+            raise NotImplementedError(f'VV10 cannot be used with {xc_code[:-6]}. '
+                                      f'The supported functionals are {ni.libxc.VV10_XC}')
         ao_deriv = 1
         vvrho=numpy.empty([nset,4,0])
         vvweight=numpy.empty([nset,0])
@@ -394,7 +393,7 @@ class NumInt(numint.NumInt):
                 return self.eval_rho2(mol, ao, mo_coeff[idm], mo_occ[idm],
                                       non0tab, xctype)
         else:
-            if getattr(dms, "ndim", None) == 2:
+            if getattr(dms, 'ndim', None) == 2:
                 dms = [dms]
             if not hermi:
                 # For eval_rho when xctype==GGA, which requires hermitian DMs

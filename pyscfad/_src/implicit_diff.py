@@ -18,7 +18,9 @@ def root_vjp(optimality_fun, sol, args, cotangent,
 
     _, vjp_fun_sol = jax.vjp(fun_sol, sol)
 
-    matvec = lambda u: vjp_fun_sol(u)[0]
+    def matvec(u):
+        return vjp_fun_sol(u)[0]
+
     v = tree_scalar_mul(-1, cotangent)
     u = solve(matvec, v)
 

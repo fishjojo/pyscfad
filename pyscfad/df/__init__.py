@@ -18,14 +18,14 @@ def density_fit(mf, auxbasis=None, with_df=None, only_dfj=False):
 
     mf_class = mf.__class__
     kwargs = mf.__dict__.copy()
-    mol = kwargs.pop("mol")
+    mol = kwargs.pop('mol')
 
     # pylint: disable=abstract-method
     @util.pytree_node(['mol', 'with_df'], num_args=1)
     class DFHF(pyscf_df_jk._DFHF, mf_class):
         def __init__(self, mol, with_df=None, only_dfj=False, **kwargs):
             self.with_df = with_df
-            if getattr(self.with_df, "mol", None) is not None:
+            if getattr(self.with_df, 'mol', None) is not None:
                 self.mol = self.with_df.mol
             else:
                 self.mol = mol

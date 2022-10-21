@@ -30,7 +30,7 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
         return vxc
 
     # ndim = 3 : dm.shape = (nkpts, nao, nao)
-    ground_state = (getattr(dm, 'ndim', None) == 3 and 
+    ground_state = (getattr(dm, 'ndim', None) == 3 and
                     kpts_band is None)
 
 # For UniformGrids, grids.coords does not indicate whehter grids are initialized
@@ -38,7 +38,8 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
         ks.grids.build(with_non0tab=True)
         if (isinstance(ks.grids, gen_grid.BeckeGrids) and
             ks.small_rho_cutoff > 1e-20 and ground_state):
-            ks.grids = rks.prune_small_rho_grids_(ks, stop_grad(cell), stop_grad(dm), ks.grids, kpts)
+            ks.grids = rks.prune_small_rho_grids_(ks, stop_grad(cell), stop_grad(dm),
+                                                  ks.grids, kpts)
         log.timer('setting up grids')
 
     if hermi == 2:  # because rho = 0

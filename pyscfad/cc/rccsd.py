@@ -182,7 +182,7 @@ def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
     eris.ovvv = eri1[:nocc,nocc:,nocc:,nocc:]#.copy()
     eris.vvvv = eri1[nocc:,nocc:,nocc:,nocc:]#.copy()
     log.timer('CCSD integral transformation')
-    del(log)
+    del log
     return eris
 
 @util.pytree_node(ccsd.ERI_Tracers)

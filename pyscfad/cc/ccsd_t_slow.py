@@ -1,10 +1,9 @@
-from pyscf import numpy as np
-from pyscf.lib import logger
-from pyscfad.lib import jit, vmap
-
 '''
 CCSD(T)
 '''
+from pyscf import numpy as np
+from pyscf.lib import logger
+from pyscfad.lib import jit, vmap
 
 # t3 as ijkabc
 
@@ -14,9 +13,6 @@ def kernel(mycc, eris, t1=None, t2=None, verbose=logger.NOTE):
 
     if t1 is None: t1 = mycc.t1
     if t2 is None: t2 = mycc.t2
-
-    t1T = t1.T
-    t2T = t2.transpose(2,3,0,1)
 
     nocc, nvir = t1.shape
     mo_e = eris.mo_energy

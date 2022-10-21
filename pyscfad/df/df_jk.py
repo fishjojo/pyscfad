@@ -9,8 +9,8 @@ def get_jk(dfobj, dm, hermi=1, with_j=True, with_k=True, direct_scf_tol=1e-13):
     vj = vk = 0
     Lpq = dfobj._cderi
     if with_j:
-        tmp = np.einsum("Lpq,xpq->xL", Lpq, dms)
-        vj = np.einsum("Lpq,xL->xpq", Lpq, tmp)
+        tmp = np.einsum('Lpq,xpq->xL', Lpq, dms)
+        vj = np.einsum('Lpq,xL->xpq', Lpq, tmp)
         vj = vj.reshape(dm.shape)
 
     if with_k:

@@ -58,7 +58,7 @@ class MP2(pyscf_mp2.MP2):
         nocc = self.nocc
         co = np.asarray(mo_coeff[:,:nocc])
         cv = np.asarray(mo_coeff[:,nocc:])
-        eris.ovov = np.einsum("uvst,ui,va,sj,tb->iajb", self._scf._eri, co,cv,co,cv)
+        eris.ovov = np.einsum('uvst,ui,va,sj,tb->iajb', self._scf._eri, co,cv,co,cv)
         return eris
 
     _iterative_kernel = _iterative_kernel

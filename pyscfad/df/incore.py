@@ -1,22 +1,18 @@
 from functools import partial
-import numpy
 from jax import scipy
 from jax import custom_jvp
-from pyscf import lib
+from pyscf import numpy as np
 from pyscf.lib import logger
 from pyscf import gto
-from pyscf.gto.moleintor import getints
-from pyscf.df.outcore import _guess_shell_ranges
 from pyscf import __config__
 from pyscfad.lib import ops
-from pyscfad.lib import numpy as np
 from . import addons
 
 MAX_MEMORY = getattr(__config__, 'df_outcore_max_memory', 2000)
 LINEAR_DEP_THR = getattr(__config__, 'df_df_DF_lindep', 1e-12)
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(2,7)))
-def int3c_cross(mol, auxmol, intor="int3c2e", comp=1, aosym="s1", out=None, shls_slice=None):
+def int3c_cross(mol, auxmol, intor='int3c2e', comp=1, aosym='s1', out=None, shls_slice=None):
     assert aosym == 's1'
     int3c = gto.moleintor.ascint3(mol._add_suffix(intor))
     nbas = mol.nbas
@@ -38,13 +34,13 @@ def int3c_cross_jvp(intor, comp, aosym, out, shls_slice, primals, tangents):
                              aosym=aosym, out=out, shls_slice=shls_slice)
     tangent_out = np.zeros_like(primal_out)
 
-    if intor.startswith("int3c2e") and not "spinor" in intor:
-        intor_ip1 = intor.replace("int3c2e", "int3c2e_ip1")
+    if intor.startswith('int3c2e') and not 'spinor' in intor:
+        intor_ip1 = intor.replace('int3c2e', 'int3c2e_ip1')
         ints = int3c_cross(mol, auxmol, intor=intor_ip1, comp=3,
                            aosym=aosym, out=None, shls_slice=shls_slice)
         tangent_out_mol = _int3c_fill_grad_r0_ip1(mol, mol_dot, -ints)
 
-        intor_ip2 = intor.replace("int3c2e", "int3c2e_ip2")
+        intor_ip2 = intor.replace('int3c2e', 'int3c2e_ip2')
         ints = int3c_cross(mol, auxmol, intor=intor_ip2, comp=3,
                            aosym=aosym, out=None, shls_slice=shls_slice)
         tangent_out_auxmol = _int3c_fill_grad_r0_ip2(auxmol, auxmol_dot, -ints)
@@ -53,9 +49,9 @@ def int3c_cross_jvp(intor, comp, aosym, out, shls_slice, primals, tangents):
         raise NotImplementedError
 
     if mol.ctr_coeff is not None:
-        print("ctr_coeff derivative for int3c2e not implemented")
+        print('ctr_coeff derivative for int3c2e not implemented')
     if mol.exp is not None:
-        print("exp derivative for int3c2e not implemented")
+        print('exp derivative for int3c2e not implemented')
 
     return primal_out, tangent_out
 

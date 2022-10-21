@@ -8,7 +8,7 @@ import jax
 from jax import tree_util
 from pyscf import __config__
 
-PYSCFAD = getattr(__config__, "pyscfad", False)
+PYSCFAD = getattr(__config__, 'pyscfad', False)
 
 def stop_grad(x):
     if PYSCFAD:

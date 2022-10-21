@@ -1,14 +1,10 @@
 import numpy
 from pyscf import __config__
-from pyscf import lib as pyscf_lib
 from pyscf.pbc.lib.kpts_helper import gamma_point
 from pyscf.pbc.df import fft as pyscf_fft
-from pyscfad import lib
 from pyscfad import util
 from pyscfad.lib import numpy as np
-from pyscfad.lib import ops
-from pyscfad.pbc import tools 
-from pyscfad.pbc.gto import Cell
+from pyscfad.pbc import tools
 
 def get_pp(mydf, kpts=None, cell=None):
     '''Get the periodic pseudotential nuc-el AO matrix, with G=0 removed.

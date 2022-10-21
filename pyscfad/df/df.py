@@ -3,7 +3,6 @@ from pyscf import __config__
 from pyscf import lib as pyscf_lib
 from pyscf.lib import logger
 from pyscf.df import df as pyscf_df
-from pyscfad import lib
 from pyscfad import util
 from pyscfad.df import addons, incore, df_jk
 
@@ -36,7 +35,7 @@ class DF(pyscf_df.DF):
                                               int3c=int3c, int2c=int2c,
                                               max_memory=max_memory, verbose=log)
         else:
-            raise NotImplementedError("Outcore density fitting is not implemented.")
+            raise NotImplementedError('Outcore density fitting is not implemented.')
         del log
         return self
 
