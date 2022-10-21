@@ -1,8 +1,7 @@
-import numpy
 from scipy.optimize import minimize
-import jax
+from jax import value_and_grad
+from pyscf import numpy as np
 from pyscfad import util
-from pyscfad.lib import numpy as np
 from pyscfad.tools import rotate_mo1
 from pyscfad import gto, scf, mp
 
@@ -34,15 +33,15 @@ def func(x0, mf):
         return mymp.e_tot
 
     def grad(x0, mf):
-        f, g = jax.value_and_grad(energy)(x0, mf)
+        f, g = value_and_grad(energy)(x0, mf)
         return f, g
 
     f, g = grad(x0, mf)
-    return (numpy.array(f), numpy.array(g))
+    return (np.array(f), np.array(g))
 
 nao = mol.nao
 size = nao*(nao+1)//2
-x0 = numpy.zeros([size,])
+x0 = np.zeros([size,])
 options = {"gtol":1e-5}
 res = minimize(func, x0, args=(mf,), jac=True, method="BFGS", options = options)
 e = func(res.x, mf)[0]
