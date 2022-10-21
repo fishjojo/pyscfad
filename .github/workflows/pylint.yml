@@ -14,6 +14,6 @@ jobs:
       - name: install pyscf
         run: ./.github/workflows/install_pyscf.sh
       - name: install pylint
-        run: pip install 'pylint<2.14'
+        run: pip install pylint
       - name: style check
         run: ./.github/workflows/lint.sh
