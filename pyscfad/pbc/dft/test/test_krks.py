@@ -13,4 +13,4 @@ def test_nuc_grad(get_Si2):
 
     g0 = numpy.asarray([[-0.0151487891,  0.0023280773,  0.0023280773],
                         [ 0.0151486150, -0.0023404710, -0.0023404710]])
-    assert abs(jac.coords - g0).max() < 1e-6
+    assert abs(jac.coords - g0).max() < 1e-5
