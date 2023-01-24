@@ -16,26 +16,28 @@ for i in range(_MAX_DERIV_ORDER+1):
     _DERIV_LABEL += _label
 
 def eval_gto(mol, eval_name, grid_coords,
-             comp=None, shls_slice=None, non0tab=None, ao_loc=None, out=None):
+             comp=None, shls_slice=None, non0tab=None,
+             ao_loc=None, cutoff=None, out=None):
     eval_name, comp = _get_intor_and_comp(mol, eval_name, comp)
     return _eval_gto(mol, eval_name, grid_coords,
-                     comp, shls_slice, non0tab, ao_loc, out)
+                     comp, shls_slice, non0tab, ao_loc, cutoff, out)
 
-@partial(custom_jvp, nondiff_argnums=(1,3,4,5,6,7))
+@partial(custom_jvp, nondiff_argnums=(1,3,4,5,6,7,8))
 def _eval_gto(mol, eval_name, grid_coords,
-              comp, shls_slice, non0tab, ao_loc, out):
+              comp, shls_slice, non0tab, ao_loc, cutoff, out):
     return pyscf_eval_gto(mol, eval_name, grid_coords, comp, shls_slice, non0tab,
-                          ao_loc, out)
+                          ao_loc, cutoff, out)
 
 @_eval_gto.defjvp
-def _eval_gto_jvp(eval_name, comp, shls_slice, non0tab, ao_loc, out,
+def _eval_gto_jvp(eval_name, comp, shls_slice, non0tab, ao_loc, cutoff, out,
                   primals, tangents):
     mol, grid_coords = primals
     mol_t, grid_coords_t = tangents
     #mol, = primals
     #mol_t, = tangents
 
-    primal_out = _eval_gto(mol, eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc, out)
+    primal_out = _eval_gto(mol, eval_name, grid_coords, comp, shls_slice, non0tab,
+                           ao_loc, cutoff, out)
     tangent_out = np.zeros_like(primal_out)
     nao = primal_out.shape[-1]
 
@@ -66,7 +68,8 @@ def _eval_gto_jvp_r(mol, eval_name, grid_coords, grid_coords_t,
         new_eval = tmp[0] + 'deriv' + str(order + 1)
 
     ng = grid_coords.shape[0]
-    ao1 = _eval_gto(mol, new_eval, grid_coords, None, shls_slice, non0tab, ao_loc, None)
+    ao1 = _eval_gto(mol, new_eval, grid_coords, None, shls_slice, non0tab,
+                    ao_loc, None, None)
 
     nc = (order+1) * (order+2) * (order+3) // 6
     grad = np.zeros((3,nc,ng,nao))
@@ -160,7 +163,8 @@ def _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
         order = int(tmp[1])
         new_eval = tmp[0] + 'deriv' + str(order + 1)
 
-    ao1 = _eval_gto(mol, new_eval, grid_coords, None, shls_slice, non0tab, ao_loc, None)
+    ao1 = _eval_gto(mol, new_eval, grid_coords, None, shls_slice, non0tab,
+                    ao_loc, None, None)
     ngrids = len(grid_coords)
     grad = _eval_gto_fill_grad_r0(mol, new_eval, shls_slice, ao_loc, ao1, order, ngrids)
     ao1 = None

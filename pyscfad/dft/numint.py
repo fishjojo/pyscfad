@@ -378,7 +378,7 @@ def _vv10nlc_jvp(coords, vvrho, vvweight, vvcoords, nlc_pars,
     return (exc,vxc), (exc_jvp, vxc_jvp)
 
 class NumInt(numint.NumInt):
-    def _gen_rho_evaluator(self, mol, dms, hermi=0):
+    def _gen_rho_evaluator(self, mol, dms, hermi=0, with_lapl=True, grids=None):
         if getattr(dms, 'mo_coeff', None) is not None:
             # pylint: disable=W0511
             #TODO: test whether dm.mo_coeff matching dm

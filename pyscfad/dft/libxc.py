@@ -16,13 +16,22 @@ def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=Non
     exc = _eval_xc_comp(rho, hyb, fn_facs, spin, relativity, deriv=0, verbose=verbose)
     if deriv == 0:
         vxc = (None,) * 4
-    else:
+    elif deriv == 1:
         vxc = _eval_xc_comp(rho, hyb, fn_facs, spin, relativity, deriv=1, verbose=verbose)
     return exc, vxc, None, None
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
 def _eval_xc_comp(rho, hyb, fn_facs, spin=0, relativity=0, deriv=1, verbose=None):
-    return libxc._eval_xc(hyb, fn_facs, rho, spin, relativity, deriv, verbose)[deriv]
+    out = libxc._eval_xc(hyb, fn_facs, rho, spin, relativity, deriv, verbose)[deriv]
+    if deriv == 1:
+        out = tuple(out)
+        if len(out) < 4:
+            out = out + (None,) * (4-len(out))
+    elif deriv == 2:
+        out = tuple(out)
+        if len(out) < 10:
+            out = out + (None,) * (10-len(out))
+    return out
 
 @_eval_xc_comp.defjvp
 def _eval_xc_comp_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,

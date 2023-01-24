@@ -63,7 +63,8 @@ def test_rks_nuc_grad_hybrid(get_mol):
     assert abs(g1-g0).max() < 1e-6
     assert abs(g2-g0).max() < 1e-6
 
-def test_rks_nuc_grad_mgga(get_mol, get_mol_p, get_mol_m):
+#FIXME MGGA is broken since pyscf v2.1
+def test_rks_nuc_grad_mgga_skip(get_mol, get_mol_p, get_mol_m):
     mol = get_mol
     mf = dft.RKS(mol)
     mf.xc = 'm062x'
@@ -85,10 +86,8 @@ def test_rks_nuc_grad_mgga(get_mol, get_mol_p, get_mol_m):
     g_fd = (ep-em) / disp * BOHR
     assert abs(g2[1,2] - g_fd) < 3e-6
 
-# pylint: disable=fixme
 #FIXME NLC gradient may have bugs, need check
-'''
-def test_rks_nuc_grad_nlc(get_mol, get_mol_p, get_mol_m):
+def test_rks_nuc_grad_nlc_skip(get_mol, get_mol_p, get_mol_m):
     mol = get_mol
     mf = dft.RKS(mol)
     mf.xc = 'B97M_V'
@@ -109,4 +108,3 @@ def test_rks_nuc_grad_nlc(get_mol, get_mol_p, get_mol_m):
 
     g_fd = (ep-em) / disp * BOHR
     assert abs(g[1,2] - g_fd) < 2e-4
-'''
