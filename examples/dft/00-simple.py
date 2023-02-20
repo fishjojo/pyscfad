@@ -15,4 +15,6 @@ mf = dft.RKS(mol)
 mf.xc = 'b3lyp'
 mf.kernel()
 jac = mf.energy_grad()
-print(jac.coords)
+print(f'Nuclaer gradient:\n{jac.coords}')
+print(f'Gradient wrt basis exponents:\n{jac.exp}')
+print(f'Gradient wrt basis contraction coefficients:\n{jac.ctr_coeff}')
