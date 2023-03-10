@@ -8,21 +8,35 @@ PySCF with Auto-differentiation
 Installation
 ------------
 
-* To install the latest release, use the following command:
+---
+* To install the latest release, use the following commands:
 ```
+# install cmake
+pip install cmake
+
+# install OpenMP runtime used with clang
+# On Linux:
+sudo apt update
+sudo apt install libomp-dev
+
+# On OSX:
+brew install libomp
+
 # install pyscf
-pip install 'pyscf @ git+https://github.com/fishjojo/pyscf.git@ad#egg=pyscf',
-pip install 'pyscf-properties @ git+https://github.com/fishjojo/properties.git@ad',
+pip install 'pyscf @ git+https://github.com/fishjojo/pyscf.git@ad#egg=pyscf' 
+pip install 'pyscf-properties @ git+https://github.com/fishjojo/properties.git@ad' 
+
 # install pyscfad
 pip install pyscfad
 ```
 
-* To install the development version, use the following command instead:
+* To install the development version of pyscfad, use the following command instead:
 ```
 pip install git+https://github.com/fishjojo/pyscfad.git
 ```
+---
 
-* Install dependencies manually
+* To Install from source and install dependencies manually
 ```
 pip install numpy scipy h5py
 pip install jax jaxlib jaxopt
@@ -36,6 +50,7 @@ cd build; cmake ..; make
 export PYTHONPATH=$HOME/pyscf:$PYTHONPATH
 ```
 
+---
 * Running pyscfad inside a docker container:
 ```
 docker pull fishjojo/pyscfad:latest
