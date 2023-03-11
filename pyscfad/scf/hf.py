@@ -1,4 +1,4 @@
-from functools import partial
+from functools import partial, reduce
 import numpy
 from jax import jacrev, jacfwd
 from jaxopt import linear_solve
@@ -138,6 +138,8 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
         fock = mf.get_fock(h1e, s1e, vhf, dm)
         mo_energy, mo_coeff = mf.eig(fock, s1e)
         mo_occ = mf.get_occ(stop_grad(mo_energy), stop_grad(mo_coeff))
+        # hack for ROHF
+        mo_energy = getattr(mo_energy, 'mo_energy', mo_energy)
         return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
     if isinstance(mf.diis, lib.diis.DIIS):
@@ -204,6 +206,9 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
         if dump_chk:
             mf.dump_chk(locals())
 
+    # hack for ROHF
+    mo_energy = getattr(mo_energy, 'mo_energy', mo_energy)
+
     log.timer('scf_cycle', *cput0)
     del log
     # A post-processing hook before return
@@ -234,6 +239,11 @@ def _dot_eri_dm_nosymm(eri, dm, with_j, with_k):
         vk = np.einsum('ijkl,xjk->xil', eri, dms)
         vk = vk.reshape(dm.shape)
     return vj, vk
+
+def level_shift(s, d, f, factor):
+    dm_vir = s - reduce(np.dot, (s, d, s))
+    return f + dm_vir * factor
+
 
 @util.pytree_node(Traced_Attributes, num_args=1)
 class SCF(pyscf_hf.SCF):

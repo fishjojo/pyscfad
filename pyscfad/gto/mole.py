@@ -64,11 +64,11 @@ class Mole(gto.Mole):
         self.exp = None
         self.ctr_coeff = None
         self.r0 = None
-        gto.Mole.__init__(self, **kwargs)
+        super().__init__(**kwargs)
 
     def atom_coords(self, unit='Bohr'):
         if self.coords is None:
-            return gto.Mole.atom_coords(self, unit)
+            return super().atom_coords(unit)
         else:
             if unit[:3].upper() == 'ANG':
                 return self.coords * param.BOHR
@@ -81,7 +81,7 @@ class Mole(gto.Mole):
         trace_ctr_coeff = kwargs.pop('trace_ctr_coeff', True)
         trace_r0 = kwargs.pop('trace_r0', False)
 
-        gto.Mole.build(self, *args, **kwargs)
+        super().build(*args, **kwargs)
 
         if trace_coords:
             self.coords = np.asarray(self.atom_coords())
@@ -99,8 +99,8 @@ class Mole(gto.Mole):
               shls_slice=None, grids=None):
         if (self.coords is None and self.exp is None
                 and self.ctr_coeff is None and self.r0 is None):
-            return gto.Mole.intor(self, intor, comp=comp, hermi=hermi,
-                                  aosym=aosym, out=out, shls_slice=shls_slice)
+            return super().intor(intor, comp=comp, hermi=hermi,
+                                 aosym=aosym, out=out, shls_slice=shls_slice)
         else:
             return moleintor.getints(self, intor, shls_slice,
                                      comp, hermi, aosym, out=None)
