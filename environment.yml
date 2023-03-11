@@ -1,0 +1,14 @@
+name: pyscfad_env
+channels:
+  - defaults
+dependencies:
+  - python=3.9
+  - pip=23.0
+  - pip:
+    - numpy>=1.17
+    - scipy
+    - jax>=0.1.65,<0.3.14
+    - jaxlib>=0.1.65,<0.3.14
+    - jaxopt>=0.2
+    - -e git+https://github.com/fishjojo/pyscf.git@ad#egg=pyscf
+    - -e git+https://github.com/fishjojo/properties.git@ad#egg=pyscf-prop
