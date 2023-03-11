@@ -4,8 +4,8 @@ from pyscf import numpy as np
 from pyscf.lib import stop_grad
 from pyscf.lib import logger
 from pyscf.scf import chkfile
-from pyscfad import util
 from pyscf.scf import rohf as pyscf_rohf
+from pyscfad import util
 from pyscfad.scf import hf
 
 @util.pytree_node(['fock', 'focka', 'fockb'], num_args=1)
