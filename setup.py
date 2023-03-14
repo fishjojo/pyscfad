@@ -66,8 +66,9 @@ setup(
     install_requires=[
         'numpy>=1.17',
         'scipy',
-        'jax>=0.1.65,<0.3.14',
-        'jaxlib>=0.1.65,<0.3.14',
+        'jax>=0.3.25',
+        'jaxlib>=0.3.25',
+        'typing_extensions',
         'jaxopt>=0.2',
         'pyscf @ git+https://github.com/fishjojo/pyscf.git@ad#egg=pyscf',
         'pyscf-properties @ git+https://github.com/fishjojo/properties.git@ad',
@@ -83,6 +84,8 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
     zip_safe=False,
 )
