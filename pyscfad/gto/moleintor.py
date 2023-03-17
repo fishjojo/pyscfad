@@ -61,9 +61,20 @@ def intor_cross_jvp(intor, comp, grids,
     return primal_out, tangent_out
 
 def getints(mol, intor, shls_slice=None,
-            comp=None, hermi=0, aosym='s1', out=None):
+            comp=None, hermi=0, aosym='s1',
+            out=None, grids=None):
+    '''
+    Notes
+    -----
+    Unlike `pyscf.gto.moleintor.getints`, here we have to pass
+    `mol` in as an argument to trace its attributes.
+    '''
     if intor.endswith('_spinor'):
-        raise NotImplementedError('Spinors are not supported for AD.')
+        raise NotImplementedError('Integrals for spinors are not supported.')
+    if grids is not None:
+        raise NotImplementedError('Integrals on grids are not supported.')
+    if out is not None:
+        warnings.warn(f'Argument out = {out} will be ignored.')
     if hermi == 2:
         hermi = 0
         msg = f'Anti-hermitian symmetry is not supported. Setting hermi = {hermi}.'
@@ -76,11 +87,11 @@ def getints(mol, intor, shls_slice=None,
     if (intor.startswith('int1e') or
         intor.startswith('int2c2e') or
         intor.startswith('ECP')):
-        return getints2c(mol, intor, shls_slice, comp, hermi, aosym, out)
+        return getints2c(mol, intor, shls_slice, comp, hermi, out=None)
     elif intor.startswith('int2e'):
-        return getints4c(mol, intor, shls_slice, comp, aosym, out)
+        return getints4c(mol, intor, shls_slice, comp, aosym, out=None)
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f'Integral {intor} is not supported.')
 
 def _int1e_dr1_name(intor):
     if 'sph' in intor:
@@ -143,28 +154,27 @@ def _int2e_get_dr_order(intor):
     return orders
 
 def getints2c_rc(mol, intor, shls_slice=None, comp=None,
-                 hermi=0, aosym='s1', out=None, rc_deriv=None):
+                 hermi=0, out=None, rc_deriv=None):
     if rc_deriv is None or not any(rc in intor for rc in SET_RC):
-        return getints2c(mol, intor, shls_slice, comp, hermi, aosym, out)
+        return getints2c(mol, intor, shls_slice, comp, hermi, out)
     else:
-        return _getints2c_rc(mol, intor, shls_slice, comp, hermi, aosym, out, rc_deriv)
+        return _getints2c_rc(mol, intor, shls_slice, comp, hermi, out, rc_deriv)
 
-@partial(custom_jvp, nondiff_argnums=tuple(range(1,8)))
+@partial(custom_jvp, nondiff_argnums=(1,2,3,4,5,6))
 def _getints2c_rc(mol, intor, shls_slice=None, comp=None,
-                  hermi=0, aosym='s1', out=None, rc_deriv=None):
-    return Mole.intor(mol, intor, comp=comp, hermi=hermi, aosym=aosym,
+                  hermi=0, out=None, rc_deriv=None):
+    return Mole.intor(mol, intor, comp=comp, hermi=hermi,
                       shls_slice=shls_slice, out=out)
 
 @_getints2c_rc.defjvp
-def _getints2c_rc_jvp(intor, shls_slice, comp, hermi, aosym, out, rc_deriv,
+def _getints2c_rc_jvp(intor, shls_slice, comp, hermi, out, rc_deriv,
                       primals, tangents):
     if shls_slice is not None:
         raise NotImplementedError
 
     mol, = primals
     mol_t, = tangents
-    primal_out = _getints2c_rc(mol, intor, shls_slice, comp,
-                               hermi, aosym, out)
+    primal_out = _getints2c_rc(mol, intor, shls_slice, comp, hermi, out)
     tangent_out = np.zeros_like(primal_out)
 
     if mol.coords is not None:
@@ -172,13 +182,13 @@ def _getints2c_rc_jvp(intor, shls_slice, comp, hermi, aosym, out, rc_deriv,
         tangent_out += _gen_int1e_jvp_r0(mol, mol_t, intor_ip_bra, intor_ip_ket, rc_deriv)
     return primal_out, tangent_out
 
-@partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
-def getints2c(mol, intor, shls_slice=None, comp=None, hermi=0, aosym='s1', out=None):
-    return Mole.intor(mol, intor, comp=comp, hermi=hermi, aosym=aosym,
+@partial(custom_jvp, nondiff_argnums=(1,2,3,4,5))
+def getints2c(mol, intor, shls_slice=None, comp=None, hermi=0, out=None):
+    return Mole.intor(mol, intor, comp=comp, hermi=hermi,
                       shls_slice=shls_slice, out=out)
 
 @getints2c.defjvp
-def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
+def getints2c_jvp(intor, shls_slice, comp, hermi, out,
                   primals, tangents):
     if shls_slice is not None:
         msg = 'AD for integrals with subblock of shells are not supported yet.'
@@ -188,7 +198,7 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
     mol_t, = tangents
 
     primal_out = getints2c(mol, intor, shls_slice=shls_slice,
-                           comp=comp, hermi=hermi, aosym=aosym, out=out)
+                           comp=comp, hermi=hermi, out=out)
 
     tangent_out = np.zeros_like(primal_out)
     fname = intor.replace('_sph', '').replace('_cart', '')
@@ -229,9 +239,8 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, aosym, out,
         tangent_out += _int1e_jvp_exp(mol, mol_t, intor)
     return primal_out, tangent_out
 
-@partial(custom_jvp, nondiff_argnums=tuple(range(1,6)))
-def getints4c(mol, intor,
-              shls_slice=None, comp=None, aosym='s1', out=None):
+@partial(custom_jvp, nondiff_argnums=(1,2,3,4,5))
+def getints4c(mol, intor, shls_slice=None, comp=None, aosym='s1', out=None):
     if (shls_slice is None and aosym=='s1'
             and intor in ['int2e', 'int2e_sph', 'int2e_cart']):
         eri8 = Mole.intor(mol, intor, comp=comp, aosym='s8',

@@ -86,9 +86,9 @@ class Mole(gto.Mole):
         if trace_coords:
             self.coords = np.asarray(self.atom_coords())
         if trace_exp:
-            self.exp, _, _ = setup_exp(self)
+            self.exp = np.asarray(setup_exp(self)[0])
         if trace_ctr_coeff:
-            self.ctr_coeff, _, _ = setup_ctr_coeff(self)
+            self.ctr_coeff = np.asarray(setup_ctr_coeff(self)[0])
         if trace_r0:
             raise NotImplementedError
 
@@ -100,7 +100,9 @@ class Mole(gto.Mole):
         if (self.coords is None and self.exp is None
                 and self.ctr_coeff is None and self.r0 is None):
             return super().intor(intor, comp=comp, hermi=hermi,
-                                 aosym=aosym, out=out, shls_slice=shls_slice)
+                                 aosym=aosym, out=out, shls_slice=shls_slice,
+                                 grids=grids)
         else:
-            return moleintor.getints(self, intor, shls_slice,
-                                     comp, hermi, aosym, out=None)
+            return moleintor.getints(self, intor, shls_slice=shls_slice,
+                                     comp=comp, hermi=hermi, aosym=aosym,
+                                     out=out, grids=grids)

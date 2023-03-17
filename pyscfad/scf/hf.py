@@ -4,7 +4,7 @@ from jax import jacrev, jacfwd
 from jaxopt import linear_solve
 from pyscf import __config__
 from pyscf import numpy as np
-from pyscf.lib import logger
+from pyscf.lib import logger, stop_grad
 from pyscf.scf import hf as pyscf_hf
 from pyscf.scf import chkfile
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
@@ -13,7 +13,6 @@ from pyscfad.lib import jit
 from pyscfad import util
 from pyscfad import implicit_diff
 from pyscfad import df
-from pyscfad.lib import stop_grad
 from pyscfad.scf import _vhf
 from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scf._eigh import eigh
