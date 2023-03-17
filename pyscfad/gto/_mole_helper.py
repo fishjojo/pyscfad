@@ -1,19 +1,31 @@
 import numpy
-from pyscf import numpy as np
 from pyscf.gto.mole import (ATOM_OF, ANG_OF, NPRIM_OF, NCTR_OF,
                             KAPPA_OF, PTR_EXP, PTR_COEFF, PTR_ENV_START)
 
 def uncontract(mol):
     """
-    Uncontract basis shell by shell
-    (exponents not sorted, basis not normalized)
+    Return the uncontracted basis functions.
+
+    Parameters
+    ----------
+    mol : Mole instance
+        Mole instance with the contracted basis functions.
+
+    Returns
+    -------
+    mol1 : Mole instance
+        Mole instance with the uncontracted basis functions.
+
+    Notes
+    -----
+    The uncontracted basis functions are neither sorted nor normalized.
     """
     mol1 = mol.copy()
     tmp = []
     env = []
     bas = []
     ioff = istart = PTR_ENV_START + mol.natm * 4
-    for i in range(len(mol._bas)):
+    for i in range(mol.nbas):
         iatm = mol._bas[i,ATOM_OF]
         l = mol._bas[i,ANG_OF]
         nprim = mol._bas[i,NPRIM_OF]
@@ -32,9 +44,9 @@ def uncontract(mol):
     bas = numpy.asarray(bas)
     ptr_exp = mol._bas[:,PTR_EXP]
     _bas = []
-    for i, ptr in enumerate(ptr_exp):
+    for i in range(mol.nbas):
         iatm = mol._bas[i,ATOM_OF]
-        bas_tmp = bas[numpy.where(bas[:,-1] == ptr)[0]]
+        bas_tmp = bas[numpy.where(bas[:,-1] == ptr_exp[i])[0]]
         bas_tmp[:,ATOM_OF] = iatm
         _bas.append(bas_tmp)
     _bas = numpy.vstack(tuple(_bas))
@@ -42,19 +54,53 @@ def uncontract(mol):
     mol1._bas = _bas
     return mol1
 
+def shlmap_ctr2unctr(mol):
+    nsh = 0
+    map_c2u = []
+    for i in range(mol.nbas):
+        nprim = mol._bas[i,NPRIM_OF]
+        map_c2u.append(nsh)
+        nsh += nprim
+    map_c2u.append(nsh)
+    map_c2u = numpy.asarray(map_c2u)
+    return map_c2u
+
 def setup_exp(mol):
+    """
+    Find unique exponents of the basis functions.
+
+    Parameters
+    ----------
+    mol : Mole instance
+
+    Returns
+    -------
+    es : array
+        Unique exponents of the basis functions in `mol`.
+        The exponents are stored shell by shell with the same
+        sequence as the primitive Gaussians in `mol`.
+    es_of : array
+        The indices in `es` for the exponent of 
+        the first primitive Gaussian in each shell.
+    env_of : array
+        The indices in `mol._env` for each unique exponent in `es`.
+
+    See also
+    --------
+    setup_ctr_coeff : Find unique contraction coefficients.
+    """
     tmp = []
-    es = np.empty([0], dtype=float)
-    _env_of = numpy.empty([0], dtype=numpy.int32)
+    es = numpy.empty([0], dtype=float)
+    env_of = numpy.empty([0], dtype=numpy.int32)
     offset = 0
     es_of = []
-    for i in range(len(mol._bas)):
+    for i in range(mol.nbas):
         nprim = mol._bas[i,NPRIM_OF]
         ptr_exp = mol._bas[i,PTR_EXP]
         if ptr_exp not in tmp:
             tmp.append(ptr_exp)
-            es = np.append(es, mol._env[ptr_exp : ptr_exp+nprim])
-            _env_of = numpy.append(_env_of, numpy.arange(ptr_exp,ptr_exp+nprim))
+            es = numpy.append(es, mol._env[ptr_exp : ptr_exp+nprim])
+            env_of = numpy.append(env_of, numpy.arange(ptr_exp, ptr_exp+nprim))
             es_of.append(offset)
             offset += nprim
     tmp = numpy.asarray(tmp, dtype=numpy.int32)
@@ -65,22 +111,40 @@ def setup_exp(mol):
         idx.append(numpy.where(ptr == tmp)[0])
     idx = numpy.asarray(idx).flatten()
     es_of = es_of[idx]
-    return es, es_of, _env_of
+    return es, es_of, env_of
 
 def setup_ctr_coeff(mol):
+    """
+    Find unique contraction coefficients of the basis functions.
+
+    Parameters
+    ----------
+    mol : Mole instance
+
+    Returns
+    -------
+    cs : array
+    cs_of : array
+    env_of : array
+
+    See also
+    --------
+    set_exp : Find unique exponents.
+    """
     tmp = []
-    cs = np.empty([0], dtype=float)
-    _env_of = numpy.empty([0], dtype=numpy.int32)
+    cs = numpy.empty([0], dtype=float)
+    env_of = numpy.empty([0], dtype=numpy.int32)
     offset = 0
     cs_of = []
-    for i in range(len(mol._bas)):
+    for i in range(mol.nbas):
         nprim = mol._bas[i,NPRIM_OF]
         nctr = mol._bas[i,NCTR_OF]
         ptr_coeff = mol._bas[i,PTR_COEFF]
         if ptr_coeff not in tmp:
             tmp.append(ptr_coeff)
-            cs = np.append(cs, mol._env[ptr_coeff : ptr_coeff+nprim*nctr])
-            _env_of = numpy.append(_env_of, numpy.arange(ptr_coeff,ptr_coeff+nprim*nctr))
+            cs = numpy.append(cs, mol._env[ptr_coeff : ptr_coeff+nprim*nctr])
+            env_of = numpy.append(env_of,
+                                  numpy.arange(ptr_coeff,ptr_coeff+nprim*nctr))
             cs_of.append(offset)
             offset += nprim*nctr
     tmp = numpy.asarray(tmp, dtype=numpy.int32)
@@ -91,4 +155,4 @@ def setup_ctr_coeff(mol):
         idx.append(numpy.where(ptr == tmp)[0])
     idx = numpy.asarray(idx).flatten()
     cs_of = cs_of[idx]
-    return cs, cs_of, _env_of
+    return cs, cs_of, env_of
