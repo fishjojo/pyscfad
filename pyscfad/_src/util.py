@@ -4,6 +4,71 @@ from pyscf import __config__
 
 PYSCFAD = getattr(__config__, "pyscfad", False)
 
+
+def _dict_hash(this):
+    fg = []
+    leaves, tree = tree_util.tree_flatten(this)
+    fg.append(hash(tree))
+    for v in leaves:
+        if hasattr(v, 'size'): # arrays
+            fg.append(finger(v))
+        elif isinstance(v, set):
+            fg.append(_dict_hash(tuple(v)))
+        else:
+            try:
+                fg.append(hash(v))
+            except TypeError as e:
+                raise e
+    return hash(tuple(fg))
+
+def _dict_equality(d1, d2):
+    leaves1, tree1 = tree_util.tree_flatten(d1)
+    leaves2, tree2 = tree_util.tree_flatten(d2)
+    if tree1 != tree2:
+        return False
+
+    for v1, v2 in zip(leaves1, leaves2):
+        if v1 is v2:
+            neq = False
+        else:
+            if hasattr(v1, 'size') and hasattr(v2, 'size'): # arrays
+                if v1.size != v2.size:
+                    neq = True
+                elif v1.size == 0 and v2.size == 0:
+                    neq = False
+                else:
+                    try:
+                        neq = not (v1 == v2)
+                    except ValueError as e:
+                        try:
+                            neq = not ((v1 == v2).all())
+                        except:
+                            raise e
+            else:
+                try:
+                    neq = not (v1 == v2)
+                except ValueError as e:
+                    raise e
+        if neq:
+            return False
+    return True
+
+
+class _AuxData:
+    def __init__(self, **kwargs):
+        self.data = {**kwargs}
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+        if not isinstance(other, _AuxData):
+            return False
+        return _dict_equality(self.data, other.data)
+
+    def __hash__(self):
+        return _dict_hash(self.data)
+
+
 def pytree_node(leaf_names, num_args=0):
     '''
     Class decorator that register the underlying class as a pytree node.
@@ -42,17 +107,17 @@ def pytree_node(leaf_names, num_args=0):
                 warnings.warn(f"Not taking derivatives wrt the leaves in "
                               f"the node {obj.__class__} as none of those was specified.")
 
-            aux_keys = set(keys) - set(leaf_names)
-            aux_data = tuple(getattr(obj, key, None) for key in aux_keys)
-            metadata = (num_args,) + tuple(zip(aux_keys, aux_data))
+            aux_keys = list(set(keys) - set(leaf_names))
+            aux_data = list(getattr(obj, key, None) for key in aux_keys)
+            metadata = (num_args,) + (_AuxData(**dict(zip(aux_keys, aux_data))),)
             return children, metadata
 
         def tree_unflatten(metadata, children):
             num_args = metadata[0]
-            metadata = metadata[1:]
+            auxdata = metadata[1]
             leaves_args = children[:num_args]
-            leaves_kwargs = tuple(zip(leaf_names[num_args:], children[num_args:]))
-            kwargs = dict(leaves_kwargs + metadata)
+            leaves_kwargs = dict(zip(leaf_names[num_args:], children[num_args:]))
+            kwargs = {**leaves_kwargs, **(auxdata.data)}
             obj = cls(*leaves_args, **kwargs)
             return obj
 
