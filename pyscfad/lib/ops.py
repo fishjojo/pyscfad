@@ -1,4 +1,4 @@
-from distutils.version import LooseVersion
+from packaging.version import Version
 import jax
 import jax.ops
 from jax import numpy as jnp
@@ -8,7 +8,7 @@ jax_config.update('jax_enable_x64', True)
 # pylint: disable=no-member
 
 index = jnp.index_exp
-if LooseVersion(jax.__version__) < '0.2.22':
+if Version(jax.__version__) < Version('0.2.22'):
     index_update = jax.ops.index_update
     index_add = jax.ops.index_add
     index_mul = jax.ops.index_mul
@@ -27,6 +27,3 @@ else:
         x = jnp.asarray(x)
         y = jnp.asarray(y)
         return x.at[idx].multiply(y)
-
-
-del LooseVersion

@@ -2,10 +2,11 @@ import warnings
 from jax import tree_util
 from pyscf import __config__
 
-PYSCFAD = getattr(__config__, "pyscfad", False)
+PYSCFAD = getattr(__config__, 'pyscfad', False)
 
 
 def _dict_hash(this):
+    from pyscf.lib.misc import finger
     fg = []
     leaves, tree = tree_util.tree_flatten(this)
     fg.append(hash(tree))
@@ -38,15 +39,15 @@ def _dict_equality(d1, d2):
                     neq = False
                 else:
                     try:
-                        neq = not (v1 == v2)
+                        neq = not v1 == v2
                     except ValueError as e:
                         try:
-                            neq = not ((v1 == v2).all())
-                        except:
-                            raise e
+                            neq = not (v1 == v2).all()
+                        except Exception:
+                            raise e from None
             else:
                 try:
-                    neq = not (v1 == v2)
+                    neq = not v1 == v2
                 except ValueError as e:
                     raise e
         if neq:
@@ -100,12 +101,12 @@ def pytree_node(leaf_names, num_args=0):
             keys = obj.__dict__.keys()
             for leaf_name in leaf_names:
                 if leaf_name not in keys:
-                    raise KeyError(f"Pytree leaf {leaf_name} is not defined in class {cls}.")
+                    raise KeyError(f'Pytree leaf {leaf_name} is not defined in class {cls}.')
             children =  tuple(getattr(obj, leaf_name, None) for leaf_name in leaf_names)
             if len(children) <= 0:
                 #raise KeyError("Empty pytree node is not supported.")
-                warnings.warn(f"Not taking derivatives wrt the leaves in "
-                              f"the node {obj.__class__} as none of those was specified.")
+                warnings.warn(f'Not taking derivatives wrt the leaves in '
+                              f'the node {obj.__class__} as none of those was specified.')
 
             aux_keys = list(set(keys) - set(leaf_names))
             aux_data = list(getattr(obj, key, None) for key in aux_keys)
