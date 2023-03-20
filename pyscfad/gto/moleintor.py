@@ -9,7 +9,18 @@ from pyscf.gto import mole, moleintor
 from pyscf.gto.mole import Mole
 from pyscf.gto.moleintor import _get_intor_and_comp
 from pyscfad.lib import ops, custom_jvp
-from ._mole_helper import uncontract, setup_exp, setup_ctr_coeff
+from ._mole_helper import (
+    setup_exp,
+    setup_ctr_coeff,
+    get_fakemol_exp,
+    get_fakemol_cs,
+)
+from ._moleintor_helper import (
+    int1e_get_dr_order,
+    int2e_get_dr_order,
+    int1e_dr1_name,
+    int2e_dr1_name,
+)
 
 SET_RC = ['rinv',]
 
@@ -29,7 +40,7 @@ def intor_cross_jvp(intor, comp, grids,
     if mol1.coords is not None:
         nao1 = mol1.nao
         aoslices1 = mol1.aoslice_by_atom()[:,2:4]
-        intor_ip_bra, _ = _int1e_dr1_name(intor)
+        intor_ip_bra, _ = int1e_dr1_name(intor)
         s1a = -intor_cross(intor_ip_bra, mol1, mol2, comp=None, grids=grids).reshape(3,-1,nao1,nao1)
 
         idx1 = np.arange(nao1)
@@ -39,10 +50,10 @@ def intor_cross_jvp(intor, comp, grids,
     if mol2.coords is not None:
         nao2 = mol2.nao
         aoslices2 = mol2.aoslice_by_atom()[:,2:4]
-        _, intor_ip_ket = _int1e_dr1_name(intor)
+        _, intor_ip_ket = int1e_dr1_name(intor)
         s1b = -intor_cross(intor_ip_ket, mol1, mol2, comp=None, grids=grids)
 
-        order_a = _int1e_get_dr_order(intor_ip_ket)[0]
+        order_a = int1e_get_dr_order(intor_ip_ket)[0]
         s1b = s1b.reshape(3**order_a,3,-1,nao2,nao2).transpose(1,0,2,3,4).reshape(3,-1,nao2,nao2)
         idx2 = np.arange(nao2)
         grad2 = _gen_int1e_fill_grad_r0(s1b, aoslices2, idx2[None,None,None,:])
@@ -93,66 +104,6 @@ def getints(mol, intor, shls_slice=None,
     else:
         raise NotImplementedError(f'Integral {intor} is not supported.')
 
-def _int1e_dr1_name(intor):
-    if 'sph' in intor:
-        suffix = '_sph'
-    elif 'cart' in intor:
-        suffix = '_cart'
-    else:
-        suffix = ''
-    fname = intor.replace('_sph', '').replace('_cart', '')
-
-    if fname[-4:-2] == 'dr':
-        orders = [int(fname[-2]), int(fname[-1])]
-        intor_ip_bra = fname[:-2] + str(orders[0]+1) + str(orders[1]) + suffix
-        intor_ip_ket = fname[:-2] + str(orders[0]) + str(orders[1]+1) + suffix
-    else:
-        intor_ip_bra = fname + '_dr10' + suffix
-        intor_ip_ket = fname + '_dr01' + suffix
-    return intor_ip_bra, intor_ip_ket
-
-def _int1e_get_dr_order(intor):
-    fname = intor.replace('_sph', '').replace('_cart', '')
-    if fname[-4:-2] == 'dr':
-        orders = [int(fname[-2]), int(fname[-1])]
-    else:
-        orders = [0, 0]
-    return orders
-
-def _int2e_dr1_name(intor):
-    if 'sph' in intor:
-        suffix = '_sph'
-    elif 'cart' in intor:
-        suffix = '_cart'
-    else:
-        suffix = ''
-    fname = intor.replace('_sph', '').replace('_cart', '')
-
-    if fname[-6:-4] == 'dr':
-        orders = _int2e_get_dr_order(intor)
-        str1 = str(orders[0]+1) + str(orders[1]) + str(orders[2]) + str(orders[3])
-        str2 = str(orders[0]) + str(orders[1]+1) + str(orders[2]) + str(orders[3])
-        str3 = str(orders[0]) + str(orders[1]) + str(orders[2]+1) + str(orders[3])
-        str4 = str(orders[0]) + str(orders[1]) + str(orders[2]) + str(orders[3]+1)
-        intor1 = fname[:-4] + str1 + suffix
-        intor2 = fname[:-4] + str2 + suffix
-        intor3 = fname[:-4] + str3 + suffix
-        intor4 = fname[:-4] + str4 + suffix
-    else:
-        intor1 = fname + '_dr1000' + suffix
-        intor2 = fname + '_dr0100' + suffix
-        intor3 = fname + '_dr0010' + suffix
-        intor4 = fname + '_dr0001' + suffix
-    return intor1, intor2, intor3, intor4
-
-def _int2e_get_dr_order(intor):
-    fname = intor.replace('_sph', '').replace('_cart', '')
-    if fname[-6:-4] == 'dr':
-        orders = [int(fname[-4]), int(fname[-3]), int(fname[-2]), int(fname[-1])]
-    else:
-        orders = [0,] * 4
-    return orders
-
 def getints2c_rc(mol, intor, shls_slice=None, comp=None,
                  hermi=0, out=None, rc_deriv=None):
     if rc_deriv is None or not any(rc in intor for rc in SET_RC):
@@ -178,7 +129,7 @@ def _getints2c_rc_jvp(intor, shls_slice, comp, hermi, out, rc_deriv,
     tangent_out = np.zeros_like(primal_out)
 
     if mol.coords is not None:
-        intor_ip_bra, intor_ip_ket = _int1e_dr1_name(intor)
+        intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor)
         tangent_out += _gen_int1e_jvp_r0(mol, mol_t, intor_ip_bra, intor_ip_ket, rc_deriv)
     return primal_out, tangent_out
 
@@ -209,7 +160,7 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, out,
         elif fname == 'int1e_r':
             intor_ip = intor.replace('int1e_r', 'int1e_irp')
         elif fname.startswith('int1e') or fname.startswith('int2c2e'):
-            intor_ip_bra, intor_ip_ket = _int1e_dr1_name(intor)
+            intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor)
         else:
             raise NotImplementedError(f'Integral {intor} is not supported for AD.')
 
@@ -268,9 +219,9 @@ def getints4c_jvp(intor, shls_slice, comp, aosym, out,
 
     fname = intor.replace('_sph', '').replace('_cart', '')
     if mol.coords is not None:
-        intor1, intor2, intor3, intor4 = _int2e_dr1_name(intor)
+        intor1, intor2, intor3, intor4 = int2e_dr1_name(intor)
         if fname[-6:-4] == 'dr':
-            orders = _int2e_get_dr_order(intor)
+            orders = int2e_get_dr_order(intor)
             if orders[0] == 0 and orders[1] == 0:
                 intor2 = None
             if orders[2] == 0 and orders[3] == 0:
@@ -284,15 +235,6 @@ def getints4c_jvp(intor, shls_slice, comp, aosym, out,
     if mol.exp is not None:
         tangent_out += _int2e_jvp_exp(mol, mol_t, intor)
     return primal_out, tangent_out
-
-def _get_fakemol_cs(mol):
-    mol1 = uncontract(mol)
-    return mol1
-
-def _get_fakemol_exp(mol):
-    mol1 = uncontract(mol)
-    mol1._bas[:,mole.ANG_OF]  += 2
-    return mol1
 
 def get_bas_label(l):
     xyz = []
@@ -352,7 +294,7 @@ def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b, rc_deriv=None, hermi=0):
     s1a = -getints2c_rc(mol, intor_a, hermi=0, rc_deriv=rc_deriv).reshape(3,-1,nao,nao)
     s1b = None
     if hermi == 0:
-        order_a = _int1e_get_dr_order(intor_b)[0]
+        order_a = int1e_get_dr_order(intor_b)[0]
         s1b = -getints2c_rc(mol, intor_b, hermi=0, rc_deriv=rc_deriv)
         s1b = s1b.reshape(3**order_a,3,-1,nao,nao).transpose(1,0,2,3,4).reshape(3,-1,nao,nao)
     #jvp = np.zeros(s1a.shape[1:])
@@ -430,7 +372,7 @@ def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b, hermi=0):
         with mol.with_rinv_at_nucleus(ia):
             vrinv = getints2c_rc(mol, intor_a, rc_deriv=ia).reshape(3,-1,nao,nao)
             if hermi == 0:
-                order_a = _int1e_get_dr_order(intor_b)[0]
+                order_a = int1e_get_dr_order(intor_b)[0]
                 s1b = getints2c_rc(mol, intor_b, rc_deriv=ia)
                 s1b = s1b.reshape(3**order_a,3,-1,nao,nao).transpose(1,0,2,3,4)
                 vrinv += s1b.reshape(3,-1,nao,nao)
@@ -446,7 +388,7 @@ def _int1e_jvp_cs(mol, mol_t, intor):
     ctr_coeff = mol.ctr_coeff
     ctr_coeff_t = mol_t.ctr_coeff
 
-    mol1 = _get_fakemol_cs(mol)
+    mol1 = get_fakemol_cs(mol)
     mol1._atm[:,mole.CHARGE_OF] = 0 # set nuclear charge to zero
     nbas1 = len(mol1._bas)
     nbas = len(mol._bas)
@@ -493,7 +435,7 @@ def _int1e_jvp_cs(mol, mol_t, intor):
     return tangent_out
 
 def _int1e_jvp_exp(mol, mol_t, intor):
-    mol1 = _get_fakemol_exp(mol)
+    mol1 = get_fakemol_exp(mol)
     mol1._atm[:,mole.CHARGE_OF] = 0 # set nuclear charge to zero
     if intor.endswith('_sph'):
         intor = intor.replace('_sph', '_cart')
@@ -603,7 +545,7 @@ def _gen_int2e_jvp_r0(mol, mol_t, intors):
     intor_a, intor_b, intor_c, intor_d = intors
     eri1_a = -getints4c(mol, intor_a, aosym='s1').reshape(3,-1,nao,nao,nao,nao)
     if intor_b:
-        orders = _int2e_get_dr_order(intor_b)
+        orders = int2e_get_dr_order(intor_b)
         off = 3**orders[0]
         eri1_b = -getints4c(mol, intor_b, aosym='s1')
         eri1_b = eri1_b.reshape(off,3,-1,nao,nao,nao,nao)
@@ -611,13 +553,13 @@ def _gen_int2e_jvp_r0(mol, mol_t, intors):
     else:
         eri1_b = eri1_a.transpose(0,1,3,2,4,5)
 
-    orders = _int2e_get_dr_order(intor_c)
+    orders = int2e_get_dr_order(intor_c)
     off = 3**(orders[0]+orders[1])
     eri1_c = -getints4c(mol, intor_c, aosym='s1')
     eri1_c = eri1_c.reshape(off,3,-1,nao,nao,nao,nao)
     eri1_c = eri1_c.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
     if intor_d:
-        orders = _int2e_get_dr_order(intor_d)
+        orders = int2e_get_dr_order(intor_d)
         off = 3**(orders[0]+orders[1]+orders[2])
         eri1_d = -getints4c(mol, intor_d, aosym='s1')
         eri1_d = eri1_d.reshape(off,3,-1,nao,nao,nao,nao)
@@ -658,7 +600,7 @@ def _int2e_jvp_cs(mol, mol_t, intor):
     ctr_coeff = mol.ctr_coeff
     ctr_coeff_t = mol_t.ctr_coeff
 
-    mol1 = _get_fakemol_cs(mol)
+    mol1 = get_fakemol_cs(mol)
 
     nbas = len(mol._bas)
     nbas1 = len(mol1._bas)
@@ -704,7 +646,7 @@ def _int2e_dot_grad_tangent_cs(grad, tangent):
     return tangent_out
 
 def _int2e_jvp_exp(mol, mol_t, intor):
-    mol1 = _get_fakemol_exp(mol)
+    mol1 = get_fakemol_exp(mol)
     intor = mol._add_suffix(intor, cart=True)
 
     nbas = len(mol._bas)

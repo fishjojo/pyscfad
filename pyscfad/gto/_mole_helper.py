@@ -55,6 +55,18 @@ def uncontract(mol):
     return mol1
 
 def shlmap_ctr2unctr(mol):
+    """Mapping between contracted basis shells and
+    uncontracted basis shells
+
+    Parameters
+    ----------
+    mol : Mole instance
+
+    Returns
+    -------
+    map_c2u : array
+        map_c2u[shell_id_contracted] = shell_id_uncontracted
+    """
     nsh = 0
     map_c2u = []
     for i in range(mol.nbas):
@@ -156,3 +168,12 @@ def setup_ctr_coeff(mol):
     idx = numpy.asarray(idx).flatten()
     cs_of = cs_of[idx]
     return cs, cs_of, env_of
+
+def get_fakemol_exp(mol, order=2):
+    mol1 = uncontract(mol)
+    mol1._bas[:,ANG_OF] += order
+    return mol1
+
+def get_fakemol_cs(mol):
+    mol1 = uncontract(mol)
+    return mol1
