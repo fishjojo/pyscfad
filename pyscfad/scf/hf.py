@@ -116,7 +116,7 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     h1e = mf.get_hcore(mol)
     if mf._eri is None:
         if getattr(mf, 'with_df', None) is None:
-            mf._eri = mol.intor('int2e', aosym='s1')
+            mf._eri = mol.intor('int2e', aosym='s4')
 
     scf_conv = False
     mo_energy = mo_coeff = mo_occ = None
@@ -214,19 +214,9 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     #mf.post_kernel(locals())
     return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
-def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
-    dm = np.asarray(dm)
-    nao = dm.shape[-1]
-    if eri.dtype == np.complex128 or eri.size == nao**4:
-        vj, vk = _dot_eri_dm_nosymm(eri, dm, with_j, with_k)
-    else:
-        if dm.dtype == np.complex128:
-            raise NotImplementedError
-        vj, vk = _vhf.incore(eri, dm, hermi, with_j, with_k)
-    return vj, vk
 
 @partial(jit, static_argnums=(2,3))
-def _dot_eri_dm_nosymm(eri, dm, with_j, with_k):
+def _dot_eri_dm_s1(eri, dm, with_j, with_k):
     nao = dm.shape[-1]
     eri = eri.reshape((nao,)*4)
     dms = dm.reshape(-1,nao,nao)
@@ -238,6 +228,19 @@ def _dot_eri_dm_nosymm(eri, dm, with_j, with_k):
         vk = np.einsum('ijkl,xjk->xil', eri, dms)
         vk = vk.reshape(dm.shape)
     return vj, vk
+
+
+def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
+    dm = np.asarray(dm)
+    nao = dm.shape[-1]
+    if eri.dtype == np.complex128 or eri.size == nao**4:
+        vj, vk = _dot_eri_dm_s1(eri, dm, with_j, with_k)
+    else:
+        if eri.dtype == np.complex128:
+            raise NotImplementedError
+        vj, vk = _vhf.incore(eri, dm, hermi, with_j, with_k)
+    return vj, vk
+
 
 def level_shift(s, d, f, factor):
     dm_vir = s - reduce(np.dot, (s, d, s))
@@ -273,7 +276,7 @@ class SCF(pyscf_hf.SCF):
         if dm is None:
             dm = self.make_rdm1()
         if self._eri is None:
-            self._eri = self.mol.intor('int2e', aosym='s1')
+            self._eri = self.mol.intor('int2e', aosym='s4')
         vj, vk = dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
         return vj, vk
 

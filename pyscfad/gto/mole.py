@@ -9,6 +9,8 @@ from pyscfad.gto import moleintor
 from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
 
+MOLEINTOROPT = getattr(__config__, 'pyscfad_moleintor_opt', False)
+
 Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
 
 def energy_nuc(mol, charges=None, **kwargs):
@@ -103,6 +105,14 @@ class Mole(gto.Mole):
                                  aosym=aosym, out=out, shls_slice=shls_slice,
                                  grids=grids)
         else:
+            intor = self._add_suffix(intor)
+            if MOLEINTOROPT:
+                from pyscfad.gto import moleintor_opt
+                return moleintor_opt.getints(
+                            self, intor, shls_slice=shls_slice,
+                            comp=comp, hermi=hermi, aosym=aosym,
+                            out=out, grids=grids)
+
             return moleintor.getints(self, intor, shls_slice=shls_slice,
                                      comp=comp, hermi=hermi, aosym=aosym,
                                      out=out, grids=grids)
