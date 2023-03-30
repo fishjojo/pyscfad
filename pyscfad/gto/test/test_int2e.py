@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import jax
 import pyscf
-from pyscfad.lib import numpy as jnp
+from pyscf import numpy as jnp
 from pyscfad import gto
 
 tol_val = 1e-12

@@ -647,7 +647,13 @@ def _int2e_dot_grad_tangent_cs(grad, tangent):
 
 def _int2e_jvp_exp(mol, mol_t, intor):
     mol1 = get_fakemol_exp(mol)
-    intor = mol._add_suffix(intor, cart=True)
+    mol1._atm[:,mole.CHARGE_OF] = 0 # set nuclear charge to zero
+    if intor.endswith('_sph'):
+        intor = intor.replace('_sph', '_cart')
+        cart = False
+    else:
+        cart = True
+        intor = mol._add_suffix(intor, cart=True)
 
     nbas = len(mol._bas)
     nbas1 = len(mol1._bas)
@@ -699,7 +705,7 @@ def _int2e_jvp_exp(mol, mol_t, intor):
     #grad += grad.transpose(0,2,1,3,4)
     #grad += grad.transpose(0,3,4,1,2)
     tangent_out = _int2e_dot_grad_tangent_exp(grad, mol_t.exp)
-    if not mol.cart:
+    if not mol.cart or not cart:
         c2s = numpy.asarray(mol.cart2sph_coeff())
         tangent_out = _int2e_c2s(tangent_out, c2s)
     return tangent_out
