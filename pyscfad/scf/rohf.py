@@ -170,11 +170,11 @@ class ROHF(hf.SCF, pyscf_rohf.ROHF):
         pyscf_rohf.ROHF.__init__(self, mol)
         self.__dict__.update(kwargs)
 
-    def eig(self, fock, s, x0=None):
+    def eig(self, fock, s):
         focka = getattr(fock, 'focka', None)
         fockb = getattr(fock, 'fockb', None)
         fockab = getattr(fock, 'fock', fock)
-        e, c = self._eigh(fockab, s, x0)
+        e, c = self._eigh(fockab, s)
         if focka is not None:
             c_copy = numpy.asarray(stop_grad(c))
             focka_copy = numpy.asarray(stop_grad(focka))

@@ -1,76 +1,67 @@
 from functools import partial, reduce
 import numpy
-from jax import jacrev, jacfwd
+import jax
 from jaxopt import linear_solve
-from pyscf import __config__
 from pyscf import numpy as np
 from pyscf.lib import logger, stop_grad
 from pyscf.scf import hf as pyscf_hf
 from pyscf.scf import chkfile
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
+
+from pyscfad import config
 from pyscfad import lib
-from pyscfad.lib import jit
+from pyscfad.lib import jit, stop_trace
 from pyscfad import util
-from pyscfad import implicit_diff
+from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad import df
 from pyscfad.scf import _vhf
 from pyscfad.scf.diis import SCF_DIIS
-from pyscfad.scf._eigh import eigh
+from pyscfad.scipy.linalg import eigh
+from pyscfad.scipy.sparse.linalg import gmres
 
-SCF_IMPLICIT_DIFF = getattr(__config__, 'pyscfad_scf_implicit_diff', False)
 Traced_Attributes = ['mol', 'mo_coeff', 'mo_energy', '_eri']
 
-def eig(h, s, x0=None):
-    e, c = eigh(h, s, x0)
-    return e, c
-
-def _converged_scf(mo_coeff, mf, s1e, h1e, mo_occ):
+def _scf_optimality_cond(dm, mf, s1e, h1e):
     mol = getattr(mf, 'cell', mf.mol)
-    dm = mf.make_rdm1(mo_coeff, mo_occ)
     vhf = mf.get_veff(mol, dm)
     fock = mf.get_fock(h1e, s1e, vhf, dm)
-    _, mo_coeff = mf.eig(fock, s1e, mo_coeff)
-    return mo_coeff
+    mo_energy, mo_coeff = mf.eig(fock, s1e)
+    mo_occ = stop_trace(mf.get_occ)(mo_energy, mo_coeff)
+    dm = mf.make_rdm1(mo_coeff, mo_occ)
+    del mo_energy, mo_occ
+    return dm
 
-def _scf(mo_coeff, mf, s1e, h1e, mo_occ, *,
-         dm0=None, conv_tol=1e-10, conv_tol_grad=None, diis=None,
+
+def _scf(dm, mf, s1e, h1e, *,
+         conv_tol=1e-10, conv_tol_grad=None, diis=None,
          dump_chk=True, callback=None, log=None):
     if conv_tol_grad is None:
         conv_tol_grad = numpy.sqrt(conv_tol)
     if log is None:
         log = logger.new_logger(mf)
     scf_conv = False
-
     mol = getattr(mf, 'cell', mf.mol)
-    if dm0 is not None:
-        dm = dm0
-    elif mo_coeff is not None and mo_occ is not None:
-        dm = mf.make_rdm1(mo_coeff, mo_occ)
-    else:
-        raise KeyError('Either dm or mo_coeff and mo_occ need to be given.')
-
     vhf = mf.get_veff(mol, dm)
     e_tot = mf.energy_tot(dm, h1e, vhf)
     log.info('init E= %.15g', e_tot)
-
     cput1 = log.timer('initialize scf')
+
     for cycle in range(mf.max_cycle):
         dm_last = dm
         last_hf_e = e_tot
 
         fock = mf.get_fock(h1e, s1e, vhf, dm, cycle, diis)
         mo_energy, mo_coeff = mf.eig(fock, s1e)
-        mo_occ = mf.get_occ(stop_grad(mo_energy), stop_grad(mo_coeff))
+        mo_occ = stop_trace(mf.get_occ)(mo_energy, mo_coeff)
         dm = mf.make_rdm1(mo_coeff, mo_occ)
         vhf = mf.get_veff(mol, dm, dm_last, vhf)
         e_tot = mf.energy_tot(dm, h1e, vhf)
 
-        fock = mf.get_fock(stop_grad(h1e), stop_grad(s1e), stop_grad(vhf), stop_grad(dm))
-        norm_gorb = numpy.linalg.norm(mf.get_grad(stop_grad(mo_coeff),
-                                      stop_grad(mo_occ), stop_grad(fock)))
+        fock = stop_trace(mf.get_fock)(h1e, s1e, vhf, dm)
+        norm_gorb = numpy.linalg.norm(stop_trace(mf.get_grad)(mo_coeff, mo_occ, fock))
         if not TIGHT_GRAD_CONV_TOL:
             norm_gorb = norm_gorb / numpy.sqrt(norm_gorb.size)
-        norm_ddm = numpy.linalg.norm(stop_grad(dm)-stop_grad(dm_last))
+        norm_ddm = numpy.linalg.norm(stop_grad(dm - dm_last))
         log.info('cycle= %d E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g',
                  cycle+1, e_tot, e_tot-last_hf_e, norm_gorb, norm_ddm)
 
@@ -89,14 +80,7 @@ def _scf(mo_coeff, mf, s1e, h1e, mo_occ, *,
 
         if scf_conv:
             break
-    return mo_coeff, scf_conv, mo_occ, mo_energy
-
-if SCF_IMPLICIT_DIFF:
-    solver = partial(linear_solve.solve_gmres, tol=1e-9,
-                     solve_method='incremental', maxiter=30)
-    _scf = implicit_diff.custom_fixed_point(
-                _converged_scf, solve=solver, has_aux=True,
-                nondiff_argnums=(4,), use_converged_args={4:2})(_scf)
+    return dm, scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 
 def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
@@ -114,7 +98,9 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
         dm = dm0
 
     h1e = mf.get_hcore(mol)
-    if mf._eri is None:
+    # NOTE if use implicit differentiation,
+    # the eri derivative will be lost if not computed before SCF iterations.
+    if config.scf_implicit_diff and mf._eri is None:
         if getattr(mf, 'with_df', None) is None:
             mf._eri = mol.intor('int2e', aosym='s4')
 
@@ -136,7 +122,7 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
 
         fock = mf.get_fock(h1e, s1e, vhf, dm)
         mo_energy, mo_coeff = mf.eig(fock, s1e)
-        mo_occ = mf.get_occ(stop_grad(mo_energy), stop_grad(mo_coeff))
+        mo_occ = stop_trace(mf.get_occ)(mo_energy, mo_coeff)
         # hack for ROHF
         mo_energy = getattr(mo_energy, 'mo_energy', mo_energy)
         return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
@@ -159,19 +145,23 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     # A preprocessing hook before the SCF iteration
     #mf.pre_kernel(locals())
 
+    if config.moleintor_opt:
+        solver = partial(gmres, tol=1e-5)
+    else:
+        solver = partial(linear_solve.solve_gmres, tol=1e-5,
+                         solve_method='incremental')
     # SCF iteration
-    mo_coeff, scf_conv, mo_occ, mo_energy = \
-            _scf(mo_coeff, mf, s1e, h1e, mo_occ, dm0=dm,
+    # NOTE if use implicit differentiation, only dm will have gradient.
+    dm, scf_conv, e_tot, mo_energy, mo_coeff, mo_occ = \
+            make_implicit_diff(_scf, config.scf_implicit_diff,
+                    optimality_cond=_scf_optimality_cond,
+                    solver=solver, has_aux=True)(
+                 dm, mf, s1e, h1e,
                  conv_tol=conv_tol, conv_tol_grad=conv_tol_grad,
                  diis=mf_diis, dump_chk=dump_chk, callback=callback, log=log)
 
-    # Recompute energy so that energy has the correct gradient from mo_coeff
-    dm = mf.make_rdm1(mo_coeff, mo_occ)
-    vhf = mf.get_veff(mol, dm)
-    e_tot = mf.energy_tot(dm, h1e, vhf)
-
     run_extra_cycle = False
-    if SCF_IMPLICIT_DIFF and (not conv_check or not scf_conv):
+    if config.scf_implicit_diff and (not conv_check or not scf_conv):
         log.warn('\tAn extra scf cycle is going to be run\n'
                  '\tin order to restore the mo_energy derivatives\n'
                  '\tmissing in implicit differentiation.')
@@ -179,20 +169,19 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
 
     if (scf_conv and conv_check) or run_extra_cycle:
         # An extra diagonalization, to remove level shift
+        vhf = mf.get_veff(mol, dm)
         fock = mf.get_fock(h1e, s1e, vhf, dm)
         mo_energy, mo_coeff = mf.eig(fock, s1e)
-        mo_occ = mf.get_occ(stop_grad(mo_energy), stop_grad(mo_coeff))
+        mo_occ = stop_trace(mf.get_occ)(mo_energy, mo_coeff)
         dm, dm_last = mf.make_rdm1(mo_coeff, mo_occ), dm
         vhf = mf.get_veff(mol, dm, dm_last, vhf)
         e_tot, last_hf_e = mf.energy_tot(dm, h1e, vhf), e_tot
 
-        fock = mf.get_fock(stop_grad(h1e), stop_grad(s1e),
-                           stop_grad(vhf), stop_grad(dm))
-        norm_gorb = numpy.linalg.norm(mf.get_grad(stop_grad(mo_coeff),
-                                      stop_grad(mo_occ), stop_grad(fock)))
+        fock = stop_trace(mf.get_fock)(h1e, s1e, vhf, dm)
+        norm_gorb = numpy.linalg.norm(stop_trace(mf.get_grad)(mo_coeff, mo_occ, fock))
         if not TIGHT_GRAD_CONV_TOL:
             norm_gorb = norm_gorb / numpy.sqrt(norm_gorb.size)
-        norm_ddm = numpy.linalg.norm(stop_grad(dm)-stop_grad(dm_last))
+        norm_ddm = numpy.linalg.norm(stop_grad(dm - dm_last))
 
         conv_tol = conv_tol * 10
         conv_tol_grad = conv_tol_grad * 3
@@ -295,15 +284,15 @@ class SCF(pyscf_hf.SCF):
                        dm0=dm0, **kwargs)
         return self.e_tot
 
-    def _eigh(self, h, s, x0=None):
-        return eig(h, s, x0)
+    def _eigh(self, h, s):
+        return eigh(h, s)
 
-    def eig(self, h, s, x0=None):
-        return self._eigh(h, s, x0)
+    def eig(self, h, s):
+        return self._eigh(h, s)
 
     def energy_grad(self, dm0=None, mode='rev'):
         '''
-        Energy gradient wrt AO parameters computed by AD.
+        Energy gradient with respect to AO parameters computed by AD.
         In principle, MO response is not needed, and we can just take
         the derivative of eigen decomposition with converged
         density matrix. But here it is implemented in this way to show
@@ -324,13 +313,13 @@ class SCF(pyscf_hf.SCF):
             return e_tot
 
         if mode.lower().startswith('rev'):
-            jac = jacrev(hf_energy)(self, dm0=dm0)
+            jac = jax.grad(hf_energy)(self, dm0=dm0)
         else:
-            if SCF_IMPLICIT_DIFF:
+            if config.scf_implicit_diff:
                 msg = """Forward mode differentiation is not available
                          when applying the implicit function differentiation."""
                 raise KeyError(msg)
-            jac = jacfwd(hf_energy)(self, dm0=dm0)
+            jac = jax.jacfwd(hf_energy)(self, dm0=dm0)
         if hasattr(jac, 'cell'):
             return jac.cell
         else:

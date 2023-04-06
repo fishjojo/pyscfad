@@ -3,7 +3,7 @@ import ctypes
 import numpy
 from jax import custom_vjp
 from pyscf import lib
-from pyscf.lib import logger
+#from pyscf.lib import logger
 from pyscf.scf import _vhf
 
 libcvhf = lib.load_library('libcvhf')
@@ -32,7 +32,7 @@ def _get_j_fwd(eri, dms, hermi):
     return _get_j(eri, dms, hermi), (eri, dms)
 
 def _get_j_bwd(hermi, res, vjk_bar):
-    t0 = (logger.process_clock(), logger.perf_counter())
+    #t0 = (logger.process_clock(), logger.perf_counter())
     eri, dms = res
     eri = numpy.asarray(eri, order='C', dtype=numpy.double)
     dms = numpy.asarray(dms, order='C', dtype=numpy.double)
@@ -62,9 +62,9 @@ def _get_j_bwd(hermi, res, vjk_bar):
          dms.ctypes.data_as(ctypes.c_void_p),
          vjk_bar.ctypes.data_as(ctypes.c_void_p),
          ctypes.c_int(ndm), ctypes.c_int(nao), fvjk)
-    t1 = (logger.process_clock(), logger.perf_counter())
-    print('    CPU time for %s %9.2f sec, wall time %9.2f sec'
-                  % ('_get_j_bwd', t1[0]-t0[0], t1[1]-t0[1]))
+    #t1 = (logger.process_clock(), logger.perf_counter())
+    #print('    CPU time for %s %9.2f sec, wall time %9.2f sec'
+    #              % ('_get_j_bwd', t1[0]-t0[0], t1[1]-t0[1]))
     return vjp_eri, vjp_dms
 
 _get_j.defvjp(_get_j_fwd, _get_j_bwd)
@@ -85,7 +85,7 @@ def _get_k_fwd(eri, dms, hermi):
     return _get_k(eri, dms, hermi), (eri, dms)
 
 def _get_k_bwd(hermi, res, vjk_bar):
-    t0 = (logger.process_clock(), logger.perf_counter())
+    #t0 = (logger.process_clock(), logger.perf_counter())
     eri, dms = res
     eri = numpy.asarray(eri, order='C', dtype=numpy.double)
     dms = numpy.asarray(dms, order='C', dtype=numpy.double)
@@ -117,9 +117,9 @@ def _get_k_bwd(hermi, res, vjk_bar):
          dms.ctypes.data_as(ctypes.c_void_p),
          vjk_bar.ctypes.data_as(ctypes.c_void_p),
          ctypes.c_int(ndm), ctypes.c_int(nao), fvjk)
-    t1 = (logger.process_clock(), logger.perf_counter())
-    print('    CPU time for %s %9.2f sec, wall time %9.2f sec'
-                  % ('_get_k_bwd', t1[0]-t0[0], t1[1]-t0[1]))
+    #t1 = (logger.process_clock(), logger.perf_counter())
+    #print('    CPU time for %s %9.2f sec, wall time %9.2f sec'
+    #              % ('_get_k_bwd', t1[0]-t0[0], t1[1]-t0[1]))
     return vjp_eri, vjp_dms
 
 _get_k.defvjp(_get_k_fwd, _get_k_bwd)

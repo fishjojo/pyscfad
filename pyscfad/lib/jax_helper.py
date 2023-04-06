@@ -16,6 +16,16 @@ def stop_grad(x):
     else:
         return x
 
+def stop_trace(fn):
+    if PYSCFAD:
+        def wrapped_fn(*args, **kwargs):
+            args_no_grad = [stop_grad(arg) for arg in args]
+            kwargs_no_grad = {k : stop_grad(v) for k, v in kwargs.items()}
+            return fn(*args_no_grad, **kwargs_no_grad)
+        return wrapped_fn
+    else:
+        return fn
+
 def jit(fun, **kwargs):
     if PYSCFAD:
         return jax.jit(fun, **kwargs)

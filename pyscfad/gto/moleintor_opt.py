@@ -36,11 +36,11 @@ def getints(mol, intor, shls_slice=None,
     if grids is not None:
         raise NotImplementedError('Integrals on grids are not supported.')
     if out is not None:
-        warnings.warn(f'Argument out = {out} will be ignored.')
+        logger.warn(mol, f'Argument out = {out} will be ignored.')
     if hermi == 2:
         hermi = 0
         msg = f'Anti-hermitian symmetry is not supported. Setting hermi = {hermi}.'
-        warnings.warn(msg)
+        logger.warn(mol, msg)
 
     if (intor.startswith('int1e') or
         intor.startswith('int2c2e') or
@@ -111,13 +111,13 @@ def getints4c_bwd(intor, shls_slice, comp, aosym, out,
 
     if mol.exp is not None:
         raise NotImplementedError
-        vjp_exp = getints4c_exp_bwd(intor, shls_slice, comp, aosym, out,
-                                    mol, ybar)
+        #vjp_exp = getints4c_exp_bwd(intor, shls_slice, comp, aosym, out,
+        #                            mol, ybar)
 
     if mol.ctr_coeff is not None:
         raise NotImplementedError
-        vjp_coeff = getints4c_coeff_bwd(intor, shls_slice, comp, aosym, out,
-                                        mol, ybar)
+        #vjp_coeff = getints4c_coeff_bwd(intor, shls_slice, comp, aosym, out,
+        #                                mol, ybar)
 
     molbar = mol.copy()
     molbar.coords = vjp_coords

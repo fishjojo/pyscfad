@@ -69,15 +69,13 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         cell = stop_grad(cell)
         return pyscf_khf.KSCF.get_init_guess(self, cell, key)
 
-    def eig(self, h_kpts, s_kpts, x0=None):
+    def eig(self, h_kpts, s_kpts):
         nkpts = len(h_kpts)
         eig_kpts = []
         mo_coeff_kpts = []
-        if x0 is None:
-            x0 = [None] * nkpts
 
         for k in range(nkpts):
-            e, c = self._eigh(h_kpts[k], s_kpts[k], x0[k])
+            e, c = self._eigh(h_kpts[k], s_kpts[k])
             eig_kpts.append(e)
             mo_coeff_kpts.append(c)
         return eig_kpts, mo_coeff_kpts
