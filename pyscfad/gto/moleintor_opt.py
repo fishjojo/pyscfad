@@ -414,6 +414,8 @@ def getints4c_coords_bwd(intor, shls_slice, comp, aosym, out,
     drv = libcgto.GTOnr2e_fill_r0_vjp
     fill = getattr(libcgto, 'GTOnr2e_fill_r0_vjp_'+aosym)
     vjp = numpy.zeros((natm, comp), order='C', dtype=numpy.double)
+    if aosym == 's4':
+        ybar += ybar.T
     ybar = numpy.asarray(ybar, order='C', dtype=numpy.double)
 
     cintopt = make_cintopt(atm, bas, env, intor1)
@@ -424,9 +426,6 @@ def getints4c_coords_bwd(intor, shls_slice, comp, aosym, out,
         ctypes.c_int(comp), (ctypes.c_int*8)(*shls_slice),
         ao_loc.ctypes.data_as(ctypes.c_void_p), cintopt,
         c_atm, ctypes.c_int(natm), c_bas, ctypes.c_int(nbas), c_env)
-
-    if aosym == 's4':
-        vjp *= 2
 
     log.timer('getints4c_coords_bwd')
     del log

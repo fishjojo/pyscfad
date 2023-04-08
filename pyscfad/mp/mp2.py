@@ -3,6 +3,7 @@ from pyscf.mp import mp2 as pyscf_mp2
 from pyscfad import util
 from pyscfad import lib
 from pyscfad.lib import numpy as np
+from pyscfad import ao2mo
 
 # Iteratively solve MP2 if non-canonical HF is provided
 def _iterative_kernel(mp, eris, verbose=None):
@@ -58,7 +59,7 @@ class MP2(pyscf_mp2.MP2):
         nocc = self.nocc
         co = np.asarray(mo_coeff[:,:nocc])
         cv = np.asarray(mo_coeff[:,nocc:])
-        eris.ovov = np.einsum('uvst,ui,va,sj,tb->iajb', self._scf._eri, co,cv,co,cv)
+        eris.ovov = ao2mo.general(self._scf._eri, (co,cv,co,cv))
         return eris
 
     _iterative_kernel = _iterative_kernel

@@ -1,15 +1,13 @@
 from jax import vmap
-from pyscf import __config__
 from pyscf import numpy as np
 from pyscf import gto
 from pyscf.lib import param
 from pyscfad import util
+from pyscfad import config
 from pyscfad.lib import custom_jvp
 from pyscfad.gto import moleintor
 from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
-
-MOLEINTOROPT = getattr(__config__, 'pyscfad_moleintor_opt', False)
 
 Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
 
@@ -18,15 +16,15 @@ def energy_nuc(mol, charges=None, **kwargs):
         charges = mol.atom_charges()
     if len(charges) <= 1:
         return 0.0
-    rr = distance_matrix(mol.atom_coords())
-    enuc = np.einsum('i,ij,j->', charges, 1./rr, charges) * .5
+    r = distance_matrix(mol.atom_coords())
+    enuc = np.einsum('i,ij,j->', charges, 1./r, charges) * .5
     return enuc
 
 @custom_jvp
 def distance_matrix(coords):
-    rr  = np.linalg.norm(coords[:,None,:] - coords[None,:,:], axis=2)
-    rr += np.eye(rr.shape[-1]) * 1e200
-    return rr
+    r  = np.linalg.norm(coords[:,None,:] - coords[None,:,:], axis=2)
+    r += np.eye(r.shape[-1]) * 1e200
+    return r
 
 @distance_matrix.defjvp
 def distance_matrix_jvp(primals, tangents):
@@ -106,7 +104,7 @@ class Mole(gto.Mole):
                                  grids=grids)
         else:
             intor = self._add_suffix(intor)
-            if MOLEINTOROPT:
+            if config.moleintor_opt:
                 from pyscfad.gto import moleintor_opt
                 return moleintor_opt.getints(
                             self, intor, shls_slice=shls_slice,

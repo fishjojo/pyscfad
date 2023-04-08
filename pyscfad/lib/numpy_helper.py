@@ -26,22 +26,19 @@ def unpack_triu(triu, filltril=PLAIN):
     '''
     assert triu.ndim == 1
     nd = int(onp.sqrt(2*triu.size))
-    shape = (nd, nd)
-    out = numpy.zeros(shape, dtype=triu.dtype)
+    out = numpy.zeros((nd,nd), dtype=triu.dtype)
     idx = onp.triu_indices(nd)
     out = ops.index_update(out, idx, triu)
     if filltril == PLAIN:
         return out
     elif filltril == HERMITIAN:
-        out = out + out.conj().T
-        out = ops.index_mul(out, onp.diag_indices(nd), .5)
+        out += numpy.tril(out.T.conj(), -1)
         return out
     elif filltril == ANTIHERMI:
-        out = out - out.conj().T
+        out -= out.conj().T
         return out
     elif filltril == SYMMETRIC:
-        out = out + out.T
-        out = ops.index_mul(out, onp.diag_indices(nd), .5)
+        out += numpy.tril(out.T, -1)
         return out
     else:
         raise KeyError
@@ -53,22 +50,19 @@ def unpack_tril(tril, filltriu=PLAIN):
     '''
     assert tril.ndim == 1
     nd = int(onp.sqrt(2*tril.size))
-    shape = (nd, nd)
-    out = numpy.zeros(shape, dtype=tril.dtype)
+    out = numpy.zeros((nd,nd), dtype=tril.dtype)
     idx = onp.tril_indices(nd)
     out = ops.index_update(out, idx, tril)
     if filltriu == PLAIN:
         return out
     elif filltriu == HERMITIAN:
-        out = out + out.conj().T
-        out = ops.index_mul(out, onp.diag_indices(nd), .5)
+        out += numpy.triu(out.T.conj(), 1)
         return out
     elif filltriu == ANTIHERMI:
-        out = out - out.conj().T
+        out -= out.T.conj()
         return out
     elif filltriu == SYMMETRIC:
-        out = out + out.T
-        out = ops.index_mul(out, onp.diag_indices(nd), .5)
+        out += numpy.triu(out.T, 1)
         return out
     else:
         raise KeyError
