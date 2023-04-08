@@ -4,6 +4,9 @@ import jax
 from pyscf import df as pyscf_df
 from pyscfad import gto, dft, df
 from pyscfad.gw import rpa
+from pyscfad import config
+
+config.update('pyscfad_scf_implicit_diff', True)
 
 @pytest.fixture
 def get_h2o():

@@ -3,6 +3,9 @@ import numpy
 import jax
 import pyscf
 from pyscfad import gto, scf, tdscf
+from pyscfad import config
+
+config.update('pyscfad_scf_implicit_diff', True)
 
 @pytest.fixture
 def get_mol():
