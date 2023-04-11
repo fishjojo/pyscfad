@@ -1,11 +1,12 @@
 import numpy
-from jax import vmap, jit
 from pyscf import lib as pyscf_lib
 from pyscf.lib import logger
 from pyscf import df as pyscf_df
 from pyscf.gw import rpa as pyscf_rpa
 from pyscfad import util
+from pyscfad import lib
 from pyscfad.lib import numpy as np
+from pyscfad.lib import vmap, jit
 from pyscfad import scf, dft, df
 
 
@@ -147,11 +148,17 @@ class RPA(pyscf_rpa.RPA):
             mo_coeff = self.mo_coeff
         nmo = self.nmo
         naux = self.with_df.get_naoaux()
+        nao = mo_coeff.shape[0]
         mem_incore = (2 * nmo**2*naux) * 8 / 1e6
         mem_now = pyscf_lib.current_memory()[0]
 
         if (mem_incore + mem_now < 0.99 * self.max_memory) or self.mol.incore_anyway:
-            Lpq = np.einsum('lpq,pi,qj->lij', self.with_df._cderi, mo_coeff, mo_coeff)
+            cderi = self.with_df._cderi
+            if cderi.shape[-1] == nao**2:
+                cderi = cderi.reshape(naux,nao,nao)
+            else:
+                cderi = vmap(lib.unpack_tril, in_axes=(0,None))(cderi, lib.SYMMETRIC)
+            Lpq = np.einsum('lpq,pi,qj->lij', cderi, mo_coeff, mo_coeff)
             return Lpq
         else:
             raise RuntimeError('not enough memory')
