@@ -1,14 +1,12 @@
 import numpy
-from pyscf import lib as pyscf_lib
-from pyscf.lib import logger
+from pyscf.lib import logger, current_memory
 from pyscf import df as pyscf_df
 from pyscf.gw import rpa as pyscf_rpa
 from pyscfad import util
-from pyscfad import lib
 from pyscfad.lib import numpy as np
 from pyscfad.lib import vmap, jit
 from pyscfad import scf, dft, df
-
+from pyscfad.df.addons import restore
 
 def kernel(rpa, mo_energy, mo_coeff, Lpq=None, nw=None, verbose=logger.NOTE):
     mf = rpa._scf
@@ -150,15 +148,11 @@ class RPA(pyscf_rpa.RPA):
         naux = self.with_df.get_naoaux()
         nao = mo_coeff.shape[0]
         mem_incore = (2 * nmo**2*naux) * 8 / 1e6
-        mem_now = pyscf_lib.current_memory()[0]
+        mem_now = current_memory()[0]
 
         if (mem_incore + mem_now < 0.99 * self.max_memory) or self.mol.incore_anyway:
-            cderi = self.with_df._cderi
-            if cderi.shape[-1] == nao**2:
-                cderi = cderi.reshape(naux,nao,nao)
-            else:
-                cderi = vmap(lib.unpack_tril, in_axes=(0,None))(cderi, lib.SYMMETRIC)
+            cderi = restore('s1', self.with_df._cderi, nao)
             Lpq = np.einsum('lpq,pi,qj->lij', cderi, mo_coeff, mo_coeff)
             return Lpq
         else:
-            raise RuntimeError('not enough memory')
+            raise RuntimeError(f'{mem_incore+mem_now} MB of memory is needed.')

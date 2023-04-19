@@ -4,7 +4,7 @@ import numpy as onp
 #from jax.config import config as jax_config
 from pyscf import numpy
 from pyscf.lib import ops
-from .jax_helper import jit
+from .jax_helper import jit, vmap
 #jax_config.update("jax_enable_x64", True)
 
 einsum = numpy.einsum
@@ -66,3 +66,17 @@ def unpack_tril(tril, filltriu=PLAIN):
         return out
     else:
         raise KeyError
+
+@partial(jit, static_argnums=1)
+def pack_tril(a, axis=-1):
+    '''
+    Lower triangular part of a matrix as a vector
+    '''
+    if a.ndim == 3 and axis == -1:
+        def fn(mat):
+            idx = onp.tril_indices(mat.shape[0])
+            return mat[idx].ravel()
+        tril = vmap(fn)(a)
+    else:
+        raise NotImplementedError
+    return tril

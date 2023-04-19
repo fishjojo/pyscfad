@@ -19,7 +19,7 @@ from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scipy.linalg import eigh
 from pyscfad.scipy.sparse.linalg import gmres
 
-Traced_Attributes = ['mol', 'mo_coeff', 'mo_energy', '_eri']
+Traced_Attributes = ['mol', '_eri']#, 'mo_coeff', 'mo_energy']
 
 def _scf_optimality_cond(dm, mf, s1e, h1e):
     mol = getattr(mf, 'cell', mf.mol)
@@ -100,9 +100,13 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     h1e = mf.get_hcore(mol)
     # NOTE if use implicit differentiation,
     # the eri derivative will be lost if not computed before SCF iterations.
-    if config.scf_implicit_diff and mf._eri is None:
-        if getattr(mf, 'with_df', None) is None:
-            mf._eri = mol.intor('int2e', aosym='s4')
+    if config.scf_implicit_diff:
+        if getattr(mf, 'with_df', None) is not None:
+            if mf.with_df._cderi is None:
+                mf.with_df.build()
+        else:
+            if mf._eri is None:
+                mf._eri = mol.intor('int2e', aosym='s4')
 
     scf_conv = False
     mo_energy = mo_coeff = mo_occ = None

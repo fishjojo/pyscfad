@@ -1,16 +1,10 @@
 from pyscf import numpy as np
-from pyscfad import lib
-from pyscfad.lib import vmap
+from .addons import restore
 
 def get_jk(dfobj, dm, hermi=1, with_j=True, with_k=True, direct_scf_tol=1e-13):
     nao = dfobj.mol.nao
     dms = dm.reshape(-1, nao, nao)
-
-    Lpq = dfobj._cderi
-    if Lpq.shape[-1] == nao**2:
-        Lpq = Lpq.reshape(-1,nao,nao)
-    else:
-        Lpq = vmap(lib.unpack_tril, in_axes=(0,None))(Lpq, lib.SYMMETRIC)
+    Lpq = restore('s1', dfobj._cderi, nao)
 
     vj = vk = 0
     if with_j:

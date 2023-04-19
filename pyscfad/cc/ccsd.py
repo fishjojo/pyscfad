@@ -8,15 +8,16 @@ from pyscf.mp.mp2 import _mo_without_core
 from pyscfad import lib
 from pyscfad.lib import jit
 from pyscfad import util
-from pyscfad import implicit_diff
+from pyscfad import config
+from pyscfad.implicit_diff import make_implicit_diff
+from pyscfad.scipy.sparse.linalg import gmres
 
-CCSD_IMPLICIT_DIFF = getattr(__config__, 'pyscfad_ccsd_implicit_diff', False)
 # assume 'mol', 'mo_coeff', etc. come from '_scf',
 # otherwise they need to be traced
 CC_Tracers = ['_scf']
 # attributes explicitly appearing in :fun:`update_amps` need to be traced
 ERI_Tracers = ['fock', 'mo_energy', #'mol', 'mo_coeff', 'e_hf',
-               'oooo', 'ooov', 'ovoo', 'ovov', 'oovv', 'ovvo', 'ovvv', 'vvvv']
+               'oooo', 'ovoo', 'ovov', 'oovv', 'ovvo', 'ovvv', 'vvvv']
 
 def _converged_iter(amp, mycc, eris):
     t1, t2 = mycc.vector_to_amplitudes(amp)
@@ -60,11 +61,6 @@ def _iter(amp, mycc, eris, *,
     amp = mycc.amplitudes_to_vector(t1, t2)
     return amp, conv
 
-if CCSD_IMPLICIT_DIFF:
-    solver = partial(linear_solve.solve_gmres, tol=1e-5,
-                     solve_method='incremental', maxiter=30)
-    _iter = implicit_diff.custom_fixed_point(
-                _converged_iter, solve=solver, has_aux=True)(_iter)
 
 def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
            tolnormt=1e-6, verbose=None):
@@ -86,9 +82,20 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
         adiis = None
 
     vec = mycc.amplitudes_to_vector(t1, t2)
-    vec, conv = _iter(vec, mycc, eris,
-                      diis=adiis, max_cycle=max_cycle, tol=tol,
-                      tolnormt=tolnormt, verbose=log)
+
+    if config.moleintor_opt:
+        solver = partial(gmres, tol=1e-5)
+    else:
+        solver = partial(linear_solve.solve_gmres, tol=1e-5,
+                         solve_method='incremental')
+
+    vec, conv = make_implicit_diff(_iter, config.scf_implicit_diff,
+                                   optimality_cond=_converged_iter,
+                                   solver=solver, has_aux=True)(
+                                        vec, mycc, eris,
+                                        diis=adiis, max_cycle=max_cycle, tol=tol,
+                                        tolnormt=tolnormt, verbose=log)
+
     t1, t2 = mycc.vector_to_amplitudes(vec)
     eccsd = mycc.energy(t1, t2, eris)
     log.timer('CCSD', *cput0)
