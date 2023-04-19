@@ -1,9 +1,9 @@
 import pytest
 import numpy
 import jax
-from pyscfad import gto, scf, mp, df
-#from pyscfad import config
-#config.update('pyscfad_scf_implicit_diff', True)
+from pyscfad import gto, scf, mp
+from pyscfad import config
+config.update('pyscfad_scf_implicit_diff', True)
 #config.update('pyscfad_moleintor_opt', True)
 
 @pytest.fixture

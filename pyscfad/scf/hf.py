@@ -102,7 +102,7 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     # the eri derivative will be lost if not computed before SCF iterations.
     if config.scf_implicit_diff:
         if getattr(mf, 'with_df', None) is not None:
-            if mf.with_df._cderi is None:
+            if hasattr(mf.with_df, '_cderi') and mf.with_df._cderi is None:
                 mf.with_df.build()
         else:
             if mf._eri is None:

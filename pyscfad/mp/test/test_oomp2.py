@@ -6,8 +6,8 @@ from pyscfad import util
 from pyscfad.lib import numpy as np
 from pyscfad.tools import rotate_mo1
 from pyscfad import gto, scf, mp
-#from pyscfad import config
-#config.update('pyscfad_scf_implicit_diff', True)
+from pyscfad import config
+config.update('pyscfad_scf_implicit_diff', True)
 #config.update('pyscfad_moleintor_opt', True)
 
 @pytest.fixture
