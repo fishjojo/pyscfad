@@ -37,24 +37,24 @@ def intor_cross_jvp(intor, comp, grids,
     primal_out = intor_cross(intor, mol1, mol2, comp=comp, grids=grids)
     tangent_out = np.zeros_like(primal_out)
 
+    nao1 = mol1.nao
+    nao2 = mol2.nao
     if mol1.coords is not None:
-        nao1 = mol1.nao
         aoslices1 = mol1.aoslice_by_atom()[:,2:4]
         intor_ip_bra, _ = int1e_dr1_name(intor)
-        s1a = -intor_cross(intor_ip_bra, mol1, mol2, comp=None, grids=grids).reshape(3,-1,nao1,nao1)
+        s1a = -intor_cross(intor_ip_bra, mol1, mol2, comp=None, grids=grids).reshape(3,-1,nao1,nao2)
 
         idx1 = np.arange(nao1)
         grad1 = _gen_int1e_fill_grad_r0(s1a, aoslices1, idx1[None,None,:,None])
         tangent_out += np.einsum('nxyij,nx->yij', grad1, mol1_t.coords).reshape(primal_out.shape)
 
     if mol2.coords is not None:
-        nao2 = mol2.nao
         aoslices2 = mol2.aoslice_by_atom()[:,2:4]
         _, intor_ip_ket = int1e_dr1_name(intor)
         s1b = -intor_cross(intor_ip_ket, mol1, mol2, comp=None, grids=grids)
 
         order_a = int1e_get_dr_order(intor_ip_ket)[0]
-        s1b = s1b.reshape(3**order_a,3,-1,nao2,nao2).transpose(1,0,2,3,4).reshape(3,-1,nao2,nao2)
+        s1b = s1b.reshape(3**order_a,3,-1,nao1,nao2).transpose(1,0,2,3,4).reshape(3,-1,nao1,nao2)
         idx2 = np.arange(nao2)
         grad2 = _gen_int1e_fill_grad_r0(s1b, aoslices2, idx2[None,None,None,:])
         tangent_out += np.einsum('nxyij,nx->yij', grad2, mol2_t.coords).reshape(primal_out.shape)

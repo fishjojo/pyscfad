@@ -7,3 +7,6 @@ from pyscfad.version import __version__
 #from pyscfad import implicit_diff
 
 from pyscfad._src.config import config
+
+from jax import config as _jconf
+_jconf.update("jax_enable_x64", True)

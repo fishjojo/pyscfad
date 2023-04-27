@@ -128,6 +128,32 @@ class CCSD(pyscf_ccsd.CCSD):
             self.diis = lib.diis.DIIS(self, self.diis_file, incore=self.incore_complete)
         self.__dict__.update(kwargs)
 
+    def init_amps(self, eris=None):
+        log = logger.new_logger(self)
+        if eris is None:
+            eris = self.ao2mo(self.mo_coeff)
+        e_hf = self.e_hf
+        if e_hf is None:
+            e_hf = self.get_e_hf(mo_coeff=self.mo_coeff)
+        mo_e = eris.mo_energy
+        nocc = self.nocc
+        nvir = mo_e.size - nocc
+        eia = mo_e[:nocc,None] - mo_e[None,nocc:]
+
+        t1 = eris.fock[:nocc,nocc:] / eia
+        eris_ovov = eris.ovov
+        t2 = (eris_ovov.transpose(0,2,1,3).conj()
+              / (eia[:,None,:,None] + eia[None,:,None,:]))
+        emp2  = 2 * np.einsum('ijab,iajb', t2, eris_ovov)
+        emp2 -=     np.einsum('jiab,iajb', t2, eris_ovov)
+        self.emp2 = emp2.real
+
+        log.info('Init t2, MP2 energy = %.15g  E_corr(MP2) %.15g',
+                 e_hf + self.emp2, self.emp2)
+        log.timer('init mp2')
+        del log
+        return self.emp2, t1, t2
+
     def amplitudes_to_vector(self, t1, t2, out=None):
         return amplitudes_to_vector(t1, t2, out)
 

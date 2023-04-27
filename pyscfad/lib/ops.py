@@ -2,8 +2,8 @@ from packaging.version import Version
 import jax
 import jax.ops
 from jax import numpy as jnp
-from jax.config import config as jax_config
-jax_config.update('jax_enable_x64', True)
+#from jax.config import config as jax_config
+#jax_config.update('jax_enable_x64', True)
 
 # pylint: disable=no-member
 
