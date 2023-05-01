@@ -3,7 +3,7 @@ from pyscf.lib import logger
 from pyscf.gto import format_atom
 from pyscf.data.elements import is_ghost_atom
 from jax import numpy as np
-from jax import scipy as scipy
+from jax import scipy
 from pyscfad import gto
 from .orth import vec_lowdin
 
@@ -40,7 +40,7 @@ def iao(mol, orbocc, minao=MINAO, kpts=None, lindep_threshold=1e-8):
             p12 = scipy.linalg.cho_solve(s1cd, s12)
             ctild = scipy.linalg.cho_solve(s1cd, np.dot(s12, ctild))
         # s1 can be singular in large basis sets: Use canonical orthogonalization in this case:
-        except:# np.linalg.LinAlgError:
+        except Exception: # pylint: disable=broad-exception-caught
             from pyscf.scf import addons
             x = addons.canonical_orth_(s1, lindep_threshold)
             p12 = np.linalg.multi_dot((x, x.conj().T, s12))
@@ -70,7 +70,7 @@ def iao(mol, orbocc, minao=MINAO, kpts=None, lindep_threshold=1e-8):
 def reference_mol(mol, minao=MINAO):
     '''Create a molecule which uses reference minimal basis'''
     pmol = mol.copy()
-    atoms = [atom for atom in format_atom(pmol.atom, unit=1)]
+    atoms = format_atom(pmol.atom, unit=1)
     # remove ghost atoms
     pmol.atom = [atom for atom in atoms if not is_ghost_atom(atom[0])]
     if len(pmol.atom) != len(atoms):
