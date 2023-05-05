@@ -50,7 +50,7 @@ def _eigh_jvp(lower, turbo, check_finite, driver, primals, tangents):
                               lower=lower, turbo=turbo, check_finite=check_finite, driver=driver)
 
     eji = w[..., numpy.newaxis, :] - w[..., numpy.newaxis]
-    idx = abs(eji) < DEG_THRESH
+    idx = numpy.asarray(abs(eji) < DEG_THRESH, dtype=bool)
     #eji[idx] = 1.e200
     #eji[numpy.diag_indices_from(eji)] = 1
     eji = ops.index_update(eji, idx, 1.e200)
