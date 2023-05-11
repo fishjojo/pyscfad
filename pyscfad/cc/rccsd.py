@@ -7,6 +7,13 @@ from pyscfad import ao2mo
 from pyscfad.cc import ccsd
 from pyscfad.cc import rintermediates as imd
 
+# assume 'mol', 'mo_coeff', etc. come from '_scf',
+# otherwise they need to be traced
+CC_Tracers = ['_scf']
+# attributes explicitly appearing in :fun:`update_amps` need to be traced
+ERI_Tracers = ['fock', 'mo_energy', #'mol', 'mo_coeff', 'e_hf',
+               'oooo', 'ovoo', 'ovov', 'oovv', 'ovvo', 'ovvv', 'vvvv']
+
 @jit
 def update_amps(cc, t1, t2, eris):
     nocc, nvir = t1.shape
@@ -130,27 +137,7 @@ def amplitude_equation(cc, t1, t2, eris):
         t2new -= tmp + tmp.transpose(1,0,3,2)
     return t1new, t2new
 
-def energy(cc, t1=None, t2=None, eris=None):
-    if t1 is None:
-        t1 = cc.t1
-    if t2 is None:
-        t2 = cc.t2
-    if eris is None:
-        eris = cc.ao2mo()
-
-    nocc, nvir = t1.shape
-    fock = eris.fock
-    e = 2*np.einsum('ia,ia', fock[:nocc,nocc:], t1)
-    tau = np.einsum('ia,jb->ijab',t1,t1)
-    tau += t2
-    eris_ovov = np.asarray(eris.ovov)
-    e += 2*np.einsum('ijab,iajb', tau, eris_ovov)
-    e +=  -np.einsum('ijab,ibja', tau, eris_ovov)
-    if abs(e.imag) > 1e-4:
-        logger.warn(cc, 'Non-zero imaginary part found in RCCSD energy %s', e)
-    return e.real
-
-@util.pytree_node(ccsd.CC_Tracers, num_args=1)
+@util.pytree_node(CC_Tracers, num_args=1)
 class RCCSD(ccsd.CCSD):
     def kernel(self, t1=None, t2=None, eris=None, mbpt2=False):
         return self.ccsd(t1, t2, eris, mbpt2)
@@ -180,7 +167,6 @@ class RCCSD(ccsd.CCSD):
 
     update_amps = update_amps
     amplitude_equation = amplitude_equation
-    energy = energy
 
 def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
     log = logger.new_logger(mycc)
@@ -206,7 +192,7 @@ def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
     del log
     return eris
 
-@util.pytree_node(ccsd.ERI_Tracers)
+@util.pytree_node(ERI_Tracers)
 class _ChemistsERIs(ccsd._ChemistsERIs):
     def get_ovvv(self, *slices):
         '''To access a subblock of ovvv tensor'''

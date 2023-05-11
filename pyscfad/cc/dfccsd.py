@@ -1,12 +1,17 @@
 from pyscf import numpy as np
+from pyscf.lib import square_mat_in_trilu_indices
 from pyscfad import util
-from pyscfad.df.addons import restore
-from pyscfad.cc import ccsd, rccsd
+from pyscfad import lib
+from pyscfad.lib import jit
+from pyscfad.ao2mo import _ao2mo
+from pyscfad.cc import ccsd
 
 CC_Tracers = ['_scf', 'mol', 'with_df']
+ERI_Tracers = ['fock', 'mo_energy',
+               'oooo', 'ovoo', 'ovov', 'oovv', 'ovvo', 'ovvv', 'Lvv']
 
 @util.pytree_node(CC_Tracers, num_args=1)
-class RCCSD(rccsd.RCCSD):
+class RCCSD(ccsd.CCSD):
     def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None, **kwargs):
         super().__init__(mf, frozen=frozen, mo_coeff=mo_coeff, mo_occ=mo_occ,
                        **kwargs)
@@ -21,14 +26,31 @@ class RCCSD(rccsd.RCCSD):
     def ao2mo(self, mo_coeff=None):
         return _make_df_eris_incore(self, mo_coeff)
 
+@jit
+def _contract_vvvv_t2(mycc, mol, Lvv, t2, out=None, verbose=None):
+    '''Ht2 = numpy.einsum('ijcd,acbd->ijab', t2, vvvv)
+    '''
+    nvir = t2.shape[-1]
+    nvir2 = nvir * nvir
+    x2 = t2.reshape(-1, nvir2)
 
-@util.pytree_node(ccsd.ERI_Tracers)
-class _ChemistsERIs(rccsd._ChemistsERIs):
+    tril2sq = square_mat_in_trilu_indices(nvir)
+    tmp = lib.unpack_tril(np.dot(Lvv.T, Lvv))
+    tmp1 = tmp[tril2sq].transpose(0,2,1,3).reshape(nvir2,nvir2)
+    Ht2tril = np.dot(x2, tmp1)
+    return Ht2tril.reshape(t2.shape)
+
+@util.pytree_node(ERI_Tracers)
+class _ChemistsERIs(ccsd._ChemistsERIs):
     def __init__(self, mol=None, **kwargs):
         super().__init__(mol=mol, **kwargs)
         self.naux = None
-        self.vvL = None
+        self.Lvv = None
         self.__dict__.update(kwargs)
+
+    def _contract_vvvv_t2(self, mycc, t2, direct=False, out=None, verbose=None):
+        assert (not direct)
+        return _contract_vvvv_t2(mycc, self.mol, self.Lvv, t2)
 
 
 def _make_df_eris_incore(cc, mo_coeff=None):
@@ -41,14 +63,12 @@ def _make_df_eris_incore(cc, mo_coeff=None):
     naux = with_df.get_naoaux()
 
     mo = np.asarray(eris.mo_coeff)
-    nao = mo.shape[0]
-    orbo = mo[:,:nocc]
-    orbv = mo[:,nocc:]
-
-    Lpq = restore('s1', with_df._cderi, nao)
-    Loo = np.einsum('lpq,pi,qj->lij', Lpq, orbo, orbo).reshape(naux,-1)
-    Lov = np.einsum('lpq,pi,qa->lia', Lpq, orbo, orbv).reshape(naux,-1)
-    Lvv = np.einsum('lpq,pa,qb->lab', Lpq, orbv, orbv).reshape(naux,-1)
+    ijslice = (0, nmo, 0, nmo)
+    eri1 = with_df._cderi
+    Lpq = _ao2mo.nr_e2(eri1, mo, ijslice, aosym='s2', mosym='s1').reshape(-1,nmo,nmo)
+    Loo = Lpq[:,:nocc,:nocc].reshape(naux,-1)
+    Lov = Lpq[:,:nocc,nocc:].reshape(naux,-1)
+    eris.Lvv = Lvv = lib.pack_tril(Lpq[:,nocc:,nocc:])
 
     eris.oooo = np.dot(Loo.T, Loo).reshape(nocc,nocc,nocc,nocc)
     eris.ovoo = np.dot(Lov.T, Loo).reshape(nocc,nvir,nocc,nocc)
@@ -56,7 +76,7 @@ def _make_df_eris_incore(cc, mo_coeff=None):
     eris.ovov = ovov
     eris.ovvo = ovov.transpose(0,1,3,2)
 
-    eris.oovv = np.dot(Loo.T, Lvv).reshape(nocc,nocc,nvir,nvir)
-    eris.ovvv = np.dot(Lov.T, Lvv).reshape(nocc,nvir,nvir,nvir)
-    eris.vvvv = np.dot(Lvv.T, Lvv).reshape(nvir,nvir,nvir,nvir)
+    oovv = np.dot(Loo.T, Lvv)
+    eris.oovv = lib.unpack_tril(oovv).reshape(nocc,nocc,nvir,nvir)
+    eris.ovvv = np.dot(Lov.T, Lvv).reshape(nocc,nvir,-1)
     return eris

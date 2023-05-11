@@ -22,7 +22,7 @@ def restore(symmetry, cderi, nao):
         elif cderi.ndim == 2 and cderi.shape[-1] == nao**2:
             return cderi.reshape(-1,nao,nao)
         elif cderi.ndim == 2 and cderi.shape[-1] == npair:
-            return lib.vmap(lib.unpack_tril, (0,None))(cderi, lib.SYMMETRIC)
+            return lib.unpack_tril(cderi, lib.SYMMETRIC)
         else:
             raise RuntimeError(f'cderi shape {cderi.shape} incompatible with nao {nao}')
     elif symmetry in ('2', 's2', 's2ij'):
