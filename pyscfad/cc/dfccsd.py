@@ -49,7 +49,7 @@ class _ChemistsERIs(ccsd._ChemistsERIs):
         self.__dict__.update(kwargs)
 
     def _contract_vvvv_t2(self, mycc, t2, direct=False, out=None, verbose=None):
-        assert (not direct)
+        assert not direct
         return _contract_vvvv_t2(mycc, self.mol, self.Lvv, t2)
 
 
@@ -65,6 +65,7 @@ def _make_df_eris_incore(cc, mo_coeff=None):
     mo = np.asarray(eris.mo_coeff)
     ijslice = (0, nmo, 0, nmo)
     eri1 = with_df._cderi
+    # pylint: disable=too-many-function-args
     Lpq = _ao2mo.nr_e2(eri1, mo, ijslice, aosym='s2', mosym='s1').reshape(-1,nmo,nmo)
     Loo = Lpq[:,:nocc,:nocc].reshape(naux,-1)
     Lov = Lpq[:,:nocc,nocc:].reshape(naux,-1)

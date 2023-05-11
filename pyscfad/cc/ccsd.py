@@ -8,7 +8,7 @@ from pyscf.cc import ccsd as pyscf_ccsd
 from pyscf.mp.mp2 import _mo_without_core
 from pyscfad import lib
 from pyscfad.lib import jit
-from pyscfad import util
+#from pyscfad import util
 from pyscfad import config
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.scipy.sparse.linalg import gmres
@@ -130,6 +130,7 @@ def update_amps(mycc, t1, t2, eris):
 
     # begin _add_ovvv_
     eris_vovv = eris.ovvv.transpose(1,0,2)
+    # pylint: disable=invalid-unary-operand-type
     wooVV = -np.dot(t1, eris_vovv.reshape(nvir,-1))
 
     eris_vovv = lib.unpack_tril(eris_vovv.reshape(nvir*nocc,nvir_pair))
@@ -269,7 +270,7 @@ def _add_vvvv_tril(mycc, t1, t2, eris, out=None, with_ovvv=None):
     if mycc.direct:   # AO-direct CCSD
         raise NotImplementedError
     else:
-        assert (not with_ovvv)
+        assert not with_ovvv
         Ht2tril = eris._contract_vvvv_t2(mycc, tau, mycc.direct, out)
     return Ht2tril
 
