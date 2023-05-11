@@ -90,7 +90,7 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
         solver = partial(linear_solve.solve_gmres, tol=1e-5,
                          solve_method='incremental')
 
-    vec, conv = make_implicit_diff(_iter, config.scf_implicit_diff,
+    vec, conv = make_implicit_diff(_iter, config.ccsd_implicit_diff,
                                    optimality_cond=_converged_iter,
                                    solver=solver, has_aux=True)(
                                         vec, mycc, eris,

@@ -26,7 +26,6 @@ class RCCSD(ccsd.CCSD):
     def ao2mo(self, mo_coeff=None):
         return _make_df_eris_incore(self, mo_coeff)
 
-@jit
 def _contract_vvvv_t2(mycc, mol, Lvv, t2, out=None, verbose=None):
     '''Ht2 = numpy.einsum('ijcd,acbd->ijab', t2, vvvv)
     '''
