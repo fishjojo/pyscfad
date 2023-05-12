@@ -79,60 +79,27 @@ def _compute_et(t1, t2, eris_vvov, eris_vooo, eris_vvoo,
         wbca = get_w(b, c, a)
         wcab = get_w(c, a, b)
         wcba = get_w(c, b, a)
+
+        WW = (wabc
+              + wacb.transpose(0,2,1) + wbac.transpose(1,0,2)
+              + wbca.transpose(2,0,1) + wcab.transpose(1,2,0)
+              + wcba.transpose(2,1,0))
+
         vabc = get_v(a, b, c)
         vacb = get_v(a, c, b)
         vbac = get_v(b, a, c)
         vbca = get_v(b, c, a)
         vcab = get_v(c, a, b)
         vcba = get_v(c, b, a)
-        zabc = r3(wabc + .5 * vabc) / d3
-        zacb = r3(wacb + .5 * vacb) / d3
-        zbac = r3(wbac + .5 * vbac) / d3
-        zbca = r3(wbca + .5 * vbca) / d3
-        zcab = r3(wcab + .5 * vcab) / d3
-        zcba = r3(wcba + .5 * vcba) / d3
 
-        et = np.einsum('ijk,ijk', wabc, zabc.conj())
-        et+= np.einsum('ikj,ijk', wacb, zabc.conj())
-        et+= np.einsum('jik,ijk', wbac, zabc.conj())
-        et+= np.einsum('jki,ijk', wbca, zabc.conj())
-        et+= np.einsum('kij,ijk', wcab, zabc.conj())
-        et+= np.einsum('kji,ijk', wcba, zabc.conj())
+        VV = (vabc
+              + vacb.transpose(0,2,1) + vbac.transpose(1,0,2)
+              + vbca.transpose(2,0,1) + vcab.transpose(1,2,0)
+              + vcba.transpose(2,1,0))
 
-        et+= np.einsum('ijk,ijk', wacb, zacb.conj())
-        et+= np.einsum('ikj,ijk', wabc, zacb.conj())
-        et+= np.einsum('jik,ijk', wcab, zacb.conj())
-        et+= np.einsum('jki,ijk', wcba, zacb.conj())
-        et+= np.einsum('kij,ijk', wbac, zacb.conj())
-        et+= np.einsum('kji,ijk', wbca, zacb.conj())
+        ZZ = r3(WW + .5 * VV) / d3
 
-        et+= np.einsum('ijk,ijk', wbac, zbac.conj())
-        et+= np.einsum('ikj,ijk', wbca, zbac.conj())
-        et+= np.einsum('jik,ijk', wabc, zbac.conj())
-        et+= np.einsum('jki,ijk', wacb, zbac.conj())
-        et+= np.einsum('kij,ijk', wcba, zbac.conj())
-        et+= np.einsum('kji,ijk', wcab, zbac.conj())
-
-        et+= np.einsum('ijk,ijk', wbca, zbca.conj())
-        et+= np.einsum('ikj,ijk', wbac, zbca.conj())
-        et+= np.einsum('jik,ijk', wcba, zbca.conj())
-        et+= np.einsum('jki,ijk', wcab, zbca.conj())
-        et+= np.einsum('kij,ijk', wabc, zbca.conj())
-        et+= np.einsum('kji,ijk', wacb, zbca.conj())
-
-        et+= np.einsum('ijk,ijk', wcab, zcab.conj())
-        et+= np.einsum('ikj,ijk', wcba, zcab.conj())
-        et+= np.einsum('jik,ijk', wacb, zcab.conj())
-        et+= np.einsum('jki,ijk', wabc, zcab.conj())
-        et+= np.einsum('kij,ijk', wbca, zcab.conj())
-        et+= np.einsum('kji,ijk', wbac, zcab.conj())
-
-        et+= np.einsum('ijk,ijk', wcba, zcba.conj())
-        et+= np.einsum('ikj,ijk', wcab, zcba.conj())
-        et+= np.einsum('jik,ijk', wbca, zcba.conj())
-        et+= np.einsum('jki,ijk', wbac, zcba.conj())
-        et+= np.einsum('kij,ijk', wacb, zcba.conj())
-        et+= np.einsum('kji,ijk', wabc, zcba.conj())
+        et = np.einsum('ijk,ijk', WW, ZZ.conj())
         return et
 
     et = vmap(body, in_axes=(0,0), signature='(),(x)->()')(scal, idx)
