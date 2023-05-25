@@ -2,6 +2,7 @@ from functools import partial
 import ctypes
 import numpy
 from jax import custom_vjp
+from jax.tree_util import tree_flatten, tree_unflatten
 
 from pyscf import lib
 from pyscf.lib import logger
@@ -63,27 +64,28 @@ def getints2c_fwd(mol, intor, shls_slice, comp, hermi, out):
 def getints2c_bwd(intor, shls_slice, comp, hermi, out,
                   res, ybar):
     mol = res[0]
-
-    vjp_coords = None
-    vjp_exp = None
-    vjp_coeff = None
+    leaves = []
 
     if mol.coords is not None:
         vjp_coords = getints2c_coords_bwd(intor, shls_slice, comp, hermi, out,
                                           mol, ybar)
+        leaves.append(vjp_coords)
 
     if mol.exp is not None:
         vjp_exp = getints2c_exp_bwd(intor, shls_slice, comp, hermi, out,
                                     mol, ybar)
+        leaves.append(vjp_exp)
 
     if mol.ctr_coeff is not None:
         vjp_coeff = getints2c_coeff_bwd(intor, shls_slice, comp, hermi, out,
                                         mol, ybar)
+        leaves.append(vjp_coeff)
 
-    molbar = mol.copy()
-    molbar.coords = vjp_coords
-    molbar.exp = vjp_exp
-    molbar.ctr_coeff = vjp_coeff
+    if mol.r0 is not None:
+        raise NotImplementedError
+
+    _, tree = tree_flatten(mol)
+    molbar = tree_unflatten(tree, leaves)
     return (molbar,)
 
 getints2c.defvjp(getints2c_fwd, getints2c_bwd)
@@ -100,14 +102,12 @@ def getints4c_fwd(mol, intor, shls_slice, comp, aosym, out):
 def getints4c_bwd(intor, shls_slice, comp, aosym, out,
                   res, ybar):
     mol = res[0]
-
-    vjp_coords = None
-    vjp_exp = None
-    vjp_coeff = None
+    leaves = []
 
     if mol.coords is not None:
         vjp_coords = getints4c_coords_bwd(intor, shls_slice, comp, aosym, out,
                                           mol, ybar)
+        leaves.append(vjp_coords)
 
     if mol.exp is not None:
         raise NotImplementedError
@@ -119,10 +119,8 @@ def getints4c_bwd(intor, shls_slice, comp, aosym, out,
         #vjp_coeff = getints4c_coeff_bwd(intor, shls_slice, comp, aosym, out,
         #                                mol, ybar)
 
-    molbar = mol.copy()
-    molbar.coords = vjp_coords
-    molbar.exp = vjp_exp
-    molbar.ctr_coeff = vjp_coeff
+    _, tree = tree_flatten(mol)
+    molbar = tree_unflatten(tree, leaves)
     return (molbar,)
 
 getints4c.defvjp(getints4c_fwd, getints4c_bwd)

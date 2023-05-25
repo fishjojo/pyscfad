@@ -392,11 +392,15 @@ class CCSD(pyscf_ccsd.CCSD):
         return self.e_corr, self.t1, self.t2
 
     def ccsd_t(self, t1=None, t2=None, eris=None):
-        from pyscfad.cc import ccsd_t_slow
         if t1 is None: t1 = self.t1
         if t2 is None: t2 = self.t2
         if eris is None: eris = self.ao2mo(self.mo_coeff)
-        return ccsd_t_slow.kernel(self, eris, t1, t2, self.verbose)
+        if config.moleintor_opt:
+            from pyscfad.cc import ccsd_t
+            return ccsd_t.kernel(self, eris, t1, t2, self.verbose)
+        else:
+            from pyscfad.cc import ccsd_t_slow
+            return ccsd_t_slow.kernel(self, eris, t1, t2, self.verbose)
 
     def ipccsd(self, nroots=1, left=False, koopmans=False, guess=None,
                partition=None, eris=None):
@@ -445,3 +449,14 @@ class _ChemistsERIs(pyscf_ccsd._ChemistsERIs):
 
         mo_e = self.mo_energy = self.fock.diagonal().real
         return self
+
+    def get_ovvv(self, *slices):
+        '''To access a subblock of ovvv tensor'''
+        if config.moleintor_opt:
+            return pyscf_ccsd._ChemistsERIs.get_ovvv(self, *slices)
+        else:
+            ovw = np.asarray(self.ovvv[slices])
+            nocc, nvir, nvir_pair = ovw.shape
+            ovvv = lib.unpack_tril(ovw.reshape(nocc*nvir,nvir_pair))
+            nvir1 = ovvv.shape[2]
+            return ovvv.reshape(nocc,nvir,nvir1,nvir1)

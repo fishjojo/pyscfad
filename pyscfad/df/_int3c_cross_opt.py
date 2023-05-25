@@ -2,6 +2,7 @@ from functools import partial
 import ctypes
 import numpy
 from jax import custom_vjp
+from jax.tree_util import tree_flatten, tree_unflatten
 from pyscf import lib as pyscf_lib
 from pyscf.gto.moleintor import (
     ascint3,
@@ -39,6 +40,18 @@ def int3c_cross_fwd(mol, auxmol, intor, comp, aosym, shls_slice, out):
 def int3c_cross_bwd(intor, comp, aosym, shls_slice, out,
                     res, ybar):
     mol, auxmol = res
+    if mol.exp is not None:
+        raise NotImplementedError
+    if mol.ctr_coeff is not None:
+        raise NotImplementedError
+    if mol.r0 is not None:
+        raise NotImplementedError
+    if auxmol.exp is not None:
+        raise NotImplementedError
+    if auxmol.ctr_coeff is not None:
+        raise NotImplementedError
+    if auxmol.r0 is not None:
+        raise NotImplementedError
     assert intor.startswith('int3c2e') and not 'spinor' in intor
     assert aosym == 's2ij'
     assert comp == 1
@@ -85,10 +98,10 @@ def int3c_cross_bwd(intor, comp, aosym, shls_slice, out,
         p0, p1 = aoslices[ia,2:]
         vjp_aux[ia] += pyscf_lib.einsum('xil,il->x', ints1[:,:,p0:p1], ybar[:,p0:p1])
 
-    molbar = mol.copy()
-    molbar.coords = -vjp
-    auxmol_bar = auxmol.copy()
-    auxmol_bar.coords = -vjp_aux
-    return (molbar, auxmol_bar)
+    _, mol_tree = tree_flatten(mol)
+    mol_bar = tree_unflatten(mol_tree, [-vjp,])
+    _, auxmol_tree = tree_flatten(auxmol)
+    auxmol_bar = tree_unflatten(auxmol_tree, [-vjp_aux,])
+    return (mol_bar, auxmol_bar)
 
 int3c_cross.defvjp(int3c_cross_fwd, int3c_cross_bwd)
