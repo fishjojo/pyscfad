@@ -1,15 +1,10 @@
 import numpy
 import scipy.linalg
-from pyscf import __config__
+from pyscf import numpy as np
 from pyscf.lib import logger
 from pyscf.lib import diis as pyscf_diis
-from pyscfad.lib import numpy as np
 
 class DIIS(pyscf_diis.DIIS):
-    def __init__(self, dev=None, filename=None,
-                 incore=getattr(__config__, 'lib_diis_DIIS_incore', False)):
-        pyscf_diis.DIIS.__init__(self, dev=dev, filename=filename, incore=incore)
-
     def extrapolate(self, nd=None):
         if nd is None:
             nd = self.get_num_vec()
