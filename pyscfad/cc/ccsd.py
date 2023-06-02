@@ -292,7 +292,7 @@ def amplitudes_to_vector(t1, t2, out=None):
     nocc, nvir = t1.shape
     nov = nocc * nvir
     vector_t1 = t1.ravel()
-    vector_t2 = t2.transpose(0,2,1,3).reshape(nov,nov)[np.tril_indices(nov)]
+    vector_t2 = t2.transpose(0,2,1,3).reshape(nov,nov)[numpy.tril_indices(nov)]
     vector = np.concatenate((vector_t1, vector_t2), axis=None)
     return vector
 
