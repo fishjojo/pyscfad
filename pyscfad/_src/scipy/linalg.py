@@ -15,11 +15,11 @@ def eigh(a, b=None, lower=True, eigvals_only=False, overwrite_a=False,
          check_finite=True, subset_by_index=None, subset_by_value=None,
          driver=None, deg_thresh=DEG_THRESH):
     if overwrite_a is True or overwrite_b is True:
-        raise NotImplementedError("Overwritting a or b is not implemeneted.")
+        raise NotImplementedError('Overwritting a or b is not implemeneted.')
     if type != 1:
-        raise NotImplementedError("Only the type=1 case of eigh is implemented.")
+        raise NotImplementedError('Only the type=1 case of eigh is implemented.')
     if not(eigvals is None and subset_by_index is None and subset_by_value is None):
-        raise NotImplementedError("Subset of eigen values is not implemented.")
+        raise NotImplementedError('Subset of eigen values is not implemented.')
 
     a = 0.5 * (a + a.T.conj())
     if b is not None:

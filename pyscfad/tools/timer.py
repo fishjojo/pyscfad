@@ -17,7 +17,7 @@ class Timer:
         t0, w0 = (self._t0, self._w0)
         t1, w1 = (time.process_time(), time.perf_counter())
         self._t0, self._w0 = (t1, w1)
-        stdout.write('    CPU time for %s %9.2f sec, wall time %9.2f sec'
-                      % (msg, t1-t0, w1-w0))
-        stdout.write('\n')
+        stdout.write(f'    CPU time for {msg}'
+                     f' {t1-t0: 9.2f} sec,'
+                     f' wall time {w1-w0: 9.2f} sec\n')
         stdout.flush()
