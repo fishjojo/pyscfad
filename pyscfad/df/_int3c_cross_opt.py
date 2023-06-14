@@ -4,6 +4,7 @@ import numpy
 from jax import custom_vjp
 from jax.tree_util import tree_flatten, tree_unflatten
 from pyscf import lib as pyscf_lib
+from pyscf.lib import logger
 from pyscf.gto.moleintor import (
     ascint3,
     make_loc,
@@ -40,6 +41,8 @@ def int3c_cross_fwd(mol, auxmol, intor, comp, aosym, shls_slice, out):
 def int3c_cross_bwd(intor, comp, aosym, shls_slice, out,
                     res, ybar):
     mol, auxmol = res
+    log = logger.new_logger(mol)
+
     if mol.exp is not None:
         raise NotImplementedError
     if mol.ctr_coeff is not None:
@@ -102,6 +105,8 @@ def int3c_cross_bwd(intor, comp, aosym, shls_slice, out,
     mol_bar = tree_unflatten(mol_tree, [-vjp,])
     _, auxmol_tree = tree_flatten(auxmol)
     auxmol_bar = tree_unflatten(auxmol_tree, [-vjp_aux,])
+    log.timer('int3c_cross_bwd')
+    del log
     return (mol_bar, auxmol_bar)
 
 int3c_cross.defvjp(int3c_cross_fwd, int3c_cross_bwd)

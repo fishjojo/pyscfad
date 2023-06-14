@@ -195,7 +195,7 @@ def getints2c_coords_bwd(intor, shls_slice, comp, hermi, out,
     if 'nuc' in intor_ip_bra:
         vjp += _int1e_rc_deriv(intor_ip_bra, shls_slice, comp, hermi,
                                mol, ybar)
-    log.timer('getints2c_coords_bwd')
+    log.timer(f'getints2c_coords_bwd {intor}')
     del log
     return vjp
 
