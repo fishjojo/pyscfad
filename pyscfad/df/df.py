@@ -4,6 +4,7 @@ from pyscf import lib as pyscf_lib
 from pyscf.lib import logger
 from pyscf.df import df as pyscf_df
 from pyscfad import util
+from pyscfad import lib
 from pyscfad.df import addons, incore, df_jk
 
 @util.pytree_node(['mol', 'auxmol', '_cderi'], num_args=1)
@@ -69,3 +70,17 @@ class DF(pyscf_df.DF):
             return df_jk.get_jk(self, dm, hermi, with_j, with_k, direct_scf_tol)
         else:
             raise NotImplementedError
+
+    def loop(self, blksize=None):
+        if self._cderi is None:
+            self.build()
+        if blksize is None:
+            blksize = self.blockdim
+
+        with addons.load(self._cderi, 'j3c') as feri:
+            if lib.isarray(feri):
+                naoaux = feri.shape[0]
+                for b0, b1 in self.prange(0, naoaux, blksize):
+                    yield feri[b0:b1]
+            else:
+                raise NotImplementedError

@@ -1,6 +1,6 @@
-from . import df
-from . import addons
-from .df import DF
+from pyscfad.df import df
+from pyscfad.df import addons
+from pyscfad.df.df import DF
 
 def density_fit(mf, auxbasis=None, with_df=None, only_dfj=False):
     # pylint: disable=import-outside-toplevel

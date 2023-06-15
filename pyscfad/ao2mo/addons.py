@@ -1,5 +1,14 @@
+from pyscf.ao2mo import addons as pyscf_addons
 from pyscfad import lib
 from pyscfad.lib import vmap
+
+class load(pyscf_addons.load):
+    def __enter__(self):
+        if lib.isarray(self.eri):
+            return self.eri
+        else:
+            raise NotImplementedError
+
 
 def restore(symmetry, eri, norb, tao=None):
     targetsym = _stand_sym_code(symmetry)
