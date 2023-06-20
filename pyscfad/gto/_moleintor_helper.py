@@ -23,7 +23,11 @@ def int1e_dr1_name(intor):
         suffix = ''
     fname = intor.replace('_sph', '').replace('_cart', '')
 
-    if fname[-4:-2] == 'dr':
+    # special cases first
+    if fname == 'int1e_r':
+        intor_ip_bra = None
+        intor_ip_ket = 'int1e_irp' + suffix
+    elif fname[-4:-2] == 'dr':
         orders = [int(fname[-2]), int(fname[-1])]
         intor_ip_bra = fname[:-2] + str(orders[0]+1) + str(orders[1]) + suffix
         intor_ip_ket = fname[:-2] + str(orders[0]) + str(orders[1]+1) + suffix

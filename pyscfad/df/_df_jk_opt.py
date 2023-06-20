@@ -74,6 +74,7 @@ def get_jk_bwd(hermi, with_j, with_k, direct_scf_tol,
             eri_bar[p0:p1] += numpy.einsum('ix,ip->px', dmtril, rho_bar)
 
         for k in range(nset):
+            #TODO save buf1 on disk to avoid recomputation
             buf1 = buf[:naux]
             fdrv(ftrans, fmmm,
                  buf1.ctypes.data_as(ctypes.c_void_p),
