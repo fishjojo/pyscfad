@@ -4,7 +4,7 @@ from pyscf.lib import current_memory, logger
 from pyscf.mp.mp2 import _ChemistsERIs
 from pyscfad import util
 from pyscfad.lib import vmap
-from pyscfad.df.addons import restore
+from pyscfad.ao2mo import _ao2mo
 from pyscfad.mp import mp2
 
 WITH_T2 = getattr(__config__, 'mp_dfmp2_with_t2', True)
@@ -60,20 +60,18 @@ class MP2(mp2.MP2):
 
     def loop_ao2mo(self, mo_coeff, nocc):
         # NOTE return the whole 3c integral for now
-        nao = mo_coeff.shape[0]
-        nocc = self.nocc
-        nvir = self.nmo - nocc
-        co = np.asarray(mo_coeff[:,:nocc])
-        cv = np.asarray(mo_coeff[:,nocc:])
+        nao, nmo = mo_coeff.shape
+        nvir = nmo - nocc
+        ijslice = (0, nocc, nocc, nmo)
 
         with_df = self.with_df
         naux = with_df.get_naoaux()
-        mem_incore = (naux*nao**2 + (nocc*nvir)**2) * 8 / 1e6
+        mem_incore = (naux*nocc*nvir + 2*(nocc*nvir)**2) * 8 / 1e6
         mem_now = current_memory()[0]
-        if (mem_incore + mem_now < 0.99 * self.max_memory) or self.mol.incore_anyway:
-            Lpq = restore('s1', with_df._cderi, nao)
-            Lov = np.einsum('lpq,pi,qa->lia', Lpq, co, cv)
-            return Lov
+        if (mem_incore + mem_now < self.max_memory) or self.mol.incore_anyway:
+            eri1 = with_df._cderi
+            Lov = _ao2mo.nr_e2(eri1, mo_coeff, ijslice, aosym='s2')
+            return Lov.reshape((naux, nocc, nvir))
         else:
             raise RuntimeError(f'{mem_incore+mem_now} MB of memory is needed.')
 

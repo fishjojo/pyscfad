@@ -31,13 +31,16 @@ class DF(pyscf_df.DF):
         max_memory = self.max_memory - pyscf_lib.current_memory()[0]
         int3c = mol._add_suffix('int3c2e')
         int2c = mol._add_suffix('int2c2e')
-        if (nao_pair*naux*8/1e6 < .9*max_memory and
+        if ((nao_pair*naux*8/1e6 < max_memory or mol.incore_anyway) and
             not isinstance(self._cderi_to_save, str)):
             self._cderi = incore.cholesky_eri(mol, auxmol=auxmol,
                                               int3c=int3c, int2c=int2c,
                                               max_memory=max_memory, verbose=log)
         else:
-            raise NotImplementedError('Outcore density fitting is not compatible with AD.')
+            msg = ('Not enough memory or outcore density fitting requested:\n'
+                   f'{nao_pair*naux*8/1e6} MB of memory needed\n'
+                   f'{max_memory} MB of memory available\n')
+            raise NotImplementedError(msg)
 
         del log
         return self
