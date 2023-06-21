@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 python -m pip install --upgrade pip
+python -m pip cache purge
 pip install wheel
-pip install numpy scipy h5py
+pip install numpy
+pip install scipy
+pip install h5py
+pip install jaxlib
+pip install jax
 pip install typing_extensions
-pip install jaxlib jax jaxopt
-pip install pytest pytest-cov
+pip install jaxopt
+pip install pytest
+pip install pytest-cov
 
 #pyscf
 git clone https://github.com/fishjojo/pyscf.git
