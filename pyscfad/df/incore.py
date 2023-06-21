@@ -38,7 +38,7 @@ def int3c_cross_jvp(intor, comp, aosym, shls_slice, out,
                     primals, tangents):
     mol, auxmol = primals
     mol_dot, auxmol_dot = tangents
-    assert shls_slice[0] == 0 and shls_slice[1] == mol.nbas
+    #assert shls_slice[0] == 0 and shls_slice[1] == mol.nbas
 
     primal_out = int3c_cross(mol, auxmol, intor=intor, comp=comp,
                              aosym=aosym, shls_slice=shls_slice, out=out)
