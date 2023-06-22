@@ -38,7 +38,7 @@ def int3c_cross_jvp(intor, comp, aosym, shls_slice, out,
                     primals, tangents):
     mol, auxmol = primals
     mol_dot, auxmol_dot = tangents
-    #assert shls_slice[0] == 0 and shls_slice[1] == mol.nbas
+    assert shls_slice[0] == 0 and shls_slice[1] == mol.nbas
 
     primal_out = int3c_cross(mol, auxmol, intor=intor, comp=comp,
                              aosym=aosym, shls_slice=shls_slice, out=out)
@@ -146,10 +146,13 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
 
     cderi = np.empty((naux, nao_pair))
 
-    max_words = max_memory*.98e6/8 - low.size - cderi.size
+    max_words = max_memory*1e6/8 - low.size - cderi.size
     # Divide by 3 because scipy.linalg.solve may create a temporary copy for
     # ints and return another copy for results
     buflen = min(max(int(max_words/naoaux/comp/3), 8), nao_pair)
+    if not config.moleintor_opt:
+        # subshells not supported
+        buflen = nao_pair
     shranges = _guess_shell_ranges(mol, buflen, aosym)
     log.debug1('shranges = %s', shranges)
 
