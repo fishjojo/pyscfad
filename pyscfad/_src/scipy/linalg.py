@@ -110,7 +110,7 @@ def _svd_jvp(primals, tangents):
     ds = np.diagonal(dS, 0, -2, -1).real
 
     s_diffs = (s_dim + s_dim.T) * (s_dim - s_dim.T)
-    s_diffs_zeros = np.eye(m)
+    s_diffs_zeros = (s_diffs == 0).astype(s_diffs.dtype)
     F = 1. / (s_diffs + s_diffs_zeros) - s_diffs_zeros
 
     dP1 = dS[:,:m]
