@@ -10,8 +10,8 @@ from pyscfad.df import addons, incore, df_jk
 
 @util.pytree_node(['mol', 'auxmol', '_cderi'], num_args=1)
 class DF(pyscf_df.DF):
-    def __init__(self, mol, auxbasis=None, **kwargs):
-        pyscf_df.DF.__init__(self, mol, auxbasis=auxbasis)
+    def __init__(self, mol, auxbasis=None, incore=True, **kwargs):
+        pyscf_df.DF.__init__(self, mol, auxbasis=auxbasis, incore=incore)
         self.__dict__.update(kwargs)
 
     def build(self):
@@ -31,8 +31,8 @@ class DF(pyscf_df.DF):
         max_memory = self.max_memory - pyscf_lib.current_memory()[0]
         int3c = mol._add_suffix('int3c2e')
         int2c = mol._add_suffix('int2c2e')
-        if ((nao_pair*naux*8/1e6 < max_memory or mol.incore_anyway) and
-            not isinstance(self._cderi_to_save, str)):
+        if ((nao_pair*naux*8/1e6 < max_memory and
+            not isinstance(self._cderi_to_save, str)) or self.incore):
             self._cderi = incore.cholesky_eri(mol, auxmol=auxmol,
                                               int3c=int3c, int2c=int2c,
                                               max_memory=max_memory, verbose=log)
@@ -52,7 +52,7 @@ class DF(pyscf_df.DF):
         # NOTE resetting auxmol will lose its tracing
         #self.auxmol = None
         self._cderi = None
-        if not isinstance(self._cderi_to_save, str):
+        if not isinstance(self._cderi_to_save, str) and not self.incore:
             # pylint: disable=consider-using-with
             self._cderi_to_save = tempfile.NamedTemporaryFile(dir=pyscf_lib.param.TMPDIR)
         self._vjopt = None
