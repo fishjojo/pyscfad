@@ -36,6 +36,7 @@ def _contract_vvvv_t2(mycc, mol, Lvv, t2, out=None, verbose=None):
     tmp = lib.unpack_tril(np.dot(Lvv.T, Lvv))
     tmp1 = tmp[tril2sq].transpose(0,2,1,3).reshape(nvir2,nvir2)
     Ht2tril = np.dot(x2, tmp1)
+    tril2sq = None
     return Ht2tril.reshape(t2.shape)
 
 @util.pytree_node(ERI_Tracers)

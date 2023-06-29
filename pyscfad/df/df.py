@@ -10,6 +10,7 @@ from pyscfad.df import addons, incore, df_jk
 
 @util.pytree_node(['mol', 'auxmol', '_cderi'], num_args=1)
 class DF(pyscf_df.DF):
+    # pylint: disable=redefined-outer-name
     def __init__(self, mol, auxbasis=None, incore=True, **kwargs):
         pyscf_df.DF.__init__(self, mol, auxbasis=auxbasis, incore=incore)
         self.__dict__.update(kwargs)

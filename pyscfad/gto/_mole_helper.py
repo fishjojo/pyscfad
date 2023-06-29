@@ -92,7 +92,7 @@ def setup_exp(mol):
         The exponents are stored shell by shell with the same
         sequence as the primitive Gaussians in `mol`.
     es_of : array
-        The indices in `es` for the exponent of 
+        The indices in `es` for the exponent of
         the first primitive Gaussian in each shell.
     env_of : array
         The indices in `mol._env` for each unique exponent in `es`.

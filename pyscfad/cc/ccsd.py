@@ -7,7 +7,7 @@ from pyscf.lib import ops
 from pyscf.cc import ccsd as pyscf_ccsd
 from pyscf.mp.mp2 import _mo_without_core
 from pyscfad import lib
-from pyscfad.lib import jit
+#from pyscfad.lib import jit
 #from pyscfad import util
 from pyscfad import config
 from pyscfad.implicit_diff import make_implicit_diff
@@ -24,6 +24,7 @@ def _converged_iter(amp, mycc, eris):
     t1, t2 = mycc.vector_to_amplitudes(amp)
     t1, t2 = mycc.update_amps(t1, t2, eris)
     amp = mycc.amplitudes_to_vector(t1, t2)
+    del t1, t2
     return amp
 
 def _iter(amp, mycc, eris, *,
@@ -60,6 +61,8 @@ def _iter(amp, mycc, eris, *,
             conv = True
             break
     amp = mycc.amplitudes_to_vector(t1, t2)
+    t1 = t2 = None
+    del log
     return amp, conv
 
 
@@ -73,7 +76,6 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
     elif t2 is None:
         t2 = mycc.get_init_guess(eris)[1]
 
-    cput0 = (logger.process_clock(), logger.perf_counter())
     if isinstance(mycc.diis, lib.diis.DIIS):
         adiis = mycc.diis
     elif mycc.diis:
@@ -99,11 +101,13 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
 
     t1, t2 = mycc.vector_to_amplitudes(vec)
     eccsd = mycc.energy(t1, t2, eris)
-    log.timer('CCSD', *cput0)
+    log.timer('CCSD')
+    vec = None
+    del adiis, solver, log
     return conv, eccsd, t1, t2
 
 
-@jit
+#@jit
 def update_amps(mycc, t1, t2, eris):
     if mycc.cc2:
         raise NotImplementedError
@@ -238,6 +242,7 @@ def update_amps(mycc, t1, t2, eris):
     eijab = eia[:,None,:,None] + eia[None,:,None,:]
     t1new /= eia
     t2new /= eijab
+    eia = eijab = None
     return t1new, t2new
 
 
@@ -262,16 +267,18 @@ def _add_vvvv_tril(mycc, t1, t2, eris, out=None, with_ovvv=None):
         with_ovvv = mycc.direct
     nocc, nvir = t2.shape[1:3]
 
-    tau = t2[numpy.tril_indices(nocc)]
+    idx = numpy.tril_indices(nocc)
+    tau = t2[idx]
     if t1 is not None:
         tmp = np.einsum('ia,jb->ijab', t1, t1)
-        tau += tmp[numpy.tril_indices(nocc)]
+        tau += tmp[idx]
 
     if mycc.direct:   # AO-direct CCSD
         raise NotImplementedError
     else:
         assert not with_ovvv
         Ht2tril = eris._contract_vvvv_t2(mycc, tau, mycc.direct, out)
+    del idx
     return Ht2tril
 
 def _unpack_t2_tril(t2tril, nocc, nvir, out=None, t2sym='jiba'):
@@ -285,9 +292,10 @@ def _unpack_t2_tril(t2tril, nocc, nvir, out=None, t2sym='jiba'):
     elif t2sym == '-jiab':
         t2 = ops.index_update(t2, ops.index[idy,idx], -t2tril)
         t2 = ops.index_update(t2, ops.index[numpy.diag_indices(nocc)], 0)
+    del idx, idy
     return t2
 
-@jit
+#@jit
 def amplitudes_to_vector(t1, t2, out=None):
     nocc, nvir = t1.shape
     nov = nocc * nvir
@@ -305,7 +313,7 @@ def vector_to_amplitudes(vector, nmo, nocc):
     t2 = t2.reshape(nocc,nvir,nocc,nvir).transpose(0,2,1,3)
     return t1, t2
 
-@jit
+#@jit
 def energy(cc, t1=None, t2=None, eris=None):
     if t1 is None:
         t1 = cc.t1
@@ -331,8 +339,8 @@ class CCSD(pyscf_ccsd.CCSD):
     def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None, **kwargs):
         pyscf_ccsd.CCSD.__init__(self, mf, frozen=frozen,
                                  mo_coeff=mo_coeff, mo_occ=mo_occ)
-        if self.diis is True:
-            self.diis = lib.diis.DIIS(self, self.diis_file, incore=self.incore_complete)
+        #if self.diis is True:
+        #    self.diis = lib.diis.DIIS(self, self.diis_file, incore=self.incore_complete)
         self.__dict__.update(kwargs)
 
     def init_amps(self, eris=None):
