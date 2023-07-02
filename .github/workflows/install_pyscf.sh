@@ -3,7 +3,7 @@ python -m pip install --upgrade pip
 python -m pip cache purge
 pip install wheel
 pip install numpy
-pip install scipy
+pip install 'scipy<1.11'
 pip install h5py
 pip install jaxlib
 pip install jax

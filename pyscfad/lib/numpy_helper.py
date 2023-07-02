@@ -1,11 +1,9 @@
 from functools import partial
-import numpy as onp
-#from jax import numpy
-#from jax.config import config as jax_config
+import math
 from pyscf import numpy
 from pyscf.lib import ops
 from .jax_helper import jit, vmap
-#jax_config.update("jax_enable_x64", True)
+from pyscfad import config
 
 einsum = numpy.einsum
 dot = numpy.dot
@@ -25,9 +23,9 @@ def _unpack_triu(triu, filltril=HERMITIAN):
     Unpack the upper triangular part of a matrix
     '''
     assert triu.ndim == 1
-    nd = int(onp.sqrt(2*triu.size))
+    nd = int(math.sqrt(2*triu.size))
     out = numpy.zeros((nd,nd), dtype=triu.dtype)
-    idx = onp.triu_indices(nd)
+    idx = numpy.triu_indices(nd)
     out = ops.index_update(out, idx, triu)
     if filltril == PLAIN:
         return out
@@ -61,9 +59,9 @@ def _unpack_tril(tril, filltriu=HERMITIAN):
     Unpack the lower triangular part of a matrix
     '''
     assert tril.ndim == 1
-    nd = int(onp.sqrt(2*tril.size))
+    nd = int(math.sqrt(2*tril.size))
     out = numpy.zeros((nd,nd), dtype=tril.dtype)
-    idx = onp.tril_indices(nd)
+    idx = numpy.tril_indices(nd)
     out = ops.index_update(out, idx, tril)
     if filltriu == PLAIN:
         return out
@@ -80,6 +78,9 @@ def _unpack_tril(tril, filltriu=HERMITIAN):
         raise KeyError
 
 def unpack_tril(tril, filltriu=HERMITIAN, axis=-1, out=None):
+    if config.moleintor_opt and axis == -1:
+        from pyscfad.lib import _numpy_helper_opt
+        return _numpy_helper_opt._unpack_tril(tril, filltriu, axis, out)
     if tril.ndim == 1:
         out = _unpack_tril(tril, filltriu)
     elif tril.ndim == 2:
@@ -97,7 +98,7 @@ def pack_tril(a, axis=-1):
     Lower triangular part of a matrix as a vector
     '''
     def fn(mat):
-        idx = onp.tril_indices(mat.shape[0])
+        idx = numpy.tril_indices(mat.shape[0])
         return mat[idx].ravel()
 
     if a.ndim == 3:
