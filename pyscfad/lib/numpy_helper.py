@@ -92,11 +92,13 @@ def unpack_tril(tril, filltriu=HERMITIAN, axis=-1, out=None):
         raise NotImplementedError
     return out
 
-@partial(jit, static_argnums=1)
-def pack_tril(a, axis=-1):
+def pack_tril(a, axis=-1, out=None):
     '''
     Lower triangular part of a matrix as a vector
     '''
+    if config.moleintor_opt and axis == -1:
+        from pyscfad.lib import _numpy_helper_opt
+        return _numpy_helper_opt._pack_tril(a, axis, out)
     def fn(mat):
         idx = numpy.tril_indices(mat.shape[0])
         return mat[idx].ravel()
