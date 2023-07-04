@@ -1,13 +1,102 @@
+from functools import partial
+import numpy
+from jax import custom_vjp
 from pyscf import __config__
 from pyscf import numpy as np
-from pyscf.lib import current_memory, logger
+from pyscf.lib import direct_sum, current_memory, logger
 from pyscf.mp.mp2 import _ChemistsERIs
+from pyscfad import config
 from pyscfad import util
 from pyscfad.lib import vmap
 from pyscfad.ao2mo import _ao2mo
 from pyscfad.mp import mp2
 
 WITH_T2 = getattr(__config__, 'mp_dfmp2_with_t2', True)
+
+def _contract(Lov, mo_energy, nocc, nvir, with_t2=True):
+    def body(Lv, Lov, ea, eia):
+        gi = np.einsum('la,ljb->jab', Lv, Lov)
+        t2i = gi / (eia[:,:,None] + ea[None,None,:])
+        ei = np.einsum('jab,jab', t2i, gi) * 2 - np.einsum('jab,jba', t2i, gi)
+        return ei, t2i
+
+    Lov = Lov.reshape((-1, nocc, nvir))
+    eia = mo_energy[:nocc,None] - mo_energy[None,nocc:]
+    e, t2 = vmap(body, in_axes=(1,None,0,None))(Lov, Lov, eia, eia)
+    if not with_t2:
+        t2 = None
+    emp2 = e.sum().real
+    return emp2, t2
+
+@partial(custom_vjp, nondiff_argnums=(2,3,4))
+def _contract_opt(Lov, mo_energy, nocc, nvir, with_t2=True):
+    if with_t2:
+        t2 = numpy.empty((nocc,nocc,nvir,nvir))
+    else:
+        t2 = None
+    eia = mo_energy[:nocc,None] - mo_energy[None,nocc:]
+
+    emp2 = 0
+    for i in range(nocc):
+        buf = numpy.dot(Lov[:,i*nvir:(i+1)*nvir].T,
+                        Lov).reshape(nvir,nocc,nvir)
+        gi = buf.transpose(1,0,2)
+        t2i = gi / direct_sum('jb+a->jba', eia, eia[i])
+        emp2 += numpy.einsum('jab,jab', t2i, gi) * 2
+        emp2 -= numpy.einsum('jab,jba', t2i, gi)
+        if with_t2:
+            t2[i] = t2i
+    return emp2, t2
+
+def _contract_opt_fwd(Lov, mo_energy, nocc, nvir, with_t2):
+    emp2, t2 = _contract_opt(Lov, mo_energy, nocc, nvir, with_t2)
+    return (emp2, t2), (Lov, mo_energy, t2)
+
+def _contract_opt_bwd(nocc, nvir, with_t2,
+                      res, ybar):
+    Lov, mo_energy, t2 = res
+    emp2_bar = ybar[0]
+    if with_t2:
+        t2 = numpy.asarray(t2)
+        t2_bar = numpy.asarray(ybar[1])
+
+    eia = mo_energy[:nocc,None] - mo_energy[None,nocc:]
+    Lov_bar = numpy.zeros_like(Lov)
+    mo_energy_bar = numpy.zeros_like(mo_energy)
+    for i in range(nocc):
+        ejab = direct_sum('jb+a->jba', eia, eia[i])
+        if with_t2:
+            t2i = t2[i]
+            gi = t2i * ejab
+        else:
+            gi = numpy.dot(Lov[:,i*nvir:(i+1)*nvir].T,
+                           Lov).reshape(nvir,nocc,nvir)
+            gi = gi.transpose(1,0,2)
+            t2i = gi / ejab
+
+        buf = emp2_bar * t2i
+        gi_bar = 2 * buf - buf.transpose(0,2,1)
+        buf = emp2_bar * gi
+        t2i_bar = 2 * buf - buf.transpose(0,2,1)
+        if with_t2:
+            t2i_bar += t2_bar[i]
+        gi_bar += t2i_bar / ejab
+
+        buf = gi_bar.transpose(1,0,2).reshape(nvir,-1)
+        Lov_bar += numpy.dot(Lov[:,i*nvir:(i+1)*nvir], buf)
+        Lov_bar[:,i*nvir:(i+1)*nvir] += numpy.dot(Lov, buf.T)
+        gi_bar = None
+
+        buf = -gi * t2i_bar / (ejab * ejab)
+        ejab = gi = t2i_bar = None
+        mo_energy_bar[i] += numpy.sum(buf)
+        mo_energy_bar[:nocc] += numpy.sum(buf.reshape(nocc,-1), axis=-1)
+        mo_energy_bar[nocc:] -= numpy.sum(buf.reshape(-1,nvir), axis=0)
+        mo_energy_bar[nocc:] -= numpy.sum(buf.transpose(1,0,2).reshape(nvir,-1), axis=-1)
+        buf = None
+    return (Lov_bar, mo_energy_bar)
+
+_contract_opt.defvjp(_contract_opt_fwd, _contract_opt_bwd)
 
 def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
            verbose=None):
@@ -23,21 +112,14 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
 
     nocc = mp.nocc
     nvir = mp.nmo - nocc
-    naux = mp.with_df.get_naoaux()
-    eia = mo_energy[:nocc,None] - mo_energy[None,nocc:]
+    #naux = mp.with_df.get_naoaux()
 
     Lov = mp.loop_ao2mo(mo_coeff, nocc)
 
-    def body(Lv, Lov, ea, eia):
-        gi = np.einsum('la,ljb->jab', Lv, Lov)
-        t2i = gi / (eia[:,:,None] + ea[None,None,:])
-        ei = np.einsum('jab,jab', t2i, gi) * 2 - np.einsum('jab,jba', t2i, gi)
-        return ei, t2i
-
-    e, t2 = vmap(body, in_axes=(1,None,0,None))(Lov, Lov, eia, eia)
-    if not with_t2:
-        t2 = None
-    emp2 = e.sum().real
+    if config.moleintor_opt:
+        emp2, t2 = _contract_opt(Lov, mo_energy, nocc, nvir, with_t2)
+    else:
+        emp2, t2 = _contract(Lov, mo_energy, nocc, nvir, with_t2)
     return emp2, t2
 
 @util.pytree_node(['_scf', 'mol', 'with_df'], num_args=1)
@@ -71,7 +153,7 @@ class MP2(mp2.MP2):
         if (mem_incore + mem_now < self.max_memory) or self.mol.incore_anyway:
             eri1 = with_df._cderi
             Lov = _ao2mo.nr_e2(eri1, mo_coeff, ijslice, aosym='s2')
-            return Lov.reshape((naux, nocc, nvir))
+            return Lov
         else:
             raise RuntimeError(f'{mem_incore+mem_now} MB of memory is needed.')
 
