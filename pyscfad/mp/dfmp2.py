@@ -1,5 +1,6 @@
 from functools import partial
 import numpy
+import jax
 from jax import custom_vjp
 from pyscf import __config__
 from pyscf import numpy as np
@@ -39,7 +40,7 @@ def _contract_opt(Lov, mo_energy, nocc, nvir, with_t2=True):
     emp2 = 0
     for i in range(nocc):
         buf = numpy.dot(Lov[:,i*nvir:(i+1)*nvir].T,
-                        Lov).reshape(nvir,nocc,nvir)
+                        Lov).reshape((nvir,nocc,nvir))
         gi = buf.transpose(1,0,2)
         t2i = gi / direct_sum('jb+a->jba', eia, eia[i])
         emp2 += numpy.einsum('jab,jab', t2i, gi) * 2
@@ -70,7 +71,7 @@ def _contract_opt_bwd(nocc, nvir, with_t2,
             gi = t2i * ejab
         else:
             gi = numpy.dot(Lov[:,i*nvir:(i+1)*nvir].T,
-                           Lov).reshape(nvir,nocc,nvir)
+                           Lov).reshape((nvir,nocc,nvir))
             gi = gi.transpose(1,0,2)
             t2i = gi / ejab
 
@@ -98,6 +99,30 @@ def _contract_opt_bwd(nocc, nvir, with_t2,
 
 _contract_opt.defvjp(_contract_opt_fwd, _contract_opt_bwd)
 
+def _contract_scan(Lov, mo_energy, nocc, nvir, with_t2=True):
+    if with_t2:
+        t2 = numpy.empty((nocc,nocc,nvir,nvir))
+    else:
+        t2 = None
+    eia = mo_energy[:nocc,None] - mo_energy[None,nocc:]
+
+    @jax.checkpoint
+    def _fn(emp2, x):
+        La, ea = x
+        gi = np.dot(La.T, Lov).reshape((nvir,nocc,nvir))
+        gi = gi.transpose(1,0,2)
+        t2i = gi / (eia[:,:,None] + ea[None,None,:])
+        emp2 += np.einsum('jab,jab', t2i, gi) * 2
+        emp2 -= np.einsum('jab,jba', t2i, gi)
+        if not with_t2:
+            t2i = None
+        return emp2, t2i
+
+    emp2, t2 = jax.lax.scan(_fn, 0., (Lov.reshape((-1,nocc,nvir)).transpose(1,0,2), eia))
+    if not with_t2:
+        t2 = None
+    return emp2, t2
+
 def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
            verbose=None):
     if mo_energy is not None or mo_coeff is not None:
@@ -117,7 +142,8 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
     Lov = mp.loop_ao2mo(mo_coeff, nocc)
 
     if config.moleintor_opt:
-        emp2, t2 = _contract_opt(Lov, mo_energy, nocc, nvir, with_t2)
+        #emp2, t2 = _contract_opt(Lov, mo_energy, nocc, nvir, with_t2)
+        emp2, t2 = _contract_scan(Lov, mo_energy, nocc, nvir, with_t2)
     else:
         emp2, t2 = _contract(Lov, mo_energy, nocc, nvir, with_t2)
     return emp2, t2
