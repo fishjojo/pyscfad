@@ -15,20 +15,35 @@ def get_mol():
     mol.build(trace_exp=False, trace_ctr_coeff=False)
     return mol
 
+def mp2(mol):
+    mf = scf.RHF(mol)
+    mf.kernel()
+    mymp = mp.MP2(mf)
+    mymp.kernel()
+    return mymp.e_tot
+
 def test_nuc_grad(get_mol):
     mol = get_mol
-    def mp2(mol):
-        mf = scf.RHF(mol)
-        mf.kernel()
-        mymp = mp.MP2(mf)
-        mymp.kernel()
-        return mymp.e_tot
     g = jax.grad(mp2)(mol).coords
     # analytic gradient
     g0 = numpy.array(
          [[0, 0,            0.0132353292],
           [0, 0.0088696799,-0.0066176646],
           [0,-0.0088696799,-0.0066176646]])
+    assert abs(g-g0).max() < 1e-6
+
+def test_nuc_grad_n2():
+    mol = gto.Mole()
+    mol.atom = 'N 0 0 0; N 0 0 1.1'
+    mol.basis = '6-31G*'
+    mol.verbose = 0
+    mol.build(trace_exp=False, trace_ctr_coeff=False)
+
+    g = jax.grad(mp2)(mol).coords
+    # analytic gradient
+    g0 = numpy.array(
+        [[0, 0,  0.0821997739],
+         [0, 0, -0.0821997739]])
     assert abs(g-g0).max() < 1e-6
 
 def test_df_nuc_grad(get_mol):

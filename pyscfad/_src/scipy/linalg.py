@@ -98,7 +98,7 @@ def _svd_jvp(primals, tangents):
         raise NotImplementedError
 
     m, n = A.shape
-    if m >= n:
+    if m > n:
         raise NotImplementedError('Use svd(A.conj().T) instead.')
 
     U, s, Vt = _svd(A)
