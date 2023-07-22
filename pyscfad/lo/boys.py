@@ -49,4 +49,5 @@ def boys(mol, mo_coeff):
 
     x, sorted_idx = _boys_iter(None, mol, mo_coeff)
     u = extract_rotation(x)
+    # pylint: disable=invalid-sequence-index
     return np.dot(mo_coeff, u[:,sorted_idx])

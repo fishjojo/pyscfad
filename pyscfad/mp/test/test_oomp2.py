@@ -27,7 +27,7 @@ class OOMP2(mp.MP2):
         if self.x is None:
             nao = self.mol.nao
             assert nao == self.nmo
-            size = nao*(nao+1)//2
+            size = nao*(nao-1)//2
             self.x = np.zeros([size,])
         self.mo_coeff = rotate_mo1(self._scf.mo_coeff, self.x) 
         self._scf.converged = False
@@ -50,7 +50,7 @@ def test_oomp2_energy(get_mol):
     mf = scf.RHF(mol)
     mf.kernel()
     nao = mol.nao
-    size = nao*(nao+1)//2
+    size = nao*(nao-1)//2
     x0 = numpy.zeros([size,])
     options = {"gtol":1e-5}
     res = minimize(func, x0, args=(mf,), jac=True, method="BFGS", options = options)
