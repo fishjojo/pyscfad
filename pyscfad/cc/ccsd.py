@@ -1,6 +1,5 @@
-from functools import reduce, partial
+from functools import reduce
 import numpy
-from jaxopt import linear_solve
 from pyscf import numpy as np
 from pyscf.lib import logger
 from pyscf.lib import ops
@@ -11,7 +10,7 @@ from pyscfad import lib
 #from pyscfad import util
 from pyscfad import config
 from pyscfad.implicit_diff import make_implicit_diff
-from pyscfad.scipy.sparse.linalg import gmres
+from pyscfad.tools.linear_solver import gen_gmres
 
 # assume 'mol', 'mo_coeff', etc. come from '_scf',
 # otherwise they need to be traced
@@ -86,15 +85,9 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
 
     vec = mycc.amplitudes_to_vector(t1, t2)
 
-    if config.moleintor_opt:
-        solver = partial(gmres, tol=1e-5)
-    else:
-        solver = partial(linear_solve.solve_gmres, tol=1e-5,
-                         solve_method='incremental')
-
     vec, conv = make_implicit_diff(_iter, config.ccsd_implicit_diff,
                                    optimality_cond=_converged_iter,
-                                   solver=solver, has_aux=True)(
+                                   solver=gen_gmres(), has_aux=True)(
                                         vec, mycc, eris,
                                         diis=adiis, max_cycle=max_cycle, tol=tol,
                                         tolnormt=tolnormt, verbose=log)
@@ -103,7 +96,7 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
     eccsd = mycc.energy(t1, t2, eris)
     log.timer('CCSD')
     vec = None
-    del adiis, solver, log
+    del adiis, log
     return conv, eccsd, t1, t2
 
 

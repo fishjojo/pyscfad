@@ -11,18 +11,29 @@ def _map_back(diff_items, items, keys):
     return tuple(new_items)
 
 def root_vjp(optimality_fun, sol, args, cotangent,
-             solve=linear_solve.solve_gmres, nondiff_argnums=()):
+             solve=linear_solve.solve_gmres, nondiff_argnums=(),
+             optfn_has_aux=False, solver_kwargs=None,
+             gen_precond=None):
+    if solver_kwargs is None:
+        solver_kwargs = {}
 
     def fun_sol(sol):
         return optimality_fun(sol, *args)
 
-    _, vjp_fun_sol = jax.vjp(fun_sol, sol)
+    # FIXME M may not work for solvers other than scipy
+    M = None
+    if optfn_has_aux:
+        _, vjp_fun_sol, optfn_aux = jax.vjp(fun_sol, sol, has_aux=True)
+        if gen_precond is not None:
+            M = gen_precond(optfn_aux)
+    else:
+        _, vjp_fun_sol = jax.vjp(fun_sol, sol)
 
     def matvec(u):
         return vjp_fun_sol(u)[0]
 
     v = tree_scalar_mul(-1, cotangent)
-    u = solve(matvec, v)
+    u = solve(matvec, v, M=M, **solver_kwargs)
 
     diff_args_dict = {i: arg for i, arg in enumerate(args) if i+1 not in nondiff_argnums}
     keys = diff_args_dict.keys()
@@ -31,7 +42,7 @@ def root_vjp(optimality_fun, sol, args, cotangent,
         new_args = _map_back(diff_args, args, keys)
         return optimality_fun(sol, *new_args)
 
-    _, vjp_fun_args = jax.vjp(fun_args, *diff_args)
+    _, vjp_fun_args = jax.vjp(fun_args, *diff_args, has_aux=optfn_has_aux)[:2]
     diff_vjps = vjp_fun_args(u)
 
     vjps = [None,] * len(args)
@@ -39,7 +50,9 @@ def root_vjp(optimality_fun, sol, args, cotangent,
     return vjps
 
 def _custom_root(solver_fun, optimality_fun, solve,
-                 has_aux=False, nondiff_argnums=(), use_converged_args=None):
+                 has_aux=False, nondiff_argnums=(), use_converged_args=None,
+                 optfn_has_aux=False, solver_kwargs=None,
+                 gen_precond=None):
     solver_fun_sig = inspect.signature(solver_fun)
     optimality_fun_sig = inspect.signature(optimality_fun)
 
@@ -74,7 +87,10 @@ def _custom_root(solver_fun, optimality_fun, solve,
 
             vjps = root_vjp(optimality_fun, sol,
                             args[1:], cotangent, solve=solve,
-                            nondiff_argnums=nondiff_argnums)
+                            nondiff_argnums=nondiff_argnums,
+                            optfn_has_aux=optfn_has_aux,
+                            solver_kwargs=solver_kwargs,
+                            gen_precond=gen_precond)
             vjps = (None,) + vjps
             return vjps
 
@@ -89,19 +105,26 @@ def _custom_root(solver_fun, optimality_fun, solve,
     return wrapped_solver_fun
 
 def custom_root(optimality_fun, solve=None, has_aux=False,
-                nondiff_argnums=(), use_converged_args=None):
+                nondiff_argnums=(), use_converged_args=None,
+                optfn_has_aux=False, solver_kwargs=None,
+                gen_precond=None):
     if solve is None:
         solve = linear_solve.solve_gmres
 
     def wrapper(solver_fun):
         return _custom_root(solver_fun, optimality_fun, solve,
                             has_aux=has_aux, nondiff_argnums=nondiff_argnums,
-                            use_converged_args=use_converged_args)
+                            use_converged_args=use_converged_args,
+                            optfn_has_aux=optfn_has_aux,
+                            solver_kwargs=solver_kwargs,
+                            gen_precond=gen_precond)
 
     return wrapper
 
 def custom_fixed_point(fixed_point_fun, solve=None, has_aux=False,
-                       nondiff_argnums=(), use_converged_args=None):
+                       nondiff_argnums=(), use_converged_args=None,
+                       optfn_has_aux=False, solver_kwargs=None,
+                       gen_precond=None):
 
     def optimality_fun(x0, *args):
         return tree_sub(fixed_point_fun(x0, *args), x0)
@@ -110,11 +133,62 @@ def custom_fixed_point(fixed_point_fun, solve=None, has_aux=False,
 
     return custom_root(optimality_fun, solve=solve,
                        has_aux=has_aux, nondiff_argnums=nondiff_argnums,
-                       use_converged_args=use_converged_args)
+                       use_converged_args=use_converged_args,
+                       optfn_has_aux=optfn_has_aux,
+                       solver_kwargs=solver_kwargs,
+                       gen_precond=gen_precond)
 
 def make_implicit_diff(fn, implicit_diff=False, fixed_point=True,
                        optimality_cond=None, solver=None, has_aux=False,
-                       nondiff_argnums=(), use_converged_args=None):
+                       nondiff_argnums=(), use_converged_args=None,
+                       optimality_fun_has_aux=False,
+                       solver_kwargs=None, gen_precond=None):
+    '''Wrap a function for implicit differentiation.
+
+    Args:
+        fn : object
+            The function to be wrapped.
+
+    Kwargs:
+        implicit_diff : bool
+            If False, return `fn` without modification.
+            Otherwise, wrap `fn` to make it implicitly differentiable.
+            Default is `False`.
+        fixed_point : bool
+            If True, the optimality condition is defined by a fixed point
+            problem. Otherwise, the optimality condition should return 0.
+            Default is `True`.
+        optimality_cond : object
+            The funtion defining the optimality condition problem.
+        solver : object
+            The function solves the linear equations.
+        has_aux : bool
+            Whether `fn` returns auxiliary data. Default is `False`.
+        nondiff_argnums : tuple of ints
+            Specify which arguments are not differentiated with respect to,
+            by their indices in the argument list. Default is empty tuple.
+        use_converged_args : dict
+            Specify in the backward propagation, which arguments should use
+            their converged values produced by `fn` in the forward pass.
+            The dict has the form `{argnum: value}`, where `argnum`
+            is the index of this argument in the argument list. Default is `None`.
+        optimality_fun_has_aux : bool
+            Whether the optimality function returns auxiliary data.
+            Default is False.
+        solver_kwargs : dict
+            The keyword arguments passed to the linear solver function.
+            Default is empty dict.
+        gen_precond : object
+            A function which generates the preconditioner
+            for the linear solver. `gen_precond` should
+            take the auxiliary data returned by the optimality function as
+            its argument, and return the preconditioner recognized by the
+            linear solver, which is usually a function or an array.
+
+    Returns:
+        wrapped_fn : object
+            The wrapped function.
+    '''
     if implicit_diff:
         if fixed_point:
             method = custom_fixed_point
@@ -128,6 +202,9 @@ def make_implicit_diff(fn, implicit_diff=False, fixed_point=True,
             solver = linear_solve.solve_gmres
         return method(optimality_cond, solve=solver, has_aux=has_aux,
                       nondiff_argnums=nondiff_argnums,
-                      use_converged_args=use_converged_args)(fn)
+                      use_converged_args=use_converged_args,
+                      optfn_has_aux=optimality_fun_has_aux,
+                      solver_kwargs=solver_kwargs,
+                      gen_precond=gen_precond)(fn)
     else:
         return fn

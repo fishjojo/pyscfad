@@ -1,7 +1,6 @@
 from functools import partial, reduce
 import numpy
 import jax
-from jaxopt import linear_solve
 from pyscf import numpy as np
 from pyscf.lib import logger, stop_grad
 from pyscf.scf import hf as pyscf_hf
@@ -17,7 +16,7 @@ from pyscfad import df
 from pyscfad.scf import _vhf
 from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scipy.linalg import eigh
-from pyscfad.scipy.sparse.linalg import gmres
+from pyscfad.tools.linear_solver import gen_gmres
 
 Traced_Attributes = ['mol', '_eri']#, 'mo_coeff', 'mo_energy']
 
@@ -149,17 +148,12 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     # A preprocessing hook before the SCF iteration
     #mf.pre_kernel(locals())
 
-    if config.moleintor_opt:
-        solver = partial(gmres, tol=1e-5)
-    else:
-        solver = partial(linear_solve.solve_gmres, tol=1e-5,
-                         solve_method='incremental')
     # SCF iteration
     # NOTE if use implicit differentiation, only dm will have gradient.
     dm, scf_conv, e_tot, mo_energy, mo_coeff, mo_occ = \
             make_implicit_diff(_scf, config.scf_implicit_diff,
                     optimality_cond=_scf_optimality_cond,
-                    solver=solver, has_aux=True)(
+                    solver=gen_gmres(), has_aux=True)(
                  dm, mf, s1e, h1e,
                  conv_tol=conv_tol, conv_tol_grad=conv_tol_grad,
                  diis=mf_diis, dump_chk=dump_chk, callback=callback, log=log)
