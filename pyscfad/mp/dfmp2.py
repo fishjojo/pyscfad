@@ -23,7 +23,8 @@ def _contract(Lov, mo_energy, nocc, nvir, with_t2=True):
 
     Lov = Lov.reshape((-1, nocc, nvir))
     eia = mo_energy[:nocc,None] - mo_energy[None,nocc:]
-    e, t2 = vmap(body, in_axes=(1,None,0,None))(Lov, Lov, eia, eia)
+    e, t2 = vmap(body, in_axes=(1,None,0,None),
+                 signature='(l,a),(b)->(),(j,a,b)')(Lov, Lov, eia, eia)
     if not with_t2:
         t2 = None
     emp2 = e.sum().real

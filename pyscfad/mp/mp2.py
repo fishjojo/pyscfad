@@ -1,3 +1,4 @@
+import jax
 from pyscf.lib import logger, split_reshape
 from pyscf.mp import mp2 as pyscf_mp2
 from pyscfad import util
@@ -44,6 +45,37 @@ def _iterative_kernel(mp, eris, verbose=None):
     del log
     return conv, emp2, t2
 
+def make_rdm1(mp, t2=None, eris=None, ao_repr=False):
+    from pyscfad.cc import ccsd_rdm
+    doo, dvv = _gamma1_intermediates(mp, t2, eris)
+    nocc = doo.shape[0]
+    nvir = dvv.shape[0]
+    dov = np.zeros((nocc,nvir), dtype=doo.dtype)
+    dvo = dov.T
+    return ccsd_rdm._make_rdm1(mp, (doo, dov, dvo, dvv), with_frozen=True,
+                               ao_repr=ao_repr)
+
+def _gamma1_intermediates(mp, t2=None, eris=None):
+    if t2 is None:
+        t2 = mp.t2
+    assert t2 is not None
+    nocc = mp.nocc
+    nvir = mp.nmo - nocc
+
+    dm1occ = np.zeros((nocc,nocc), dtype=t2.dtype)
+    dm1vir = np.zeros((nvir,nvir), dtype=t2.dtype)
+    @jax.checkpoint
+    def _fn(carry, t2i):
+        dm1vir, dm1occ = carry
+        l2i = t2i.conj()
+        dm1vir += np.einsum('jca,jcb->ba', l2i, t2i) * 2 \
+                - np.einsum('jca,jbc->ba', l2i, t2i)
+        dm1occ += np.einsum('iab,jab->ij', l2i, t2i) * 2 \
+                - np.einsum('iab,jba->ij', l2i, t2i)
+        return (dm1vir, dm1occ), None
+    (dm1vir, dm1occ), _ = jax.lax.scan(_fn, (dm1vir, dm1occ), t2)
+    return -dm1occ, dm1vir
+
 @util.pytree_node(['_scf', 'mol'], num_args=1)
 class MP2(pyscf_mp2.MP2):
     def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None, **kwargs):
@@ -62,4 +94,5 @@ class MP2(pyscf_mp2.MP2):
         eris.ovov = ao2mo.general(self._scf._eri, (co,cv,co,cv))
         return eris
 
+    make_rdm1 = make_rdm1
     _iterative_kernel = _iterative_kernel
