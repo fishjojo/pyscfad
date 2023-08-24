@@ -7,8 +7,6 @@ pip install 'scipy<1.11'
 pip install h5py
 pip install jaxlib
 pip install jax
-pip install typing_extensions
-pip install jaxopt
 pip install pytest
 pip install pytest-cov
 

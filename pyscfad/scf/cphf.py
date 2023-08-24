@@ -1,4 +1,4 @@
-from jaxopt import linear_solve
+from jax.scipy.sparse.linalg import gmres
 from pyscf.lib import logger
 
 def solve(fvind, mo_energy, mo_occ, h1, s1=None,
@@ -20,6 +20,5 @@ def solve_nos1(fvind, mo_energy, mo_occ, h1,
         v += e_ai * mo1.reshape(h1.shape)
         return -v.ravel()
 
-    mo1 = linear_solve.solve_gmres(vind_vo, h1.ravel(),
-                                   tol=tol, maxiter=max_cycle)
+    mo1 = gmres(vind_vo, h1.ravel(), tol=tol, maxiter=max_cycle)[0]
     return mo1.reshape(h1.shape), None

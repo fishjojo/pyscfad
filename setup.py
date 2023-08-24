@@ -68,8 +68,6 @@ setup(
         'scipy',
         'jax>=0.3.25',
         'jaxlib>=0.3.25',
-        'typing_extensions',
-        'jaxopt>=0.2',
         'pyscf @ git+https://github.com/fishjojo/pyscf.git@ad#egg=pyscf',
         'pyscf-properties @ git+https://github.com/fishjojo/properties.git@ad',
     ],

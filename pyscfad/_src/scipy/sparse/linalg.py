@@ -22,4 +22,4 @@ def gmres(A_or_matvec, b, x0=None, *,
         raise RuntimeError(f'scipy gmres failed to converge in {info} iterations.')
     elif info < 0:
         raise RuntimeError('scipy gmres failed.')
-    return u.reshape(b_shape)
+    return u.reshape(b_shape), info

@@ -1,8 +1,14 @@
 import inspect
+import operator
+from functools import partial
 import jax
-from jaxopt import linear_solve
-from jaxopt.tree_util import tree_sub, tree_scalar_mul
+from jax.tree_util import tree_map
+from jax.scipy.sparse.linalg import gmres
 
+_Sub = partial(tree_map, operator.sub)
+
+def _Scalar_mul(scal, tree_x):
+    return tree_map(lambda x: scal * x, tree_x)
 
 def _map_back(diff_items, items, keys):
     new_items = list(items)
@@ -11,7 +17,7 @@ def _map_back(diff_items, items, keys):
     return tuple(new_items)
 
 def root_vjp(optimality_fun, sol, args, cotangent,
-             solve=linear_solve.solve_gmres, nondiff_argnums=(),
+             solve=gmres, nondiff_argnums=(),
              optfn_has_aux=False, solver_kwargs=None,
              gen_precond=None):
     if solver_kwargs is None:
@@ -32,8 +38,8 @@ def root_vjp(optimality_fun, sol, args, cotangent,
     def matvec(u):
         return vjp_fun_sol(u)[0]
 
-    v = tree_scalar_mul(-1, cotangent)
-    u = solve(matvec, v, M=M, **solver_kwargs)
+    v = _Scalar_mul(-1, cotangent)
+    u = solve(matvec, v, M=M, **solver_kwargs)[0]
 
     diff_args_dict = {i: arg for i, arg in enumerate(args) if i+1 not in nondiff_argnums}
     keys = diff_args_dict.keys()
@@ -109,7 +115,7 @@ def custom_root(optimality_fun, solve=None, has_aux=False,
                 optfn_has_aux=False, solver_kwargs=None,
                 gen_precond=None):
     if solve is None:
-        solve = linear_solve.solve_gmres
+        solve = gmres
 
     def wrapper(solver_fun):
         return _custom_root(solver_fun, optimality_fun, solve,
@@ -127,7 +133,7 @@ def custom_fixed_point(fixed_point_fun, solve=None, has_aux=False,
                        gen_precond=None):
 
     def optimality_fun(x0, *args):
-        return tree_sub(fixed_point_fun(x0, *args), x0)
+        return _Sub(fixed_point_fun(x0, *args), x0)
 
     optimality_fun.__wrapped__ = fixed_point_fun
 
@@ -199,7 +205,7 @@ def make_implicit_diff(fn, implicit_diff=False, fixed_point=True,
             raise KeyError(f'optimality_cond must be a function, '
                            f'but get{optimality_cond}.')
         if solver is None:
-            solver = linear_solve.solve_gmres
+            solver = gmres
         return method(optimality_cond, solve=solver, has_aux=has_aux,
                       nondiff_argnums=nondiff_argnums,
                       use_converged_args=use_converged_args,
