@@ -4,7 +4,8 @@ import numpy
 from jax import custom_vjp
 from pyscf import lib as pyscf_lib
 
-_np_helper = pyscf_lib.load_library('libnp_helper')
+#_np_helper = pyscf_lib.load_library('libnp_helper')
+from pyscfadlib import libnp_helper_vjp as _np_helper
 
 @partial(custom_vjp, nondiff_argnums=(1,2,3))
 def _unpack_tril(tril, filltriu=1, axis=-1, out=None):

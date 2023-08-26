@@ -510,15 +510,7 @@ def _int2e_jvp_r0(mol, mol_t, intor):
     coords_t = mol_t.coords
     #atmlst = range(mol.natm)
     #aoslices = numpy.asarray(mol.aoslice_by_atom(), dtype=numpy.int32)
-    #nao = mol.nao
 
-    #eri1 = -Mole.intor(mol, intor, comp=3, aosym='s2kl')
-    #grad = numpy.zeros((mol.natm,3,nao,nao,nao,nao), dtype=numpy.double)
-    #libcgto.restore_int2e_deriv(grad.ctypes.data_as(ctypes.c_void_p),
-    #        eri1.ctypes.data_as(ctypes.c_void_p),
-    #        aoslices.ctypes.data_as(ctypes.c_void_p),
-    #        ctypes.c_int(mol.natm), ctypes.c_int(nao))
-    #eri1 = None
     eri1 = -getints4c(mol, intor, comp=None, aosym='s1')
     aoslices = mol.aoslice_by_atom()[:,2:4]
     grad = _fill_grad_r0(eri1, aoslices)

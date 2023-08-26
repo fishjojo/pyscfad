@@ -7,11 +7,12 @@ from pyscf.lib import (
     prange_tril,
     num_threads,
     current_memory,
-    load_library
+#    load_library
 )
 from pyscf.cc import ccsd_t as pyscf_ccsd_t
 
-libcc = load_library('libcc')
+#libcc = load_library('libcc')
+from pyscfadlib import libcc_vjp as libcc
 
 def kernel(mycc, eris, t1=None, t2=None, verbose=logger.NOTE):
     if t1 is None:

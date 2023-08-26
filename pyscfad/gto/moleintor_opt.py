@@ -27,8 +27,8 @@ from pyscfad.gto._moleintor_helper import (
 )
 
 
-libcgto = lib.load_library('libcgto')
-
+#libcgto = lib.load_library('libcgto')
+from pyscfadlib import libcgto_vjp as libcgto
 
 def getints(mol, intor, shls_slice=None,
             comp=None, hermi=0, aosym='s1',

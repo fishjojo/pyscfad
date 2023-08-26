@@ -8,7 +8,8 @@ from pyscf.lib import logger
 from pyscf.df import df_jk as pyscf_df_jk
 
 libao2mo = lib.load_library('libao2mo')
-libvhf = lib.load_library('libcvhf')
+#libvhf = lib.load_library('libcvhf')
+from pyscfadlib import libcvhf_vjp as libvhf
 
 @partial(custom_vjp, nondiff_argnums=(2,3,4,5))
 def get_jk(dfobj, dm, hermi=1, with_j=True, with_k=True, direct_scf_tol=1e-13):

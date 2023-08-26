@@ -12,7 +12,8 @@ from pyscf.gto.moleintor import (
     getints3c,
 )
 
-libcgto = pyscf_lib.load_library('libcgto')
+#libcgto = pyscf_lib.load_library('libcgto')
+from pyscfadlib import libcgto_vjp as libcgto
 
 @partial(custom_vjp, nondiff_argnums=(2,3,4,5,6))
 def int3c_cross(mol, auxmol, intor='int3c2e', comp=1, aosym='s2ij',
