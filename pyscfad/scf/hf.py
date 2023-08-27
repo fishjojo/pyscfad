@@ -2,6 +2,7 @@ from functools import partial, reduce, wraps
 import numpy
 import jax
 from pyscf import numpy as np
+from pyscf.data import nist
 from pyscf.lib import logger, stop_grad, module_method
 from pyscf.scf import hf as pyscf_hf
 from pyscf.scf import chkfile
@@ -268,7 +269,7 @@ def dip_moment(mol, dm, unit='Debye', verbose=logger.NOTE, **kwargs):
                  'unit since PySCF-1.5.')
         unit = kwargs['unit_symbol']
 
-    if not (getattr(dm, 'ndim', None) == 2):
+    if getattr(dm, 'ndim', None) != 2:
         # UHF denisty matrices
         dm = dm[0] + dm[1]
 
