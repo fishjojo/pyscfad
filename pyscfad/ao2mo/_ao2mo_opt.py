@@ -2,12 +2,11 @@ from functools import partial
 import ctypes
 import numpy
 from jax import custom_vjp
-#from pyscf import lib
 from pyscf.ao2mo import _ao2mo
-from pyscf.ao2mo._ao2mo import _fpointer
-
-#libao2mo = lib.load_library('libao2mo')
 from pyscfadlib import libao2mo_vjp as libao2mo
+
+def _fpointer(name):
+    return getattr(libao2mo, name)
 
 @partial(custom_vjp, nondiff_argnums=(2,3,4,5,6))
 def nr_e2(eri, mo_coeff, orbs_slice, aosym='s1', mosym='s1', out=None,

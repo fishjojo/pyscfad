@@ -1,4 +1,4 @@
-from functools import reduce
+from functools import reduce, wraps
 import numpy
 from pyscf import numpy as np
 from pyscf.lib import stop_grad
@@ -6,7 +6,15 @@ from pyscf.lib import logger
 from pyscf.scf import chkfile
 from pyscf.scf import rohf as pyscf_rohf
 from pyscfad import util
-from pyscfad.scf import hf
+from pyscfad.scf import hf, uhf
+
+@wraps(pyscf_rohf.energy_elec)
+def energy_elec(mf, dm=None, h1e=None, vhf=None):
+    if dm is None:
+        dm = mf.make_rdm1()
+    elif getattr(dm, 'ndim', None) == 2:
+        dm = np.array((dm*.5, dm*.5))
+    return uhf.energy_elec(mf, dm, h1e, vhf)
 
 @util.pytree_node(['fock', 'focka', 'fockb'], num_args=1)
 class _FockMatrix():
@@ -226,3 +234,4 @@ class ROHF(hf.SCF, pyscf_rohf.ROHF):
 
     get_occ = get_occ
     get_fock = get_fock
+    energy_elec = energy_elec

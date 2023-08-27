@@ -291,6 +291,13 @@ def dip_moment(mol, dm, unit='Debye', verbose=logger.NOTE, **kwargs):
     return mol_dip
 
 
+def damping(s, d, f, factor):
+    dm_vir = np.eye(s.shape[0]) - np.dot(s, d)
+    f0 = reduce(np.dot, (dm_vir, f, d, s))
+    f0 = (f0 + f0.conj().T) * (factor/(factor+1.))
+    return f - f0
+
+
 @util.pytree_node(Traced_Attributes, num_args=1)
 class SCF(pyscf_hf.SCF):
     '''
