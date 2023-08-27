@@ -2,11 +2,8 @@ from functools import partial
 import ctypes
 import numpy
 from jax import custom_vjp
-from pyscf import lib
 #from pyscf.lib import logger
 from pyscf.scf import _vhf
-
-#libcvhf = lib.load_library('libcvhf')
 from pyscfadlib import libcvhf_vjp as libcvhf
 
 def incore(eri, dms, hermi=0, with_j=True, with_k=True):

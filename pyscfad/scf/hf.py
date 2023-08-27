@@ -1,8 +1,8 @@
-from functools import partial, reduce
+from functools import partial, reduce, wraps
 import numpy
 import jax
 from pyscf import numpy as np
-from pyscf.lib import logger, stop_grad
+from pyscf.lib import logger, stop_grad, module_method
 from pyscf.scf import hf as pyscf_hf
 from pyscf.scf import chkfile
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
@@ -229,9 +229,65 @@ def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
     return vj, vk
 
 
+@wraps(pyscf_hf.energy_elec)
+def energy_elec(mf, dm=None, h1e=None, vhf=None):
+    if dm is None:
+        dm = mf.make_rdm1()
+    if h1e is None:
+        h1e = mf.get_hcore()
+    if vhf is None:
+        vhf = mf.get_veff(mf.mol, dm)
+    e1 = np.einsum('ij,ji->', h1e, dm).real
+    e_coul = np.einsum('ij,ji->', vhf, dm).real * .5
+    mf.scf_summary['e1'] = stop_grad(e1)
+    mf.scf_summary['e2'] = stop_grad(e_coul)
+    logger.debug(mf, 'E1 = %s  E_coul = %s',
+                 stop_grad(e1), stop_grad(e_coul))
+    return e1+e_coul, e_coul
+
+
+@wraps(pyscf_hf.make_rdm1)
+def make_rdm1(mo_coeff, mo_occ, **kwargs):
+    mocc = mo_coeff[:,mo_occ>0]
+    dm = np.dot(mocc*mo_occ[mo_occ>0], mocc.conj().T)
+    return dm
+
+
+@wraps(pyscf_hf.level_shift)
 def level_shift(s, d, f, factor):
     dm_vir = s - reduce(np.dot, (s, d, s))
     return f + dm_vir * factor
+
+
+@wraps(pyscf_hf.dip_moment)
+def dip_moment(mol, dm, unit='Debye', verbose=logger.NOTE, **kwargs):
+    log = logger.new_logger(mol, verbose)
+
+    if 'unit_symbol' in kwargs:  # pragma: no cover
+        log.warn('Kwarg "unit_symbol" was deprecated. It was replaced by kwarg '
+                 'unit since PySCF-1.5.')
+        unit = kwargs['unit_symbol']
+
+    if not (getattr(dm, 'ndim', None) == 2):
+        # UHF denisty matrices
+        dm = dm[0] + dm[1]
+
+    with mol.with_common_orig((0,0,0)):
+        ao_dip = mol.intor_symmetric('int1e_r', comp=3)
+    el_dip = np.einsum('xij,ji->x', ao_dip, dm).real
+
+    charges = mol.atom_charges()
+    coords  = mol.atom_coords()
+    nucl_dip = np.einsum('i,ix->x', charges, coords)
+    mol_dip = nucl_dip - el_dip
+
+    if unit.upper() == 'DEBYE':
+        mol_dip *= nist.AU2DEBYE
+        log.note('Dipole moment(X, Y, Z, Debye): %8.5f, %8.5f, %8.5f', *mol_dip)
+    else:
+        log.note('Dipole moment(X, Y, Z, A.U.): %8.5f, %8.5f, %8.5f', *mol_dip)
+    del log
+    return mol_dip
 
 
 @util.pytree_node(Traced_Attributes, num_args=1)
@@ -326,6 +382,46 @@ class SCF(pyscf_hf.SCF):
     def density_fit(self, auxbasis=None, with_df=None, only_dfj=False):
         return df.density_fit(self, auxbasis, with_df, only_dfj)
 
+    @wraps(pyscf_hf.SCF.get_veff)
+    def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm = self.make_rdm1()
+        if self.direct_scf:
+            ddm = np.asarray(dm) - dm_last
+            vj, vk = self.get_jk(mol, ddm, hermi=hermi)
+            return vhf_last + vj - vk * .5
+        else:
+            vj, vk = self.get_jk(mol, dm, hermi=hermi)
+            return vj - vk * .5
+
+    def dip_moment(self, mol=None, dm=None, unit='Debye', verbose=logger.NOTE,
+                   **kwargs):
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm =self.make_rdm1()
+        return dip_moment(mol, dm, unit, verbose=verbose, **kwargs)
+
+    make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
+    energy_elec = energy_elec
+
+
 @util.pytree_node(Traced_Attributes, num_args=1)
 class RHF(SCF, pyscf_hf.RHF):
-    pass
+    @wraps(pyscf_hf.RHF.get_veff)
+    def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm = self.make_rdm1()
+        if self._eri is not None or not self.direct_scf:
+            vj, vk = self.get_jk(mol, dm, hermi)
+            vhf = vj - vk * .5
+        else:
+            ddm = np.asarray(dm) - np.asarray(dm_last)
+            vj, vk = self.get_jk(mol, ddm, hermi)
+            vhf = vj - vk * .5
+            vhf += np.asarray(vhf_last)
+        return vhf
