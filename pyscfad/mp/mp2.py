@@ -1,12 +1,51 @@
+from functools import wraps
 import jax
-from pyscf.lib import logger, split_reshape
+from pyscf import __config__ as pyscf_config
+from pyscf import numpy as np
+from pyscf.lib import logger, split_reshape, ops
 from pyscf.mp import mp2 as pyscf_mp2
 from pyscfad import util
 from pyscfad import lib
-from pyscfad.lib import numpy as np
 from pyscfad import ao2mo
 
-# Iteratively solve MP2 if non-canonical HF is provided
+WITH_T2 = getattr(pyscf_config, 'mp_mp2_with_t2', True)
+
+@wraps(pyscf_mp2.kernel)
+def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2, verbose=None):
+    if mo_energy is not None or mo_coeff is not None:
+        assert (mp.frozen == 0 or mp.frozen is None)
+
+    if eris is None:
+        eris = mp.ao2mo(mo_coeff)
+
+    if mo_energy is None:
+        mo_energy = eris.mo_energy
+
+    nocc = mp.nocc
+    nvir = mp.nmo - nocc
+    eia = mo_energy[:nocc,None] - mo_energy[None,nocc:]
+
+    if with_t2:
+        t2 = np.empty((nocc,nocc,nvir,nvir), dtype=eris.ovov.dtype)
+    else:
+        t2 = None
+
+    emp2 = 0
+    for i in range(nocc):
+        if hasattr(eris.ovov, 'ndim') and eris.ovov.ndim == 4:
+            gi = eris.ovov[i]
+        else:
+            gi = np.asarray(eris.ovov[i*nvir:(i+1)*nvir])
+
+        gi = gi.reshape(nvir,nocc,nvir).transpose(1,0,2)
+        t2i = gi.conj()/(eia[:,:,None] + eia[i][None,None,:])
+        emp2 += np.einsum('jab,jab', t2i, gi) * 2
+        emp2 -= np.einsum('jab,jba', t2i, gi)
+        if with_t2:
+            t2 = ops.index_update(t2, ops.index[i], t2i)
+
+    return emp2.real, t2
+
 def _iterative_kernel(mp, eris, verbose=None):
     cput1 = cput0 = (logger.process_clock(), logger.perf_counter())
     log = logger.new_logger(mp, verbose)
@@ -44,6 +83,36 @@ def _iterative_kernel(mp, eris, verbose=None):
     log.timer('MP2', *cput0)
     del log
     return conv, emp2, t2
+
+@wraps(pyscf_mp2.energy)
+def energy(mp, t2, eris):
+    nocc, nvir = t2.shape[1:3]
+    eris_ovov = np.asarray(eris.ovov).reshape(nocc,nvir,nocc,nvir)
+    emp2  = np.einsum('ijab,iajb', t2, eris_ovov) * 2
+    emp2 -= np.einsum('ijab,ibja', t2, eris_ovov)
+    return emp2.real
+
+@wraps(pyscf_mp2.update_amps)
+def update_amps(mp, t2, eris):
+    #assert (isinstance(eris, _ChemistsERIs))
+    nocc, nvir = t2.shape[1:3]
+    fock = eris.fock
+    mo_e_o = eris.mo_energy[:nocc]
+    mo_e_v = eris.mo_energy[nocc:] + mp.level_shift
+
+    foo = fock[:nocc,:nocc] - np.diag(mo_e_o)
+    fvv = fock[nocc:,nocc:] - np.diag(mo_e_v)
+    t2new  = np.einsum('ijac,bc->ijab', t2, fvv)
+    t2new -= np.einsum('ki,kjab->ijab', foo, t2)
+    t2new = t2new + t2new.transpose(1,0,3,2)
+
+    eris_ovov = np.asarray(eris.ovov).reshape(nocc,nvir,nocc,nvir)
+    t2new += eris_ovov.conj().transpose(0,2,1,3)
+    eris_ovov = None
+
+    eia = mo_e_o[:,None] - mo_e_v
+    t2new /= eia[:,None,:,None] + eia[None,:,None,:]
+    return t2new
 
 def make_rdm1(mp, t2=None, eris=None, ao_repr=False):
     from pyscfad.cc import ccsd_rdm
@@ -84,7 +153,7 @@ class MP2(pyscf_mp2.MP2):
         self.__dict__.update(kwargs)
 
     def ao2mo(self, mo_coeff=None):
-        eris = pyscf_mp2._ChemistsERIs()
+        eris = _ChemistsERIs()
         eris._common_init_(self, mo_coeff)
         mo_coeff = eris.mo_coeff
 
@@ -95,4 +164,33 @@ class MP2(pyscf_mp2.MP2):
         return eris
 
     make_rdm1 = make_rdm1
+    energy = energy
+    update_amps = update_amps
     _iterative_kernel = _iterative_kernel
+
+    def init_amps(self, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2):
+        return kernel(self, mo_energy, mo_coeff, eris, with_t2)
+
+RMP2 = MP2
+
+class _ChemistsERIs(pyscf_mp2._ChemistsERIs):
+    def _common_init_(self, mp, mo_coeff=None):
+        if mo_coeff is None:
+            mo_coeff = mp.mo_coeff
+        if mo_coeff is None:
+            raise RuntimeError('mo_coeff, mo_energy are not initialized.\n'
+                               'You may need to call mf.kernel() to generate them.')
+
+        self.mo_coeff = pyscf_mp2._mo_without_core(mp, mo_coeff)
+        self.mol = mp.mol
+
+        if mo_coeff is mp._scf.mo_coeff and mp._scf.converged:
+            self.mo_energy = pyscf_mp2._mo_energy_without_core(mp, mp._scf.mo_energy)
+            self.fock = np.diag(self.mo_energy)
+        else:
+            dm = mp._scf.make_rdm1(mo_coeff, mp.mo_occ)
+            vhf = mp._scf.get_veff(mp.mol, dm)
+            fockao = mp._scf.get_fock(vhf=vhf, dm=dm)
+            self.fock = self.mo_coeff.conj().T.dot(fockao).dot(self.mo_coeff)
+            self.mo_energy = self.fock.diagonal().real
+        return self
