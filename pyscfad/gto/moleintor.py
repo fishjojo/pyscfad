@@ -1,14 +1,12 @@
 import warnings
-from functools import partial
+from functools import partial, wraps
 import numpy
-from jax import jit
-from jax import vmap
 from pyscf import numpy as np
 from pyscf import ao2mo
-from pyscf.gto import mole, moleintor
-from pyscf.gto.mole import Mole
+from pyscf.lib import logger
+from pyscf.gto import mole as pyscf_mole
 from pyscf.gto.moleintor import _get_intor_and_comp
-from pyscfad.lib import ops, custom_jvp
+from pyscfad.lib import ops, custom_jvp, jit, vmap
 from ._mole_helper import (
     setup_exp,
     setup_ctr_coeff,
@@ -21,12 +19,63 @@ from ._moleintor_helper import (
     int1e_dr1_name,
     int2e_dr1_name,
 )
+from pyscfad.gto import _pyscf_moleintor as moleintor
 
 SET_RC = ['rinv',]
 
+@wraps(pyscf_mole.Mole.intor)
+def _intor(mol, intor, comp=None, hermi=0, aosym='s1', out=None,
+          shls_slice=None, grids=None):
+    if not mol._built:
+        logger.warn(mol, 'Warning: intor envs of %s not initialized.', mol)
+    intor = mol._add_suffix(intor)
+    bas = mol._bas
+    env = mol._env
+    if 'ECP' in intor:
+        assert mol._ecp is not None
+        bas = numpy.vstack((mol._bas, mol._ecpbas))
+        env[pyscf_mole.AS_ECPBAS_OFFSET] = len(mol._bas)
+        env[pyscf_mole.AS_NECPBAS] = len(mol._ecpbas)
+        if shls_slice is None:
+            shls_slice = (0, mol.nbas, 0, mol.nbas)
+    elif '_grids' in intor:
+        assert grids is not None
+        env = numpy.append(env, grids.ravel())
+        env[pyscf_mole.NGRIDS] = grids.shape[0]
+        env[pyscf_mole.PTR_GRIDS] = env.size - grids.size
+    return moleintor.getints(intor, mol._atm, bas, env,
+                             shls_slice, comp, hermi, aosym, out=out)
+
+@wraps(pyscf_mole.intor_cross)
+def _intor_cross(intor, mol1, mol2, comp=None, grids=None):
+    nbas1 = len(mol1._bas)
+    nbas2 = len(mol2._bas)
+    atmc, basc, envc = pyscf_mole.conc_env(mol1._atm, mol1._bas, mol1._env,
+                                           mol2._atm, mol2._bas, mol2._env)
+    if '_grids' in intor:
+        assert grids is not None
+        envc = numpy.append(envc, grids.ravel())
+        envc[pyscf_mole.NGRIDS] = grids.shape[0]
+        envc[pyscf_mole.PTR_GRIDS] = envc.size - grids.size
+
+    shls_slice = (0, nbas1, nbas1, nbas1+nbas2)
+
+    if (intor.endswith('_sph') or intor.startswith('cint') or
+        intor.endswith('_spinor') or intor.endswith('_cart')):
+        return moleintor.getints(intor, atmc, basc, envc, shls_slice, comp, 0)
+    elif mol1.cart == mol2.cart:
+        intor = mol1._add_suffix(intor)
+        return moleintor.getints(intor, atmc, basc, envc, shls_slice, comp, 0)
+    elif mol1.cart:
+        mat = moleintor.getints(intor+'_cart', atmc, basc, envc, shls_slice, comp, 0)
+        return numpy.dot(mat, mol2.cart2sph_coeff())
+    else:
+        mat = moleintor.getints(intor+'_cart', atmc, basc, envc, shls_slice, comp, 0)
+        return numpy.dot(mol1.cart2sph_coeff().T, mat)
+
 @partial(custom_jvp, nondiff_argnums=(0,3,4))
 def intor_cross(intor, mol1, mol2, comp=None, grids=None):
-    return mole.intor_cross(intor, mol1, mol2, comp=comp, grids=grids)
+    return _intor_cross(intor, mol1, mol2, comp=comp, grids=grids)
 
 @intor_cross.defjvp
 def intor_cross_jvp(intor, comp, grids,
@@ -114,8 +163,8 @@ def getints2c_rc(mol, intor, shls_slice=None, comp=None,
 @partial(custom_jvp, nondiff_argnums=(1,2,3,4,5,6))
 def _getints2c_rc(mol, intor, shls_slice=None, comp=None,
                   hermi=0, out=None, rc_deriv=None):
-    return Mole.intor(mol, intor, comp=comp, hermi=hermi,
-                      shls_slice=shls_slice, out=out)
+    return _intor(mol, intor, comp=comp, hermi=hermi,
+                  shls_slice=shls_slice, out=out)
 
 @_getints2c_rc.defjvp
 def _getints2c_rc_jvp(intor, shls_slice, comp, hermi, out, rc_deriv,
@@ -135,8 +184,8 @@ def _getints2c_rc_jvp(intor, shls_slice, comp, hermi, out, rc_deriv,
 
 @partial(custom_jvp, nondiff_argnums=(1,2,3,4,5))
 def getints2c(mol, intor, shls_slice=None, comp=None, hermi=0, out=None):
-    return Mole.intor(mol, intor, comp=comp, hermi=hermi,
-                      shls_slice=shls_slice, out=out)
+    return _intor(mol, intor, comp=comp, hermi=hermi,
+                  shls_slice=shls_slice, out=out)
 
 @getints2c.defjvp
 def getints2c_jvp(intor, shls_slice, comp, hermi, out,
@@ -194,13 +243,13 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, out,
 def getints4c(mol, intor, shls_slice=None, comp=None, aosym='s1', out=None):
     if (shls_slice is None and aosym=='s1'
             and intor in ['int2e', 'int2e_sph', 'int2e_cart']):
-        eri8 = Mole.intor(mol, intor, comp=comp, aosym='s8',
-                          shls_slice=shls_slice, out=out)
+        eri8 = _intor(mol, intor, comp=comp, aosym='s8',
+                      shls_slice=shls_slice, out=out)
         eri = ao2mo.restore(aosym, eri8, mol.nao)
         del eri8
     else:
-        eri = Mole.intor(mol, intor, comp=comp, aosym=aosym,
-                         shls_slice=shls_slice, out=out)
+        eri = _intor(mol, intor, comp=comp, aosym=aosym,
+                     shls_slice=shls_slice, out=out)
     return eri
 
 @getints4c.defjvp
@@ -389,7 +438,7 @@ def _int1e_jvp_cs(mol, mol_t, intor):
     ctr_coeff_t = mol_t.ctr_coeff
 
     mol1 = get_fakemol_cs(mol)
-    mol1._atm[:,mole.CHARGE_OF] = 0 # set nuclear charge to zero
+    mol1._atm[:,pyscf_mole.CHARGE_OF] = 0 # set nuclear charge to zero
     nbas1 = len(mol1._bas)
     nbas = len(mol._bas)
     shls_slice = (0, nbas1, nbas1, nbas1+nbas)
@@ -399,11 +448,11 @@ def _int1e_jvp_cs(mol, mol_t, intor):
         bas = numpy.vstack((mol._bas, mol._ecpbas))
     else:
         bas = mol._bas
-    atmc, basc, envc = mole.conc_env(mol1._atm, mol1._bas, mol1._env,
+    atmc, basc, envc = pyscf_mole.conc_env(mol1._atm, mol1._bas, mol1._env,
                                      mol._atm, bas, mol._env)
     if 'ECP' in intor:
-        envc[mole.AS_ECPBAS_OFFSET] = len(mol1._bas) + len(mol._bas)
-        envc[mole.AS_NECPBAS] = len(mol._ecpbas)
+        envc[pyscf_mole.AS_ECPBAS_OFFSET] = len(mol1._bas) + len(mol._bas)
+        envc[pyscf_mole.AS_NECPBAS] = len(mol._ecpbas)
 
     s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
     _, cs_of, _ = setup_ctr_coeff(mol)
@@ -414,13 +463,13 @@ def _int1e_jvp_cs(mol, mol_t, intor):
     off = 0
     ibas = 0
     for i in range(len(mol._bas)):
-        l = mol._bas[i,mole.ANG_OF]
+        l = mol._bas[i,pyscf_mole.ANG_OF]
         if mol.cart:
             nbas = (l+1)*(l+2)//2
         else:
             nbas = 2*l + 1
-        nprim = mol._bas[i,mole.NPRIM_OF]
-        nctr = mol._bas[i,mole.NCTR_OF]
+        nprim = mol._bas[i,pyscf_mole.NPRIM_OF]
+        nctr = mol._bas[i,pyscf_mole.NCTR_OF]
         g = s[off:(off+nprim*nbas)].reshape(nprim,-1,nao)
         for j in range(nctr):
             #idx = ops.index[(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim), ibas:(ibas+nbas), :]
@@ -436,7 +485,7 @@ def _int1e_jvp_cs(mol, mol_t, intor):
 
 def _int1e_jvp_exp(mol, mol_t, intor):
     mol1 = get_fakemol_exp(mol)
-    mol1._atm[:,mole.CHARGE_OF] = 0 # set nuclear charge to zero
+    mol1._atm[:,pyscf_mole.CHARGE_OF] = 0 # set nuclear charge to zero
     if intor.endswith('_sph'):
         intor = intor.replace('_sph', '_cart')
         cart = False
@@ -452,15 +501,15 @@ def _int1e_jvp_exp(mol, mol_t, intor):
         bas = numpy.vstack((mol._bas, mol._ecpbas))
     else:
         bas = mol._bas
-    atmc, basc, envc = mole.conc_env(mol1._atm, mol1._bas, mol1._env,
+    atmc, basc, envc = pyscf_mole.conc_env(mol1._atm, mol1._bas, mol1._env,
                                      mol._atm, bas, mol._env)
     if 'ECP' in intor:
-        envc[mole.AS_ECPBAS_OFFSET] = len(mol1._bas) + len(mol._bas)
-        envc[mole.AS_NECPBAS] = len(mol._ecpbas)
+        envc[pyscf_mole.AS_ECPBAS_OFFSET] = len(mol1._bas) + len(mol._bas)
+        envc[pyscf_mole.AS_NECPBAS] = len(mol._ecpbas)
 
     s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
     es, es_of, _env_of = setup_exp(mol)
-    nao = mole.nao_cart(mol)
+    nao = pyscf_mole.nao_cart(mol)
     #grad = np.zeros((len(es), nao, nao), dtype=float)
     grad = numpy.zeros((len(es), nao, nao), dtype=float)
 
@@ -469,12 +518,12 @@ def _int1e_jvp_exp(mol, mol_t, intor):
     for i in range(len(mol._bas)):
         ioff = es_of[i]
 
-        l = mol._bas[i,mole.ANG_OF]
+        l = mol._bas[i,pyscf_mole.ANG_OF]
         nbas = (l+1)*(l+2)//2
         nbas1 = (l+3)*(l+4)//2
-        nprim = mol._bas[i,mole.NPRIM_OF]
-        nctr = mol._bas[i,mole.NCTR_OF]
-        ptr_ctr_coeff = mol._bas[i,mole.PTR_COEFF]
+        nprim = mol._bas[i,pyscf_mole.NPRIM_OF]
+        nctr = mol._bas[i,pyscf_mole.NCTR_OF]
+        ptr_ctr_coeff = mol._bas[i,pyscf_mole.PTR_COEFF]
         g = s[off:off+nprim*nbas1].reshape(nprim, nbas1, nao)
 
         xyz = get_bas_label(l)
@@ -596,7 +645,7 @@ def _int2e_jvp_cs(mol, mol_t, intor):
 
     nbas = len(mol._bas)
     nbas1 = len(mol1._bas)
-    atmc, basc, envc = mole.conc_env(mol1._atm, mol1._bas, mol1._env,
+    atmc, basc, envc = pyscf_mole.conc_env(mol1._atm, mol1._bas, mol1._env,
                                      mol._atm, mol._bas, mol._env)
 
     shls_slice = (0, nbas1, nbas1, nbas1+nbas, nbas1, nbas1+nbas, nbas1, nbas1+nbas)
@@ -611,13 +660,13 @@ def _int2e_jvp_cs(mol, mol_t, intor):
     off = 0
     ibas = 0
     for i in range(len(mol._bas)):
-        l = mol._bas[i,mole.ANG_OF]
+        l = mol._bas[i,pyscf_mole.ANG_OF]
         if mol.cart:
             nbas = (l+1)*(l+2)//2
         else:
             nbas = 2*l + 1
-        nprim = mol._bas[i,mole.NPRIM_OF]
-        nctr = mol._bas[i,mole.NCTR_OF]
+        nprim = mol._bas[i,pyscf_mole.NPRIM_OF]
+        nctr = mol._bas[i,pyscf_mole.NCTR_OF]
         g = eri[off:(off+nprim*nbas)].reshape(nprim,-1,nao,nao,nao)
         for j in range(nctr):
             #idx = ops.index[(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim), ibas:(ibas+nbas)]
@@ -639,7 +688,7 @@ def _int2e_dot_grad_tangent_cs(grad, tangent):
 
 def _int2e_jvp_exp(mol, mol_t, intor):
     mol1 = get_fakemol_exp(mol)
-    mol1._atm[:,mole.CHARGE_OF] = 0 # set nuclear charge to zero
+    mol1._atm[:,pyscf_mole.CHARGE_OF] = 0 # set nuclear charge to zero
     if intor.endswith('_sph'):
         intor = intor.replace('_sph', '_cart')
         cart = False
@@ -649,14 +698,14 @@ def _int2e_jvp_exp(mol, mol_t, intor):
 
     nbas = len(mol._bas)
     nbas1 = len(mol1._bas)
-    atmc, basc, envc = mole.conc_env(mol1._atm, mol1._bas, mol1._env,
+    atmc, basc, envc = pyscf_mole.conc_env(mol1._atm, mol1._bas, mol1._env,
                                      mol._atm, mol._bas, mol._env)
     shls_slice = (0, nbas1, nbas1, nbas1+nbas, nbas1, nbas1+nbas, nbas1, nbas1+nbas)
 
     eri = moleintor.getints(intor, atmc, basc, envc, shls_slice)
 
     es, es_of, _env_of = setup_exp(mol)
-    nao = mole.nao_cart(mol)
+    nao = pyscf_mole.nao_cart(mol)
     #grad = np.zeros((len(es), nao, nao, nao, nao), dtype=float)
     grad = numpy.zeros((len(es), nao, nao, nao, nao), dtype=float)
 
@@ -665,12 +714,12 @@ def _int2e_jvp_exp(mol, mol_t, intor):
     for i in range(len(mol._bas)):
         ioff = es_of[i]
 
-        l = mol._bas[i,mole.ANG_OF]
+        l = mol._bas[i,pyscf_mole.ANG_OF]
         nbas = (l+1)*(l+2)//2
         nbas1 = (l+3)*(l+4)//2
-        nprim = mol._bas[i,mole.NPRIM_OF]
-        nctr = mol._bas[i,mole.NCTR_OF]
-        ptr_ctr_coeff = mol._bas[i,mole.PTR_COEFF]
+        nprim = mol._bas[i,pyscf_mole.NPRIM_OF]
+        nctr = mol._bas[i,pyscf_mole.NCTR_OF]
+        ptr_ctr_coeff = mol._bas[i,pyscf_mole.PTR_COEFF]
         g = eri[off:off+nprim*nbas1].reshape(nprim, nbas1, nao, nao, nao)
 
         xyz = get_bas_label(l)

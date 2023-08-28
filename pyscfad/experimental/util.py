@@ -17,7 +17,8 @@ def replace_source_code(fn, namespace, orig, repl):
     source = inspect.getsource(fn)
     tree = ast.parse(source)
     new_tree = ast.fix_missing_locations(RewriteName(orig, repl).visit(tree))
-    code = compile(new_tree, inspect.getfile(fn), "exec")
+    code = compile(new_tree, inspect.getfile(fn), 'exec')
+    # pylint: disable = exec-used
     exec(code, namespace)
     return namespace[fn.__name__]
 

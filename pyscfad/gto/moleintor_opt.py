@@ -6,8 +6,8 @@ from jax.tree_util import tree_flatten, tree_unflatten
 
 from pyscf import lib
 from pyscf.lib import logger
-from pyscf.gto import mole
-from pyscf.gto.moleintor import (
+from pyscf.gto import mole as pyscf_mole
+from pyscfad.gto._pyscf_moleintor import (
     make_loc,
     make_cintopt,
     _stand_sym_code,
@@ -25,9 +25,7 @@ from pyscfad.gto._moleintor_helper import (
     int1e_dr1_name,
     int2e_dr1_name,
 )
-
-
-#libcgto = lib.load_library('libcgto')
+from pyscfad.gto.moleintor import _intor
 from pyscfadlib import libcgto_vjp as libcgto
 
 def getints(mol, intor, shls_slice=None,
@@ -55,8 +53,8 @@ def getints(mol, intor, shls_slice=None,
 
 @partial(custom_vjp, nondiff_argnums=(1,2,3,4,5))
 def getints2c(mol, intor, shls_slice=None, comp=None, hermi=0, out=None):
-    return mole.Mole.intor(mol, intor, comp=comp, hermi=hermi,
-                           shls_slice=shls_slice, out=out)
+    return _intor(mol, intor, comp=comp, hermi=hermi,
+                  shls_slice=shls_slice, out=out)
 
 def getints2c_fwd(mol, intor, shls_slice, comp, hermi, out):
     y = getints2c(mol, intor, shls_slice, comp, hermi, out)
@@ -93,8 +91,8 @@ getints2c.defvjp(getints2c_fwd, getints2c_bwd)
 
 @partial(custom_vjp, nondiff_argnums=(1,2,3,4,5))
 def getints4c(mol, intor, shls_slice=None, comp=None, aosym='s1', out=None):
-    return mole.Mole.intor(mol, intor, comp=comp, aosym=aosym,
-                           shls_slice=shls_slice, out=out)
+    return _intor(mol, intor, comp=comp, aosym=aosym,
+                  shls_slice=shls_slice, out=out)
 
 def getints4c_fwd(mol, intor, shls_slice, comp, aosym, out):
     y = getints4c(mol, intor, shls_slice, comp, aosym, out)
@@ -232,7 +230,7 @@ def getints2c_exp_bwd(intor, shls_slice, comp, hermi, out,
     shlmap_c2u = shlmap_ctr2unctr(mol)
     shlmap_c2u = numpy.asarray(shlmap_c2u, order='C', dtype=numpy.int32)
     mol1 = get_fakemol_exp(mol, order)
-    mol1._atm[:,mole.CHARGE_OF] = 0 # set nuclear charge to zero
+    mol1._atm[:,pyscf_mole.CHARGE_OF] = 0 # set nuclear charge to zero
 
     ao_loc = make_loc(mol._bas, intor)
     ao_loc = numpy.asarray(ao_loc, order='C', dtype=numpy.int32)
@@ -255,11 +253,11 @@ def getints2c_exp_bwd(intor, shls_slice, comp, hermi, out,
         bas1 = numpy.vstack((mol1._bas, mol._ecpbas))
     else:
         bas1 = mol1._bas
-    atmc, basc, envc = mole.conc_env(mol._atm, mol._bas, mol._env,
+    atmc, basc, envc = pyscf_mole.conc_env(mol._atm, mol._bas, mol._env,
                                      mol1._atm, bas1, mol1._env)
     if 'ECP' in intor:
-        envc[mole.AS_ECPBAS_OFFSET] = nbas + nbas1
-        envc[mole.AS_NECPBAS] = len(mol._ecpbas)
+        envc[pyscf_mole.AS_ECPBAS_OFFSET] = nbas + nbas1
+        envc[pyscf_mole.AS_NECPBAS] = len(mol._ecpbas)
 
     atmc = numpy.asarray(atmc, order='C', dtype=numpy.int32)
     basc = numpy.asarray(basc, order='C', dtype=numpy.int32)
@@ -314,7 +312,7 @@ def getints2c_coeff_bwd(intor, shls_slice, comp, hermi, out,
     shlmap_c2u = shlmap_ctr2unctr(mol)
     shlmap_c2u = numpy.asarray(shlmap_c2u, order='C', dtype=numpy.int32)
     mol1 = get_fakemol_cs(mol)
-    mol1._atm[:,mole.CHARGE_OF] = 0 # set nuclear charge to zero
+    mol1._atm[:,pyscf_mole.CHARGE_OF] = 0 # set nuclear charge to zero
 
     ao_loc = make_loc(mol._bas, intor)
     ao_loc = numpy.asarray(ao_loc, order='C', dtype=numpy.int32)
@@ -333,11 +331,11 @@ def getints2c_coeff_bwd(intor, shls_slice, comp, hermi, out,
         bas1 = numpy.vstack((mol1._bas, mol._ecpbas))
     else:
         bas1 = mol1._bas
-    atmc, basc, envc = mole.conc_env(mol._atm, mol._bas, mol._env,
+    atmc, basc, envc = pyscf_mole.conc_env(mol._atm, mol._bas, mol._env,
                                      mol1._atm, bas1, mol1._env)
     if 'ECP' in intor:
-        envc[mole.AS_ECPBAS_OFFSET] = nbas + nbas1
-        envc[mole.AS_NECPBAS] = len(mol._ecpbas)
+        envc[pyscf_mole.AS_ECPBAS_OFFSET] = nbas + nbas1
+        envc[pyscf_mole.AS_NECPBAS] = len(mol._ecpbas)
 
     atmc = numpy.asarray(atmc, order='C', dtype=numpy.int32)
     basc = numpy.asarray(basc, order='C', dtype=numpy.int32)
