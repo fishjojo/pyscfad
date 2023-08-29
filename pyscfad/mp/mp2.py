@@ -2,10 +2,11 @@ from functools import wraps
 import jax
 from pyscf import __config__ as pyscf_config
 from pyscf import numpy as np
-from pyscf.lib import logger, split_reshape, ops
+from pyscf.lib import logger, split_reshape
 from pyscf.mp import mp2 as pyscf_mp2
 from pyscfad import util
 from pyscfad import lib
+from pyscfad.lib import ops
 from pyscfad import ao2mo
 
 WITH_T2 = getattr(pyscf_config, 'mp_mp2_with_t2', True)

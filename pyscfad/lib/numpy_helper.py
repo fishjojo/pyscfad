@@ -1,9 +1,9 @@
 from functools import partial
 import math
 from pyscf import numpy
-from pyscf.lib import ops
 from .jax_helper import jit, vmap
 from pyscfad import config
+from pyscfad.lib import ops
 
 einsum = numpy.einsum
 dot = numpy.dot
