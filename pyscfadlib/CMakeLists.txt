@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.11)
+cmake_minimum_required (VERSION 3.18)
 project (pyscfadlib)
 
 if (NOT CMAKE_BUILD_TYPE)
@@ -81,10 +81,14 @@ include(ExternalProject)
 option(BUILD_LIBCINT "Using libcint for analytical gaussian integral" ON)
 option(WITH_F12 "Compling F12 integrals" ON)
 
+#FIXME here I have to rename libcint otherwise it conflicts with the one used by pyscf
+set(patch_libcint ${PROJECT_SOURCE_DIR}/apply_patch.sh libcint.patch)
+
 if(BUILD_LIBCINT)
   ExternalProject_Add(libcint
     GIT_REPOSITORY https://github.com/fishjojo/libcint.git
-    GIT_TAG ad
+    GIT_TAG ad1
+    PATCH_COMMAND ${patch_libcint}
     PREFIX ${PROJECT_BINARY_DIR}/thirdparty
     INSTALL_DIR ${PROJECT_SOURCE_DIR}/thirdparty
     CMAKE_CACHE_ARGS
@@ -103,10 +107,9 @@ if(BUILD_LIBCINT)
   add_dependencies(cgto_vjp libcint)
 endif()
 
-
 option(BUILD_PYSCF_LIB "Building PySCF library" ON)
 
-set(patch_pyscf ${PROJECT_SOURCE_DIR}/patch_pyscf.sh)
+set(patch_pyscf ${PROJECT_SOURCE_DIR}/apply_patch.sh pyscf.patch)
 
 if(BUILD_PYSCF_LIB)
   ExternalProject_Add(pyscf
@@ -124,7 +127,7 @@ if(BUILD_PYSCF_LIB)
             -DBLA_VENDOR:STRING=${BLA_VENDOR}
             -DENABLE_LIBXC:STRING=OFF
             -DENABLE_XCFUN:STRING=OFF
-            -DBUILD_LIBCINT:STRING=OFF
+            #-DBUILD_LIBCINT:STRING=OFF
   )
   add_dependencies(cgto_vjp pyscf)
   add_dependencies(np_helper_vjp pyscf)
