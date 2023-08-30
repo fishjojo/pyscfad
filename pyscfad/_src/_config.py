@@ -24,4 +24,18 @@ config = _Config()
 config.set_default('pyscfad_numpy_backend', 'jax')
 config.set_default('pyscfad_scf_implicit_diff', False)
 config.set_default('pyscfad_ccsd_implicit_diff', False)
+config.set_default('pyscfad_ccsd_checkpoint', False)
 config.set_default('pyscfad_moleintor_opt', False)
+
+
+class config_update:
+    def __init__(self, name, value):
+        self.name = name
+        self.val_orig = getattr(config, name[8:])
+        self.val_new = value
+
+    def __enter__(self):
+        config.update(self.name, self.val_new)
+
+    def __exit__(self, *exc):
+        config.update(self.name, self.val_orig)

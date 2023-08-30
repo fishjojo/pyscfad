@@ -178,6 +178,7 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
 
         fock = stop_trace(mf.get_fock)(h1e, s1e, vhf, dm)
         norm_gorb = numpy.linalg.norm(stop_trace(mf.get_grad)(mo_coeff, mo_occ, fock))
+        del fock, vhf
         if not TIGHT_GRAD_CONV_TOL:
             norm_gorb = norm_gorb / numpy.sqrt(norm_gorb.size)
         norm_ddm = numpy.linalg.norm(stop_grad(dm - dm_last))

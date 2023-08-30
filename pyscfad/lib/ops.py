@@ -9,12 +9,9 @@ _JaxArray = config.numpy_backend == 'jax'
 # pylint: disable=no-member
 
 if Version(jax.__version__) < Version('0.2.22'):
-    try:
-        _index_update = jax.ops.index_update
-        _index_add = jax.ops.index_add
-        _index_mul = jax.ops.index_mul
-    except AttributeError:
-        raise
+    _index_update = jax.ops.index_update
+    _index_add = jax.ops.index_add
+    _index_mul = jax.ops.index_mul
 else:
     def _index_update(x, idx, y, indices_are_sorted=False, unique_indices=False):
         x = jnp.asarray(x)
@@ -32,13 +29,14 @@ else:
         return x.at[idx].multiply(y)
 
 class _Indexable(object):
+    # pylint: disable=line-too-long
     """
     see https://github.com/google/jax/blob/97d00584f8b87dfe5c95e67892b54db993f34486/jax/_src/ops/scatter.py#L87
     """
     __slots__ = ()
 
-    def __getitem__(self, index):
-        return index
+    def __getitem__(self, idx):
+        return idx
 
 index = _Indexable()
 
