@@ -7,7 +7,7 @@ from pyscfad import config
 from pyscfad.lib import vmap
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.soscf.ciah import extract_rotation, pack_uniq_var
-from pyscfad.tools.linear_solver import precond_by_hdiag, gen_gmres
+from pyscfad.tools.linear_solver import precond_by_hdiag, gen_gmres, GMRESDisp
 from pyscfad.lo import orth
 
 def atomic_pops(mol, mo_coeff, method='mulliken'):
@@ -120,12 +120,14 @@ def pm(mol, mo_coeff, *,
     gen_precond = None
     if config.moleintor_opt:
         gen_precond = precond_by_hdiag
+    solver = gen_gmres(restart=40,
+                       callback=GMRESDisp(mol.verbose), callback_type='pr_norm')
     _pm_iter = make_implicit_diff(_pm, implicit_diff=True,
                                   fixed_point=False,
                                   optimality_cond=partial(opt_cond,
                                                           pop_method=pop_method,
                                                           exponent=exponent),
-                                  solver=gen_gmres(), has_aux=True,
+                                  solver=solver, has_aux=True,
                                   optimality_fun_has_aux=True,
                                   gen_precond=gen_precond)
 
