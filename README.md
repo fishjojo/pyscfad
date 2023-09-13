@@ -9,24 +9,8 @@ Installation
 ------------
 
 ---
-* To install the latest release, use the following commands:
+* To install the latest release, run:
 ```
-# install cmake
-pip install cmake
-
-# install OpenMP runtime used with clang
-# On Linux:
-sudo apt update
-sudo apt install libomp-dev
-
-# On OSX:
-brew install libomp
-
-# install pyscf
-pip install 'pyscf @ git+https://github.com/fishjojo/pyscf.git@ad#egg=pyscf' 
-pip install 'pyscf-properties @ git+https://github.com/fishjojo/properties.git@ad' 
-
-# install pyscfad
 pip install pyscfad
 ```
 
@@ -35,25 +19,21 @@ pip install pyscfad
 ```
 pip install git+https://github.com/fishjojo/pyscfad.git
 ```
-
-* The dependencies can be installed via a predefined conda environment
+This should also install all the dependencies.
+Alternatively, the dependencies can be installed via a predefined conda environment:
 ```
 conda env create -f environment.yml
 conda activate pyscfad_env
 ```
-
-* Alternatively, the dependencies can be installed from source
+OpenMP is not required, but is recommended:
 ```
-pip install numpy scipy h5py
-pip install jax jaxlib jaxopt
+# install OpenMP runtime used with clang
+# On Linux:
+sudo apt update
+sudo apt install libomp-dev
 
-# install pyscf
-cd $HOME; git clone https://github.com/fishjojo/pyscf.git
-cd pyscf; git checkout ad 
-cd pyscf/lib; mkdir build 
-cd build; cmake ..; make
-
-export PYTHONPATH=$HOME/pyscf:$PYTHONPATH
+# On OSX:
+brew install libomp
 ```
 
 ---
@@ -68,13 +48,14 @@ Running examples
 
 * In order to perform AD calculations, 
 the following lines need to be added to 
-the PySCF configure file($HOME/.pyscf\_conf.py)
+the PySCF configure file ($HOME/.pyscf\_conf.py)
 ```
 pyscfad = True
 pyscf_numpy_backend = 'jax'
 pyscf_scipy_linalg_backend = 'pyscfad'
 pyscf_scipy_backend = 'jax'
-# The followings are optional
+# The followings turn on implicit differentiations
+# for SCF and CC amplitude solvers
 pyscfad_scf_implicit_diff = True
 pyscfad_ccsd_implicit_diff = True
 ```
