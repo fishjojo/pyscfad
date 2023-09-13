@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 python -m pip install --upgrade pip
 pip install wheel
-pip install numpy scipy h5py
+pip install numpy scipy<1.11 h5py
 pip install typing_extensions
 pip install jaxlib jax jaxopt
 pip install pytest pytest-cov
 
 #pyscf
 git clone https://github.com/fishjojo/pyscf.git
-cd pyscf; git checkout ad; cd ..
+cd pyscf; git checkout v2.1.1-ad; cd ..
 
 if [ "$RUNNER_OS" == "Linux" ]; then
     os='linux'
