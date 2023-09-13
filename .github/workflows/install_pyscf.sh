@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 python -m pip install --upgrade pip
 pip install wheel
-pip install numpy scipy<1.11 h5py
+pip install numpy
+pip install 'scipy<1.11'
+pip install h5py
 pip install typing_extensions
 pip install jaxlib jax jaxopt
 pip install pytest pytest-cov
