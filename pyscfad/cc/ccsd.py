@@ -182,18 +182,29 @@ def update_amps(mycc, t1, t2, eris):
     fov += np.einsum('kc,aikc->ia', t1, eris_voov) * 2
     fov -= np.einsum('kc,akic->ia', t1, eris_voov)
 
-    tau  = np.einsum('ia,jb->ijab', t1*.5, t1)
-    tau += t2
+    tau = np.einsum('ia,jb->ijab', t1*.5, t1)
+    if mycc.dcsd:
+        tau += t2 * .5
+        theta = t2.transpose(1,0,2,3) - t2 * .5
+        fvv_t2 = -np.einsum('cjia,cjib->ab', theta.transpose(2,1,0,3), eris_voov)
+        foo_t2 =  np.einsum('aikb,kjab->ij', eris_voov, theta)
+    else:
+        tau += t2
     theta  = tau.transpose(1,0,2,3) * 2
     theta -= tau
     fvv -= np.einsum('cjia,cjib->ab', theta.transpose(2,1,0,3), eris_voov)
     foo += np.einsum('aikb,kjab->ij', eris_voov, theta)
 
-    tau = t2 + np.einsum('ia,jb->ijab', t1, t1)
+    tau = np.einsum('ia,jb->ijab', t1, t1)
+    if mycc.dcsd:
+        woooo_t2 = np.einsum('ijab,aklb->ijkl', t2, eris_voov)
+    else:
+        tau += t2
     woooo += np.einsum('ijab,aklb->ijkl', tau, eris_voov)
 
-    tau  = t2 * .5
-    tau += np.einsum('ia,jb->ijab', t1, t1)
+    tau = np.einsum('ia,jb->ijab', t1, t1)
+    if not mycc.dcsd:
+        tau += t2 * .5
     wVooV += np.einsum('bkic,jkca->bija', eris_voov, tau)
 
     tmp = np.einsum('jkca,ckib->jaib', t2, wVooV)
@@ -203,12 +214,16 @@ def update_amps(mycc, t1, t2, eris):
 
     wVOov += eris_voov
     eris_VOov = -.5 * eris_voov.transpose(0,2,1,3)
-    eris_VOov += eris_voov
-
-    tau  = t2.transpose(1,3,0,2) * 2
-    tau -= t2.transpose(0,3,1,2)
-    tau -= np.einsum('ia,jb->ibja', t1*2, t1)
-    wVOov += .5 * np.einsum('aikc,kcjb->aijb', eris_VOov, tau)
+    tau  =  t2.transpose(1,3,0,2) * 2
+    tau -=  t2.transpose(0,3,1,2)
+    tau1 = -np.einsum('ia,jb->ibja', t1*2, t1)
+    tau +=  tau1
+    if mycc.dcsd:
+        wVOov += .5 * np.einsum('aikc,kcjb->aijb', eris_voov, tau)
+        wVOov += .5 * np.einsum('aikc,kcjb->aijb', eris_VOov, tau1)
+    else:
+        eris_VOov += eris_voov
+        wVOov += .5 * np.einsum('aikc,kcjb->aijb', eris_VOov, tau)
 
     theta  = t2 * 2
     theta -= t2.transpose(1,0,2,3)
@@ -219,6 +234,8 @@ def update_amps(mycc, t1, t2, eris):
     t1new -= np.einsum('jbki,kjba->ia', eris.ovoo, theta)
 
     tau = np.einsum('ia,jb->ijab', t1, t1)
+    if mycc.dcsd:
+        t2new += .5 * np.einsum('ijkl,klab->ijab', woooo_t2, tau)
     tau += t2
     t2new += .5 * np.einsum('ijkl,klab->ijab', woooo, tau)
 
@@ -227,6 +244,9 @@ def update_amps(mycc, t1, t2, eris):
     t2new += np.einsum('ijac,bc->ijab', t2, ft_ab)
     t2new -= np.einsum('ki,kjab->ijab', ft_ij, t2)
 
+    if mycc.dcsd:
+        fvv += fvv_t2
+        foo += foo_t2
     t1new += np.einsum('ib,ab->ia', t1, fvv)
     t1new -= np.einsum('ja,ji->ia', t1, foo)
     t2new += t2new.transpose(1,0,3,2)
@@ -424,6 +444,10 @@ class CCSD(pyscf_ccsd.CCSD):
 
     def amplitude_equation(self, t1, t2, eris):
         raise NotImplementedError
+
+    @property
+    def dcsd(self):
+        return False
 
     energy = energy
     update_amps = update_amps
