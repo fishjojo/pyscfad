@@ -3,8 +3,9 @@
 #include "pyscf/vhf/fblas.h"
 #include "ccsd_t.h"
 
-static double _lno_ccsd_t_get_energy(double *mat, double *w, double *v, double *mo_energy, int nocc,
-                                     int a, int b, int c, double fac, double *cache)
+static double lnoccsdt_get_energy(double *mat, double *w, double *v,
+                                  double *mo_energy, int nocc,
+                                  int a, int b, int c, double fac, double *cache)
 {
         const int noo = nocc * nocc;
         const double D0 = 0;
@@ -61,30 +62,47 @@ static double contract6(int nocc, int nvir, int a, int b, int c,
         add_and_permute(z0, w0, v0, nocc, fac);
 
         double et;
-        if (a == c) {
-                et = _lno_ccsd_t_get_energy(mat, w0, z0, mo_energy, nocc, a, b, c, 1./6, cache1);
-        } else if (a == b || b == c) {
-                et = _lno_ccsd_t_get_energy(mat, w0, z0, mo_energy, nocc, a, b, c, .5, cache1);
+        if (b == c) {
+                et = lnoccsdt_get_energy(mat, w0, z0, mo_energy, nocc, a, b, c, .5, cache1);
         } else {
-                et = _lno_ccsd_t_get_energy(mat, w0, z0, mo_energy, nocc, a, b, c, 1., cache1);
+                et = lnoccsdt_get_energy(mat, w0, z0, mo_energy, nocc, a, b, c, 1., cache1);
         }
         return et;
 }
 
+static size_t lnoccsdt_gen_jobs(CacheJob *jobs, int nocc, int nvir,
+                                int a0, int a1, void *cache, size_t stride)
+{
+        size_t nop = nocc * (nocc+nvir) * stride;
+        size_t m, a, b, c;
 
-void lno_ccsd_t_contract(double *e_tot, double *mat,
-                         double *mo_energy, double *t1T, double *t2T,
-                         double *vooo, double *fvo,
-                         int nocc, int nvir, int a0, int a1, int b0, int b1,
-                         void *cache_row_a, void *cache_col_a,
-                         void *cache_row_b, void *cache_col_b)
+        m = 0;
+        for (a = a0; a < a1; a++) {
+        for (b = 0; b < nvir; b++) {
+        for (c = 0; c <= b; c++, m++) {
+                jobs[m].a = a;
+                jobs[m].b = b;
+                jobs[m].c = c;
+                jobs[m].cache[0] = cache + nop*(a*nvir+b);
+                jobs[m].cache[1] = cache + nop*(a*nvir+c);
+                jobs[m].cache[2] = cache + nop*(b*nvir+a);
+                jobs[m].cache[3] = cache + nop*(b*nvir+c);
+                jobs[m].cache[4] = cache + nop*(c*nvir+a);
+                jobs[m].cache[5] = cache + nop*(c*nvir+b);
+        } } }
+        return m;
+}
+
+void lnoccsdt_contract(double *e_tot, double *mat,
+                       double *mo_energy, double *t1T, double *t2T,
+                       double *vooo, double *fvo,
+                       int nocc, int nvir, int a0, int a1,
+                       void *cache)
 {
         int da = a1 - a0;
-        int db = b1 - b0;
-        CacheJob *jobs = malloc(sizeof(CacheJob) * da*db*b1);
-        size_t njobs = _ccsd_t_gen_jobs(jobs, nocc, nvir, a0, a1, b0, b1,
-                                        cache_row_a, cache_col_a,
-                                        cache_row_b, cache_col_b, sizeof(double));
+        CacheJob *jobs = malloc(sizeof(CacheJob) * da*nvir*(nvir+1)/2);
+        size_t njobs = lnoccsdt_gen_jobs(jobs, nocc, nvir, a0, a1,
+                                         cache, sizeof(double));
         int *permute_idx = malloc(sizeof(int) * nocc*nocc*nocc * 6);
         _make_permute_indices(permute_idx, nocc);
 #pragma omp parallel default(none) \

@@ -322,9 +322,7 @@ static void contract6_vjp(double *mat, double *mo_energy, double *t1Thalf, doubl
            mat, mo_energy, t1Thalf, t2T, fvohalf,
            vooo, cache1, cache, permute_idx, fac);
 
-    if (a == c) {
-        get_d3(d3, mo_energy, nocc, a, b, c, 1./6);
-    } else if (a == b || b == c) {
+    if (b == c) {
         get_d3(d3, mo_energy, nocc, a, b, c, .5);
     } else {
         get_d3(d3, mo_energy, nocc, a, b, c, 1.);
@@ -334,9 +332,7 @@ static void contract6_vjp(double *mat, double *mo_energy, double *t1Thalf, doubl
                    w0_mat, mat, z0, w0, d3,
                    et_bar, nocc, permute_idx, cache1);
 
-    if (a == c) {
-        get_mo_energy_bar(mo_energy_bar, d3_bar, d3, a, b, c, nocc, 1./6);
-    } else if (a == b || b == c) {
+    if (b == c) {
         get_mo_energy_bar(mo_energy_bar, d3_bar, d3, a, b, c, nocc, .5);
     } else {
         get_mo_energy_bar(mo_energy_bar, d3_bar, d3, a, b, c, nocc, 1.);
@@ -356,31 +352,76 @@ static void contract6_vjp(double *mat, double *mo_energy, double *t1Thalf, doubl
                       t1Thalf, t2T, fvohalf, vooo, cache[5], nocc, nvir, c, b, a, idx5, cache1);
 }
 
-
-void lno_ccsd_t_energy_vjp(double *mat, double *mo_energy, double *t1T, double *t2T,
-                           double *vooo, double *fvo, double et_bar,
-                           int nocc, int nvir, int a0, int a1, int b0, int b1,
-                           void *cache_row_a, void *cache_col_a,
-                           void *cache_row_b, void *cache_col_b,
-                           double *mat_bar,
-                           double *mo_energy_bar,
-                           double *t1T_bar,
-                           double *t2T_bar,
-                           double *vooo_bar,
-                           double *fvo_bar,
-                           double *cache_row_a_bar,
-                           double *cache_col_a_bar,
-                           double *cache_row_b_bar,
-                           double *cache_col_b_bar)
+static size_t lnoccsdt_gen_jobs(CacheJob *jobs, int nocc, int nvir,
+                                int b0, int b1, int c0, int c1,
+                                void *cache_row_b, void *cache_col_b,
+                                void *cache_row_c, void *cache_col_c,
+                                size_t stride)
 {
-    int da = a1 - a0;
+        size_t nov = nocc * (nocc+nvir) * stride;
+        int db = b1 - b0;
+        int dc = c1 - c0;
+        size_t m, a, b, c;
+
+        if (c1 <= b0) {
+                m = 0;
+                for (a = 0; a < nvir; a++) {
+                for (b = b0; b < b1; b++) {
+                for (c = c0; c < c1; c++, m++) {
+                        jobs[m].a = a;
+                        jobs[m].b = b;
+                        jobs[m].c = c;
+                        jobs[m].cache[0] = cache_col_b + nov*(db*(a)+b-b0);
+                        jobs[m].cache[1] = cache_col_c + nov*(dc*(a)+c-c0);
+                        jobs[m].cache[2] = cache_row_b + nov*(nvir*(b-b0)+a);
+                        jobs[m].cache[3] = cache_row_b + nov*(nvir*(b-b0)+c);
+                        jobs[m].cache[4] = cache_row_c + nov*(nvir*(c-c0)+a);
+                        jobs[m].cache[5] = cache_row_c + nov*(nvir*(c-c0)+b);
+                } } }
+        } else {
+                m = 0;
+                for (a = 0; a < nvir; a++) {
+                for (b = b0; b < b1; b++) {
+                for (c = c0; c <= b; c++, m++) {
+                        jobs[m].a = a;
+                        jobs[m].b = b;
+                        jobs[m].c = c;
+                        jobs[m].cache[0] = cache_col_b + nov*(db*(a)+b-b0);
+                        jobs[m].cache[1] = cache_col_b + nov*(db*(a)+c-c0);
+                        jobs[m].cache[2] = cache_row_b + nov*(nvir*(b-b0)+a);
+                        jobs[m].cache[3] = cache_row_b + nov*(nvir*(b-b0)+c);
+                        jobs[m].cache[4] = cache_row_b + nov*(nvir*(c-c0)+a);
+                        jobs[m].cache[5] = cache_row_b + nov*(nvir*(c-c0)+b);
+                } } }
+        }
+        return m;
+}
+
+void lnoccsdt_energy_vjp(double *mat, double *mo_energy, double *t1T, double *t2T,
+                         double *vooo, double *fvo, double et_bar,
+                         int nocc, int nvir, int b0, int b1, int c0, int c1,
+                         void *cache_row_a, void *cache_col_a,
+                         void *cache_row_b, void *cache_col_b,
+                         double *mat_bar,
+                         double *mo_energy_bar,
+                         double *t1T_bar,
+                         double *t2T_bar,
+                         double *vooo_bar,
+                         double *fvo_bar,
+                         double *cache_row_a_bar,
+                         double *cache_col_a_bar,
+                         double *cache_row_b_bar,
+                         double *cache_col_b_bar)
+{
+    int da = nvir;
     int db = b1 - b0;
+    int dc = c1 - c0;
     int nmo = nocc + nvir;
 
-    CacheJob *jobs = malloc(sizeof(CacheJob) * da*db*b1);
-    size_t njobs = _ccsd_t_gen_jobs(jobs, nocc, nvir, a0, a1, b0, b1,
-                                    cache_row_a, cache_col_a,
-                                    cache_row_b, cache_col_b, sizeof(double));
+    CacheJob *jobs = malloc(sizeof(CacheJob) * da*db*dc);
+    size_t njobs = lnoccsdt_gen_jobs(jobs, nocc, nvir, b0, b1, c0, c1,
+                                     cache_row_a, cache_col_a,
+                                     cache_row_b, cache_col_b, sizeof(double));
 
     int *permute_idx = malloc(sizeof(int) * nocc*nocc*nocc * 6);
     _make_permute_indices(permute_idx, nocc);
@@ -426,14 +467,10 @@ void lno_ccsd_t_energy_vjp(double *mat, double *mo_energy, double *t1T, double *
             vooo_bar_priv = vooo_bar;
             fvo_bar_priv = fvo_bar;
             cache_row_a_bar_priv = cache_row_a_bar;
-            if (a0 > 0) {
-                cache_col_a_bar_priv = cache_col_a_bar;
-            }
-            if (b1 <= a0) {
+            cache_col_a_bar_priv = cache_col_a_bar;
+            if (c1 <= b0) {
                 cache_row_b_bar_priv = cache_row_b_bar;
-                if (b0 > 0) {
-                    cache_col_b_bar_priv = cache_col_b_bar;
-                }
+                cache_col_b_bar_priv = cache_col_b_bar;
             }
         } else {
             mat_bar_priv = calloc(nocc*nocc, sizeof(double));
@@ -442,15 +479,16 @@ void lno_ccsd_t_energy_vjp(double *mat, double *mo_energy, double *t1T, double *
             t2T_bar_priv = calloc(nvir*nvir*nocc*nocc, sizeof(double));
             vooo_bar_priv = calloc(nvir*nocc*nocc*nocc, sizeof(double));
             fvo_bar_priv = calloc(nvir*nocc, sizeof(double));
-            cache_row_a_bar_priv = calloc(da*a1*nocc*nmo, sizeof(double));
-            if (a0 > 0) {
-                cache_col_a_bar_priv = calloc(a0*da*nocc*nmo, sizeof(double));
+            cache_row_a_bar_priv = calloc(da*db*nocc*nmo, sizeof(double));
+            if (b0 == 0 && b1 == nvir) {
+                cache_col_a_bar_priv = cache_row_a_bar_priv;
             }
-            if (b1 <= a0) {
-                cache_row_b_bar_priv = calloc(db*b1*nocc*nmo, sizeof(double));
-                if (b0 > 0) {
-                    cache_col_b_bar_priv = calloc(b0*db*nocc*nmo, sizeof(double));
-                }
+            else {
+                cache_col_a_bar_priv = calloc(da*db*nocc*nmo, sizeof(double));
+            }
+            if (c1 <= b0) {
+                cache_row_b_bar_priv = calloc(da*dc*nocc*nmo, sizeof(double));
+                cache_col_b_bar_priv = calloc(da*dc*nocc*nmo, sizeof(double));
             }
         }
 
@@ -466,11 +504,11 @@ void lno_ccsd_t_energy_vjp(double *mat, double *mo_energy, double *t1T, double *
         cache_row_b_bar_bufs[thread_id] = cache_row_b_bar_priv;
         cache_col_b_bar_bufs[thread_id] = cache_col_b_bar_priv;
 
-        CacheJob *jobs_vjp = malloc(sizeof(CacheJob) * da*db*b1);
-        _ccsd_t_gen_jobs(jobs_vjp, nocc, nvir, a0, a1, b0, b1,
-                         (void*)cache_row_a_bar_priv, (void*)cache_col_a_bar_priv,
-                         (void*)cache_row_b_bar_priv, (void*)cache_col_b_bar_priv,
-                         sizeof(double));
+        CacheJob *jobs_vjp = malloc(sizeof(CacheJob) * da*db*dc);
+        lnoccsdt_gen_jobs(jobs_vjp, nocc, nvir, b0, b1, c0, c1,
+                          (void*)cache_row_a_bar_priv, (void*)cache_col_a_bar_priv,
+                          (void*)cache_row_b_bar_priv, (void*)cache_col_b_bar_priv,
+                          sizeof(double));
 
         int a, b, c;
         size_t k;
@@ -496,7 +534,7 @@ void lno_ccsd_t_energy_vjp(double *mat, double *mo_energy, double *t1T, double *
         NPomp_dsum_reduce_inplace(t2T_bar_bufs, nvir*nvir*nocc*nocc);
         NPomp_dsum_reduce_inplace(vooo_bar_bufs, nvir*nocc*nocc*nocc);
         NPomp_dsum_reduce_inplace(fvo_bar_bufs, nvir*nocc);
-        NPomp_dsum_reduce_inplace(cache_row_a_bar_bufs, da*a1*nocc*nmo);
+        NPomp_dsum_reduce_inplace(cache_row_a_bar_bufs, da*db*nocc*nmo);
         if (thread_id != 0) {
             free(mat_bar_priv);
             free(mo_energy_bar_priv);
@@ -507,22 +545,18 @@ void lno_ccsd_t_energy_vjp(double *mat, double *mo_energy, double *t1T, double *
             free(cache_row_a_bar_priv);
         }
 
-        if (a0 > 0) {
-            NPomp_dsum_reduce_inplace(cache_col_a_bar_bufs, a0*da*nocc*nmo);
+        if (b0 != 0 || b1 != nvir) {
+            NPomp_dsum_reduce_inplace(cache_col_a_bar_bufs, da*db*nocc*nmo);
             if (thread_id != 0) {
                 free(cache_col_a_bar_priv);
             }
         }
-        if (b1 <= a0) {
-            NPomp_dsum_reduce_inplace(cache_row_b_bar_bufs, db*b1*nocc*nmo);
+        if (c1 <= b0) {
+            NPomp_dsum_reduce_inplace(cache_row_b_bar_bufs, da*dc*nocc*nmo);
+            NPomp_dsum_reduce_inplace(cache_col_b_bar_bufs, da*dc*nocc*nmo);
             if (thread_id != 0) {
                 free(cache_row_b_bar_priv);
-            }
-            if (b0 > 0) {
-                NPomp_dsum_reduce_inplace(cache_col_b_bar_bufs, b0*db*nocc*nmo);
-                if (thread_id != 0) {
-                    free(cache_col_b_bar_priv);
-                }
+                free(cache_col_b_bar_priv);
             }
         }
     }

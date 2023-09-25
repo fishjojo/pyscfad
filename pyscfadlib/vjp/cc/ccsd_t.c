@@ -119,9 +119,9 @@ void add_and_permute(double *out, double *w, double *v, int n, double fac)
 }
 
 void get_wv(double *w, double *v, double *cache,
-                   double *fvohalf, double *vooo,
-                   double *vv_op, double *t1Thalf, double *t2T,
-                   int nocc, int nvir, int a, int b, int c, int *idx)
+            double *fvohalf, double *vooo,
+            double *vv_op, double *t1Thalf, double *t2T,
+            int nocc, int nvir, int a, int b, int c, int *idx)
 {
         const double D0 = 0;
         const double D1 = 1;
