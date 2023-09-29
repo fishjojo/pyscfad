@@ -59,3 +59,10 @@ pyscf_scipy_backend = 'jax'
 pyscfad_scf_implicit_diff = True
 pyscfad_ccsd_implicit_diff = True
 ```
+
+Citing PySCFAD
+--------------
+The following paper should be cited in publications utilizing the PySCFAD program package:
+
+[Differentiable quantum chemistry with PySCF for molecules and materials at the mean-field level and beyond](https://doi.org/10.1063/5.0118200), 
+X. Zhang, G. K.-L. Chan, *J. Chem. Phys.*, **157**, 204801 (2022)
