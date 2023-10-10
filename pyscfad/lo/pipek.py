@@ -1,13 +1,15 @@
 from functools import reduce, partial
 import numpy
 import scipy
+import jax
 from pyscf import numpy as np
+from pyscf.lib import logger
 from pyscf.lo.pipek import PM
 from pyscfad import config
 from pyscfad.lib import vmap
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.soscf.ciah import extract_rotation, pack_uniq_var
-from pyscfad.tools.linear_solver import precond_by_hdiag, gen_gmres, GMRESDisp
+from pyscfad.tools.linear_solver import gen_gmres, GMRESDisp
 from pyscfad.lo import orth
 
 def atomic_pops(mol, mo_coeff, method='mulliken'):
@@ -60,26 +62,19 @@ def atomic_pops(mol, mo_coeff, method='mulliken'):
 
     return proj
 
-
-def opt_cond(x, mol, mo_coeff, pop_method='mulliken', exponent=2):
+def cost_function(x, mol, mo_coeff, pop_method='mulliken', exponent=2):
     u = extract_rotation(x)
     mo_coeff = np.dot(mo_coeff, u)
     pop = atomic_pops(mol, mo_coeff, pop_method)
     if exponent == 2:
-        g0 = np.einsum('xii,xip->pi', pop, pop)
-        g = -pack_uniq_var(g0-g0.conj().T) * 2
+        return -np.einsum('xii,xii->', pop, pop)
     else:
-        pop3 = np.einsum('xii->xi', pop)**3
-        g0 = np.einsum('xi,xip->pi', pop3, pop)
-        g = -pack_uniq_var(g0-g0.conj().T) * 4
+        pop2 = np.einsum('xii->xi', pop)**2
+        return -np.einsum('xi,xi', pop2, pop2)
 
-    h_diag = np.einsum('xii,xpp->pi', pop, pop) * 2
-    g_diag = g0.diagonal()
-    h_diag-= g_diag + g_diag.reshape(-1,1)
-    h_diag+= np.einsum('xip,xip->pi', pop, pop) * 2
-    h_diag+= np.einsum('xip,xpi->pi', pop, pop) * 2
-    h_diag = -pack_uniq_var(h_diag) * 2
-    return g, h_diag
+def opt_cond(x, mol, mo_coeff, pop_method='mulliken', exponent=2):
+    g = jax.grad(cost_function, 0)(x, mol, mo_coeff, pop_method, exponent)
+    return g
 
 def _pm(x, mol, mo_coeff, *,
         pop_method=None, exponent=None, init_guess=None,
@@ -102,34 +97,40 @@ def _pm(x, mol, mo_coeff, *,
         u, sorted_idx = loc.kernel(mo_coeff=mo_coeff, return_u=True)
     else:
         u, sorted_idx = loc.kernel(mo_coeff=None, return_u=True)
+    h_diag = loc.gen_g_hop(u)[2]
+    if numpy.any(h_diag < 0):
+        logger.warn(loc, 'Saddle point reached in orbital localization.')
+    if numpy.linalg.det(u) < 0:
+        u[:,0] *= -1
     mat = scipy.linalg.logm(u)
     x = pack_uniq_var(mat)
-    if numpy.any(abs(x.imag) > 1e-9):
+    if numpy.any(abs(x.imag) > 1e-6):
         raise RuntimeError('Complex solutions are not supported for '
                            'differentiating the Boys localiztion.')
     else:
         x = x.real
+    logger.debug(loc, 'PM localization |g| = %.6g',
+                 numpy.linalg.norm(opt_cond(x, mol, mo_coeff,
+                                            pop_method=pop_method,
+                                            exponent=exponent)))
     return x, sorted_idx
 
 def pm(mol, mo_coeff, *,
        pop_method='mulliken', exponent=2, init_guess=None,
-       conv_tol=None, conv_tol_grad=None, max_cycle=None):
+       conv_tol=None, conv_tol_grad=None, max_cycle=None, symmetry=False):
     if mo_coeff.shape[-1] == 1:
         return mo_coeff
 
-    gen_precond = None
-    if config.moleintor_opt:
-        gen_precond = precond_by_hdiag
     solver = gen_gmres(restart=40,
-                       callback=GMRESDisp(mol.verbose), callback_type='pr_norm')
+                       callback=GMRESDisp(mol.verbose),
+                       callback_type='pr_norm',
+                       safe=symmetry)
     _pm_iter = make_implicit_diff(_pm, implicit_diff=True,
                                   fixed_point=False,
                                   optimality_cond=partial(opt_cond,
                                                           pop_method=pop_method,
                                                           exponent=exponent),
-                                  solver=solver, has_aux=True,
-                                  optimality_fun_has_aux=True,
-                                  gen_precond=gen_precond)
+                                  solver=solver, has_aux=True)
 
     x, sorted_idx = _pm_iter(None, mol, mo_coeff,
                              pop_method=pop_method,

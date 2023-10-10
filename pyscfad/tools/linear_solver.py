@@ -3,6 +3,7 @@ import numpy
 from scipy.sparse.linalg import LinearOperator
 from jax.scipy.sparse.linalg import gmres as jax_gmres
 from pyscfad.scipy.sparse.linalg import gmres as pyscfad_gmres
+from pyscfad.scipy.sparse.linalg import gmres_safe
 
 class GMRESDisp:
     def __init__(self, disp=False):
@@ -27,13 +28,21 @@ def precond_by_hdiag(h_diag, thresh=1e-12):
 
 def gen_gmres_with_default_kwargs(tol=1e-6, atol=1e-12, maxiter=30,
                                   x0=None, M=None, restart=20,
-                                  callback=None, callback_type=None):
+                                  callback=None, callback_type=None,
+                                  safe=False, **kwargs):
     from pyscfad import config
     if config.moleintor_opt:
-        gmres = partial(pyscfad_gmres,
-                        tol=tol, atol=atol, maxiter=maxiter,
-                        x0=x0, M=M, restart=restart,
-                        callback=callback, callback_type=callback_type)
+        if safe:
+            gmres = partial(gmres_safe,
+                            tol=tol, atol=atol, maxiter=maxiter,
+                            x0=x0, M=M, restart=restart,
+                            callback=callback, callback_type=callback_type,
+                            **kwargs)
+        else:
+            gmres = partial(pyscfad_gmres,
+                            tol=tol, atol=atol, maxiter=maxiter,
+                            x0=x0, M=M, restart=restart,
+                            callback=callback, callback_type=callback_type)
     else:
         gmres = partial(jax_gmres,
                         tol=tol, atol=atol, maxiter=maxiter,
