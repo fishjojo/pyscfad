@@ -1,11 +1,11 @@
 import warnings
 from functools import partial, wraps
 import numpy
-from pyscf import numpy as np
 from pyscf import ao2mo
 from pyscf.lib import logger
 from pyscf.gto import mole as pyscf_mole
 from pyscf.gto.moleintor import _get_intor_and_comp
+from pyscfad import numpy as np
 from pyscfad.lib import ops, custom_jvp, jit, vmap
 from ._mole_helper import (
     setup_exp,

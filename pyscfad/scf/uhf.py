@@ -1,9 +1,10 @@
 from functools import wraps
 import numpy
-from pyscf import numpy as np
-from pyscf.lib import logger, stop_grad, module_method
+from pyscf.lib import logger, module_method
 from pyscf.scf import uhf as pyscf_uhf
+from pyscfad import numpy as np
 from pyscfad import util
+from pyscfad.ops import stop_grad
 from pyscfad.scf import hf
 
 

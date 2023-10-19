@@ -1,8 +1,8 @@
 import numpy
 from pyscf.lib import logger
-from pyscf.lib import stop_grad
 from pyscf.scf import diis as pyscf_cdiis
 from pyscfad import config
+from pyscfad.ops import stop_grad
 from pyscfad.lib import diis
 
 class CDIIS(diis.DIIS, pyscf_cdiis.CDIIS):

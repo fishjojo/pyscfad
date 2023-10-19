@@ -1,7 +1,7 @@
 from jax import vmap
-from pyscf import numpy as np
 from pyscf import gto
 from pyscf.lib import param
+from pyscfad import numpy as np
 from pyscfad import util
 from pyscfad import config
 from pyscfad.lib import custom_jvp
@@ -13,7 +13,7 @@ Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
 
 def energy_nuc(mol, charges=None, **kwargs):
     if charges is None:
-        charges = mol.atom_charges()
+        charges = mol.atom_charges().astype(float)
     if len(charges) <= 1:
         return 0.0
     r = distance_matrix(mol.atom_coords())

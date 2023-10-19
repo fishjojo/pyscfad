@@ -1,21 +1,24 @@
 from functools import partial, reduce, wraps
 import numpy
 import jax
-from pyscf import numpy as np
 from pyscf.data import nist
-from pyscf.lib import logger, stop_grad, module_method
+from pyscf.lib import logger, module_method
 from pyscf.scf import hf as pyscf_hf
 from pyscf.scf import chkfile
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
 
 from pyscfad import config
+from pyscfad import ops
+from pyscfad import numpy as np
 from pyscfad import lib
 from pyscfad.lib import jit, stop_trace
+from pyscfad.ops import stop_grad
 from pyscfad import util
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad import df
 from pyscfad.scf import _vhf
 from pyscfad.scf.diis import SCF_DIIS
+from pyscfad.scf import chkfile
 from pyscfad.scipy.linalg import eigh
 from pyscfad.tools.linear_solver import gen_gmres
 
@@ -44,7 +47,7 @@ def _scf(dm, mf, s1e, h1e, *,
     vhf = mf.get_veff(mol, dm)
     e_tot = mf.energy_tot(dm, h1e, vhf)
     log.info('init E= %.15g', e_tot)
-    cput1 = log.timer('initialize scf')
+    cput1 = log.timer('initialize scf', log._t0, log._w0)
 
     for cycle in range(mf.max_cycle):
         dm_last = dm
@@ -222,10 +225,10 @@ def _dot_eri_dm_s1(eri, dm, with_j, with_k):
 def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
     dm = np.asarray(dm)
     nao = dm.shape[-1]
-    if eri.dtype == np.complex128 or eri.size == nao**4:
+    if np.iscomplexobj(eri) or eri.size == nao**4:
         vj, vk = _dot_eri_dm_s1(eri, dm, with_j, with_k)
     else:
-        if eri.dtype == np.complex128:
+        if np.iscomplexobj(eri):
             raise NotImplementedError
         vj, vk = _vhf.incore(eri, dm, hermi, with_j, with_k)
     return vj, vk
@@ -278,7 +281,7 @@ def dip_moment(mol, dm, unit='Debye', verbose=logger.NOTE, **kwargs):
         ao_dip = mol.intor_symmetric('int1e_r', comp=3)
     el_dip = np.einsum('xij,ji->x', ao_dip, dm).real
 
-    charges = mol.atom_charges()
+    charges = mol.atom_charges().astype(float)
     coords  = mol.atom_coords()
     nucl_dip = np.einsum('i,ix->x', charges, coords)
     mol_dip = nucl_dip - el_dip
@@ -412,6 +415,14 @@ class SCF(pyscf_hf.SCF):
         if dm is None:
             dm =self.make_rdm1()
         return dip_moment(mol, dm, unit, verbose=verbose, **kwargs)
+
+    def dump_chk(self, envs):
+        if self.chkfile:
+            chkfile.dump_scf(self.mol, self.chkfile,
+                             envs['e_tot'], envs['mo_energy'],
+                             envs['mo_coeff'], envs['mo_occ'],
+                             overwrite_mol=False)
+        return self
 
     make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
     energy_elec = energy_elec
