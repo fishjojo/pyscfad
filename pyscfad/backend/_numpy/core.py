@@ -1,5 +1,8 @@
 import numpy as np
 
+def is_tensor(x):
+    return isinstance(x, (np.ndarray, np.generic))
+
 def stop_gradient(x):
     return x
 

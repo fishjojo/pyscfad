@@ -1,6 +1,9 @@
 import numpy as np
 import jax
 
+def is_tensor(x):
+    return isinstance(x, jax.Array)
+
 def stop_gradient(x):
     return jax.lax.stop_gradient(x)
 

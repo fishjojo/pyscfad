@@ -79,13 +79,13 @@ set(C_LINK_TEMPLATE "<CMAKE_C_COMPILER> <CMAKE_SHARED_LIBRARY_C_FLAGS> <LANGUAGE
 include(ExternalProject)
 
 option(BUILD_LIBCINT "Using libcint for analytical gaussian integral" ON)
-option(WITH_F12 "Compling F12 integrals" ON)
+option(WITH_F12 "Compling F12 integrals" OFF)
 
 #FIXME here I have to rename libcint otherwise it conflicts with the one used by pyscf
 set(patch_libcint ${PROJECT_SOURCE_DIR}/apply_patch.sh libcint.patch)
 
 if(BUILD_LIBCINT)
-  ExternalProject_Add(libcint
+  ExternalProject_Add(libcintad
     GIT_REPOSITORY https://github.com/fishjojo/libcint.git
     GIT_TAG ad1
     PATCH_COMMAND ${patch_libcint}
@@ -104,7 +104,7 @@ if(BUILD_LIBCINT)
         -DCMAKE_C_CREATE_SHARED_LIBRARY:STRING=${C_LINK_TEMPLATE}
         -DBUILD_MARCH_NATIVE:STRING=${BUILD_MARCH_NATIVE}
   )
-  add_dependencies(cgto_vjp libcint)
+  add_dependencies(cgto_vjp libcintad)
 endif()
 
 option(BUILD_PYSCF_LIB "Building PySCF library" ON)

@@ -2,7 +2,7 @@ from functools import partial, reduce, wraps
 import numpy
 import jax
 from pyscf.data import nist
-from pyscf.lib import logger, module_method
+from pyscf.lib import module_method
 from pyscf.scf import hf as pyscf_hf
 from pyscf.scf import chkfile
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
@@ -11,7 +11,7 @@ from pyscfad import config
 from pyscfad import ops
 from pyscfad import numpy as np
 from pyscfad import lib
-from pyscfad.lib import jit, stop_trace
+from pyscfad.lib import logger, jit, stop_trace
 from pyscfad.ops import stop_grad
 from pyscfad import util
 from pyscfad.implicit_diff import make_implicit_diff
@@ -47,7 +47,7 @@ def _scf(dm, mf, s1e, h1e, *,
     vhf = mf.get_veff(mol, dm)
     e_tot = mf.energy_tot(dm, h1e, vhf)
     log.info('init E= %.15g', e_tot)
-    cput1 = log.timer('initialize scf', log._t0, log._w0)
+    cput1 = log.timer('initialize scf')
 
     for cycle in range(mf.max_cycle):
         dm_last = dm

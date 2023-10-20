@@ -8,15 +8,37 @@ with open('pyscfad/version.py') as f:
   exec(f.read(), _dct)
 __version__ = _dct['__version__']
 
-class CMakeBuildExt(build_ext):
-    def run(self):
-        extension = self.extensions[0]
-        assert extension.name == 'pyscfad_lib_placeholder'
-        self.build_cmake(extension)
+def get_platform():
+    from distutils.util import get_platform
+    platform = get_platform()
+    if sys.platform == 'darwin':
+        arch = os.getenv('CMAKE_OSX_ARCHITECTURES')
+        if arch:
+            osname = platform.rsplit('-', 1)[0]
+            if ';' in arch:
+                platform = f'{osname}-universal2'
+            else:
+                platform = f'{osname}-{arch}'
+        elif os.getenv('_PYTHON_HOST_PLATFORM'):
+            # the cibuildwheel environment
+            platform = os.getenv('_PYTHON_HOST_PLATFORM')
+            if platform.endswith('arm64'):
+                os.putenv('CMAKE_OSX_ARCHITECTURES', 'arm64')
+            elif platform.endswith('x86_64'):
+                os.putenv('CMAKE_OSX_ARCHITECTURES', 'x86_64')
+            else:
+                os.putenv('CMAKE_OSX_ARCHITECTURES', 'arm64;x86_64')
+    return platform
 
-    def build_cmake(self, extension):
+class CMakeBuildPy(build_py):
+    def run(self):
+        self.plat_name = get_platform()
+        self.build_base = 'build'
+        self.build_lib = os.path.join(self.build_base, 'lib')
+        self.build_temp = os.path.join(self.build_base, f'temp.{self.plat_name}')
+
         self.announce('Configuring extensions', level=3)
-        src_dir = os.path.abspath(os.path.join(__file__, '..', 'pyscfad', 'lib'))
+        src_dir = os.path.abspath(os.path.join(__file__, '..', 'pyscfadlib'))
         cmd = ['cmake', f'-S{src_dir}', f'-B{self.build_temp}']
         configure_args = os.getenv('CMAKE_CONFIGURE_ARGS')
         if configure_args:
@@ -33,23 +55,14 @@ class CMakeBuildExt(build_ext):
         else:
             self.spawn(cmd)
 
-    # To remove the infix string like cpython-37m-x86_64-linux-gnu.so
-    # Python ABI updates since 3.5
-    # https://www.python.org/dev/peps/pep-3149/
-    def get_ext_filename(self, ext_name):
-        ext_path = ext_name.split('.')
-        filename = build_ext.get_ext_filename(self, ext_name)
-        name, ext_suffix = os.path.splitext(filename)
-        return os.path.join(*ext_path) + ext_suffix
+        super().run()
 
-#from distutils.command.build import build
-#build.sub_commands = ([c for c in build.sub_commands if c[0] == 'build_ext'] +
-#                      [c for c in build.sub_commands if c[0] != 'build_ext'])
-
-class BuildExtFirst(build_py):
-    def run(self):
-        self.run_command("build_ext")
-        return super().run()
+from wheel.bdist_wheel import bdist_wheel
+initialize_options = bdist_wheel.initialize_options
+def initialize_with_default_plat_name(self):
+    initialize_options(self)
+    self.plat_name = get_platform()
+bdist_wheel.initialize_options = initialize_with_default_plat_name
 
 setup(
     name='pyscfad',
@@ -60,9 +73,7 @@ setup(
     include_package_data=True,
     packages=find_packages(exclude=["examples","*test*"]),
     python_requires='>=3.8',
-    #ext_modules=[Extension('pyscfad_lib_placeholder', [])],
-    #cmdclass={'build_py': BuildExtFirst,
-    #          'build_ext': CMakeBuildExt},
+    cmdclass={'build_py': CMakeBuildPy,},
     install_requires=[
         'numpy>=1.17',
         'scipy',

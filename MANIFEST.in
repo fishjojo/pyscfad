@@ -1,9 +1,11 @@
 include MANIFEST.in
 include README.md setup.py LICENSE
 
-prune pyscfad/lib/build
+recursive-include pyscfadlib/thirdparty *.so *.dylib
+include pyscfadlib/*.so pyscfadlib/*.dylib pyscfadlib/config.h.in
 
-include pyscfad/lib/*.so
-include pyscfad/lib/*.dylib
+# source code
+recursive-include pyscfadlib *.c *.h CMakeLists.txt
 
-recursive-include pyscfad/lib *.c *.h
+global-exclude *.py[cod]
+prune pyscfadlib/build
