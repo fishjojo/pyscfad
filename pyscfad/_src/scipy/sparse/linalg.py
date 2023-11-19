@@ -42,6 +42,8 @@ def gmres_safe(A_or_matvec, b, x0=None, *,
     k = 3
     v_null = None
     while True:
+        if k > b.size:
+            raise RuntimeError
         w, v = eigsh(A, k=k, which='SM')
         if numpy.all(abs(w) >= cond) and w[-1] > 0:
             break
@@ -49,7 +51,7 @@ def gmres_safe(A_or_matvec, b, x0=None, *,
             v_null = v[:,abs(w)<cond]
             break
         else:
-            k *= 2
+            k += 3
             continue
 
     if v_null is None:

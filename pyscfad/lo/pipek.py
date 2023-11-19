@@ -5,11 +5,13 @@ import jax
 from pyscf import numpy as np
 from pyscf.lib import logger
 from pyscf.lo.pipek import PM
-from pyscfad import config
 from pyscfad.lib import vmap
 from pyscfad.implicit_diff import make_implicit_diff
-from pyscfad.soscf.ciah import extract_rotation, pack_uniq_var
-from pyscfad.tools.linear_solver import gen_gmres, GMRESDisp
+from pyscfad.soscf.ciah import (
+    extract_rotation,
+    pack_uniq_var,
+)
+from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.lo import orth
 
 def atomic_pops(mol, mo_coeff, method='mulliken'):
@@ -72,7 +74,7 @@ def cost_function(x, mol, mo_coeff, pop_method='mulliken', exponent=2):
         pop2 = np.einsum('xii->xi', pop)**2
         return -np.einsum('xi,xi', pop2, pop2)
 
-def opt_cond(x, mol, mo_coeff, pop_method='mulliken', exponent=2):
+def _opt_cond(x, mol, mo_coeff, pop_method='mulliken', exponent=2):
     g = jax.grad(cost_function, 0)(x, mol, mo_coeff, pop_method, exponent)
     return g
 
@@ -93,6 +95,7 @@ def _pm(x, mol, mo_coeff, *,
         loc.conv_tol_grad = conv_tol_grad
     if max_cycle is not None:
         loc.max_cycle = max_cycle
+
     if init_guess is None:
         u, sorted_idx = loc.kernel(mo_coeff=mo_coeff, return_u=True)
     else:
@@ -109,28 +112,25 @@ def _pm(x, mol, mo_coeff, *,
                            'differentiating the Boys localiztion.')
     else:
         x = x.real
-    logger.debug(loc, 'PM localization |g| = %.6g',
-                 numpy.linalg.norm(opt_cond(x, mol, mo_coeff,
-                                            pop_method=pop_method,
-                                            exponent=exponent)))
     return x, sorted_idx
 
 def pm(mol, mo_coeff, *,
        pop_method='mulliken', exponent=2, init_guess=None,
-       conv_tol=None, conv_tol_grad=None, max_cycle=None, symmetry=False):
+       conv_tol=None, conv_tol_grad=None, max_cycle=None,
+       symmetry=False, gmres_options={}):
     if mo_coeff.shape[-1] == 1:
         return mo_coeff
 
-    solver = gen_gmres(restart=40,
-                       callback=GMRESDisp(mol.verbose),
-                       callback_type='pr_norm',
-                       safe=symmetry)
-    _pm_iter = make_implicit_diff(_pm, implicit_diff=True,
+    solver = gen_gmres(safe=symmetry, **gmres_options)
+    optcond = partial(_opt_cond,
+                      pop_method=pop_method,
+                      exponent=exponent)
+    _pm_iter = make_implicit_diff(_pm,
+                                  implicit_diff=True,
                                   fixed_point=False,
-                                  optimality_cond=partial(opt_cond,
-                                                          pop_method=pop_method,
-                                                          exponent=exponent),
-                                  solver=solver, has_aux=True)
+                                  optimality_cond=optcond,
+                                  solver=solver,
+                                  has_aux=True)
 
     x, sorted_idx = _pm_iter(None, mol, mo_coeff,
                              pop_method=pop_method,

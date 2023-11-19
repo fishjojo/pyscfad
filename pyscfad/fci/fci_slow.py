@@ -1,7 +1,6 @@
 from pyscf import numpy as np
 from pyscf.fci import cistring
 from pyscf.fci import fci_slow as pyscf_fci_slow
-#from pyscfad.lib import numpy as np
 from pyscfad.lib import vmap
 from pyscfad.gto import mole
 
