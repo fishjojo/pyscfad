@@ -117,9 +117,11 @@ def _pm(x, mol, mo_coeff, *,
 def pm(mol, mo_coeff, *,
        pop_method='mulliken', exponent=2, init_guess=None,
        conv_tol=None, conv_tol_grad=None, max_cycle=None,
-       symmetry=False, gmres_options={}):
+       symmetry=False, gmres_options=None):
     if mo_coeff.shape[-1] == 1:
         return mo_coeff
+    if gmres_options is None:
+        gmres_options = {}
 
     solver = gen_gmres(safe=symmetry, **gmres_options)
     optcond = partial(_opt_cond,

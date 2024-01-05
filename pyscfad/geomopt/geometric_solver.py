@@ -27,8 +27,8 @@ class PySCFADEngine(geometric.engine.Engine):
 
     def calc_new(self, coords, dirname):
         if self.cycle >= self.maxsteps:
-            raise NotConvergedError('Geometry optimization is not converged in '
-                                    '%d iterations' % self.maxsteps)
+            raise NotConvergedError( 'Geometry optimization is not converged in '
+                                    f'{self.maxsteps} iterations')
 
         mol = self.mol
         value_and_grad = self.value_and_grad
@@ -56,7 +56,7 @@ class PySCFADEngine(geometric.engine.Engine):
 
         if callable(self.callback):
             self.callback(locals())
-        return {"energy": energy, "gradient": gradients.ravel()}
+        return {'energy': energy, 'gradient': gradients.ravel()}
 
 def kernel(mol, value_and_grad,
            constraints=None, callback=None,
@@ -68,8 +68,9 @@ def kernel(mol, value_and_grad,
     if engine.mol.symmetry:
         pass
 
-    if not os.path.exists(os.path.abspath(
-            os.path.join(geometric.optimize.__file__, '..', 'log.ini'))) and kwargs.get('logIni') is None:
+    if (not os.path.exists(os.path.abspath(
+            os.path.join(geometric.optimize.__file__, '..', 'log.ini')))
+            and kwargs.get('logIni') is None):
         kwargs['logIni'] = os.path.abspath(os.path.join(__file__, '..', 'log.ini'))
 
     with tempfile.TemporaryDirectory(dir=lib.param.TMPDIR) as tmpdir:

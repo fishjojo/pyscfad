@@ -1,7 +1,6 @@
 import warnings
 from functools import partial
 import numpy
-from jax import jit, vmap, custom_jvp
 from pyscf import numpy as np
 from pyscf.lib import load_library
 from pyscf.dft import numint
@@ -9,6 +8,9 @@ from pyscf.dft.numint import SWITCH_SIZE
 from pyscf.dft.gen_grid import BLKSIZE
 from pyscfad.lib import ops
 from pyscfad.lib import stop_grad
+from pyscfad.lib import jit
+from pyscfad.lib import custom_jvp
+#from pyscfad.lib import vmap
 from pyscfad.dft import libxc
 
 libdft = load_library('libdft')

@@ -4,7 +4,7 @@ from pyscf import numpy as np
 from pyscf.pbc.gto.eval_gto import _get_intor_and_comp
 from pyscf.pbc.gto.eval_gto import eval_gto as pyscf_eval_gto
 from pyscfad.lib import custom_jvp
-from pyscfad.gto.eval_gto import _eval_gto_fill_grad_r0
+from pyscfad.gto.eval_gto import _eval_gto_dot_grad_tangent_r0
 
 def eval_gto(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
              shls_slice=None, non0tab=None, ao_loc=None, out=None):
@@ -137,9 +137,9 @@ def _eval_gto_jvp_r0(cell, cell_t, eval_name, coords,
 
     tangent_out = []
     for k in range(nkpts):
-        grad = _eval_gto_fill_grad_r0(cell, intor_ip, shls_slice, ao_loc, ao1[k], order, ngrids)
-        tangent_out_k = np.einsum('nxlgi,nx->lgi', grad, cell_t.coords)
-        grad = None
+        tangent_out_k = _eval_gto_dot_grad_tangent_r0(cell, cell_t, intor_ip,
+                                                      shls_slice, ao_loc, ao1[k],
+                                                      order, ngrids)
         if order == 0:
             tangent_out_k = tangent_out_k[0]
         tangent_out.append(tangent_out_k)

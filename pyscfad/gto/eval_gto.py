@@ -6,7 +6,7 @@ from pyscf.gto.moleintor import make_loc
 from pyscf.gto.eval_gto import _get_intor_and_comp
 from pyscf.gto.eval_gto import eval_gto as pyscf_eval_gto
 from pyscfad.lib import jit, custom_jvp, vmap
-from pyscfad.gto.moleintor import get_bas_label
+#from pyscfad.gto.moleintor import get_bas_label
 
 _MAX_DERIV_ORDER = 4
 #_DERIV_LABEL = []
@@ -183,6 +183,7 @@ def _eval_gto_dot_grad_tangent_r0(mol, mol_t, intor,
                 idx = np.arange(nao)[None,None,:]
                 p0, p1 = slices[:]
                 mask = (idx >= p0) & (idx < p1)
+                # pylint: disable=cell-var-from-loop
                 out  = np.where(mask, ao1[_XYZ_ID[iorder][0]], _zero) * coords_t[0]
                 out += np.where(mask, ao1[_XYZ_ID[iorder][1]], _zero) * coords_t[1]
                 out += np.where(mask, ao1[_XYZ_ID[iorder][2]], _zero) * coords_t[2]

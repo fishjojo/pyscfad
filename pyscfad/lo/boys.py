@@ -68,7 +68,7 @@ def _boys(x, mol, mo_coeff, *,
 def boys(mol, mo_coeff, *,
          init_guess=None,
          conv_tol=None, conv_tol_grad=None, max_cycle=None,
-         symmetry=False, gmres_options={}):
+         symmetry=False, gmres_options=None):
     '''
     Boys localization. See also `pyscf.lo.boys.Boys`.
 
@@ -85,6 +85,8 @@ def boys(mol, mo_coeff, *,
     '''
     if mo_coeff.shape[-1] == 1:
         return mo_coeff
+    if gmres_options is None:
+        gmres_options = {}
 
     solver = gen_gmres(safe=symmetry, **gmres_options)
     _boys_iter = make_implicit_diff(_boys,
