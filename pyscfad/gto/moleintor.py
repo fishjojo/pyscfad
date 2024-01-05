@@ -233,10 +233,10 @@ def getints2c_jvp(intor, shls_slice, comp, hermi, out,
             tangent_out += _int1e_nuc_jvp_rc(mol, mol_t, intor_ip)
 
     if mol.ctr_coeff is not None:
-        tangent_out += _int1e_jvp_cs(mol, mol_t, intor)
+        tangent_out += _int1e_jvp_cs(mol, mol_t, intor, shls_slice, comp)
 
     if mol.exp is not None:
-        tangent_out += _int1e_jvp_exp(mol, mol_t, intor)
+        tangent_out += _int1e_jvp_exp(mol, mol_t, intor, shls_slice, comp)
     return primal_out, tangent_out
 
 @partial(custom_jvp, nondiff_argnums=(1,2,3,4,5))
@@ -280,9 +280,9 @@ def getints4c_jvp(intor, shls_slice, comp, aosym, out,
             tangent_out += _int2e_jvp_r0(mol, mol_t, intor1)
 
     if mol.ctr_coeff is not None:
-        tangent_out += _int2e_jvp_cs(mol, mol_t, intor)
+        tangent_out += _int2e_jvp_cs(mol, mol_t, intor, shls_slice, comp)
     if mol.exp is not None:
-        tangent_out += _int2e_jvp_exp(mol, mol_t, intor)
+        tangent_out += _int2e_jvp_exp(mol, mol_t, intor, shls_slice, comp)
     return primal_out, tangent_out
 
 def get_bas_label(l):
@@ -433,7 +433,7 @@ def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b, hermi=0):
         jvp = jvp + jvp.transpose(0,2,1)
     return jvp
 
-def _int1e_jvp_cs(mol, mol_t, intor):
+def _int1e_jvp_cs(mol, mol_t, intor, shls_slice, comp):
     ctr_coeff = mol.ctr_coeff
     ctr_coeff_t = mol_t.ctr_coeff
 
@@ -443,6 +443,7 @@ def _int1e_jvp_cs(mol, mol_t, intor):
     nbas = len(mol._bas)
     shls_slice = (0, nbas1, nbas1, nbas1+nbas)
     intor = mol._add_suffix(intor)
+    intor, comp = _get_intor_and_comp(intor)
     if 'ECP' in intor:
         assert mol._ecp is not None
         bas = numpy.vstack((mol._bas, mol._ecpbas))
@@ -455,12 +456,6 @@ def _int1e_jvp_cs(mol, mol_t, intor):
         envc[pyscf_mole.AS_NECPBAS] = len(mol._ecpbas)
 
     s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
-    if s.ndim == 2:
-        comp = 1
-    elif s.ndim == 3:
-        comp = s.shape[0]
-    else:
-        raise RuntimeError
 
     nao = mol.nao
     s = s.reshape(comp, -1, nao)
@@ -491,7 +486,7 @@ def _int1e_jvp_cs(mol, mol_t, intor):
         tangent_out = tangent_out[0]
     return tangent_out
 
-def _int1e_jvp_exp(mol, mol_t, intor):
+def _int1e_jvp_exp(mol, mol_t, intor, shls_slice, comp):
     mol1 = get_fakemol_exp(mol)
     mol1._atm[:,pyscf_mole.CHARGE_OF] = 0 # set nuclear charge to zero
     if intor.endswith('_sph'):
@@ -500,6 +495,7 @@ def _int1e_jvp_exp(mol, mol_t, intor):
     else:
         cart = True
         intor = mol._add_suffix(intor, cart=True)
+    intor, comp = _get_intor_and_comp(intor)
 
     nbas1 = len(mol1._bas)
     nbas = len(mol._bas)
@@ -516,12 +512,6 @@ def _int1e_jvp_exp(mol, mol_t, intor):
         envc[pyscf_mole.AS_NECPBAS] = len(mol._ecpbas)
 
     s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
-    if s.ndim == 2:
-        comp = 1
-    elif s.ndim == 3:
-        comp = s.shape[0]
-    else:
-        raise RuntimeError
 
     es, es_of, _env_of = setup_exp(mol)
 
@@ -654,7 +644,14 @@ def _gen_int2e_fill_grad_r0(eri1_a, eri1_b, eri1_c, eri1_d, aoslices,
     grad = vmap(body)(aoslices)
     return grad
 
-def _int2e_jvp_cs(mol, mol_t, intor):
+@jit
+def _int2e_dot_grad_tangent_s4(grad, tangent):
+    tangent_out = np.einsum('cxijkl,x->cijkl', grad, tangent)
+    tangent_out += tangent_out.transpose(0,2,1,3,4)
+    tangent_out += tangent_out.transpose(0,3,4,1,2)
+    return tangent_out
+
+def _int2e_jvp_cs(mol, mol_t, intor, shls_slice, comp):
     ctr_coeff = mol.ctr_coeff
     ctr_coeff_t = mol_t.ctr_coeff
 
@@ -667,13 +664,8 @@ def _int2e_jvp_cs(mol, mol_t, intor):
 
     shls_slice = (0, nbas1, nbas1, nbas1+nbas, nbas1, nbas1+nbas, nbas1, nbas1+nbas)
     intor = mol._add_suffix(intor)
-    eri = moleintor.getints(intor, atmc, basc, envc, shls_slice)
-    if eri.ndim == 4:
-        comp = 1
-    elif eri.ndim == 5:
-        comp = eri.shape[0]
-    else:
-        raise RuntimeError
+    intor, comp = _get_intor_and_comp(intor)
+    eri = moleintor.getints(intor, atmc, basc, envc, shls_slice, comp)
 
     nao = mol.nao
     eri = eri.reshape(comp, -1, nao, nao, nao)
@@ -697,19 +689,12 @@ def _int2e_jvp_cs(mol, mol_t, intor):
             grad[:, (cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim), ibas:(ibas+nbas)] += g
             ibas += nbas
         off += nprim*nbas
-    tangent_out = _int2e_dot_grad_tangent_cs(grad, ctr_coeff_t)
+    tangent_out = _int2e_dot_grad_tangent_s4(grad, ctr_coeff_t)
     if comp == 1:
         tangent_out = tangent_out[0]
     return tangent_out
 
-@jit
-def _int2e_dot_grad_tangent_cs(grad, tangent):
-    tangent_out = np.einsum('cxijkl,x->cijkl', grad, tangent)
-    tangent_out += tangent_out.transpose(0,2,1,3,4)
-    tangent_out += tangent_out.transpose(0,3,4,1,2)
-    return tangent_out
-
-def _int2e_jvp_exp(mol, mol_t, intor):
+def _int2e_jvp_exp(mol, mol_t, intor, shls_slice, comp):
     mol1 = get_fakemol_exp(mol)
     mol1._atm[:,pyscf_mole.CHARGE_OF] = 0 # set nuclear charge to zero
     if intor.endswith('_sph'):
@@ -718,6 +703,7 @@ def _int2e_jvp_exp(mol, mol_t, intor):
     else:
         cart = True
         intor = mol._add_suffix(intor, cart=True)
+    intor, comp = _get_intor_and_comp(intor)
 
     nbas = len(mol._bas)
     nbas1 = len(mol1._bas)
@@ -726,12 +712,6 @@ def _int2e_jvp_exp(mol, mol_t, intor):
     shls_slice = (0, nbas1, nbas1, nbas1+nbas, nbas1, nbas1+nbas, nbas1, nbas1+nbas)
 
     eri = moleintor.getints(intor, atmc, basc, envc, shls_slice)
-    if eri.ndim == 4:
-        comp = 1
-    elif eri.ndim == 5:
-        comp = eri.shape[0]
-    else:
-        raise RuntimeError
 
     es, es_of, _env_of = setup_exp(mol)
     nao = pyscf_mole.nao_cart(mol)
@@ -772,7 +752,7 @@ def _int2e_jvp_exp(mol, mol_t, intor):
             ibas += nbas
         off += nprim * nbas1
 
-    tangent_out = _int2e_dot_grad_tangent_exp(grad, mol_t.exp)
+    tangent_out = _int2e_dot_grad_tangent_s4(grad, mol_t.exp)
     if not mol.cart or not cart:
         c2s = np.asarray(mol.cart2sph_coeff())
         tangent_out = _int2e_c2s(tangent_out, c2s)
@@ -780,14 +760,7 @@ def _int2e_jvp_exp(mol, mol_t, intor):
         tangent_out = tangent_out[0]
     return tangent_out
 
-@jit
-def _int2e_dot_grad_tangent_exp(grad, tangent):
-    tangent_out = np.einsum('cxijkl,x->cijkl', grad, tangent)
-    tangent_out += tangent_out.transpose(0,2,1,3,4)
-    tangent_out += tangent_out.transpose(0,3,4,1,2)
-    return tangent_out
-
-#@jit
 def _int2e_c2s(eris_cart, c2s):
-    eris_sph = np.einsum('iu,jv,cijkl,ks,lt->cuvst', c2s, c2s, eris_cart, c2s, c2s)
+    eris_sph = np.einsum('pi,qj,cpqrs,rk,sl->cijkl',
+                         c2s, c2s, eris_cart, c2s, c2s)
     return eris_sph
