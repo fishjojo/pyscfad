@@ -2,11 +2,19 @@ from functools import partial
 import numpy
 #import jax
 from pyscf import numpy as np
+from pyscf.gto import mole as pyscf_mole
 from pyscf.gto.moleintor import make_loc
 from pyscf.gto.eval_gto import _get_intor_and_comp
 from pyscf.gto.eval_gto import eval_gto as pyscf_eval_gto
 from pyscfad.lib import jit, custom_jvp, vmap
+from pyscfad.gto import mole
 #from pyscfad.gto.moleintor import get_bas_label
+from pyscfad.gto._mole_helper import (
+#    setup_exp,
+    setup_ctr_coeff,
+#    get_fakemol_exp,
+    get_fakemol_cs,
+)
 
 _MAX_DERIV_ORDER = 4
 #_DERIV_LABEL = []
@@ -217,7 +225,45 @@ def _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
     return tangent_out
 
 def _eval_gto_jvp_cs(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc):
-    return 0
+    ctr_coeff = mol.ctr_coeff
+    ctr_coeff_t = mol_t.ctr_coeff
+
+    ngrids = len(grid_coords)
+
+    if shls_slice is None:
+        shls_slice = (0, mol.nbas)
+    shl0, shl1 = shls_slice
+
+    mol1 = get_fakemol_cs(mol, shls_slice)
+    ao1 = _eval_gto(mol1, eval_name, grid_coords, None, None, non0tab,
+                    ao_loc, None, None)
+    ao1 = ao1.reshape(comp,ngrids,-1)
+
+    nao_id0, nao_id1 = mole.nao_nr_range(mol, shl0, shl1)
+    nao = nao_id1 - nao_id0
+    grad = numpy.zeros((comp,ngrids,len(ctr_coeff),nao), dtype=ao1.dtype)
+    _, cs_of, _ = setup_ctr_coeff(mol)
+
+    off = 0
+    ibas = 0
+    for i in range(shl0, shl1):
+        l = mol._bas[i,pyscf_mole.ANG_OF]
+        if mol.cart:
+            nbas = (l+1)*(l+2)//2
+        else:
+            nbas = 2*l + 1
+        nprim = mol._bas[i,pyscf_mole.NPRIM_OF]
+        nctr = mol._bas[i,pyscf_mole.NCTR_OF]
+        g = ao1[:,:,off:(off+nprim*nbas)].reshape(comp,ngrids,nprim,nbas)
+        for j in range(nctr):
+            grad[:,:,(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim),ibas:(ibas+nbas)] += g
+            ibas += nbas
+        off += nprim*nbas
+
+    tangent_out = np.einsum('cgxi,x->cgi', grad, ctr_coeff_t)
+    if comp == 1:
+        tangent_out = tangent_out[0]
+    return tangent_out
 
 def _eval_gto_jvp_exp(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc):
     return 0

@@ -2,7 +2,7 @@ import numpy
 from pyscf.gto.mole import (ATOM_OF, ANG_OF, NPRIM_OF, NCTR_OF,
                             KAPPA_OF, PTR_EXP, PTR_COEFF, PTR_ENV_START)
 
-def uncontract(mol):
+def uncontract(mol, shls_slice=None):
     """
     Return the uncontracted basis functions.
 
@@ -10,6 +10,11 @@ def uncontract(mol):
     ----------
     mol : Mole instance
         Mole instance with the contracted basis functions.
+
+    shls_slice : tuple
+        Starting and ending indices of the shells being
+        uncontracted. Default is `None`, meaning all
+        shells are considered.
 
     Returns
     -------
@@ -20,12 +25,16 @@ def uncontract(mol):
     -----
     The uncontracted basis functions are neither sorted nor normalized.
     """
+    if shls_slice is None:
+        shls_slice = (0, mol.nbas)
+    shl0, shl1 = shls_slice
+
     mol1 = mol.copy()
     tmp = []
     env = []
     bas = []
     ioff = istart = PTR_ENV_START + mol.natm * 4
-    for i in range(mol.nbas):
+    for i in range(shl0, shl1):
         iatm = mol._bas[i,ATOM_OF]
         l = mol._bas[i,ANG_OF]
         nprim = mol._bas[i,NPRIM_OF]
@@ -44,7 +53,7 @@ def uncontract(mol):
     bas = numpy.asarray(bas)
     ptr_exp = mol._bas[:,PTR_EXP]
     _bas = []
-    for i in range(mol.nbas):
+    for i in range(shl0, shl1):
         iatm = mol._bas[i,ATOM_OF]
         bas_tmp = bas[numpy.where(bas[:,-1] == ptr_exp[i])[0]]
         bas_tmp[:,ATOM_OF] = iatm
@@ -174,6 +183,6 @@ def get_fakemol_exp(mol, order=2):
     mol1._bas[:,ANG_OF] += order
     return mol1
 
-def get_fakemol_cs(mol):
-    mol1 = uncontract(mol)
+def get_fakemol_cs(mol, shls_slice=None):
+    mol1 = uncontract(mol, shls_slice=shls_slice)
     return mol1

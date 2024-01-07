@@ -41,6 +41,17 @@ def distance_matrix_jvp(primals, tangents):
 
 intor_cross = moleintor.intor_cross
 
+def nao_nr_range(mol, bas_id0, bas_id1):
+    from pyscf.gto.moleintor import make_loc
+    if mol.cart:
+        key = 'cart'
+    else:
+        key = 'sph'
+    ao_loc = make_loc(mol._bas[:bas_id1], key)
+    nao_id0 = ao_loc[bas_id0]
+    nao_id1 = ao_loc[-1]
+    return nao_id0, nao_id1
+
 @util.pytree_node(Traced_Attributes)
 class Mole(gto.Mole):
     '''
