@@ -178,8 +178,8 @@ def setup_ctr_coeff(mol):
     cs_of = cs_of[idx]
     return cs, cs_of, env_of
 
-def get_fakemol_exp(mol, order=2):
-    mol1 = uncontract(mol)
+def get_fakemol_exp(mol, order=2, shls_slice=None):
+    mol1 = uncontract(mol, shls_slice=shls_slice)
     mol1._bas[:,ANG_OF] += order
     return mol1
 
