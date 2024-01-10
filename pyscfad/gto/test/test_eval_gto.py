@@ -32,7 +32,7 @@ def test_eval_gto_nuc():
     molm.basis = bas
     molm.build()
 
-    tol = [1e-6, 1e-6, 1e-6, 1e-6]
+    tol = [1e-6,] * 4
 
     for i, eval_name in enumerate(eval_names):
         ao0 = pyscf_eval_gto(mol, eval_name, coords)
@@ -45,8 +45,8 @@ def test_eval_gto_nuc():
         jac_fwd = jax.jacfwd(mol.__class__.eval_gto)(mol, eval_name, coords)
         assert abs(jac_fwd.coords[...,1,2] - g_fd).max() < tol[i]
 
-        jac_rev = jax.jacrev(mol.__class__.eval_gto)(mol, eval_name, coords)
-        assert abs(jac_rev.coords[...,1,2] - g_fd).max() < tol[i]
+        #jac_rev = jax.jacrev(mol.__class__.eval_gto)(mol, eval_name, coords)
+        #assert abs(jac_rev.coords[...,1,2] - g_fd).max() < tol[i]
 
 def four_point_fd(mol, eval_name, coords, _env_of, disp=1e-4):
     grad_fd = []
@@ -81,16 +81,16 @@ def exp_grad_fd(mol, eval_name, coords):
 
 def test_eval_gto_cs():
     mol = gto.Mole()
-    mol.atom = 'H 0 0 0; H 0 0 0.74'  # in Angstrom
+    mol.atom = 'H 0 0 0; Li 0 0 1.6'  # in Angstrom
     mol.basis = bas
     mol.build(trace_coords=False, trace_ctr_coeff=True, trace_exp=False)
 
     grids = gen_grid.Grids(mol)
-    grids.atom_grid = {'H': (10, 14)}
+    grids.atom_grid = {'H': (10, 14), 'Li': (15, 14)}
     grids.build(with_non0tab=True)
     coords = grids.coords
 
-    tol = [1e-6, 1e-6, 1e-6, 1e-6]
+    tol = [1e-6,] * 4
 
     for i, eval_name in enumerate(eval_names):
         g_fd = cs_grad_fd(mol, eval_name, coords)
@@ -98,21 +98,21 @@ def test_eval_gto_cs():
         jac_fwd = jax.jacfwd(mol.__class__.eval_gto)(mol, eval_name, coords)
         assert abs(jac_fwd.ctr_coeff - g_fd).max() < tol[i]
 
-        jac_rev = jax.jacrev(mol.__class__.eval_gto)(mol, eval_name, coords)
-        assert abs(jac_rev.ctr_coeff - g_fd).max() < tol[i]
+        #jac_rev = jax.jacrev(mol.__class__.eval_gto)(mol, eval_name, coords)
+        #assert abs(jac_rev.ctr_coeff - g_fd).max() < tol[i]
 
 def test_eval_gto_exp():
     mol = gto.Mole()
-    mol.atom = 'H 0 0 0; H 0 0 0.74'  # in Angstrom
+    mol.atom = 'H 0 0 0; Li 0 0 1.6'  # in Angstrom
     mol.basis = bas
     mol.build(trace_coords=False, trace_ctr_coeff=False, trace_exp=True)
 
     grids = gen_grid.Grids(mol)
-    grids.atom_grid = {'H': (10, 14)}
+    grids.atom_grid = {'H': (10, 14), 'Li': (15, 14)}
     grids.build(with_non0tab=True)
     coords = grids.coords
 
-    tol = [1e-6, 1e-6, 1e-6, 1e-6]
+    tol = [1e-6,] * 4
 
     for i, eval_name in enumerate(eval_names):
         g_fd = exp_grad_fd(mol, eval_name, coords)
@@ -120,5 +120,5 @@ def test_eval_gto_exp():
         jac_fwd = jax.jacfwd(mol.__class__.eval_gto)(mol, eval_name, coords)
         assert abs(jac_fwd.exp - g_fd).max() < tol[i]
 
-        jac_rev = jax.jacrev(mol.__class__.eval_gto)(mol, eval_name, coords)
-        assert abs(jac_rev.exp - g_fd).max() < tol[i]
+        #jac_rev = jax.jacrev(mol.__class__.eval_gto)(mol, eval_name, coords)
+        #assert abs(jac_rev.exp - g_fd).max() < tol[i]

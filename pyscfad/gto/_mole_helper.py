@@ -61,6 +61,10 @@ def uncontract(mol, shls_slice=None):
     _bas = numpy.vstack(tuple(_bas))
     _bas[:,-1] = 0
     mol1._bas = _bas
+
+    # stop tracing
+    mol1.ctr_coeff = None
+    mol1.exp = None
     return mol1
 
 def shlmap_ctr2unctr(mol):
