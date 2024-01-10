@@ -182,6 +182,12 @@ def _getints2c_rc_jvp(intor, shls_slice, comp, hermi, out, rc_deriv,
     if mol.coords is not None:
         intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor)
         tangent_out += _gen_int1e_jvp_r0(mol, mol_t, intor_ip_bra, intor_ip_ket, rc_deriv)
+
+    if mol.ctr_coeff is not None:
+        tangent_out += _int1e_jvp_cs(mol, mol_t, intor, shls_slice, comp, hermi)
+
+    if mol.exp is not None:
+        tangent_out += _int1e_jvp_exp(mol, mol_t, intor, shls_slice, comp, hermi)
     return primal_out, tangent_out
 
 @partial(custom_jvp, nondiff_argnums=(1,2,3,4,5))
