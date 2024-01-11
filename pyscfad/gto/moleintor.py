@@ -942,7 +942,7 @@ def _int2e_jvp_exp(mol, mol_t, intor, shls_slice, comp):
         return grad
 
     def _fill_grad1():
-        shls_slice = ( nbas1, nbas1+nbas,
+        shls_slice = (nbas1, nbas1+nbas,
                       0, nbas1,
                       nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas)
@@ -987,7 +987,7 @@ def _int2e_jvp_exp(mol, mol_t, intor, shls_slice, comp):
         return grad
 
     def _fill_grad2():
-        shls_slice = ( nbas1, nbas1+nbas,
+        shls_slice = (nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas,
                       0, nbas1,
                       nbas1, nbas1+nbas)
@@ -1032,7 +1032,7 @@ def _int2e_jvp_exp(mol, mol_t, intor, shls_slice, comp):
         return grad
 
     def _fill_grad3():
-        shls_slice = ( nbas1, nbas1+nbas,
+        shls_slice = (nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas,
                       0, nbas1)

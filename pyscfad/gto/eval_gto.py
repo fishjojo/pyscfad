@@ -70,6 +70,8 @@ _XYZ_ID = [
 def eval_gto(mol, eval_name, grid_coords,
              comp=None, shls_slice=None, non0tab=None,
              ao_loc=None, cutoff=None, out=None):
+    # FIXME non0tab makes ctr_coeff and exp derivatives wrong
+    non0tab=None
     eval_name, comp = _get_intor_and_comp(mol, eval_name, comp)
     return _eval_gto(mol, eval_name, grid_coords,
                      comp, shls_slice, non0tab, ao_loc, cutoff, out)
@@ -238,8 +240,9 @@ def _eval_gto_jvp_cs(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
 
     mol1 = get_fakemol_cs(mol, shls_slice)
     comp = _get_intor_and_comp(mol, eval_name, comp)[1]
-    ao1 = _eval_gto(mol1, eval_name, grid_coords, comp, None, non0tab,
-                    None, None, None)
+    # stop tracing as only 1st order derivatives are non-zero
+    ao1 = pyscf_eval_gto(mol1, eval_name, grid_coords, comp, None, non0tab,
+                         None, None, None)
     ao1 = ao1.reshape(comp,ngrids,-1)
 
     _, cs_of, _ = setup_ctr_coeff(mol)
@@ -247,10 +250,8 @@ def _eval_gto_jvp_cs(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
     nao_id0, nao_id1 = mole.nao_nr_range(mol, shl0, shl1)
     nao = nao_id1 - nao_id0
 
-    # TODO improve performance
-    @jit
-    def _dot_grad_tangent(ao1, tangent):
-        tangent_out = np.empty((comp,ngrids,nao), dtype=ao1.dtype)
+    def _fill_grad():
+        grad = numpy.zeros((comp,ngrids,len(ctr_coeff),nao), dtype=ao1.dtype)
         off = 0
         ibas = 0
         for i in range(shl0, shl1):
@@ -263,13 +264,36 @@ def _eval_gto_jvp_cs(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
             nctr = mol._bas[i,pyscf_mole.NCTR_OF]
             g = ao1[...,off:(off+nprim*nbas)].reshape(comp,ngrids,nprim,nbas)
             for j in range(nctr):
-                out = np.einsum('cgxi,x->cgi', g,
-                                tangent[(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim)])
-                tangent_out = tangent_out.at[...,ibas:(ibas+nbas)].set(out)
+                grad[...,(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim),ibas:(ibas+nbas)] += g
                 ibas += nbas
             off += nprim*nbas
-        return tangent_out
-    tangent_out = _dot_grad_tangent(ao1, ctr_coeff_t)
+        return grad
+    grad = _fill_grad()
+    tangent_out = np.einsum('cgxi,x->cgi', grad, ctr_coeff_t)
+
+    # TODO improve performance
+    #@jit
+    #def _dot_grad_tangent(ao1, tangent):
+    #    tangent_out = np.empty((comp,ngrids,nao), dtype=ao1.dtype)
+    #    off = 0
+    #    ibas = 0
+    #    for i in range(shl0, shl1):
+    #        l = mol._bas[i,pyscf_mole.ANG_OF]
+    #        if mol.cart:
+    #            nbas = (l+1)*(l+2)//2
+    #        else:
+    #            nbas = 2*l + 1
+    #        nprim = mol._bas[i,pyscf_mole.NPRIM_OF]
+    #        nctr = mol._bas[i,pyscf_mole.NCTR_OF]
+    #        g = ao1[...,off:(off+nprim*nbas)].reshape(comp,ngrids,nprim,nbas)
+    #        for j in range(nctr):
+    #            out = np.einsum('cgxi,x->cgi', g,
+    #                            tangent[(cs_of[i]+j*nprim):(cs_of[i]+(j+1)*nprim)])
+    #            tangent_out = tangent_out.at[...,ibas:(ibas+nbas)].set(out)
+    #            ibas += nbas
+    #        off += nprim*nbas
+    #    return tangent_out
+    #tangent_out = _dot_grad_tangent(ao1, ctr_coeff_t)
 
     if comp == 1:
         tangent_out = tangent_out[0]
@@ -290,8 +314,9 @@ def _eval_gto_jvp_exp(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0
 
     mol1 = get_fakemol_exp(mol, shls_slice=shls_slice)
     comp = _get_intor_and_comp(mol, eval_name, comp)[1]
-    ao1 = _eval_gto(mol1, eval_name, grid_coords, comp, None, non0tab,
-                    None, None, None)
+    # FIXME 1st order derivatives only
+    ao1 = pyscf_eval_gto(mol1, eval_name, grid_coords, comp, None, non0tab,
+                         None, None, None)
 
     es, es_of, _env_of = setup_exp(mol)
 
