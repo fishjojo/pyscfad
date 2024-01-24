@@ -22,7 +22,7 @@ def replace_source_code(fn, namespace, orig, repl):
     exec(code, namespace)
     return namespace[fn.__name__]
 
-def numpy2np(fn, namespace=None):
+def numpy2np(fn, namespace=None, np='np'):
     if namespace is None:
         namespace = fn.__globals__
-    return replace_source_code(fn, namespace, 'numpy', 'np')
+    return replace_source_code(fn, namespace, 'numpy', np)

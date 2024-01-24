@@ -7,8 +7,7 @@ from pyscf.gto.moleintor import make_loc
 from pyscf.gto.eval_gto import _get_intor_and_comp
 from pyscf.gto.eval_gto import eval_gto as pyscf_eval_gto
 from pyscfad.lib import jit, custom_jvp, vmap
-from pyscfad.gto import mole
-from pyscfad.gto.moleintor import get_bas_label, promote_xyz
+from pyscfad.gto._moleintor_helper import get_bas_label, promote_xyz
 from pyscfad.gto._mole_helper import (
     setup_exp,
     setup_ctr_coeff,
@@ -229,6 +228,7 @@ def _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
     return tangent_out
 
 def _eval_gto_jvp_cs(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc):
+    from pyscfad.gto.mole import nao_nr_range
     ctr_coeff = mol.ctr_coeff
     ctr_coeff_t = mol_t.ctr_coeff
 
@@ -247,7 +247,7 @@ def _eval_gto_jvp_cs(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
 
     _, cs_of, _ = setup_ctr_coeff(mol)
 
-    nao_id0, nao_id1 = mole.nao_nr_range(mol, shl0, shl1)
+    nao_id0, nao_id1 = nao_nr_range(mol, shl0, shl1)
     nao = nao_id1 - nao_id0
 
     def _fill_grad():

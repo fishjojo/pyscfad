@@ -24,43 +24,22 @@ from pyscfad.gto._mole_helper import (
 from pyscfad.gto._moleintor_helper import (
     int1e_dr1_name,
     int2e_dr1_name,
+    _intor_impl,
 )
-from pyscfad.gto.moleintor import _intor
 from pyscfadlib import libcgto_vjp as libcgto
 
-def getints(mol, intor, shls_slice=None,
-            comp=None, hermi=0, aosym='s1',
-            out=None, grids=None):
-    if intor.endswith('_spinor'):
-        raise NotImplementedError('Integrals for spinors are not supported.')
-    if grids is not None:
-        raise NotImplementedError('Integrals on grids are not supported.')
-    if out is not None:
-        logger.warn(mol, f'Argument out = {out} will be ignored.')
-    if hermi == 2:
-        hermi = 0
-        msg = f'Anti-hermitian symmetry is not supported. Setting hermi = {hermi}.'
-        logger.warn(mol, msg)
 
-    if (intor.startswith('int1e') or
-        intor.startswith('int2c2e') or
-        intor.startswith('ECP')):
-        return getints2c(mol, intor, shls_slice, comp, hermi, out=None)
-    elif intor.startswith('int2e'):
-        return getints4c(mol, intor, shls_slice, comp, aosym, out=None)
-    else:
-        raise NotImplementedError(f'Integral {intor} is not supported.')
+@partial(custom_vjp, nondiff_argnums=tuple(range(1,8)))
+def intor2c(mol, intor, comp=None, hermi=0, aosym='s1', out=None,
+            shls_slice=None, grids=None):
+    return _intor_impl(mol, intor, comp=comp, hermi=hermi, aosym=aosym, out=out,
+                       shls_slice=shls_slice, grids=grids)
 
-@partial(custom_vjp, nondiff_argnums=(1,2,3,4,5))
-def getints2c(mol, intor, shls_slice=None, comp=None, hermi=0, out=None):
-    return _intor(mol, intor, comp=comp, hermi=hermi,
-                  shls_slice=shls_slice, out=out)
-
-def getints2c_fwd(mol, intor, shls_slice, comp, hermi, out):
-    y = getints2c(mol, intor, shls_slice, comp, hermi, out)
+def getints2c_fwd(mol, intor, comp, hermi, aosym, out, shls_slice, grids):
+    y = intor2c(mol, intor, comp, hermi, aosym, out, shls_slice, grids)
     return y, (mol,)
 
-def getints2c_bwd(intor, shls_slice, comp, hermi, out,
+def getints2c_bwd(intor, comp, hermi, aosym, out, shls_slice, grids,
                   res, ybar):
     mol = res[0]
     leaves = []
@@ -87,18 +66,24 @@ def getints2c_bwd(intor, shls_slice, comp, hermi, out,
     molbar = tree_unflatten(tree, leaves)
     return (molbar,)
 
-getints2c.defvjp(getints2c_fwd, getints2c_bwd)
+intor2c.defvjp(getints2c_fwd, getints2c_bwd)
 
-@partial(custom_vjp, nondiff_argnums=(1,2,3,4,5))
-def getints4c(mol, intor, shls_slice=None, comp=None, aosym='s1', out=None):
-    return _intor(mol, intor, comp=comp, aosym=aosym,
-                  shls_slice=shls_slice, out=out)
+def intor3c(mol, intor, comp=None, hermi=0, aosym='s1', out=None,
+            shls_slice=None, grids=None):
+    return _intor_impl(mol, intor, comp=comp, hermi=hermi, aosym=aosym, out=out,
+                       shls_slice=shls_slice, grids=grids)
 
-def getints4c_fwd(mol, intor, shls_slice, comp, aosym, out):
-    y = getints4c(mol, intor, shls_slice, comp, aosym, out)
+@partial(custom_vjp, nondiff_argnums=tuple(range(1,8)))
+def intor4c(mol, intor, comp=None, hermi=0, aosym='s1', out=None,
+            shls_slice=None, grids=None):
+    return _intor_impl(mol, intor, comp=comp, hermi=hermi, aosym=aosym, out=out,
+                       shls_slice=shls_slice, grids=grids)
+
+def getints4c_fwd(mol, intor, comp, hermi, aosym, out, shls_slice, grids):
+    y = intor4c(mol, intor, comp, hermi, aosym, out, shls_slice, grids)
     return y, (mol,)
 
-def getints4c_bwd(intor, shls_slice, comp, aosym, out,
+def getints4c_bwd(intor, comp, hermi, aosym, out, shls_slice, grids,
                   res, ybar):
     mol = res[0]
     leaves = []
@@ -109,12 +94,12 @@ def getints4c_bwd(intor, shls_slice, comp, aosym, out,
         leaves.append(vjp_coords)
 
     if mol.exp is not None:
-        raise NotImplementedError
+        pass
         #vjp_exp = getints4c_exp_bwd(intor, shls_slice, comp, aosym, out,
         #                            mol, ybar)
 
     if mol.ctr_coeff is not None:
-        raise NotImplementedError
+        pass
         #vjp_coeff = getints4c_coeff_bwd(intor, shls_slice, comp, aosym, out,
         #                                mol, ybar)
 
@@ -122,7 +107,7 @@ def getints4c_bwd(intor, shls_slice, comp, aosym, out,
     molbar = tree_unflatten(tree, leaves)
     return (molbar,)
 
-getints4c.defvjp(getints4c_fwd, getints4c_bwd)
+intor4c.defvjp(getints4c_fwd, getints4c_bwd)
 
 
 def _int1e_r0_deriv(intor_ip_bra, shls_slice, comp, hermi,
