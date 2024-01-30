@@ -106,7 +106,10 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
                 mf.with_df.build()
         else:
             if mf._eri is None:
-                mf._eri = mol.intor('int2e', aosym='s4')
+                if config.moleintor_opt:
+                    mf._eri = mol.intor('int2e', aosym='s4')
+                else:
+                    mf._eri = mol.intor('int2e', aosym='s1')
 
     scf_conv = False
     mo_energy = mo_coeff = mo_occ = None
@@ -328,7 +331,10 @@ class SCF(pyscf_hf.SCF):
         if dm is None:
             dm = self.make_rdm1()
         if self._eri is None:
-            self._eri = self.mol.intor('int2e', aosym='s4')
+            if config.moleintor_opt:
+                self._eri = self.mol.intor('int2e', aosym='s4')
+            else:
+                self._eri = self.mol.intor('int2e', aosym='s1')
         vj, vk = dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
         return vj, vk
 
