@@ -10,7 +10,6 @@ from jax import numpy as np
 from pyscf.data import nist
 from pyscf.lib import module_method
 from pyscf.scf import hf as pyscf_hf
-from pyscf.scf import chkfile
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
 
 from pyscfad import config
@@ -25,6 +24,7 @@ from pyscfad.lib import (
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad import df
 from pyscfad.scf import _vhf
+from pyscfad.scf import chkfile
 from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scipy.linalg import eigh
 from pyscfad.tools.linear_solver import gen_gmres
@@ -461,6 +461,14 @@ class SCF(pyscf_hf.SCF):
         if dm is None:
             dm =self.make_rdm1()
         return dip_moment(mol, dm, unit, verbose=verbose, **kwargs)
+
+    def dump_chk(self, envs):
+        if self.chkfile:
+            chkfile.dump_scf(self.mol, self.chkfile,
+                             envs['e_tot'], envs['mo_energy'],
+                             envs['mo_coeff'], envs['mo_occ'],
+                             overwrite_mol=False)
+        return self
 
     make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
     energy_elec = energy_elec

@@ -2,12 +2,11 @@ from functools import reduce
 import numpy
 from jax import vmap
 from jax import numpy as np
-from pyscf import lib
 from pyscf import symm
 from pyscf.scf import hf_symm
 from pyscf.tdscf import rhf as pyscf_tdrhf
 from pyscfad import util
-from pyscfad.lib import logger
+from pyscfad.lib import logger, chkfile
 from pyscfad.lib.linalg_helper import davidson1
 from pyscfad import ao2mo
 from pyscfad.gto import mole
@@ -209,8 +208,8 @@ class TDA(TDMixin, pyscf_tdrhf.TDA):
         self.xy = [(xi.reshape(nocc,nvir)*numpy.sqrt(.5),0) for xi in x1]
 
         if self.chkfile:
-            lib.chkfile.save(self.chkfile, 'tddft/e', self.e)
-            lib.chkfile.save(self.chkfile, 'tddft/xy', self.xy)
+            chkfile.save(self.chkfile, 'tddft/e', self.e)
+            chkfile.save(self.chkfile, 'tddft/xy', self.xy)
 
         log.timer('TDA', *cpu0)
         self._finalize()

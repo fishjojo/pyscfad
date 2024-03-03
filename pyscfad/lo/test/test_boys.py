@@ -2,9 +2,9 @@ import jax
 from pyscf.data.nist import BOHR
 from pyscfad import gto, scf
 from pyscfad.lo import boys
-from pyscfad import config
+#from pyscfad import config
 #config.update('pyscfad_moleintor_opt', True)
-config.update('pyscfad_scf_implicit_diff', True)
+#config.update('pyscfad_scf_implicit_diff', True)
 
 def _boys(mol):
     mf = scf.RHF(mol)

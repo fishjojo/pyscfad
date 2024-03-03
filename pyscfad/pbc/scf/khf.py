@@ -1,4 +1,5 @@
 import sys
+import h5py
 import numpy
 from jax import numpy as np
 from pyscf import __config__
@@ -154,6 +155,13 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         if mo_occ_kpts is None:
             mo_occ_kpts = self.mo_occ
         return make_rdm1(mo_coeff_kpts, mo_occ_kpts, **kwargs)
+
+    def dump_chk(self, envs):
+        if self.chkfile:
+            mol_hf.SCF.dump_chk(self, envs)
+            with h5py.File(self.chkfile, 'a') as fh5:
+                fh5['scf/kpts'] = stop_grad(self.kpts)
+        return self
 
     get_hcore = get_hcore
     get_ovlp = get_ovlp
