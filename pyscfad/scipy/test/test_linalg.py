@@ -1,7 +1,7 @@
 import pytest
 import jax
 from jax import scipy as jscipy
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscfad.scipy.linalg import eigh
 
 def test_eigh():

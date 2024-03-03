@@ -1,4 +1,4 @@
-from pyscf import numpy as np
+from jax import numpy as np
 
 def _make_rdm1(mycc, d1, with_frozen=True, ao_repr=False, with_mf=True):
     doo, dov, dvo, dvv = d1

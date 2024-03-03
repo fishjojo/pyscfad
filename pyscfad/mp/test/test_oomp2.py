@@ -1,9 +1,9 @@
 import pytest
 import numpy
 import jax
+from jax import numpy as np
 from scipy.optimize import minimize
 from pyscfad import util
-from pyscfad.lib import numpy as np
 from pyscfad.tools import rotate_mo1
 from pyscfad import gto, scf, mp
 from pyscfad import config

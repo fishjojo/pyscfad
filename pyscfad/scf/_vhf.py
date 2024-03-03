@@ -2,7 +2,6 @@ from functools import partial
 import ctypes
 import numpy
 from jax import custom_vjp
-#from pyscf.lib import logger
 from pyscf.scf import _vhf
 from pyscfadlib import libcvhf_vjp as libcvhf
 

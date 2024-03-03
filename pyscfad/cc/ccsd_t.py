@@ -3,14 +3,13 @@ import numpy
 from jax import custom_vjp
 from jax.tree_util import tree_flatten, tree_unflatten
 from pyscf.lib import (
-    logger,
     prange_tril,
     num_threads,
     current_memory,
 #    load_library
 )
 from pyscf.cc import ccsd_t as pyscf_ccsd_t
-
+from pyscfad.lib import logger
 #libcc = load_library('libcc')
 from pyscfadlib import libcc_vjp as libcc
 

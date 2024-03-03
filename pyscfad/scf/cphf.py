@@ -1,5 +1,5 @@
 from jax.scipy.sparse.linalg import gmres
-from pyscf.lib import logger
+from pyscfad.lib import logger
 
 def solve(fvind, mo_energy, mo_occ, h1, s1=None,
           max_cycle=50, tol=1e-9, hermi=False, verbose=logger.WARN):

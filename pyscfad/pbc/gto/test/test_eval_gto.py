@@ -1,8 +1,9 @@
 import pytest
 import numpy
 import jax
+from jax import numpy as jnp
+from pyscf.pbc.gto import Cell
 from pyscf.pbc.gto.eval_gto import eval_gto as pyscf_eval_gto
-from pyscfad.lib import numpy as jnp
 from pyscfad.pbc import gto
 
 @pytest.fixture
@@ -48,21 +49,21 @@ def test_eval_gto(get_cell):
     kpts = cell.make_kpts([2,1,1])
     grids = cell.get_uniform_grids()
     ao = cell.pbc_eval_gto("GTOval", grids)
-    ao_ref = pyscf_eval_gto(cell, "GTOval", grids)
+    ao_ref = pyscf_eval_gto(cell.view(Cell), "GTOval", grids)
     assert abs(ao - ao_ref).max() < 1e-10
 
-    g0 = eval_gto_deriv1_r0(cell, "GTOval", grids)
+    g0 = eval_gto_deriv1_r0(cell.view(Cell), "GTOval", grids)
     jac_fwd = jax.jacfwd(cell.__class__.pbc_eval_gto)(cell, "GTOval", grids)
     jac_bwd = jax.jacrev(cell.__class__.pbc_eval_gto)(cell, "GTOval", grids)
     assert abs(jac_fwd.coords - g0).max() < 1e-10
     assert abs(jac_bwd.coords - g0).max() < 1e-10
 
     ao = cell.pbc_eval_gto("GTOval", grids, kpts=kpts)
-    ao_ref = pyscf_eval_gto(cell, "GTOval", grids, kpts=kpts)
+    ao_ref = pyscf_eval_gto(cell.view(Cell), "GTOval", grids, kpts=kpts)
     for i in range(len(kpts)):
         assert abs(ao[i] - ao_ref[i]).max() < 1e-10
 
-    g0 = eval_gto_deriv1_r0(cell, "GTOval", grids, kpts=kpts)
+    g0 = eval_gto_deriv1_r0(cell.view(Cell), "GTOval", grids, kpts=kpts)
     jac_fwd = jax.jacfwd(cell.__class__.pbc_eval_gto)(cell, "GTOval", grids, kpts=kpts)
     for i in range(len(kpts)):
         assert abs(jac_fwd[i].coords - g0[i]).max() < 1e-10
@@ -73,7 +74,7 @@ def test_eval_gto(get_cell):
     for i in range(4):
         intor = "PBCGTOval_sph_deriv" + str(i)
         ao = cell.pbc_eval_gto(intor, grids)
-        ao_ref = pyscf_eval_gto(cell, intor, grids)
+        ao_ref = pyscf_eval_gto(cell.view(Cell), intor, grids)
         assert abs(ao - ao_ref).max() < 1e-10
 
         # TODO test gradient

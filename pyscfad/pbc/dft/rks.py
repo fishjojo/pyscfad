@@ -1,11 +1,11 @@
 import numpy
+from jax import numpy as np
 from pyscf import __config__
 from pyscf.lib import logger
 from pyscf.pbc.dft import rks as pyscf_rks
 from pyscf.pbc.dft import gen_grid, multigrid
 from pyscf.pbc.dft.rks import prune_small_rho_grids_
 from pyscfad import util
-from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.dft import rks as mol_ks
 from pyscfad.dft.rks import VXC
@@ -89,14 +89,15 @@ def _dft_common_init_(mf, xc='LDA,VWN', **kwargs):
     mf._keys = mf._keys.union(['xc', 'grids', 'small_rho_cutoff'])
 
 def _dft_common_post_init_(mf):
+    from pyscf.pbc.gto import Cell
     if mf.grids is None:
-        mf.grids = gen_grid.UniformGrids(stop_grad(mf.cell))
+        mf.grids = gen_grid.UniformGrids(mf.cell.view(Cell))
 
 class KohnShamDFT(mol_ks.KohnShamDFT):
     __init__ = _dft_common_init_
     __post_init__ = _dft_common_post_init_
 
-@util.pytree_node(pbchf.Traced_Attributes, num_args=1)
+#@util.pytree_node(pbchf.Traced_Attributes, num_args=1)
 class RKS(KohnShamDFT, pbchf.RHF):
     def __init__(self, cell, xc='LDA,VWN', kpt=numpy.zeros(3),
                  exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'), **kwargs):

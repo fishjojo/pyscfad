@@ -2,7 +2,7 @@ from functools import reduce, partial
 import numpy
 import scipy
 import jax
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscf.lib import logger
 from pyscf.lo.pipek import PM
 from pyscfad.lib import vmap

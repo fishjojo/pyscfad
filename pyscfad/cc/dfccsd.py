@@ -1,4 +1,4 @@
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscf.lib import square_mat_in_trilu_indices
 from pyscfad import util
 from pyscfad import lib

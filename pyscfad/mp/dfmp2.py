@@ -2,13 +2,13 @@ from functools import partial
 import numpy
 import jax
 from jax import custom_vjp
+from jax import numpy as np
 from pyscf import __config__
-from pyscf import numpy as np
-from pyscf.lib import direct_sum, current_memory, logger
-from pyscf.mp.mp2 import _ChemistsERIs
+from pyscf.lib import direct_sum, current_memory
+#from pyscf.mp.mp2 import _ChemistsERIs
 from pyscfad import config
 from pyscfad import util
-from pyscfad.lib import vmap
+from pyscfad.lib import vmap, logger
 from pyscfad.ao2mo import _ao2mo
 from pyscfad.mp import mp2
 
@@ -163,7 +163,7 @@ class MP2(mp2.MP2):
         self.__dict__.update(kwargs)
 
     def ao2mo(self, mo_coeff=None):
-        eris = _ChemistsERIs()
+        eris = mp2._ChemistsERIs()
         eris._common_init_(self, mo_coeff)
         return eris
 
@@ -202,7 +202,9 @@ class MP2(mp2.MP2):
         else:
             raise NotImplementedError
 
-        self.e_corr = self.e_corr
+        # TODO SCS-MP2
+        self.e_corr_ss = 0
+        self.e_corr_os = 0
         self._finalize()
         return self.e_corr, self.t2
 

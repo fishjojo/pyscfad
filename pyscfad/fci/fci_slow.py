@@ -1,7 +1,9 @@
-from pyscf import numpy as np
+import numpy
+from jax import numpy as np
 from pyscf.fci import cistring
-from pyscf.fci import fci_slow as pyscf_fci_slow
-from pyscfad.lib import vmap
+from pyscfad import lib
+from pyscfad.lib import vmap, ops, stop_grad
+from pyscfad.lib.linalg_helper import davidson
 from pyscfad.gto import mole
 
 def get_occ_loc(strs, norb):
@@ -92,5 +94,97 @@ def fci_ovlp(mol1, mol2, fcivec1, fcivec2, norb1, norb2, nelec1, nelec2, mo1, mo
             res += ci1[ia,ib] * (val * ci2.ravel()).sum()
     return res
 
+def contract_2e(eri, fcivec, norb, nelec, opt=None):
+    '''Compute E_{pq}E_{rs}|CI>'''
+    if isinstance(nelec, (int, np.integer)):
+        nelecb = nelec//2
+        neleca = nelec - nelecb
+    else:
+        neleca, nelecb = nelec
+    link_indexa = cistring.gen_linkstr_index(range(norb), neleca)
+    link_indexb = cistring.gen_linkstr_index(range(norb), nelecb)
+    na = cistring.num_strings(norb, neleca)
+    nb = cistring.num_strings(norb, nelecb)
+    ci0 = fcivec.reshape(na,nb)
+    t1 = np.zeros((norb,norb,na,nb))
+    for str0, tab in enumerate(link_indexa):
+        for a, i, str1, sign in tab:
+            t1 = ops.index_add(t1, ops.index[a,i,str1], sign * ci0[str0])
+    for str0, tab in enumerate(link_indexb):
+        for a, i, str1, sign in tab:
+            t1 = ops.index_add(t1, ops.index[a,i,:,str1], sign * ci0[:,str0])
 
-kernel = pyscf_fci_slow.kernel
+    t1 = np.einsum('bjai,aiAB->bjAB', eri.reshape([norb]*4), t1)
+
+    fcinew = np.zeros_like(ci0)
+    for str0, tab in enumerate(link_indexa):
+        for a, i, str1, sign in tab:
+            fcinew = ops.index_add(fcinew, ops.index[str1], sign * t1[a,i,str0])
+    for str0, tab in enumerate(link_indexb):
+        for a, i, str1, sign in tab:
+            fcinew = ops.index_add(fcinew, ops.index[:,str1], sign * t1[a,i,:,str0])
+    return fcinew.reshape(fcivec.shape)
+
+
+def absorb_h1e(h1e, eri, norb, nelec, fac=1):
+    if not isinstance(nelec, (int, np.integer)):
+        nelec = sum(nelec)
+    if eri.size != norb**4:
+        h2e = ao2mo.restore(1, eri.copy(), norb)
+    else:
+        h2e = eri.copy().reshape(norb,norb,norb,norb)
+    f1e = h1e - np.einsum('jiik->jk', h2e) * .5
+    f1e = f1e * (1./(nelec+1e-100))
+    for k in range(norb):
+        h2e = ops.index_add(h2e, ops.index[k,k,:,:], f1e)
+        h2e = ops.index_add(h2e, ops.index[:,:,k,k], f1e)
+    return h2e * fac
+
+def make_hdiag(h1e, eri, norb, nelec, opt=None):
+    if isinstance(nelec, (int, np.integer)):
+        nelecb = nelec//2
+        neleca = nelec - nelecb
+    else:
+        neleca, nelecb = nelec
+
+    occslista = cistring.gen_occslst(range(norb), neleca)
+    occslistb = cistring.gen_occslst(range(norb), nelecb)
+    if eri.size != norb**4:
+        eri = ao2mo.restore(1, eri, norb)
+    else:
+        eri = eri.reshape(norb,norb,norb,norb)
+    diagj = np.einsum('iijj->ij', eri)
+    diagk = np.einsum('ijji->ij', eri)
+    hdiag = []
+    for aocc in occslista:
+        for bocc in occslistb:
+            e1 = h1e[aocc,aocc].sum() + h1e[bocc,bocc].sum()
+            e2 = diagj[aocc][:,aocc].sum() + diagj[aocc][:,bocc].sum() \
+               + diagj[bocc][:,aocc].sum() + diagj[bocc][:,bocc].sum() \
+               - diagk[aocc][:,aocc].sum() - diagk[bocc][:,bocc].sum()
+            hdiag.append(e1 + e2*.5)
+    return np.array(hdiag)
+
+def kernel(h1e, eri, norb, nelec, ecore=0, nroots=1):
+    h2e = absorb_h1e(h1e, eri, norb, nelec, .5)
+    na = cistring.num_strings(norb, nelec//2)
+
+    hdiag = make_hdiag(h1e, eri, norb, nelec)
+    try:
+        from pyscf.fci.direct_spin1 import pspace
+        addrs, h0 = pspace(stop_grad(h1e), stop_grad(eri),
+                           norb, nelec, stop_grad(hdiag), nroots)
+    except:
+        addrs = numpy.argsort(hdiag)[:nroots]
+    ci0 = []
+    for addr in addrs:
+        x = numpy.zeros((na*na))
+        x[addr] = 1.
+        ci0.append(x.ravel())
+
+    def hop(c):
+        hc = contract_2e(h2e, c, norb, nelec)
+        return hc.ravel()
+    precond = lambda x, e, *args: x/(hdiag-e+1e-4)
+    e, c = davidson(hop, ci0, precond, nroots=nroots)
+    return e+ecore, c

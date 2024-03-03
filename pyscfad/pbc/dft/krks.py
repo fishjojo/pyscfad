@@ -1,10 +1,10 @@
 import numpy
+from jax import numpy as np
 from pyscf import __config__
 from pyscf.lib import logger
 from pyscf.pbc.dft import krks as pyscf_krks
 from pyscf.pbc.dft import gen_grid, multigrid
 from pyscfad import util
-from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.dft.rks import VXC
 from pyscfad.pbc.scf import khf
@@ -77,7 +77,7 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     del log
     return vxc
 
-@util.pytree_node(khf.Traced_Attributes, num_args=1)
+#@util.pytree_node(khf.Traced_Attributes, num_args=1)
 class KRKS(rks.KohnShamDFT, khf.KRHF):
     def __init__(self, cell, kpts=numpy.zeros((1,3)), xc='LDA,VWN',
                  exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'), **kwargs):

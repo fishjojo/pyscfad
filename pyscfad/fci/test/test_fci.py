@@ -1,8 +1,8 @@
 from functools import reduce
 import pytest
 import jax
+from jax import numpy as np
 from pyscfad import gto, scf, ao2mo
-from pyscfad.lib import numpy as np
 from pyscfad.fci import fci_slow
 
 @pytest.fixture()
@@ -31,6 +31,6 @@ def test_nuc_grad(get_h2):
     e = fci_energy(mol)
     assert abs(e - -1.1372838344885026) < 1e-9
 
-    g = jax.jacrev(fci_energy)(mol).coords
+    g = jax.grad(fci_energy)(mol).coords
     assert abs(g[0,2] - -0.00455429) < 1e-6
     assert abs(g.sum()) < 1e-6

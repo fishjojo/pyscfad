@@ -1,8 +1,8 @@
 from functools import partial
+from jax import numpy as np
 from jax import jit, custom_jvp
 from pyscf.dft import libxc
 from pyscf.dft.libxc import parse_xc, is_lda, is_meta_gga
-from pyscfad.lib import numpy as np
 
 def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
     # NOTE only consider exc and vxc
