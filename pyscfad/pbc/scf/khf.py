@@ -3,7 +3,7 @@ import numpy
 from jax import numpy as np
 from pyscf import __config__
 from pyscf.pbc.scf import khf as pyscf_khf
-from pyscfad import util
+#from pyscfad import util
 from pyscfad.lib import stop_grad, logger
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
@@ -48,8 +48,8 @@ def energy_elec(mf, dm_kpts=None, h1e_kpts=None, vhf_kpts=None):
     mf.scf_summary['e2'] = stop_grad(e_coul.real)
     logger.debug(mf, 'E1 = %s  E_coul = %s', e1, e_coul)
     if abs(e_coul.imag > mf.cell.precision*10):
-        logger.warn(mf, "Coulomb energy has imaginary part %s. "
-                    "Coulomb integrals (e-e, e-N) may not converge !",
+        logger.warn(mf, 'Coulomb energy has imaginary part %s. '
+                    'Coulomb integrals (e-e, e-N) may not converge !',
                     e_coul.imag)
     return (e1+e_coul).real, e_coul.real
 

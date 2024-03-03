@@ -1,10 +1,11 @@
 import sys
+import h5py
 import numpy
 from jax import numpy as np
 from pyscf import __config__
 from pyscf.pbc.scf import hf as pyscf_pbc_hf
 from pyscf.pbc.scf.hf import _format_jks
-from pyscfad import util
+#from pyscfad import util
 from pyscfad.lib import stop_grad, logger
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df

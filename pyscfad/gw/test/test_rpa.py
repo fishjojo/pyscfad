@@ -6,10 +6,10 @@ from pyscfad import gto, dft, df
 from pyscfad.gw import rpa
 from pyscfad import config
 
-config.update('pyscfad_scf_implicit_diff', True)
-
 @pytest.fixture
 def get_h2o():
+    config.update('pyscfad_scf_implicit_diff', True)
+
     mol = gto.Mole()
     mol.verbose = 0
     mol.atom = [
@@ -18,7 +18,9 @@ def get_h2o():
         [1 , [0. , 0.7571 , 0.5861]]]
     mol.basis = 'def2-svp'
     mol.build(trace_exp=False, trace_ctr_coeff=False)
-    return mol
+    yield mol
+
+    config.reset()
 
 def test_nuc_grad(get_h2o):
     mol = get_h2o

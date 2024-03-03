@@ -1,10 +1,10 @@
 import numpy
 from jax import numpy as np
 from pyscf.fci import cistring
-from pyscfad import lib
 from pyscfad.lib import vmap, ops, stop_grad
 from pyscfad.lib.linalg_helper import davidson
 from pyscfad.gto import mole
+from pyscfad import ao2mo
 
 def get_occ_loc(strs, norb):
     locs = []
@@ -174,6 +174,7 @@ def kernel(h1e, eri, norb, nelec, ecore=0, nroots=1):
         from pyscf.fci.direct_spin1 import pspace
         addrs, h0 = pspace(stop_grad(h1e), stop_grad(eri),
                            norb, nelec, stop_grad(hdiag), nroots)
+    # pylint: disable=bare-except
     except:
         addrs = numpy.argsort(hdiag)[:nroots]
     ci0 = []
@@ -185,6 +186,7 @@ def kernel(h1e, eri, norb, nelec, ecore=0, nroots=1):
     def hop(c):
         hc = contract_2e(h2e, c, norb, nelec)
         return hc.ravel()
+    # pylint: disable=unnecessary-lambda-assignment
     precond = lambda x, e, *args: x/(hdiag-e+1e-4)
     e, c = davidson(hop, ci0, precond, nroots=nroots)
     return e+ecore, c

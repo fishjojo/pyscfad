@@ -1,6 +1,5 @@
 import sys
 import warnings
-from functools import partial
 import numpy
 from jax import numpy as np
 from jax import scipy
@@ -14,7 +13,8 @@ from pyscfad.lib import logger, stop_grad, jit
 
 DAVIDSON_LINDEP = getattr(__config__, 'lib_linalg_helper_davidson_lindep', 1e-14)
 MAX_MEMORY = getattr(__config__, 'lib_linalg_helper_davidson_max_memory', 2000)
-SORT_EIG_BY_SIMILARITY = getattr(__config__, 'lib_linalg_helper_davidson_sort_eig_by_similiarity', False)
+SORT_EIG_BY_SIMILARITY = \
+    getattr(__config__, 'lib_linalg_helper_davidson_sort_eig_by_similiarity', False)
 FOLLOW_STATE = getattr(__config__, 'lib_linalg_helper_davidson_follow_state', False)
 
 # modified from pyscf v2.3
@@ -157,7 +157,7 @@ def davidson1(aop, x0, precond, tol=1e-12, max_cycle=50, max_space=12,
 
     if callable(x0):  # lazy initialization to reduce memory footprint
         x0 = x0()
-    if getattr(x0, "ndim", None) == 1:
+    if getattr(x0, 'ndim', None) == 1:
         x0 = [x0]
     #max_cycle = min(max_cycle, x0[0].size)
     max_space = max_space + (nroots-1) * 4
@@ -181,8 +181,7 @@ def davidson1(aop, x0, precond, tol=1e-12, max_cycle=50, max_space=12,
                 xs = []
                 ax = []
             else:
-                xs = _Xlist()
-                ax = _Xlist()
+                raise NotImplementedError
             space = 0
 # Orthogonalize xt space because the basis of subspace xs must be orthogonal
 # but the eigenvectors x0 might not be strictly orthogonal
@@ -213,17 +212,18 @@ def davidson1(aop, x0, precond, tol=1e-12, max_cycle=50, max_space=12,
 
         axt = aop(xt)
         for k, xi in enumerate(xt):
-            xs.append(xt[k])
+            xs.append(xi)
             ax.append(axt[k])
         rnow = len(xt)
-        head, space = space, space+rnow
+        #head, space = space, space+rnow
+        space = space+rnow
 
         if dtype is None:
             try:
                 dtype = numpy.result_type(axt[0], xt[0])
-            except IndexError:
+            except IndexError as exc:
                 raise LinearDependenceError('No linearly independent basis found '
-                                            'by the diagonalization solver.')
+                                            'by the diagonalization solver.') from exc
         if heff is None:  # Lazy initilize heff to determine the dtype
             heff = np.empty((max_space+nroots,max_space+nroots), dtype=dtype)
         else:
@@ -236,7 +236,7 @@ def davidson1(aop, x0, precond, tol=1e-12, max_cycle=50, max_space=12,
         xt = axt = None
         w, v = scipy.linalg.eigh(heff[:space,:space])
         if callable(pick):
-            w, v, idx = pick(w, v, nroots, locals())
+            w, v, _ = pick(w, v, nroots, locals())
             if len(w) == 0:
                 raise RuntimeError(f'Not enough eigenvalues found by {pick}')
 
@@ -329,6 +329,7 @@ def davidson1(aop, x0, precond, tol=1e-12, max_cycle=50, max_space=12,
         if callable(callback):
             callback(locals())
 
+    # pylint: disable=unnecessary-comprehension
     x0 = [x for x in x0]  # nparray -> list
 
     # Check whether the solver finds enough eigenvectors.
@@ -339,7 +340,7 @@ def davidson1(aop, x0, precond, tol=1e-12, max_cycle=50, max_space=12,
         # can be generated.
         # 2. The initial guess sits in the subspace which is smaller than the
         # required number of roots.
-        msg = 'Not enough eigenvectors (len(x0)=%d, nroots=%d)' % (len(x0), nroots)
+        msg = f'Not enough eigenvectors (len(x0)={len(x0)}, nroots={nroots})'
         warnings.warn(msg)
 
     return numpy.asarray(conv), e, x0

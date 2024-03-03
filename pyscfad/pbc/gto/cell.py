@@ -117,7 +117,8 @@ def ewald(cell, ew_eta=None, ew_cut=None):
         # have relatively large error
         coulG = 4*numpy.pi / absG2
         coulG *= weights
-        ZSI = np.einsum("i,ij->j", chargs, cell.get_SI(Gv))
+        ZSI = np.einsum('i,ij->j', chargs, cell.get_SI(Gv))
+        # pylint: disable=invalid-unary-operand-type
         ZexpG2 = ZSI * np.exp(-absG2/(4*ew_eta**2))
         ewg = .5 * np.einsum('i,i,i', ZSI.conj(), ZexpG2, coulG).real
     elif cell.dimension == 2:  # Truncated Coulomb

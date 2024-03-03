@@ -1,10 +1,12 @@
 import numpy
 import scipy.linalg
 from jax import numpy as np
+from pyscf.lib import prange
 from pyscf.lib import diis as pyscf_diis
 from pyscf.lib.diis import INCORE_SIZE, BLOCK_SIZE
 from pyscfad.lib import logger, stop_grad
 
+# pylint: disable=consider-using-f-string
 class DIIS(pyscf_diis.DIIS):
     def push_vec(self, x):
         x = x.ravel()
@@ -39,7 +41,7 @@ class DIIS(pyscf_diis.DIIS):
                 if ekey not in self._diisfile:
                     self._diisfile.create_dataset(ekey, (x.size,), x.dtype)
                 edat = self._diisfile[ekey]
-                for p0, p1 in misc.prange(0, x.size, BLOCK_SIZE):
+                for p0, p1 in prange(0, x.size, BLOCK_SIZE):
                     edat[p0:p1] = x[p0:p1] - self._xprev[p0:p1]
                 self._diisfile.flush()
             self._head += 1

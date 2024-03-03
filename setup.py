@@ -65,7 +65,7 @@ setup(
     #          'build_ext': CMakeBuildExt},
     install_requires=[
         'numpy>=1.17',
-        'scipy',
+        'scipy<1.12',
         'jax>=0.3.25',
         'jaxlib>=0.3.25',
         'pyscf @ git+https://github.com/fishjojo/pyscf.git@ad#egg=pyscf',

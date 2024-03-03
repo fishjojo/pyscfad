@@ -4,7 +4,7 @@ from pyscf import __config__
 from pyscf.lib import logger
 from pyscf.pbc.dft import krks as pyscf_krks
 from pyscf.pbc.dft import gen_grid, multigrid
-from pyscfad import util
+#from pyscfad import util
 from pyscfad.lib import stop_grad
 from pyscfad.dft.rks import VXC
 from pyscfad.pbc.scf import khf

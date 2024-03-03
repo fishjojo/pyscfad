@@ -5,7 +5,7 @@ from pyscf.lib import logger
 from pyscf.pbc.dft import rks as pyscf_rks
 from pyscf.pbc.dft import gen_grid, multigrid
 from pyscf.pbc.dft.rks import prune_small_rho_grids_
-from pyscfad import util
+#from pyscfad import util
 from pyscfad.lib import stop_grad
 from pyscfad.dft import rks as mol_ks
 from pyscfad.dft.rks import VXC

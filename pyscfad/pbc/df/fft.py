@@ -4,7 +4,7 @@ from pyscf import __config__
 from pyscf import lib
 from pyscf.pbc.gto import Cell
 from pyscf.pbc.df import fft as pyscf_fft
-from pyscfad import util
+#from pyscfad import util
 from pyscfad.pbc import tools
 from pyscfad.pbc.lib.kpts_helper import gamma_point
 

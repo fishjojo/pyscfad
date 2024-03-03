@@ -3,10 +3,6 @@ import numpy
 import jax
 from pyscfad import scf
 from pyscfad.cc import dfdcsd
-from pyscfad import config
-
-config.update('pyscfad_scf_implicit_diff', True)
-config.update('pyscfad_ccsd_implicit_diff', True)
 
 def test_df_nuc_grad(get_mol):
     mol = get_mol
