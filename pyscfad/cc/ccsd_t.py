@@ -25,6 +25,7 @@ def kernel(mycc, eris, t1=None, t2=None, verbose=logger.NOTE):
     def _ccsd_t_kernel(eris, t1, t2):
         t1 = numpy.asarray(t1)
         t2 = numpy.asarray(t2, order='C')
+        eris.fock = numpy.asarray(eris.fock, order='C')
         et = pyscf_ccsd_t.kernel(mycc, eris, t1, t2, verbose)
         return et
 

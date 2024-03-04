@@ -17,6 +17,8 @@ def get_h2o():
         [1 , [0. , -0.7571 , 0.5861]],
         [1 , [0. , 0.7571 , 0.5861]]]
     mol.basis = 'def2-svp'
+    mol.max_memory = 8000
+    mol.incore_anyway = True
     mol.build(trace_exp=False, trace_ctr_coeff=False)
     yield mol
 

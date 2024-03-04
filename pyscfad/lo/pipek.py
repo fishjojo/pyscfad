@@ -4,7 +4,7 @@ import scipy
 import jax
 from jax import numpy as np
 from pyscf.lib import logger
-from pyscf.lo.pipek import PM
+from pyscf.lo import pipek as pyscf_pipek
 from pyscfad.lib import vmap
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.soscf.ciah import (
@@ -12,7 +12,7 @@ from pyscfad.soscf.ciah import (
     pack_uniq_var,
 )
 from pyscfad.tools.linear_solver import gen_gmres
-from pyscfad.lo import orth
+from pyscfad.lo import orth, boys
 
 def atomic_pops(mol, mo_coeff, method='mulliken'):
     method = method.lower().replace('_', '-')
@@ -63,6 +63,16 @@ def atomic_pops(mol, mo_coeff, method='mulliken'):
         raise KeyError
 
     return proj
+
+class PipekMezey(pyscf_pipek.PipekMezey):
+    def atomic_pops(self, mol, mo_coeff, method=None):
+        if method is None:
+            method = self.pop_method
+        return numpy.asarray(atomic_pops(mol, mo_coeff, method))
+
+    kernel = boys.kernel
+
+PM = Pipek = PipekMezey
 
 def cost_function(x, mol, mo_coeff, pop_method='mulliken', exponent=2):
     u = extract_rotation(x)
