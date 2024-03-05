@@ -1,5 +1,3 @@
-import jax
-from pyscfad import gto, scf, cc
 '''
 Reference nuclear gradient
 [[0.0, 0.0, -1.15101379e-01]
@@ -8,10 +6,19 @@ Reference nuclear gradient
 Note that without implicit differentiation turned on,
 the gradient will be initial guess dependent.
 '''
+import jax
+from pyscfad import gto, scf, cc
+from pyscfad import config
+
+# implicit differentiation of SCF iterations
+config.update('pyscfad_scf_implicit_diff', True)
+# implicit differentiation of CC iterations
+config.update('pyscfad_ccsd_implicit_diff', True)
+
 mol = gto.Mole()
 mol.atom = 'H 0. 0. 0.; F 0. 0. 1.1'
 mol.basis = 'ccpvdz'
-mol.verbose = 3
+mol.verbose = 4
 mol.incore_anyway = True
 mol.build()
 

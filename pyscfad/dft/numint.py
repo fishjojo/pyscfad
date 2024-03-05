@@ -1,14 +1,16 @@
 import warnings
 from functools import partial
 import numpy
-from jax import jit, vmap, custom_jvp
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscf.lib import load_library
 from pyscf.dft import numint
 from pyscf.dft.numint import SWITCH_SIZE
 from pyscf.dft.gen_grid import BLKSIZE
 from pyscfad.lib import ops
 from pyscfad.lib import stop_grad
+from pyscfad.lib import jit
+from pyscfad.lib import custom_jvp
+#from pyscfad.lib import vmap
 from pyscfad.dft import libxc
 
 libdft = load_library('libdft')
@@ -279,11 +281,16 @@ def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
         rho = _rks_mgga_assemble_rho(rho, ao, dm)
     return rho
 
-@jit
+#@jit
 def _rks_gga_assemble_rho(ao, dm):
     c0 = _dot_ao_dm_incore(ao[0], dm)
-    factor = np.asarray([1., 2., 2., 2.])
-    rho = vmap(_contract_rho, (None,0,0))(c0, ao, factor)
+    #factor = np.asarray([1., 2., 2., 2.])
+    #rho = vmap(_contract_rho, (None,0,0))(c0, ao, factor)
+    rho = []
+    rho.append(_contract_rho(c0, ao[0], 1.0))
+    for i in range(1, 4):
+        rho.append(_contract_rho(c0, ao[i], 2.0))
+    rho = np.asarray(rho)
     return rho
 
 @jit
@@ -303,7 +310,7 @@ def _rks_mgga_assemble_rho(rho, ao, dm):
     rho = ops.index_mul(rho, ops.index[5], .5)
     return rho
 
-@jit
+#@jit
 def _scale_ao(ao, wv, out=None):
     #:aow = numpy.einsum('npi,np->pi', ao[:4], wv)
     if wv.ndim == 2:
@@ -324,7 +331,7 @@ def _dot_ao_ao(mol, ao1, ao2, non0tab, shls_slice, ao_loc, hermi=0):
     else:
         raise NotImplementedError
 
-@jit
+#@jit
 def _dot_ao_ao_incore(ao1, ao2):
     return np.dot(ao1.T.conj(), ao2)
 
@@ -336,11 +343,12 @@ def _dot_ao_dm(mol, ao, dm, non0tab, shls_slice, ao_loc, out=None):
     else:
         raise NotImplementedError
 
-@jit
+#@jit
 def _dot_ao_dm_incore(ao, dm):
-    return np.dot(np.asarray(dm).T, ao.T).T
+    dm = np.asarray(dm)
+    return np.dot(ao, dm)
 
-@jit
+#@jit
 def _contract_rho(bra, ket, factor=1.0):
     bra = bra.T
     ket = ket.T
@@ -349,7 +357,7 @@ def _contract_rho(bra, ket, factor=1.0):
     rho += np.einsum('ip,ip->p', bra.imag, ket.imag)
     return rho * factor
 
-@jit
+#@jit
 def _rks_gga_wv0(rho, vxc, weight):
     vrho, vgamma = vxc[:2]
     wv_rho = weight * vrho * .5

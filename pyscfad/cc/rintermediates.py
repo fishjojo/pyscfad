@@ -1,9 +1,7 @@
 '''
 Intermediates for restricted CCSD.  Complex integrals are supported.
 '''
-from pyscf import numpy as np
-#from pyscf.lib import logger
-#from pyscfad import lib
+from jax import numpy as np
 #from pyscfad.lib import jit
 
 # This is restricted (R)CCSD

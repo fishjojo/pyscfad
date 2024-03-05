@@ -1,7 +1,7 @@
 import numpy
+from jax import numpy as np
 from pyscf.pbc import tools as pyscf_tools
 from pyscf.pbc.lib.kpts_helper import is_zero, member
-from pyscfad.lib import numpy as np
 from pyscfad.lib import ops
 
 def _ewald_exxdiv_for_G0(cell, kpts, dms, vk, kpts_band=None):

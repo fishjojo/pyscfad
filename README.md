@@ -8,40 +8,21 @@ PySCF with Auto-differentiation
 Installation
 ------------
 
----
 * To install the latest release, run:
 ```
 pip install pyscfad
 ```
 
----
-* To install the development version, use the following command instead:
+* To install the development version, run:
 ```
 pip install git+https://github.com/fishjojo/pyscfad.git
 ```
-This should also install all the dependencies.
-Alternatively, the dependencies can be installed via a predefined conda environment:
-```
-conda env create -f environment.yml
-conda activate pyscfad_env
-```
-OpenMP is not required, but is recommended:
-```
-# install OpenMP runtime used with clang
-# On Linux:
-sudo apt update
-sudo apt install libomp-dev
 
-# On OSX:
-brew install libomp
-```
-
----
-* One can also run PySCFAD inside a docker container:
-```
-docker pull fishjojo/pyscfad:latest
-docker run -rm -t -i fishjojo/pyscfad:latest /bin/bash
-```
+`pyscfad` depends on `pyscf==2.3.0`.
+Other dependencies include
+`numpy>=1.17`, `scipy<1.12`, `h5py`,
+`pyscfadlib`,
+`jax>=0.3.25` and `jaxlib>=0.3.25`.
 
 Running examples
 ----------------
@@ -51,13 +32,6 @@ the following lines need to be added to
 the PySCF configure file ($HOME/.pyscf\_conf.py)
 ```
 pyscfad = True
-pyscf_numpy_backend = 'jax'
-pyscf_scipy_linalg_backend = 'pyscfad'
-pyscf_scipy_backend = 'jax'
-# The followings turn on implicit differentiations
-# for SCF and CC amplitude solvers
-pyscfad_scf_implicit_diff = True
-pyscfad_ccsd_implicit_diff = True
 ```
 
 Citing PySCFAD

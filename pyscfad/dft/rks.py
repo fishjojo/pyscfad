@@ -1,11 +1,11 @@
 import numpy
+from jax import numpy as np
 from pyscf import __config__
 from pyscf.lib import current_memory
 from pyscf.lib import logger
 from pyscf.dft import rks as pyscf_rks
 from pyscf.dft import gen_grid
 from pyscfad import util
-from pyscfad.lib import numpy as np
 from pyscfad.lib import stop_grad
 from pyscfad.scf import hf
 from pyscfad.dft import numint
@@ -163,6 +163,14 @@ def _dft_common_post_init_(mf):
 class KohnShamDFT(pyscf_rks.KohnShamDFT):
     __init__ = _dft_common_init_
     __post_init__ = _dft_common_post_init_
+
+    def reset(self, mol=None):
+        hf.SCF.reset(self, mol)
+        if getattr(self, 'grids', None) is not None:
+            self.grids.reset(mol)
+        if getattr(self, 'nlcgrids', None) is not None:
+            self.nlcgrids.reset(mol)
+        return self
 
 @util.pytree_node(hf.Traced_Attributes, num_args=1)
 class RKS(KohnShamDFT, hf.RHF):

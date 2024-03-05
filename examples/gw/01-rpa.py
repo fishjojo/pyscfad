@@ -1,8 +1,3 @@
-import jax
-from pyscf import df as pyscf_df
-from pyscfad import gto, dft, scf, df
-from pyscfad.gw import rpa
-
 '''
 RPA e_tot, e_hf, e_corr =  -76.26428191794197 -75.95645187758402 -0.30783004035795963
 
@@ -35,6 +30,18 @@ g_e_corr
 
 '''
 
+import jax
+from pyscf import df as pyscf_df
+from pyscfad import gto, dft, scf, df
+from pyscfad.gw import rpa
+from pyscfad import config
+
+config.update('pyscfad_scf_implicit_diff', True)
+# Using optimized C implementation for gradients calculations.
+# This requires the `pyscfadlib` package, which can be installed with
+# `pip install pyscfadlib`
+#config.update('pyscfad_moleintor_opt', True)
+
 mol = gto.Mole()
 mol.verbose = 4
 mol.atom = [
@@ -42,6 +49,7 @@ mol.atom = [
     [1 , (0. , -0.7571 , 0.5861)],
     [1 , (0. , 0.7571 , 0.5861)]]
 mol.basis = 'def2-svp'
+mol.max_memory = 4000
 mol.build(trace_exp=False, trace_ctr_coeff=False)
 
 auxbasis = pyscf_df.addons.make_auxbasis(mol, mp2fit=True)
@@ -57,6 +65,8 @@ def energy(mol, with_df):
     mymp.with_df = with_df
     mymp.kernel()
     return mymp.e_tot
+
+#print(energy(mol, with_df))
 
 jac = jax.grad(energy, (0,1))(mol, with_df)
 print(jac[0].coords + jac[1].mol.coords + jac[1].auxmol.coords) 

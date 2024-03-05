@@ -1,6 +1,6 @@
 import sys
 import numpy
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscf.pbc.dft import numint as pyscf_numint
 from pyscf.pbc.dft.gen_grid import BLKSIZE
 from pyscfad.lib import ops, stop_grad

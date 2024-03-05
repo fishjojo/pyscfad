@@ -1,13 +1,14 @@
 import pytest
 import numpy
 import jax
-from pyscf import numpy as jnp
+from jax import numpy as jnp
+from pyscf.pbc import grad as pyscf_grad
 from pyscfad.pbc import gto
 
 @pytest.fixture
 def get_cell():
     cell = gto.Cell()
-    cell.atom = '''Si 0.,  0.,  0.
+    cell.atom = '''Si 0.,  0.,  0.001
                 Si 1.3467560987,  1.3467560987,  1.3467560987'''
     cell.a = '''0.            2.6935121974    2.6935121974
              2.6935121974  0.              2.6935121974
@@ -54,3 +55,14 @@ def test_SI(get_cell):
         grad = (grad * 0.5 / norm[i]).real
         assert abs(grad - jac_fwd[i].coords).max() < 1e-10
         assert abs(grad - jac_bwd[i].coords).max() < 1e-10
+
+
+def test_ewald(get_cell):
+    cell = get_cell
+    def fun(cell):
+        return cell.energy_nuc()
+    jac_fwd = jax.jacfwd(fun)(cell)
+    jac_bwd = jax.jacrev(fun)(cell)
+    g0 = pyscf_grad.krhf.grad_nuc(cell, None)
+    assert abs(g0 - jac_fwd.coords).max() < 1e-10
+    assert abs(g0 - jac_bwd.coords).max() < 1e-10

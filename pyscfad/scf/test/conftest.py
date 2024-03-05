@@ -7,6 +7,8 @@ def get_h2():
     mol.atom    = 'H 0 0 0; H 0 0 0.74'
     mol.basis   = '631g'
     mol.verbose = 0
+    mol.incore_anyway = True
+    mol.max_memory = 4000
     mol.build(trace_exp=False, trace_ctr_coeff=False)
     return mol
 
@@ -14,7 +16,7 @@ def get_h2():
 def get_h2o():
     mol = gto.Mole()
     mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
-    mol.basis = 'sto3g'
+    mol.basis = '631G'
     mol.verbose=0
     mol.build(trace_exp=False, trace_ctr_coeff=False)
     return mol

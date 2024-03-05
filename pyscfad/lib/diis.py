@@ -1,14 +1,50 @@
 import numpy
 import scipy.linalg
-from pyscf import __config__
-from pyscf.lib import logger
+from jax import numpy as np
+from pyscf.lib import prange
 from pyscf.lib import diis as pyscf_diis
-from pyscfad.lib import numpy as np
+from pyscf.lib.diis import INCORE_SIZE, BLOCK_SIZE
+from pyscfad.lib import logger, stop_grad
 
+# pylint: disable=consider-using-f-string
 class DIIS(pyscf_diis.DIIS):
-    def __init__(self, dev=None, filename=None,
-                 incore=getattr(__config__, 'lib_diis_DIIS_incore', False)):
-        pyscf_diis.DIIS.__init__(self, dev=dev, filename=filename, incore=incore)
+    def push_vec(self, x):
+        x = x.ravel()
+
+        if len(self._bookkeep) >= self.space:
+            self._bookkeep = self._bookkeep[1-self.space:]
+
+        if self._err_vec_touched:
+            self._bookkeep.append(self._head)
+            key = 'x%d' % (self._head)
+            self._store(key, x)
+            self._head += 1
+
+        elif self._xprev is None:
+            self._xprev = x
+            self._store('xprev', x)
+            if 'xprev' not in self._buffer:  # not incore
+                self._xprev = self._diisfile['xprev']
+        else:
+            if self._head >= self.space:
+                self._head = 0
+            self._bookkeep.append(self._head)
+            ekey = 'e%d'%self._head
+            xkey = 'x%d'%self._head
+            self._store(xkey, x)
+            if x.size < INCORE_SIZE or self.incore:
+                # no need to trace error vector
+                x = numpy.asarray(stop_grad(x))
+                xprev = numpy.asarray(stop_grad(self._xprev))
+                self._store(ekey, x - xprev)
+            else:  # not call _store to reduce memory footprint
+                if ekey not in self._diisfile:
+                    self._diisfile.create_dataset(ekey, (x.size,), x.dtype)
+                edat = self._diisfile[ekey]
+                for p0, p1 in prange(0, x.size, BLOCK_SIZE):
+                    edat[p0:p1] = x[p0:p1] - self._xprev[p0:p1]
+                self._diisfile.flush()
+            self._head += 1
 
     def extrapolate(self, nd=None):
         if nd is None:

@@ -1,12 +1,18 @@
-from functools import reduce
+from functools import reduce, wraps
 import numpy
-from pyscf import numpy as np
-from pyscf.lib import stop_grad
-from pyscf.lib import logger
-from pyscf.scf import chkfile
+from jax import numpy as np
 from pyscf.scf import rohf as pyscf_rohf
 from pyscfad import util
-from pyscfad.scf import hf
+from pyscfad.lib import logger, stop_grad
+from pyscfad.scf import hf, uhf, chkfile
+
+@wraps(pyscf_rohf.energy_elec)
+def energy_elec(mf, dm=None, h1e=None, vhf=None):
+    if dm is None:
+        dm = mf.make_rdm1()
+    elif getattr(dm, 'ndim', None) == 2:
+        dm = np.array((dm*.5, dm*.5))
+    return uhf.energy_elec(mf, dm, h1e, vhf)
 
 @util.pytree_node(['fock', 'focka', 'fockb'], num_args=1)
 class _FockMatrix():
@@ -170,11 +176,11 @@ class ROHF(hf.SCF, pyscf_rohf.ROHF):
         pyscf_rohf.ROHF.__init__(self, mol)
         self.__dict__.update(kwargs)
 
-    def eig(self, fock, s, x0=None):
+    def eig(self, fock, s):
         focka = getattr(fock, 'focka', None)
         fockb = getattr(fock, 'fockb', None)
         fockab = getattr(fock, 'fock', fock)
-        e, c = self._eigh(fockab, s, x0)
+        e, c = self._eigh(fockab, s)
         if focka is not None:
             c_copy = numpy.asarray(stop_grad(c))
             focka_copy = numpy.asarray(stop_grad(focka))
@@ -226,3 +232,4 @@ class ROHF(hf.SCF, pyscf_rohf.ROHF):
 
     get_occ = get_occ
     get_fock = get_fock
+    energy_elec = energy_elec

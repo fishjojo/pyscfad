@@ -1,11 +1,17 @@
-from pyscf import numpy as np
-from pyscf.lib import logger
+from jax import numpy as np
 from pyscf.lib import current_memory
 from pyscfad import util
-from pyscfad.lib import jit
+from pyscfad.lib import logger, jit
 from pyscfad import ao2mo
 from pyscfad.cc import ccsd
 from pyscfad.cc import rintermediates as imd
+
+# assume 'mol', 'mo_coeff', etc. come from '_scf',
+# otherwise they need to be traced
+CC_Tracers = ['_scf']
+# attributes explicitly appearing in :fun:`update_amps` need to be traced
+ERI_Tracers = ['fock', 'mo_energy', #'mol', 'mo_coeff', 'e_hf',
+               'oooo', 'ovoo', 'ovov', 'oovv', 'ovvo', 'ovvv', 'vvvv']
 
 @jit
 def update_amps(cc, t1, t2, eris):
@@ -130,7 +136,7 @@ def amplitude_equation(cc, t1, t2, eris):
         t2new -= tmp + tmp.transpose(1,0,3,2)
     return t1new, t2new
 
-@util.pytree_node(ccsd.CC_Tracers, num_args=1)
+@util.pytree_node(CC_Tracers, num_args=1)
 class RCCSD(ccsd.CCSD):
     def kernel(self, t1=None, t2=None, eris=None, mbpt2=False):
         return self.ccsd(t1, t2, eris, mbpt2)
@@ -174,7 +180,7 @@ def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
         eri1 = ao2mo.incore.full(mycc._scf._eri, eris.mo_coeff, compact=False)
         #eri1 = ao2mo.restore(1, eri1, nmo)
     eris.oooo = eri1[:nocc,:nocc,:nocc,:nocc]#.copy()
-    eris.ooov = eri1[:nocc,:nocc,:nocc,nocc:]
+    #eris.ooov = eri1[:nocc,:nocc,:nocc,nocc:]
     eris.ovoo = eri1[:nocc,nocc:,:nocc,:nocc]#.copy()
     eris.ovov = eri1[:nocc,nocc:,:nocc,nocc:]#.copy()
     eris.oovv = eri1[:nocc,:nocc,nocc:,nocc:]#.copy()
@@ -185,7 +191,7 @@ def _make_eris_incore(mycc, mo_coeff=None, ao2mofn=None):
     del log
     return eris
 
-@util.pytree_node(ccsd.ERI_Tracers)
+@util.pytree_node(ERI_Tracers)
 class _ChemistsERIs(ccsd._ChemistsERIs):
     def get_ovvv(self, *slices):
         '''To access a subblock of ovvv tensor'''

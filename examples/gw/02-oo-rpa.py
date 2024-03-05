@@ -38,7 +38,7 @@ jac = lambda x, *args: jax.jacrev(rpa_energy)(x)
 # hessian vector product
 hessp = lambda x, p, *args: jax.vjp(jac, x)[1](p)[0]
 
-x0 = numpy.zeros([mol.nao*(mol.nao+1)//2,])
+x0 = numpy.zeros([mol.nao*(mol.nao-1)//2,])
 res = minimize(rpa_energy, x0, jac=jac, hessp=hessp,
                method='trust-krylov', options={'gtol': 1e-6})
 print(f'OO-RPA/PBE energy: {rpa_energy(res.x)}')

@@ -1,6 +1,6 @@
 from scipy.optimize import minimize
 from jax import value_and_grad
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscfad import util
 from pyscfad.tools import rotate_mo1
 from pyscfad import gto, scf, mp
@@ -14,8 +14,8 @@ class OOMP2(mp.MP2):
         if self.x is None:
             nao = self.mol.nao
             assert nao == self.nmo
-            size = nao*(nao+1)//2
-            self.x = np.zeros([size,])
+            size = nao*(nao-1)//2
+            self.x = np.zeros((size,))
         self.mo_coeff = rotate_mo1(self._scf.mo_coeff, self.x) 
         self._scf.converged = False
 
@@ -40,8 +40,8 @@ def func(x0, mf):
     return (np.array(f), np.array(g))
 
 nao = mol.nao
-size = nao*(nao+1)//2
-x0 = np.zeros([size,])
+size = nao*(nao-1)//2
+x0 = np.zeros((size,))
 options = {"gtol":1e-5}
 res = minimize(func, x0, args=(mf,), jac=True, method="BFGS", options = options)
 e = func(res.x, mf)[0]

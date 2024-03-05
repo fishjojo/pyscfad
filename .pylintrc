@@ -159,6 +159,7 @@ disable=abstract-method,
         deprecated-method,
         arguments-out-of-order,
         consider-using-in,
+        invalid-unary-operand-type,
 
 
 [REPORTS]
