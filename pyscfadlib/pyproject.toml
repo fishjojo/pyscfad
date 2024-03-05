@@ -2,7 +2,7 @@
 build-verbosity = 1
 container-engine = "docker"
 manylinux-x86_64-image = "manylinux2014"
-skip = ["pp*", "*musllinux*"]
+skip = ["pp*", "*musllinux*", "*universal2", "*arm64"]
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
@@ -12,3 +12,6 @@ before-all = [
     "yum install -y openblas-devel.x86_64",
 ]
 repair-wheel-command = "auditwheel -v repair -w {dest_dir} {wheel}"
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64"]
