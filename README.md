@@ -8,24 +8,20 @@ PySCF with Auto-differentiation
 Installation
 ------------
 
-* To install the latest release, use the following commands:
+* To install the latest release, run:
 ```
-# install pyscfad
 pip install pyscfad
-
-# install pyscfadlib, optional
-pip install pyscfadlib
 ```
 
-* To install the development version, use the following command instead:
+* To install the development version, run:
 ```
 pip install git+https://github.com/fishjojo/pyscfad.git
 ```
 
 `pyscfad` depends on `pyscf==2.3.0`.
 Other dependencies include
-`numpy>=1.17`,
-`scipy<1.12`,
+`numpy>=1.17`, `scipy<1.12`, `h5py`,
+`pyscfadlib`,
 `jax>=0.3.25` and `jaxlib>=0.3.25`.
 
 Running examples
