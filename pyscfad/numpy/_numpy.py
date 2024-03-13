@@ -3,7 +3,7 @@ from pyscfad import backend
 asarray         =  backend.numpy.asarray
 iscomplexobj    =  backend.numpy.iscomplexobj
 
-abs             =  backend.numpy.abs        
+abs             =  backend.numpy.abs
 absolute        =  backend.numpy.absolute
 add             =  backend.numpy.add
 all             =  backend.numpy.all

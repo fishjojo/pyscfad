@@ -7,7 +7,7 @@ def asarray(a, dtype=None, order=None, *, like=None, **kwargs):
 def iscomplexobj(x):
     return torch.is_complex(x)
 
-abs             =  ops.abs        
+abs             =  ops.abs
 absolute        =  ops.absolute
 add             =  ops.add
 all             =  ops.all

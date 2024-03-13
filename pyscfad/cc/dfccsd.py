@@ -1,5 +1,5 @@
-from pyscfad import numpy as np
 from pyscf.lib import square_mat_in_trilu_indices
+from pyscfad import numpy as np
 from pyscfad import util
 from pyscfad import lib
 from pyscfad.ao2mo import _ao2mo

@@ -24,7 +24,6 @@ class SCF(hf.SCF):
             mo_energy = self.mo_energy
         mo_energy = ops.convert_to_numpy(mo_energy)
         return super().get_occ(mo_energy)
-        
 
 if __name__ == '__main__':
     import torch
