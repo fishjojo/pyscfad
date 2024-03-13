@@ -64,6 +64,7 @@ greater_equal   =  ops.greater_equal
 hstack          =  ops.hstack
 identity        =  ops.identity
 imag            =  ops.imag
+int32           =  torch.int32
 #interp          =  ops.interp
 isclose         =  ops.isclose
 isfinite        =  ops.isfinite

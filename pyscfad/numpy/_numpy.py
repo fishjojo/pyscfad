@@ -60,6 +60,7 @@ greater_equal   =  backend.numpy.greater_equal
 hstack          =  backend.numpy.hstack
 identity        =  backend.numpy.identity
 imag            =  backend.numpy.imag
+int32           =  backend.numpy.int32
 #interp          =  backend.numpy.interp
 isclose         =  backend.numpy.isclose
 isfinite        =  backend.numpy.isfinite
