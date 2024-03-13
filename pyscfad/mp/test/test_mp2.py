@@ -3,17 +3,22 @@ import numpy
 import jax
 from pyscfad import gto, scf, mp
 from pyscfad import config
-config.update('pyscfad_scf_implicit_diff', True)
-#config.update('pyscfad_moleintor_opt', True)
 
 @pytest.fixture
 def get_mol():
+    config.update('pyscfad_scf_implicit_diff', True)
+    #config.update('pyscfad_moleintor_opt', True)
+
     mol = gto.Mole()
     mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
     mol.basis = '6-31G*'
     mol.verbose = 0
+    mol.max_memory = 8000
+    mol.incore_anyway = True
     mol.build(trace_exp=False, trace_ctr_coeff=False)
-    return mol
+    yield mol
+
+    config.reset()
 
 def mp2(mol):
     mf = scf.RHF(mol)
@@ -37,6 +42,8 @@ def test_nuc_grad_n2():
     mol.atom = 'N 0 0 0; N 0 0 1.1'
     mol.basis = '6-31G*'
     mol.verbose = 0
+    mol.max_memory = 8000
+    mol.incore_anyway = True
     mol.build(trace_exp=False, trace_ctr_coeff=False)
 
     g = jax.grad(mp2)(mol).coords

@@ -1,12 +1,12 @@
 from functools import wraps
 import jax
 from pyscf import __config__ as pyscf_config
-from pyscf import numpy as np
-from pyscf.lib import logger, split_reshape
+from pyscf.lib import split_reshape
 from pyscf.mp import mp2 as pyscf_mp2
+from pyscfad import numpy as np
 from pyscfad import util
 from pyscfad import lib
-from pyscfad.lib import ops
+from pyscfad.lib import ops, logger
 from pyscfad import ao2mo
 
 WITH_T2 = getattr(pyscf_config, 'mp_mp2_with_t2', True)
@@ -163,6 +163,29 @@ class MP2(pyscf_mp2.MP2):
         cv = np.asarray(mo_coeff[:,nocc:])
         eris.ovov = ao2mo.general(self._scf._eri, (co,cv,co,cv))
         return eris
+
+    def kernel(self, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2):
+        if self.verbose >= logger.WARN:
+            self.check_sanity()
+
+        self.dump_flags()
+
+        self.e_hf = self.get_e_hf(mo_coeff=mo_coeff)
+
+        if eris is None:
+            eris = self.ao2mo(mo_coeff)
+
+        if self._scf.converged:
+            self.e_corr, self.t2 = self.init_amps(mo_energy, mo_coeff, eris, with_t2)
+        else:
+            self.converged, self.e_corr, self.t2 = self._iterative_kernel(eris)
+
+        # TODO SCS-MP2
+        self.e_corr_ss = 0
+        self.e_corr_os = 0
+
+        self._finalize()
+        return self.e_corr, self.t2
 
     make_rdm1 = make_rdm1
     energy = energy

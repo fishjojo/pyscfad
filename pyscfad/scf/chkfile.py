@@ -1,7 +1,7 @@
 import h5py
-from pyscf.lib.chkfile import save
 from pyscf.lib.chkfile import save_mol
 from pyscfad import ops
+from pyscfad.lib.chkfile import save
 
 def dump_scf(mol, chkfile, e_tot, mo_energy, mo_coeff, mo_occ,
              overwrite_mol=True):

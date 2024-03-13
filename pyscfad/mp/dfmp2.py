@@ -3,12 +3,12 @@ import numpy
 import jax
 from jax import custom_vjp
 from pyscf import __config__
-from pyscf import numpy as np
-from pyscf.lib import direct_sum, current_memory, logger
-from pyscf.mp.mp2 import _ChemistsERIs
+from pyscf.lib import direct_sum, current_memory
+#from pyscf.mp.mp2 import _ChemistsERIs
 from pyscfad import config
+from pyscfad import numpy as np
 from pyscfad import util
-from pyscfad.lib import vmap
+from pyscfad.lib import vmap, logger
 from pyscfad.ao2mo import _ao2mo
 from pyscfad.mp import mp2
 
@@ -140,7 +140,7 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
     nvir = mp.nmo - nocc
     #naux = mp.with_df.get_naoaux()
 
-    Lov = mp.loop_ao2mo(mo_coeff, nocc)
+    Lov = mp.loop_ao2mo(mo_coeff, nocc, with_t2)
 
     if config.moleintor_opt:
         #emp2, t2 = _contract_opt(Lov, mo_energy, nocc, nvir, with_t2)
@@ -163,11 +163,11 @@ class MP2(mp2.MP2):
         self.__dict__.update(kwargs)
 
     def ao2mo(self, mo_coeff=None):
-        eris = _ChemistsERIs()
+        eris = mp2._ChemistsERIs()
         eris._common_init_(self, mo_coeff)
         return eris
 
-    def loop_ao2mo(self, mo_coeff, nocc):
+    def loop_ao2mo(self, mo_coeff, nocc, with_t2=WITH_T2):
         # NOTE return the whole 3c integral for now
         nao, nmo = mo_coeff.shape
         nvir = nmo - nocc
@@ -175,7 +175,9 @@ class MP2(mp2.MP2):
 
         with_df = self.with_df
         naux = with_df.get_naoaux()
-        mem_incore = (naux*nocc*nvir + 2*(nocc*nvir)**2) * 8 / 1e6
+        mem_incore = (naux*nocc*nvir + nocc*nvir*nvir*2) * 8 / 1e6
+        if with_t2:
+            mem_incore += (nocc*nvir)**2 * 8 / 1e6
         mem_now = current_memory()[0]
         if (mem_incore + mem_now < self.max_memory) or self.mol.incore_anyway:
             eri1 = with_df._cderi
@@ -200,7 +202,9 @@ class MP2(mp2.MP2):
         else:
             raise NotImplementedError
 
-        self.e_corr = self.e_corr
+        # TODO SCS-MP2
+        self.e_corr_ss = 0
+        self.e_corr_os = 0
         self._finalize()
         return self.e_corr, self.t2
 

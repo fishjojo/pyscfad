@@ -204,7 +204,7 @@ from jax.numpy import (
     tensordot as tensordot,
     tile as tile,
     trace as trace,
-    trapz as _deprecated_trapz,
+    #trapz as _deprecated_trapz,
     transpose as transpose,
     tri as tri,
     tril as tril,
@@ -283,7 +283,7 @@ from jax.numpy import (
     sum as sum,
     var as var,
 
-    in1d as _deprecated_in1d,
+    #in1d as _deprecated_in1d,
     intersect1d as intersect1d,
     isin as isin,
     setdiff1d as setdiff1d,

@@ -1,7 +1,7 @@
 from functools import partial
 from jax import scipy
 from jax import custom_jvp
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscf.lib import logger
 from pyscf import gto
 from pyscf.df.outcore import _guess_shell_ranges

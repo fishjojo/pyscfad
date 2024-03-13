@@ -1,11 +1,6 @@
 include MANIFEST.in
 include README.md setup.py LICENSE
 
-recursive-include pyscfadlib/thirdparty *.so *.dylib
-include pyscfadlib/*.so pyscfadlib/*.dylib pyscfadlib/config.h.in
-
-# source code
-recursive-include pyscfadlib *.c *.h CMakeLists.txt
+include pyscfad/geomopt/log.ini
 
 global-exclude *.py[cod]
-prune pyscfadlib/build

@@ -13,15 +13,6 @@ TEST_SET = ["int1e_ovlp", "int1e_kin", "int1e_nuc", "int1e_rinv",]
 TEST_SET_NUC = ["int1e_nuc"]
 
 @pytest.fixture
-def get_mol0():
-    mol = pyscf.M(
-        atom = 'H 0. 0. 0.; F 0. , 0. , 0.91',
-        basis = 'sto3g',
-        verbose=0,
-    )
-    return mol
-
-@pytest.fixture
 def get_mol_p():
     mol = pyscf.M(
         atom = 'H 0. 0. 0.; F 0. , 0. , 0.9101',
@@ -95,9 +86,8 @@ def _test_int1e_deriv3_nuc(intor, mol0, mol1, funanal, args, hermi=0, tol=TOL_NU
     assert abs(hess_rev.coords.coords.coords - hess0).max() < tol
 
 # pylint: disable=redefined-outer-name
-def test_int1e_deriv2(get_mol0, get_mol, get_mol_p, get_mol_m):
-    mol0 = get_mol0
-    mol1 = get_mol
+def test_int1e_deriv2(get_mol, get_mol_p, get_mol_m):
+    mol0 = mol1 = get_mol
     for intor in set(TEST_SET) - set(TEST_SET_NUC):
         _test_int1e_deriv3_nuc(intor, mol0, mol1, deriv3, (mol0, intor), hermi=1)
 

@@ -1,11 +1,10 @@
 from functools import reduce
 import numpy
-from pyscf import numpy as np
-from pyscf.lib import logger
 from pyscf.cc import ccsd as pyscf_ccsd
 from pyscf.mp.mp2 import _mo_without_core
+from pyscfad import numpy as np
 from pyscfad import lib
-from pyscfad.lib import ops
+from pyscfad.lib import ops, logger
 #from pyscfad.lib import jit
 #from pyscfad import util
 from pyscfad import config

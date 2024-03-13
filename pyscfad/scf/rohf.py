@@ -1,12 +1,11 @@
 from functools import reduce, wraps
 import numpy
-from pyscf.lib import logger
 from pyscf.scf import rohf as pyscf_rohf
 from pyscfad import numpy as np
 from pyscfad import util
 from pyscfad.ops import stop_grad
-from pyscfad.scf import hf, uhf
-from pyscfad.scf import chkfile
+from pyscfad.lib import logger
+from pyscfad.scf import hf, uhf, chkfile
 
 @wraps(pyscf_rohf.energy_elec)
 def energy_elec(mf, dm=None, h1e=None, vhf=None):

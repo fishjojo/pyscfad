@@ -19,7 +19,8 @@ def _map_back(diff_items, items, keys):
 def root_vjp(optimality_fun, sol, args, cotangent,
              solve=gmres, nondiff_argnums=(),
              optfn_has_aux=False, solver_kwargs=None,
-             gen_precond=None):
+             gen_precond=None,
+             custom_vjp_from_optcond=False):
     if solver_kwargs is None:
         solver_kwargs = {}
 
@@ -29,7 +30,10 @@ def root_vjp(optimality_fun, sol, args, cotangent,
     # FIXME M may not work for solvers other than scipy
     M = None
     if optfn_has_aux:
-        _, vjp_fun_sol, optfn_aux = jax.vjp(fun_sol, sol, has_aux=True)
+        if custom_vjp_from_optcond:
+            _, (vjp_fun_sol, optfn_aux) = fun_sol(sol)
+        else:
+            _, vjp_fun_sol, optfn_aux = jax.vjp(fun_sol, sol, has_aux=True)
         if gen_precond is not None:
             M = gen_precond(optfn_aux)
     else:
@@ -58,7 +62,8 @@ def root_vjp(optimality_fun, sol, args, cotangent,
 def _custom_root(solver_fun, optimality_fun, solve,
                  has_aux=False, nondiff_argnums=(), use_converged_args=None,
                  optfn_has_aux=False, solver_kwargs=None,
-                 gen_precond=None):
+                 gen_precond=None,
+                 custom_vjp_from_optcond=False):
     solver_fun_sig = inspect.signature(solver_fun)
     optimality_fun_sig = inspect.signature(optimality_fun)
 
@@ -96,7 +101,8 @@ def _custom_root(solver_fun, optimality_fun, solve,
                             nondiff_argnums=nondiff_argnums,
                             optfn_has_aux=optfn_has_aux,
                             solver_kwargs=solver_kwargs,
-                            gen_precond=gen_precond)
+                            gen_precond=gen_precond,
+                            custom_vjp_from_optcond=custom_vjp_from_optcond)
             vjps = (None,) + vjps
             return vjps
 
@@ -113,7 +119,8 @@ def _custom_root(solver_fun, optimality_fun, solve,
 def custom_root(optimality_fun, solve=None, has_aux=False,
                 nondiff_argnums=(), use_converged_args=None,
                 optfn_has_aux=False, solver_kwargs=None,
-                gen_precond=None):
+                gen_precond=None,
+                custom_vjp_from_optcond=False):
     if solve is None:
         solve = gmres
 
@@ -123,14 +130,16 @@ def custom_root(optimality_fun, solve=None, has_aux=False,
                             use_converged_args=use_converged_args,
                             optfn_has_aux=optfn_has_aux,
                             solver_kwargs=solver_kwargs,
-                            gen_precond=gen_precond)
+                            gen_precond=gen_precond,
+                            custom_vjp_from_optcond=custom_vjp_from_optcond)
 
     return wrapper
 
 def custom_fixed_point(fixed_point_fun, solve=None, has_aux=False,
                        nondiff_argnums=(), use_converged_args=None,
                        optfn_has_aux=False, solver_kwargs=None,
-                       gen_precond=None):
+                       gen_precond=None,
+                       custom_vjp_from_optcond=False):
 
     def optimality_fun(x0, *args):
         return _Sub(fixed_point_fun(x0, *args), x0)
@@ -142,13 +151,15 @@ def custom_fixed_point(fixed_point_fun, solve=None, has_aux=False,
                        use_converged_args=use_converged_args,
                        optfn_has_aux=optfn_has_aux,
                        solver_kwargs=solver_kwargs,
-                       gen_precond=gen_precond)
+                       gen_precond=gen_precond,
+                       custom_vjp_from_optcond=custom_vjp_from_optcond)
 
 def make_implicit_diff(fn, implicit_diff=False, fixed_point=True,
                        optimality_cond=None, solver=None, has_aux=False,
                        nondiff_argnums=(), use_converged_args=None,
                        optimality_fun_has_aux=False,
-                       solver_kwargs=None, gen_precond=None):
+                       solver_kwargs=None, gen_precond=None,
+                       custom_vjp_from_optcond=False):
     '''Wrap a function for implicit differentiation.
 
     Args:
@@ -211,6 +222,7 @@ def make_implicit_diff(fn, implicit_diff=False, fixed_point=True,
                       use_converged_args=use_converged_args,
                       optfn_has_aux=optimality_fun_has_aux,
                       solver_kwargs=solver_kwargs,
-                      gen_precond=gen_precond)(fn)
+                      gen_precond=gen_precond,
+                      custom_vjp_from_optcond=custom_vjp_from_optcond)(fn)
     else:
         return fn

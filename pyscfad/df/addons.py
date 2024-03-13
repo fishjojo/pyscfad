@@ -1,5 +1,5 @@
-from pyscf import numpy as np
 from pyscf.df import addons as pyscf_addons
+from pyscfad import numpy as np
 from pyscfad import lib
 from pyscfad import ao2mo
 from pyscfad.gto._mole_helper import setup_exp, setup_ctr_coeff

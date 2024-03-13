@@ -12,7 +12,8 @@ from pyscfad.df import addons, incore, df_jk
 class DF(pyscf_df.DF):
     # pylint: disable=redefined-outer-name
     def __init__(self, mol, auxbasis=None, incore=True, **kwargs):
-        pyscf_df.DF.__init__(self, mol, auxbasis=auxbasis, incore=incore)
+        pyscf_df.DF.__init__(self, mol, auxbasis=auxbasis)
+        self.incore = incore
         self.__dict__.update(kwargs)
 
     def build(self):

@@ -1,12 +1,3 @@
-import jax
-from pyscf import df as pyscf_df
-from pyscfad import gto, dft, scf, df
-from pyscfad.gw import rpa
-from pyscfad import config
-
-config.update('pyscfad_scf_implicit_diff', True)
-config.update('pyscfad_moleintor_opt', True)
-
 '''
 RPA e_tot, e_hf, e_corr =  -76.26428191794197 -75.95645187758402 -0.30783004035795963
 
@@ -38,6 +29,18 @@ g_e_corr
  [-4.99379015e-13 -2.01269615e-02 -2.13053619e-02]]
 
 '''
+
+import jax
+from pyscf import df as pyscf_df
+from pyscfad import gto, dft, scf, df
+from pyscfad.gw import rpa
+from pyscfad import config
+
+config.update('pyscfad_scf_implicit_diff', True)
+# Using optimized C implementation for gradients calculations.
+# This requires the `pyscfadlib` package, which can be installed with
+# `pip install pyscfadlib`
+#config.update('pyscfad_moleintor_opt', True)
 
 mol = gto.Mole()
 mol.verbose = 4

@@ -1,4 +1,4 @@
-from pyscf import numpy as np
+from pyscfad import numpy as np
 from pyscfad import config
 from ._ao2mo_opt import nr_e2 as nr_e2_opt
 

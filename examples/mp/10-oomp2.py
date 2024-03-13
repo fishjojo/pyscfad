@@ -1,6 +1,6 @@
 from scipy.optimize import minimize
 from jax import value_and_grad
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscfad import util
 from pyscfad.tools import rotate_mo1
 from pyscfad import gto, scf, mp

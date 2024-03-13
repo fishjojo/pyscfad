@@ -1,10 +1,23 @@
+import pytest
 import jax
 from pyscf.data.nist import BOHR
 from pyscfad import gto, scf
 from pyscfad.lo import iao, orth
 from pyscfad import config
-#config.update('pyscfad_moleintor_opt', True)
-config.update('pyscfad_scf_implicit_diff', True)
+
+@pytest.fixture
+def get_mol():
+    config.update('pyscfad_scf_implicit_diff', True)
+    #config.update('pyscfad_moleintor_opt', True)
+
+    mol = gto.Mole()
+    mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
+    mol.basis = '631G'
+    mol.verbose = 0
+    mol.build(trace_exp=False, trace_ctr_coeff=False)
+    yield mol
+
+    config.reset()
 
 def _iao(mol):
     mf = scf.RHF(mol)
@@ -14,13 +27,8 @@ def _iao(mol):
     c = orth.vec_lowdin(c, mf.get_ovlp())
     return c
 
-def test_iao():
-    mol = gto.Mole()
-    mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
-    mol.basis = '631G'
-    mol.verbose = 0
-    mol.build(trace_exp=False, trace_ctr_coeff=False)
-
+def test_iao(get_mol):
+    mol = get_mol
     jac = jax.jacrev(_iao)(mol)
     g0 = jac.coords[:,:,0,2]
 

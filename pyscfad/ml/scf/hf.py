@@ -1,8 +1,3 @@
-from functools import wraps
-import numpy
-from pyscf.lib import logger, module_method
-from pyscf.data import nist
-from pyscf.scf import hf as pyscf_hf
 from pyscfad import ops
 from pyscfad import numpy as np
 from pyscfad.scf import hf

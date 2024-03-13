@@ -1,10 +1,12 @@
 from functools import wraps
 import numpy
-from pyscf.lib import logger, module_method
+from pyscf.lib import module_method
 from pyscf.scf import uhf as pyscf_uhf
+from pyscfad import config
 from pyscfad import numpy as np
 from pyscfad import util
 from pyscfad.ops import stop_grad
+from pyscfad.lib import logger
 from pyscfad.scf import hf
 
 
@@ -107,7 +109,10 @@ class UHF(hf.SCF, pyscf_uhf.UHF):
         if dm is None:
             dm = self.make_rdm1()
         if self._eri is None:
-            self._eri = mol.intor('int2e', aosym='s4')
+            if config.moleintor_opt:
+                self._eri = mol.intor('int2e', aosym='s4')
+            else:
+                self._eri = mol.intor('int2e', aosym='s1')
         vj, vk = hf.dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
         return vj, vk
 

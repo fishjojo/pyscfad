@@ -1,24 +1,31 @@
-from functools import partial, reduce, wraps
+from functools import (
+    partial,
+    reduce,
+    wraps,
+)
 import numpy
 import jax
+
 from pyscf.data import nist
 from pyscf.lib import module_method
 from pyscf.scf import hf as pyscf_hf
-from pyscf.scf import chkfile
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
 
 from pyscfad import config
-from pyscfad import ops
 from pyscfad import numpy as np
-from pyscfad import lib
-from pyscfad.lib import logger, jit, stop_trace
-from pyscfad.ops import stop_grad
 from pyscfad import util
+from pyscfad import lib
+from pyscfad.ops import stop_grad
+from pyscfad.lib import (
+    logger,
+    jit,
+    stop_trace,
+)
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad import df
 from pyscfad.scf import _vhf
-from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scf import chkfile
+from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scipy.linalg import eigh
 from pyscfad.tools.linear_solver import gen_gmres
 
@@ -79,7 +86,7 @@ def _scf(dm, mf, s1e, h1e, *,
         if callable(callback):
             callback(locals())
 
-        cput1 = log.timer(f'cycle= {cycle+1}', *cput1)
+        cput1 = log.timer(f'cycle = {cycle+1}', *cput1)
 
         if scf_conv:
             break
@@ -109,7 +116,10 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
                 mf.with_df.build()
         else:
             if mf._eri is None:
-                mf._eri = mol.intor('int2e', aosym='s4')
+                if config.moleintor_opt:
+                    mf._eri = mol.intor('int2e', aosym='s4')
+                else:
+                    mf._eri = mol.intor('int2e', aosym='s1')
 
     scf_conv = False
     mo_energy = mo_coeff = mo_occ = None
@@ -302,6 +312,37 @@ def damping(s, d, f, factor):
     return f - f0
 
 
+def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
+             diis_start_cycle=None, level_shift_factor=None, damp_factor=None):
+    if h1e is None:
+        h1e = mf.get_hcore()
+    if vhf is None:
+        vhf = mf.get_veff(mf.mol, dm)
+    vhf = getattr(vhf, 'vxc', vhf)
+    f = h1e + vhf
+    if cycle < 0 and diis is None:  # Not inside the SCF iteration
+        return f
+
+    if diis_start_cycle is None:
+        diis_start_cycle = mf.diis_start_cycle
+    if level_shift_factor is None:
+        level_shift_factor = mf.level_shift
+    if damp_factor is None:
+        damp_factor = mf.damp
+    if s1e is None:
+        s1e = mf.get_ovlp()
+    if dm is None:
+        dm = mf.make_rdm1()
+
+    if 0 <= cycle < diis_start_cycle-1 and abs(damp_factor) > 1e-4:
+        f = damping(s1e, dm*.5, f, damp_factor)
+    if diis is not None and cycle >= diis_start_cycle:
+        f = diis.update(s1e, dm, f, mf, h1e, vhf)
+    if abs(level_shift_factor) > 1e-4:
+        f = level_shift(s1e, dm*.5, f, level_shift_factor)
+    return f
+
+
 @util.pytree_node(Traced_Attributes, num_args=1)
 class SCF(pyscf_hf.SCF):
     '''
@@ -331,7 +372,10 @@ class SCF(pyscf_hf.SCF):
         if dm is None:
             dm = self.make_rdm1()
         if self._eri is None:
-            self._eri = self.mol.intor('int2e', aosym='s4')
+            if config.moleintor_opt:
+                self._eri = self.mol.intor('int2e', aosym='s4')
+            else:
+                self._eri = self.mol.intor('int2e', aosym='s1')
         vj, vk = dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
         return vj, vk
 
@@ -339,7 +383,9 @@ class SCF(pyscf_hf.SCF):
         if mol is None:
             mol = self.mol
         mol = stop_grad(mol)
-        return pyscf_hf.SCF.get_init_guess(self, mol, key)
+        dm0 = pyscf_hf.SCF.get_init_guess(self, mol, key)
+        dm0 = numpy.asarray(dm0) #remove tags
+        return dm0
 
     # pylint: disable=arguments-differ
     def kernel(self, dm0=None, **kwargs):
@@ -426,6 +472,7 @@ class SCF(pyscf_hf.SCF):
 
     make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
     energy_elec = energy_elec
+    get_fock = get_fock
 
 
 @util.pytree_node(Traced_Attributes, num_args=1)

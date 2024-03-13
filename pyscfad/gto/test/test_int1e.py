@@ -1,9 +1,11 @@
 import pytest
 import numpy as np
 import jax
+from jax import numpy as jnp
+
 import pyscf
+from pyscf.gto import ATOM_OF
 from pyscfad import gto
-from pyscfad.lib import numpy as jnp
 
 TOL_VAL = 1e-12
 TOL_NUC = 1e-10
@@ -88,19 +90,27 @@ def nuc_grad_analyt(mol):
         g[:,:,k] = vrinv.transpose(1,2,0) + vrinv.transpose(2,1,0)
     return g
 
-
 def ECPscalar_grad_analyt(mol):
     atmlst = range(mol.natm)
     aoslices = mol.aoslice_by_atom()
     nao = mol.nao
     g = np.zeros((nao,nao,mol.natm,3))
     h1 = -mol.intor("ECPscalar_ipnuc", comp=3)
+
+    with_ecp = mol.has_ecp()
+    if with_ecp:
+        ecp_atoms = set(mol._ecpbas[:,ATOM_OF])
+    else:
+        ecp_atoms = ()
+
     for k, ia in enumerate(atmlst):
-        p0, p1 = aoslices [ia,2:]
+        p0, p1 = aoslices[ia, 2:]
         with mol.with_rinv_at_nucleus(ia):
-            vrinv = mol.intor('ECPscalar_iprinv', comp=3)
-        vrinv[:,p0:p1] += h1[:,p0:p1]
-        g[:,:,k] = vrinv.transpose(1,2,0) + vrinv.transpose(2,1,0)
+            vrinv = np.zeros((3,nao,nao))
+            if with_ecp and ia in ecp_atoms:
+                vrinv = mol.intor('ECPscalar_iprinv', comp=3)
+            vrinv[:,p0:p1] += h1[:,p0:p1]
+            g[:,:,k] = vrinv.transpose(1,2,0) + vrinv.transpose(2,1,0)
     return g
 
 def four_point_fd(mol, intor, _env_of, disp=1e-4):

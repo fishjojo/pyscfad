@@ -1,10 +1,11 @@
 from functools import partial
 import numpy
-from pyscf import numpy as np
+from jax import numpy as np
+from pyscf.pbc.gto import Cell
 from pyscf.pbc.gto.eval_gto import _get_intor_and_comp
 from pyscf.pbc.gto.eval_gto import eval_gto as pyscf_eval_gto
 from pyscfad.lib import custom_jvp
-from pyscfad.gto.eval_gto import _eval_gto_fill_grad_r0
+from pyscfad.gto.eval_gto import _eval_gto_dot_grad_tangent_r0
 
 def eval_gto(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
              shls_slice=None, non0tab=None, ao_loc=None, out=None):
@@ -79,7 +80,7 @@ def eval_gto_diff_cell(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,10)))
 def _eval_gto(cell, eval_name, coords, comp, kpts, kpt,
               shls_slice, non0tab, ao_loc, out):
-    return pyscf_eval_gto(cell, eval_name, coords, comp=comp, kpts=kpts, kpt=kpt,
+    return pyscf_eval_gto(cell.view(Cell), eval_name, coords, comp=comp, kpts=kpts, kpt=kpt,
                           shls_slice=shls_slice, non0tab=non0tab, ao_loc=ao_loc, out=out)
 
 @_eval_gto.defjvp
@@ -122,7 +123,7 @@ def _eval_gto_jvp_r0(cell, cell_t, eval_name, coords,
         intor_ip = eval_name + '_deriv1'
         order = 0
 
-    ao1 = pyscf_eval_gto(cell, intor_ip, coords, None, kpts, kpt,
+    ao1 = pyscf_eval_gto(cell.view(Cell), intor_ip, coords, None, kpts, kpt,
                          shls_slice, non0tab, ao_loc, out=None)
 
     single_kpt = False
@@ -137,9 +138,9 @@ def _eval_gto_jvp_r0(cell, cell_t, eval_name, coords,
 
     tangent_out = []
     for k in range(nkpts):
-        grad = _eval_gto_fill_grad_r0(cell, intor_ip, shls_slice, ao_loc, ao1[k], order, ngrids)
-        tangent_out_k = np.einsum('nxlgi,nx->lgi', grad, cell_t.coords)
-        grad = None
+        tangent_out_k = _eval_gto_dot_grad_tangent_r0(cell, cell_t, intor_ip,
+                                                      shls_slice, ao_loc, ao1[k],
+                                                      order, ngrids)
         if order == 0:
             tangent_out_k = tangent_out_k[0]
         tangent_out.append(tangent_out_k)

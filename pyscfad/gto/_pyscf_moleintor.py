@@ -37,6 +37,8 @@ _INTOR_FUNCTIONS.update({
     'int1e_rinv_dr01'		: (3, 3),
     'int2c2e_dr10'		: (3, 3),
     'int2c2e_dr01'		: (3, 3),
+    'int1e_r2_dr10'		: (3, 3),
+    'int1e_r2_dr01'		: (3, 3),
     'int2e_dr1000'		: (3, 3),
     'int2e_dr0010'		: (3, 3),
     'int1e_ovlp_dr20'		: (9, 9),
@@ -54,6 +56,9 @@ _INTOR_FUNCTIONS.update({
     'int2c2e_dr20'		: (9, 9),
     'int2c2e_dr11'		: (9, 9),
     'int2c2e_dr02'		: (9, 9),
+    'int1e_r2_dr20'		: (9, 9),
+    'int1e_r2_dr11'		: (9, 9),
+    'int1e_r2_dr02'		: (9, 9),
     'int2e_dr2000'		: (9, 9),
     'int2e_dr1100'		: (9, 9),
     'int2e_dr1010'		: (9, 9),
@@ -79,6 +84,10 @@ _INTOR_FUNCTIONS.update({
     'int2c2e_dr21'		: (27, 27),
     'int2c2e_dr12'		: (27, 27),
     'int2c2e_dr03'		: (27, 27),
+    'int1e_r2_dr30'		: (27, 27),
+    'int1e_r2_dr21'		: (27, 27),
+    'int1e_r2_dr12'		: (27, 27),
+    'int1e_r2_dr03'		: (27, 27),
     'int2e_dr3000'		: (27, 27),
     'int2e_dr2100'		: (27, 27),
     'int2e_dr2010'		: (27, 27),
@@ -114,6 +123,11 @@ _INTOR_FUNCTIONS.update({
     'int2c2e_dr22'		: (81, 81),
     'int2c2e_dr13'		: (81, 81),
     'int2c2e_dr04'		: (81, 81),
+    'int1e_r2_dr40'		: (81, 81),
+    'int1e_r2_dr31'		: (81, 81),
+    'int1e_r2_dr22'		: (81, 81),
+    'int1e_r2_dr13'		: (81, 81),
+    'int1e_r2_dr04'		: (81, 81),
     'int2e_dr4000'		: (81, 81),
     'int2e_dr3100'		: (81, 81),
     'int2e_dr3010'		: (81, 81),
@@ -131,7 +145,8 @@ _INTOR_FUNCTIONS.update({
     'int2e_dr0040'		: (81, 81),
     'int2e_dr0031'		: (81, 81),
     'int2e_dr0022'		: (81, 81),
-    'int2e_dr0013'		: (81, 81),})
+    'int2e_dr0013'		: (81, 81),
+})
 
 def _get_intor_and_comp(intor_name, comp=None):
     intor_name = ascint3(intor_name)

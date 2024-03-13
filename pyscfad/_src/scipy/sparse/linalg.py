@@ -42,6 +42,8 @@ def gmres_safe(A_or_matvec, b, x0=None, *,
     k = 3
     v_null = None
     while True:
+        if k > b.size:
+            raise RuntimeError
         w, v = eigsh(A, k=k, which='SM')
         if numpy.all(abs(w) >= cond) and w[-1] > 0:
             break
@@ -49,7 +51,7 @@ def gmres_safe(A_or_matvec, b, x0=None, *,
             v_null = v[:,abs(w)<cond]
             break
         else:
-            k *= 2
+            k += 3
             continue
 
     if v_null is None:
@@ -57,9 +59,11 @@ def gmres_safe(A_or_matvec, b, x0=None, *,
                      tol=tol, atol=atol, restart=restart, maxiter=maxiter, M=M,
                      callback=callback, callback_type=callback_type)
 
+    # pylint: disable=unnecessary-lambda-assignment
     _proj_to_null = lambda u: numpy.dot(v_null, numpy.dot(v_null.T, u))
     _proj_to_range = lambda u: u - _proj_to_null(u)
     if callable(A_or_matvec):
+        # pylint: disable=function-redefined
         def _matvec(u):
             u_range = _proj_to_range(u)
             Au = A_or_matvec(u_range.reshape(b_shape)).ravel()

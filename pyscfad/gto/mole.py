@@ -1,10 +1,9 @@
-from jax import vmap
-from pyscf import gto
-from pyscf.lib import param
+from functools import wraps
+from pyscf.gto import mole as pyscf_mole
+from pyscf.lib import logger, param
 from pyscfad import numpy as np
 from pyscfad import util
-from pyscfad import config
-from pyscfad.lib import custom_jvp
+from pyscfad.lib import custom_jvp, vmap
 from pyscfad.gto import moleintor
 from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
@@ -39,10 +38,23 @@ def distance_matrix_jvp(primals, tangents):
     tangent_out += tangent_out.T
     return primal_out, tangent_out
 
-intor_cross = moleintor.intor_cross
+@wraps(pyscf_mole.intor_cross)
+def intor_cross(intor, mol1, mol2, comp=None, grids=None):
+    return moleintor.intor_cross(intor, mol1, mol2, comp=comp, grids=grids)
+
+def nao_nr_range(mol, bas_id0, bas_id1):
+    from pyscf.gto.moleintor import make_loc
+    if mol.cart:
+        key = 'cart'
+    else:
+        key = 'sph'
+    ao_loc = make_loc(mol._bas[:bas_id1], key)
+    nao_id0 = ao_loc[bas_id0]
+    nao_id1 = ao_loc[-1]
+    return nao_id0, nao_id1
 
 @util.pytree_node(Traced_Attributes)
-class Mole(gto.Mole):
+class Mole(pyscf_mole.Mole):
     '''
     A subclass of :class:`pyscf.gto.Mole`, where the following
     attributes can be traced.
@@ -95,22 +107,12 @@ class Mole(gto.Mole):
     energy_nuc = energy_nuc
     eval_ao = eval_gto = eval_gto
 
+    @wraps(pyscf_mole.Mole.intor)
     def intor(self, intor, comp=None, hermi=0, aosym='s1', out=None,
               shls_slice=None, grids=None):
-        if (self.coords is None and self.exp is None
-                and self.ctr_coeff is None and self.r0 is None):
-            return super().intor(intor, comp=comp, hermi=hermi,
-                                 aosym=aosym, out=out, shls_slice=shls_slice,
-                                 grids=grids)
-        else:
-            intor = self._add_suffix(intor)
-            if config.moleintor_opt:
-                from pyscfad.gto import moleintor_opt
-                return moleintor_opt.getints(
-                            self, intor, shls_slice=shls_slice,
-                            comp=comp, hermi=hermi, aosym=aosym,
-                            out=out, grids=grids)
-
-            return moleintor.getints(self, intor, shls_slice=shls_slice,
-                                     comp=comp, hermi=hermi, aosym=aosym,
-                                     out=out, grids=grids)
+        if not self._built:
+            logger.warn(self, 'intor envs of %s not initialized.', self)
+        intor = self._add_suffix(intor)
+        return moleintor.intor(self, intor, comp=comp, hermi=hermi,
+                               aosym=aosym, out=out, shls_slice=shls_slice,
+                               grids=grids)
