@@ -116,10 +116,8 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
                 mf.with_df.build()
         else:
             if mf._eri is None:
-                if config.moleintor_opt:
-                    mf._eri = mol.intor('int2e', aosym='s4')
-                else:
-                    mf._eri = mol.intor('int2e', aosym='s1')
+                aosym = 's4' if config.moleintor_opt else 's1'
+                mf._eri = mol.intor('int2e', aosym=aosym)
 
     scf_conv = False
     mo_energy = mo_coeff = mo_occ = None
@@ -371,12 +369,17 @@ class SCF(pyscf_hf.SCF):
             mol = self.mol
         if dm is None:
             dm = self.make_rdm1()
+
+        aosym = 's4' if config.moleintor_opt else 's1'
         if self._eri is None:
-            if config.moleintor_opt:
-                self._eri = self.mol.intor('int2e', aosym='s4')
-            else:
-                self._eri = self.mol.intor('int2e', aosym='s1')
-        vj, vk = dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
+            self._eri = mol.intor('int2e', aosym=aosym)
+        if omega:
+            with mol.with_range_coulomb(omega):
+                _eri = mol.intor('int2e', aosym=aosym)
+        else:
+            _eri = self._eri
+
+        vj, vk = dot_eri_dm(_eri, dm, hermi, with_j, with_k)
         return vj, vk
 
     def get_init_guess(self, mol=None, key='minao'):

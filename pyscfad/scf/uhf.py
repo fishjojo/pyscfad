@@ -3,7 +3,6 @@ import numpy
 from jax import numpy as np
 from pyscf.lib import module_method
 from pyscf.scf import uhf as pyscf_uhf
-from pyscfad import config
 from pyscfad import util
 from pyscfad.lib import logger, stop_grad
 from pyscfad.scf import hf
@@ -99,21 +98,6 @@ class UHF(hf.SCF, pyscf_uhf.UHF):
         e_a, c_a = self._eigh(h[0], s)
         e_b, c_b = self._eigh(h[1], s)
         return np.array((e_a,e_b)), np.array((c_a,c_b))
-
-    @wraps(pyscf_uhf.UHF.get_jk)
-    def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
-               omega=None):
-        if mol is None:
-            mol = self.mol
-        if dm is None:
-            dm = self.make_rdm1()
-        if self._eri is None:
-            if config.moleintor_opt:
-                self._eri = mol.intor('int2e', aosym='s4')
-            else:
-                self._eri = mol.intor('int2e', aosym='s1')
-        vj, vk = hf.dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
-        return vj, vk
 
     @wraps(pyscf_uhf.UHF.get_veff)
     def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
