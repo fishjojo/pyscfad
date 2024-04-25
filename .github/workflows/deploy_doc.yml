@@ -1,4 +1,4 @@
-name: 'Deploy Doc'
+name: Deploy Doc
 
 on:
   push:
@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v2
       - name: Set up Python 3.11
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
           python-version: 3.11
       - name: install pyscf
@@ -25,4 +25,5 @@ jobs:
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
+          branch: gh-pages
           folder: doc/build

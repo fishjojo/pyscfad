@@ -1,6 +1,8 @@
 name: Pylint
 
 on: [push, pull_request]
+  branches:
+    - '!doc'
 
 jobs:
   Pylint:
