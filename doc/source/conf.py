@@ -64,7 +64,7 @@ html_context = {
     "github_user": "fishjojo",
     "github_repo": "pyscfad",
     "github_version": "doc",
-    "doc_path": "doc",
+    "doc_path": "doc/source",
 }
 
 html_static_path = ['_static']
