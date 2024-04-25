@@ -1,6 +1,0 @@
-include MANIFEST.in
-include README.md setup.py LICENSE
-
-include pyscfad/geomopt/log.ini
-
-global-exclude *.py[cod]
