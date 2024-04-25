@@ -1,0 +1,15 @@
+include MANIFEST.in
+include README.md setup.py LICENSE
+
+recursive-include pyscfadlib/thirdparty *.so
+include pyscfadlib/*.so pyscfadlib/config.h.in
+
+# macos dynamic libraries
+include pyscfadlib/*.dylib
+include pyscfadlib/thirdparty/lib*/*.dylib
+
+# source code
+recursive-include pyscfadlib *.c *.h CMakeLists.txt
+
+global-exclude *.py[cod]
+prune pyscfadlib/build
