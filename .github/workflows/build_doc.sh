@@ -5,7 +5,4 @@ cd doc
 pip install -r requirements.txt
 python make.py html
 
-cd ..
-rm -r docs
-mv doc/build/html docs
-touch docs/.nojekyll
+touch build/html/.nojekyll
