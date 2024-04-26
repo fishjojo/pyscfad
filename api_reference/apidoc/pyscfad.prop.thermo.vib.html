@@ -590,8 +590,51 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="pyscfad-prop-thermo-vib-module">
-<h1>pyscfad.prop.thermo.vib module<a class="headerlink" href="#pyscfad-prop-thermo-vib-module" title="Link to this heading">#</a></h1>
+  <section id="module-pyscfad.prop.thermo.vib">
+<span id="pyscfad-prop-thermo-vib-module"></span><h1>pyscfad.prop.thermo.vib module<a class="headerlink" href="#module-pyscfad.prop.thermo.vib" title="Link to this heading">#</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="pyscfad.prop.thermo.vib.compute_ir">
+<span class="sig-prename descclassname"><span class="pre">pyscfad.prop.thermo.vib.</span></span><span class="sig-name descname"><span class="pre">compute_ir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ir_tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vibration</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/prop/thermo/vib.py#L41-L50"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.prop.thermo.vib.compute_ir" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyscfad.prop.thermo.vib.compute_raman">
+<span class="sig-prename descclassname"><span class="pre">pyscfad.prop.thermo.vib.</span></span><span class="sig-name descname"><span class="pre">compute_raman</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">raman_tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vibration</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/prop/thermo/vib.py#L52-L71"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.prop.thermo.vib.compute_raman" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyscfad.prop.thermo.vib.harmonic_analysis">
+<span class="sig-prename descclassname"><span class="pre">pyscfad.prop.thermo.vib.</span></span><span class="sig-name descname"><span class="pre">harmonic_analysis</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hess</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ir_tensor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raman_tensor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_trans</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude_rot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">imaginary_freq</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/prop/thermo/vib.py#L5-L39"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.prop.thermo.vib.harmonic_analysis" title="Link to this definition">#</a></dt>
+<dd><p>Computes harmonic vibrational frequency, normal modes,
+IR intensity, Raman activity, Depolarization ratio.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>hess: (natm,3,natm,3) array</dt><dd><p>The 2nd order derivative of energy w.r.t. atomic coordinates</p>
+</dd>
+<dt>ir_tensor: (3,natm,3) array</dt><dd><p>The derivative of dipole moment w.r.t. atomic coordinates</p>
+</dd>
+<dt>raman_tensor: (3,3,natm,3) array</dt><dd><p>The derivative of polarizability w.r.t. atomic coordinates</p>
+</dd>
+<dt>exclude_trans: bool</dt><dd><p>Whether to exclude translation modes</p>
+</dd>
+<dt>exclude_rot: bool</dt><dd><p>Whether to exclude rotatoin modes</p>
+</dd>
+<dt>imaginary_freq: bool</dt><dd><p>Whether to allow imaginary frequency</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>vibration: dict</dt><dd><p>Results for vibrational analysis</p>
+</dd>
+<dt>ir: dict</dt><dd><p>Results for IR</p>
+</dd>
+<dt>raman: dict</dt><dd><p>Results for Raman</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 
 
@@ -631,6 +674,20 @@ document.write(`
               
                 <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
 
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.prop.thermo.vib.compute_ir"><code class="docutils literal notranslate"><span class="pre">compute_ir()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.prop.thermo.vib.compute_raman"><code class="docutils literal notranslate"><span class="pre">compute_raman()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.prop.thermo.vib.harmonic_analysis"><code class="docutils literal notranslate"><span class="pre">harmonic_analysis()</span></code></a></li>
+</ul>
+  </nav></div>
 
   <div class="sidebar-secondary-item">
 
