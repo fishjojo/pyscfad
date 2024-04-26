@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+pip install pyscf-properties
 pip install pyscfad
 
 cd doc
