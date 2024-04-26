@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>API reference &#8212; PySCFAD 0.1.4 documentation</title>
+    <title>API reference &#8212; pyscfad 0.1.4 documentation</title>
   
   
   
@@ -28,7 +28,7 @@
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.1/webfonts/fa-brands-400.woff2" />
 <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.1/webfonts/fa-regular-400.woff2" />
 
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../_static/design-style.1e8bd061cd6da7fc9cf755528e8ffc24.min.css?v=0a3b3ea7" />
@@ -45,16 +45,18 @@
     <script src="../_static/copybutton.js?v=f281be69"></script>
     <script src="../_static/design-tabs.js?v=36754332"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/index';</script>
     <script src="../_static/custom-icon.js?v=40bda21d"></script>
     <link rel="icon" href="../_static/pyscfad_logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Development" href="../development/index.html" />
+    <link rel="next" title="pyscfad package" href="apidoc/pyscfad.html" />
     <link rel="prev" title="User Guide" href="../user_guide/index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Apr 25, 2024"/>
+    <meta name="docbuild:last-update" content="Apr 26, 2024"/>
   </head>
   
   
@@ -369,7 +371,164 @@ document.write(`
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"></div>
+  <div class="bd-toc-item navbar-nav"><ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="apidoc/pyscfad.html">pyscfad package</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.ao2mo.html">pyscfad.ao2mo package</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.ao2mo.addons.html">pyscfad.ao2mo.addons module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.ao2mo.incore.html">pyscfad.ao2mo.incore module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.cc.html">pyscfad.cc package</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.cc.ccsd.html">pyscfad.cc.ccsd module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.cc.ccsd_rdm.html">pyscfad.cc.ccsd_rdm module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.cc.ccsd_t.html">pyscfad.cc.ccsd_t module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.cc.ccsd_t_slow.html">pyscfad.cc.ccsd_t_slow module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.cc.dfccsd.html">pyscfad.cc.dfccsd module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.cc.dfdcsd.html">pyscfad.cc.dfdcsd module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.cc.rccsd.html">pyscfad.cc.rccsd module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.cc.rintermediates.html">pyscfad.cc.rintermediates module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.df.html">pyscfad.df package</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.df.addons.html">pyscfad.df.addons module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.df.df.html">pyscfad.df.df module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.df.df_jk.html">pyscfad.df.df_jk module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.df.incore.html">pyscfad.df.incore module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.dft.html">pyscfad.dft package</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.dft.libxc.html">pyscfad.dft.libxc module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.dft.numint.html">pyscfad.dft.numint module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.dft.rks.html">pyscfad.dft.rks module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.experimental.html">pyscfad.experimental package</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.experimental.util.html">pyscfad.experimental.util module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.fci.html">pyscfad.fci package</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-7"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.fci.fci_slow.html">pyscfad.fci.fci_slow module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.geomopt.html">pyscfad.geomopt package</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-8"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.geomopt.geometric_solver.html">pyscfad.geomopt.geometric_solver module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.gto.html">pyscfad.gto package</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-9"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.gto.eval_gto.html">pyscfad.gto.eval_gto module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.gto.mole.html">pyscfad.gto.mole module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.gto.moleintor.html">pyscfad.gto.moleintor module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.gw.html">pyscfad.gw package</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-10"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.gw.rpa.html">pyscfad.gw.rpa module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.lib.html">pyscfad.lib package</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-11"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lib.chkfile.html">pyscfad.lib.chkfile module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lib.diis.html">pyscfad.lib.diis module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lib.jax_helper.html">pyscfad.lib.jax_helper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lib.linalg_helper.html">pyscfad.lib.linalg_helper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lib.logger.html">pyscfad.lib.logger module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lib.misc.html">pyscfad.lib.misc module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lib.numpy_helper.html">pyscfad.lib.numpy_helper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lib.ops.html">pyscfad.lib.ops module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.lo.html">pyscfad.lo package</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-12"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lo.boys.html">pyscfad.lo.boys module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lo.iao.html">pyscfad.lo.iao module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lo.orth.html">pyscfad.lo.orth module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.lo.pipek.html">pyscfad.lo.pipek module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.mp.html">pyscfad.mp package</a><input class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-13"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.mp.dfmp2.html">pyscfad.mp.dfmp2 module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.mp.mp2.html">pyscfad.mp.mp2 module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.pbc.html">pyscfad.pbc package</a><input class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-14"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="apidoc/pyscfad.pbc.df.html">pyscfad.pbc.df package</a><input class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-15"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.df.df_jk.html">pyscfad.pbc.df.df_jk module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.df.fft.html">pyscfad.pbc.df.fft module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.df.fft_jk.html">pyscfad.pbc.df.fft_jk module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="apidoc/pyscfad.pbc.dft.html">pyscfad.pbc.dft package</a><input class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-16"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.dft.krks.html">pyscfad.pbc.dft.krks module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.dft.numint.html">pyscfad.pbc.dft.numint module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.dft.rks.html">pyscfad.pbc.dft.rks module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="apidoc/pyscfad.pbc.gto.html">pyscfad.pbc.gto package</a><input class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-17"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.gto.cell.html">pyscfad.pbc.gto.cell module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.gto.eval_gto.html">pyscfad.pbc.gto.eval_gto module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="apidoc/pyscfad.pbc.lib.html">pyscfad.pbc.lib package</a><input class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-18"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.lib.kpts_helper.html">pyscfad.pbc.lib.kpts_helper module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="apidoc/pyscfad.pbc.scf.html">pyscfad.pbc.scf package</a><input class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-19"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.scf.hf.html">pyscfad.pbc.scf.hf module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.scf.khf.html">pyscfad.pbc.scf.khf module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="apidoc/pyscfad.pbc.tools.html">pyscfad.pbc.tools package</a><input class="toctree-checkbox" id="toctree-checkbox-20" name="toctree-checkbox-20" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-20"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.pbc.tools.pbc.html">pyscfad.pbc.tools.pbc module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.prop.html">pyscfad.prop package</a><input class="toctree-checkbox" id="toctree-checkbox-21" name="toctree-checkbox-21" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-21"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="apidoc/pyscfad.prop.polarizability.html">pyscfad.prop.polarizability package</a><input class="toctree-checkbox" id="toctree-checkbox-22" name="toctree-checkbox-22" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-22"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.prop.polarizability.rhf.html">pyscfad.prop.polarizability.rhf module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="apidoc/pyscfad.prop.thermo.html">pyscfad.prop.thermo package</a><input class="toctree-checkbox" id="toctree-checkbox-23" name="toctree-checkbox-23" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-23"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.prop.thermo.vib.html">pyscfad.prop.thermo.vib module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.scf.html">pyscfad.scf package</a><input class="toctree-checkbox" id="toctree-checkbox-24" name="toctree-checkbox-24" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-24"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.scf.chkfile.html">pyscfad.scf.chkfile module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.scf.cphf.html">pyscfad.scf.cphf module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.scf.diis.html">pyscfad.scf.diis module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.scf.hf.html">pyscfad.scf.hf module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.scf.rohf.html">pyscfad.scf.rohf module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.scf.uhf.html">pyscfad.scf.uhf module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.scipy.html">pyscfad.scipy package</a><input class="toctree-checkbox" id="toctree-checkbox-25" name="toctree-checkbox-25" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-25"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="apidoc/pyscfad.scipy.sparse.html">pyscfad.scipy.sparse package</a><input class="toctree-checkbox" id="toctree-checkbox-26" name="toctree-checkbox-26" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-26"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="apidoc/pyscfad.scipy.sparse.linalg.html">pyscfad.scipy.sparse.linalg module</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.scipy.linalg.html">pyscfad.scipy.linalg module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.soscf.html">pyscfad.soscf package</a><input class="toctree-checkbox" id="toctree-checkbox-27" name="toctree-checkbox-27" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-27"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.soscf.ciah.html">pyscfad.soscf.ciah module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.tdscf.html">pyscfad.tdscf package</a><input class="toctree-checkbox" id="toctree-checkbox-28" name="toctree-checkbox-28" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-28"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.tdscf.rhf.html">pyscfad.tdscf.rhf module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="apidoc/pyscfad.tools.html">pyscfad.tools package</a><input class="toctree-checkbox" id="toctree-checkbox-29" name="toctree-checkbox-29" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-29"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.tools.linear_solver.html">pyscfad.tools.linear_solver module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.tools.timer.html">pyscfad.tools.timer module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apidoc/pyscfad.tools.util.html">pyscfad.tools.util module</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apidoc/pyscfad.implicit_diff.html">pyscfad.implicit_diff module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apidoc/pyscfad.util.html">pyscfad.util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apidoc/pyscfad.version.html">pyscfad.version module</a></li>
+</ul>
+</li>
+</ul>
+</div>
 </nav></div>
     </div>
   
@@ -424,6 +583,11 @@ document.write(`
                   
   <section id="api-reference">
 <span id="id1"></span><h1>API reference<a class="headerlink" href="#api-reference" title="Link to this heading">#</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apidoc/pyscfad.html">pyscfad package</a></li>
+</ul>
+</div>
 </section>
 
 
@@ -446,11 +610,11 @@ document.write(`
       </div>
     </a>
     <a class="right-next"
-       href="../development/index.html"
+       href="apidoc/pyscfad.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Development</p>
+        <p class="prev-next-title">pyscfad package</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

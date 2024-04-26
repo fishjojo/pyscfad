@@ -1,0 +1,1239 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>pyscfad.pbc.gto.cell module &#8212; pyscfad 0.1.4 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.5.1/css/all.min.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.1/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.1/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.1/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/design-style.1e8bd061cd6da7fc9cf755528e8ffc24.min.css?v=0a3b3ea7" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae" />
+  <script src="../../_static/vendor/fontawesome/6.5.1/js/all.min.js?digest=8d27b9dea8ad943066ae"></script>
+
+    <script src="../../_static/documentation_options.js?v=23027dbc"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=36754332"></script>
+    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/apidoc/pyscfad.pbc.gto.cell';</script>
+    <script src="../../_static/custom-icon.js?v=40bda21d"></script>
+    <link rel="icon" href="../../_static/pyscfad_logo.svg"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="pyscfad.pbc.gto.eval_gto module" href="pyscfad.pbc.gto.eval_gto.html" />
+    <link rel="prev" title="pyscfad.pbc.gto package" href="pyscfad.pbc.gto.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+    <meta name="docbuild:last-update" content="Apr 26, 2024"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <a id="pst-skip-link" class="skip-link" href="#main-content">Skip to main content</a>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>
+    Back to top
+  </button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__primary"
+          id="__primary"/>
+  <label class="overlay overlay-primary" for="__primary"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__secondary"
+          id="__secondary"/>
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar">
+<div class="bd-header__inner bd-page-width">
+  <label class="sidebar-toggle primary-toggle" for="__primary">
+    <span class="fa-solid fa-bars"></span>
+  </label>
+  
+  
+  <div class=" navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/pyscfad_logo.svg" class="logo__image only-light" alt=""/>
+    <script>document.write(`<img src="../../_static/pyscfad_logo.svg" class="logo__image only-dark" alt=""/>`);</script>
+  
+  
+    <p class="title logo__title">pyscfad</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class=" navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav class="navbar-nav">
+  <ul class="bd-navbar-elements navbar-nav">
+    
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../getting_started/index.html">
+                        Getting started
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../user_guide/index.html">
+                        User Guide
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item current active">
+                      <a class="nav-link nav-internal" href="../index.html">
+                        API reference
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../development/index.html">
+                        Development
+                      </a>
+                    </li>
+                
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+ <script>
+ document.write(`
+   <button class="btn navbar-btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
+  </button>
+`);
+</script></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links navbar-nav"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/fishjojo/pyscfad" title="GitHub" class="nav-link" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><span><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i></span>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/pyscfad" title="PyPI" class="nav-link" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><span><i class="fa-custom fa-pypi fa-lg" aria-hidden="true"></i></span>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+ <script>
+ document.write(`
+   <button class="btn navbar-btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script>
+    </div>
+  
+
+  
+    <label class="sidebar-toggle secondary-toggle" for="__secondary" tabindex="0">
+      <span class="fa-solid fa-outdent"></span>
+    </label>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          <div class="navbar-item">
+<nav class="navbar-nav">
+  <ul class="bd-navbar-elements navbar-nav">
+    
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../getting_started/index.html">
+                        Getting started
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../user_guide/index.html">
+                        User Guide
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item current active">
+                      <a class="nav-link nav-internal" href="../index.html">
+                        API reference
+                      </a>
+                    </li>
+                
+
+                    <li class="nav-item">
+                      <a class="nav-link nav-internal" href="../../development/index.html">
+                        Development
+                      </a>
+                    </li>
+                
+  </ul>
+</nav></div>
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
+  </button>
+`);
+</script></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links navbar-nav"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/fishjojo/pyscfad" title="GitHub" class="nav-link" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><span><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i></span>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/pyscfad" title="PyPI" class="nav-link" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><span><i class="fa-custom fa-pypi fa-lg" aria-hidden="true"></i></span>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="pyscfad.html">pyscfad package</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-1"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.ao2mo.html">pyscfad.ao2mo package</a><input class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-2"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.ao2mo.addons.html">pyscfad.ao2mo.addons module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.ao2mo.incore.html">pyscfad.ao2mo.incore module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.cc.html">pyscfad.cc package</a><input class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-3"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.cc.ccsd.html">pyscfad.cc.ccsd module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.cc.ccsd_rdm.html">pyscfad.cc.ccsd_rdm module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.cc.ccsd_t.html">pyscfad.cc.ccsd_t module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.html">pyscfad.cc.ccsd_t_slow module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.cc.dfccsd.html">pyscfad.cc.dfccsd module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.cc.dfdcsd.html">pyscfad.cc.dfdcsd module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.cc.rccsd.html">pyscfad.cc.rccsd module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.cc.rintermediates.html">pyscfad.cc.rintermediates module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.df.html">pyscfad.df package</a><input class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-4"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.df.addons.html">pyscfad.df.addons module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.df.df.html">pyscfad.df.df module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.df.df_jk.html">pyscfad.df.df_jk module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.df.incore.html">pyscfad.df.incore module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.dft.html">pyscfad.dft package</a><input class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-5"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.dft.libxc.html">pyscfad.dft.libxc module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.dft.numint.html">pyscfad.dft.numint module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.dft.rks.html">pyscfad.dft.rks module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.experimental.html">pyscfad.experimental package</a><input class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-6"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.experimental.util.html">pyscfad.experimental.util module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.fci.html">pyscfad.fci package</a><input class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-7"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.fci.fci_slow.html">pyscfad.fci.fci_slow module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.geomopt.html">pyscfad.geomopt package</a><input class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-8"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.geomopt.geometric_solver.html">pyscfad.geomopt.geometric_solver module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.gto.html">pyscfad.gto package</a><input class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-9"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.gto.eval_gto.html">pyscfad.gto.eval_gto module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.gto.mole.html">pyscfad.gto.mole module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.gto.moleintor.html">pyscfad.gto.moleintor module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.gw.html">pyscfad.gw package</a><input class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-10"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.gw.rpa.html">pyscfad.gw.rpa module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.lib.html">pyscfad.lib package</a><input class="toctree-checkbox" id="toctree-checkbox-11" name="toctree-checkbox-11" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-11"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lib.chkfile.html">pyscfad.lib.chkfile module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lib.diis.html">pyscfad.lib.diis module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lib.jax_helper.html">pyscfad.lib.jax_helper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lib.linalg_helper.html">pyscfad.lib.linalg_helper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lib.logger.html">pyscfad.lib.logger module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lib.misc.html">pyscfad.lib.misc module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lib.numpy_helper.html">pyscfad.lib.numpy_helper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lib.ops.html">pyscfad.lib.ops module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.lo.html">pyscfad.lo package</a><input class="toctree-checkbox" id="toctree-checkbox-12" name="toctree-checkbox-12" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-12"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lo.boys.html">pyscfad.lo.boys module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lo.iao.html">pyscfad.lo.iao module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lo.orth.html">pyscfad.lo.orth module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.lo.pipek.html">pyscfad.lo.pipek module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.mp.html">pyscfad.mp package</a><input class="toctree-checkbox" id="toctree-checkbox-13" name="toctree-checkbox-13" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-13"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.mp.dfmp2.html">pyscfad.mp.dfmp2 module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.mp.mp2.html">pyscfad.mp.mp2 module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="pyscfad.pbc.html">pyscfad.pbc package</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-14" name="toctree-checkbox-14" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-14"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
+<li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.pbc.df.html">pyscfad.pbc.df package</a><input class="toctree-checkbox" id="toctree-checkbox-15" name="toctree-checkbox-15" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-15"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.df.df_jk.html">pyscfad.pbc.df.df_jk module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.df.fft.html">pyscfad.pbc.df.fft module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.df.fft_jk.html">pyscfad.pbc.df.fft_jk module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.pbc.dft.html">pyscfad.pbc.dft package</a><input class="toctree-checkbox" id="toctree-checkbox-16" name="toctree-checkbox-16" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-16"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.dft.krks.html">pyscfad.pbc.dft.krks module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.dft.numint.html">pyscfad.pbc.dft.numint module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.dft.rks.html">pyscfad.pbc.dft.rks module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 current active has-children"><a class="reference internal" href="pyscfad.pbc.gto.html">pyscfad.pbc.gto package</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-17" name="toctree-checkbox-17" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-17"><i class="fa-solid fa-chevron-down"></i></label><ul class="current">
+<li class="toctree-l4 current active"><a class="current reference internal" href="#">pyscfad.pbc.gto.cell module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.gto.eval_gto.html">pyscfad.pbc.gto.eval_gto module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.pbc.lib.html">pyscfad.pbc.lib package</a><input class="toctree-checkbox" id="toctree-checkbox-18" name="toctree-checkbox-18" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-18"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.lib.kpts_helper.html">pyscfad.pbc.lib.kpts_helper module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.pbc.scf.html">pyscfad.pbc.scf package</a><input class="toctree-checkbox" id="toctree-checkbox-19" name="toctree-checkbox-19" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-19"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.scf.hf.html">pyscfad.pbc.scf.hf module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.scf.khf.html">pyscfad.pbc.scf.khf module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.pbc.tools.html">pyscfad.pbc.tools package</a><input class="toctree-checkbox" id="toctree-checkbox-20" name="toctree-checkbox-20" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-20"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.tools.pbc.html">pyscfad.pbc.tools.pbc module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.prop.html">pyscfad.prop package</a><input class="toctree-checkbox" id="toctree-checkbox-21" name="toctree-checkbox-21" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-21"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.prop.polarizability.html">pyscfad.prop.polarizability package</a><input class="toctree-checkbox" id="toctree-checkbox-22" name="toctree-checkbox-22" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-22"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.prop.polarizability.rhf.html">pyscfad.prop.polarizability.rhf module</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.prop.thermo.html">pyscfad.prop.thermo package</a><input class="toctree-checkbox" id="toctree-checkbox-23" name="toctree-checkbox-23" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-23"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.prop.thermo.vib.html">pyscfad.prop.thermo.vib module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.scf.html">pyscfad.scf package</a><input class="toctree-checkbox" id="toctree-checkbox-24" name="toctree-checkbox-24" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-24"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.scf.chkfile.html">pyscfad.scf.chkfile module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.scf.cphf.html">pyscfad.scf.cphf module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.scf.diis.html">pyscfad.scf.diis module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.scf.hf.html">pyscfad.scf.hf module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.scf.rohf.html">pyscfad.scf.rohf module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.scf.uhf.html">pyscfad.scf.uhf module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.scipy.html">pyscfad.scipy package</a><input class="toctree-checkbox" id="toctree-checkbox-25" name="toctree-checkbox-25" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-25"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.scipy.sparse.html">pyscfad.scipy.sparse package</a><input class="toctree-checkbox" id="toctree-checkbox-26" name="toctree-checkbox-26" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-26"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scipy.sparse.linalg.html">pyscfad.scipy.sparse.linalg module</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.scipy.linalg.html">pyscfad.scipy.linalg module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.soscf.html">pyscfad.soscf package</a><input class="toctree-checkbox" id="toctree-checkbox-27" name="toctree-checkbox-27" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-27"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.soscf.ciah.html">pyscfad.soscf.ciah module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.tdscf.html">pyscfad.tdscf package</a><input class="toctree-checkbox" id="toctree-checkbox-28" name="toctree-checkbox-28" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-28"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.tdscf.rhf.html">pyscfad.tdscf.rhf module</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.tools.html">pyscfad.tools package</a><input class="toctree-checkbox" id="toctree-checkbox-29" name="toctree-checkbox-29" type="checkbox"/><label class="toctree-toggle" for="toctree-checkbox-29"><i class="fa-solid fa-chevron-down"></i></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.tools.linear_solver.html">pyscfad.tools.linear_solver module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.tools.timer.html">pyscfad.tools.timer module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.tools.util.html">pyscfad.tools.util module</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pyscfad.implicit_diff.html">pyscfad.implicit_diff module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pyscfad.util.html">pyscfad.util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pyscfad.version.html">pyscfad.version module</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+
+
+
+
+<nav aria-label="Breadcrumb">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">API reference</a></li>
+    
+    
+    <li class="breadcrumb-item"><i class="fa-solid fa-ellipsis"></i></li>
+    
+    
+    <li class="breadcrumb-item"><a href="pyscfad.pbc.gto.html" class="nav-link">pyscfad.pbc.gto package</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page">pyscfad.pbc....</li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="module-pyscfad.pbc.gto.cell">
+<span id="pyscfad-pbc-gto-cell-module"></span><h1>pyscfad.pbc.gto.cell module<a class="headerlink" href="#module-pyscfad.pbc.gto.cell" title="Link to this heading">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.gto.cell.</span></span><span class="sig-name descname"><span class="pre">Cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L173-L247"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="pyscfad.gto.mole.html#pyscfad.gto.mole.Mole" title="pyscfad.gto.mole.Mole"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mole</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Cell</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.build">
+<span class="sig-name descname"><span class="pre">build</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L202-L220"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.build" title="Link to this definition">#</a></dt>
+<dd><p>Setup Mole molecule and Cell and initialize some control parameters.
+Whenever you change the value of the attributes of <a class="reference internal" href="#pyscfad.pbc.gto.cell.Cell" title="pyscfad.pbc.gto.cell.Cell"><code class="xref py py-class docutils literal notranslate"><span class="pre">Cell</span></code></a>,
+you need call this function to refresh the internal data of Cell.</p>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><dl class="simple">
+<dt>a<span class="classifier">(3,3) ndarray</span></dt><dd><p>The real-space cell lattice vectors. Each row represents
+a lattice vector.</p>
+</dd>
+<dt>mesh<span class="classifier">(3,) ndarray of ints</span></dt><dd><p>The number of <em>positive</em> G-vectors along each direction.</p>
+</dd>
+<dt>ke_cutoff<span class="classifier">float</span></dt><dd><p>If set, defines a spherical cutoff of planewaves, with .5 * G**2 &lt; ke_cutoff
+The default value is estimated based on <code class="xref py py-attr docutils literal notranslate"><span class="pre">precision</span></code></p>
+</dd>
+<dt>precision<span class="classifier">float</span></dt><dd><p>To control Ewald sums and lattice sums accuracy</p>
+</dd>
+<dt>nimgs<span class="classifier">(3,) ndarray of ints</span></dt><dd><p>Number of repeated images in lattice summation to produce
+periodicity. This value can be estimated based on the required
+precision.  It’s recommended NOT making changes to this value.</p>
+</dd>
+<dt>rcut<span class="classifier">float</span></dt><dd><p>Cutoff radius (unit Bohr) in lattice summation to produce
+periodicity. The value can be estimated based on the required
+precision.  It’s recommended NOT making changes to this value.</p>
+</dd>
+<dt>pseudo<span class="classifier">dict or str</span></dt><dd><p>To define pseudopotential.</p>
+</dd>
+<dt>ecp<span class="classifier">dict or str</span></dt><dd><p>To define ECP type pseudopotential.</p>
+</dd>
+<dt>h<span class="classifier">(3,3) ndarray</span></dt><dd><p>a.T. Deprecated</p>
+</dd>
+<dt>dimension<span class="classifier">int</span></dt><dd><p>Default is 3</p>
+</dd>
+<dt>low_dim_ft_type<span class="classifier">str</span></dt><dd><p>For semi-empirical periodic systems, whether to calculate
+integrals at the non-PBC dimension using the sampled mesh grids in
+infinity vacuum (inf_vacuum) or truncated Coulomb potential
+(analytic_2d_1). Unless explicitly specified, analytic_2d_1 is
+used for 2D system and inf_vacuum is assumed for 1D and 0D.</p>
+</dd>
+<dt>space_group_symmetry<span class="classifier">bool</span></dt><dd><p>Whether to consider space group symmetry. Default is False.</p>
+</dd>
+<dt>symmorphic<span class="classifier">bool</span></dt><dd><p>Whether the lattice is symmorphic. If set to True, even if the
+lattice is non-symmorphic, only symmorphic space group symmetry
+will be considered. Default is False, meaning the space group is
+determined by the lattice symmetry to be symmorphic or non-symmorphic.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.energy_nuc">
+<span class="sig-name descname"><span class="pre">energy_nuc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ew_eta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ew_cut</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L80-L169"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.energy_nuc" title="Link to this definition">#</a></dt>
+<dd><p>Perform real (R) and reciprocal (G) space Ewald sum for the energy.</p>
+<p>Formulation of Martin, App. F2.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>float</dt><dd><p>The Ewald energy consisting of overlap, self, and G-space sum.</p>
+</dd>
+</dl>
+</dd>
+<dt>See Also:</dt><dd><p>pyscf.pbc.gto.get_ewald_params</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.eval_ao">
+<span class="sig-name descname"><span class="pre">eval_ao</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eval_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shls_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non0tab</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ao_loc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L234-L241"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.eval_ao" title="Link to this definition">#</a></dt>
+<dd><p>Evaluate PBC-AO function value on the given grids,</p>
+<dl>
+<dt>Args:</dt><dd><p>eval_name : str</p>
+<blockquote>
+<div><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Expression</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>“GTOval_sph”</p></td>
+<td><p>sum_T exp(ik*T) <a href="#id1"><span class="problematic" id="id2">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-odd"><td><p>“GTOval_ip_sph”</p></td>
+<td><p>nabla sum_T exp(ik*T) <a href="#id3"><span class="problematic" id="id4">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-even"><td><p>“GTOval_cart”</p></td>
+<td><p>sum_T exp(ik*T) <a href="#id5"><span class="problematic" id="id6">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-odd"><td><p>“GTOval_ip_cart”</p></td>
+<td><p>nabla sum_T exp(ik*T) <a href="#id7"><span class="problematic" id="id8">|</span></a>AO&gt;</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<dl class="simple">
+<dt>atm<span class="classifier">int32 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>bas<span class="classifier">int32 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>env<span class="classifier">float64 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>coords<span class="classifier">2D array, shape (N,3)</span></dt><dd><p>The coordinates of the grids.</p>
+</dd>
+</dl>
+</dd>
+<dt>Kwargs:</dt><dd><dl class="simple">
+<dt>shls_slice<span class="classifier">2-element list</span></dt><dd><p>(shl_start, shl_end).
+If given, only part of AOs (shl_start &lt;= shell_id &lt; shl_end) are
+evaluated.  By default, all shells defined in cell will be evaluated.</p>
+</dd>
+<dt>non0tab<span class="classifier">2D bool array</span></dt><dd><p>mask array to indicate whether the AO values are zero.  The mask
+array can be obtained by calling <code class="xref py py-func docutils literal notranslate"><span class="pre">dft.gen_grid.make_mask()</span></code></p>
+</dd>
+<dt>cutoff<span class="classifier">float</span></dt><dd><p>AO values smaller than cutoff will be set to zero. The default
+cutoff threshold is ~1e-22 (defined in gto/grid_ao_drv.h)</p>
+</dd>
+<dt>out<span class="classifier">ndarray</span></dt><dd><p>If provided, results are written into this array.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A list of 2D (or 3D) arrays to hold the AO values on grids.  Each
+element of the list corresponds to a k-point and it has the shape
+(N,nao) Or shape (*,N,nao).</p>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cell</span> <span class="o">=</span> <span class="n">pbc</span><span class="o">.</span><span class="n">gto</span><span class="o">.</span><span class="n">M</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">*</span><span class="mi">4</span><span class="p">,</span> <span class="n">atom</span><span class="o">=</span><span class="s1">&#39;He 1 1 1&#39;</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="s1">&#39;6-31g&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">coords</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">get_uniform_grids</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">kpts</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">make_kpts</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">&quot;GTOval_sph&quot;</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">ao_value</span><span class="p">)</span>
+<span class="go">27</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(1000, 2)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">&quot;GTOval_ig_sph&quot;</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">,</span> <span class="n">comp</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">ao_value</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">ao_value</span><span class="p">)</span>
+<span class="go">27</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(3, 1000, 2)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.eval_gto">
+<span class="sig-name descname"><span class="pre">eval_gto</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eval_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shls_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non0tab</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ao_loc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L234-L241"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.eval_gto" title="Link to this definition">#</a></dt>
+<dd><p>Evaluate PBC-AO function value on the given grids,</p>
+<dl>
+<dt>Args:</dt><dd><p>eval_name : str</p>
+<blockquote>
+<div><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Expression</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>“GTOval_sph”</p></td>
+<td><p>sum_T exp(ik*T) <a href="#id9"><span class="problematic" id="id10">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-odd"><td><p>“GTOval_ip_sph”</p></td>
+<td><p>nabla sum_T exp(ik*T) <a href="#id11"><span class="problematic" id="id12">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-even"><td><p>“GTOval_cart”</p></td>
+<td><p>sum_T exp(ik*T) <a href="#id13"><span class="problematic" id="id14">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-odd"><td><p>“GTOval_ip_cart”</p></td>
+<td><p>nabla sum_T exp(ik*T) <a href="#id15"><span class="problematic" id="id16">|</span></a>AO&gt;</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<dl class="simple">
+<dt>atm<span class="classifier">int32 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>bas<span class="classifier">int32 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>env<span class="classifier">float64 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>coords<span class="classifier">2D array, shape (N,3)</span></dt><dd><p>The coordinates of the grids.</p>
+</dd>
+</dl>
+</dd>
+<dt>Kwargs:</dt><dd><dl class="simple">
+<dt>shls_slice<span class="classifier">2-element list</span></dt><dd><p>(shl_start, shl_end).
+If given, only part of AOs (shl_start &lt;= shell_id &lt; shl_end) are
+evaluated.  By default, all shells defined in cell will be evaluated.</p>
+</dd>
+<dt>non0tab<span class="classifier">2D bool array</span></dt><dd><p>mask array to indicate whether the AO values are zero.  The mask
+array can be obtained by calling <code class="xref py py-func docutils literal notranslate"><span class="pre">dft.gen_grid.make_mask()</span></code></p>
+</dd>
+<dt>cutoff<span class="classifier">float</span></dt><dd><p>AO values smaller than cutoff will be set to zero. The default
+cutoff threshold is ~1e-22 (defined in gto/grid_ao_drv.h)</p>
+</dd>
+<dt>out<span class="classifier">ndarray</span></dt><dd><p>If provided, results are written into this array.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A list of 2D (or 3D) arrays to hold the AO values on grids.  Each
+element of the list corresponds to a k-point and it has the shape
+(N,nao) Or shape (*,N,nao).</p>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cell</span> <span class="o">=</span> <span class="n">pbc</span><span class="o">.</span><span class="n">gto</span><span class="o">.</span><span class="n">M</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">*</span><span class="mi">4</span><span class="p">,</span> <span class="n">atom</span><span class="o">=</span><span class="s1">&#39;He 1 1 1&#39;</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="s1">&#39;6-31g&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">coords</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">get_uniform_grids</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">kpts</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">make_kpts</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">&quot;GTOval_sph&quot;</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">ao_value</span><span class="p">)</span>
+<span class="go">27</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(1000, 2)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">&quot;GTOval_ig_sph&quot;</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">,</span> <span class="n">comp</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">ao_value</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">ao_value</span><span class="p">)</span>
+<span class="go">27</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(3, 1000, 2)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.ewald">
+<span class="sig-name descname"><span class="pre">ewald</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ew_eta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ew_cut</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L80-L169"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.ewald" title="Link to this definition">#</a></dt>
+<dd><p>Perform real (R) and reciprocal (G) space Ewald sum for the energy.</p>
+<p>Formulation of Martin, App. F2.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>float</dt><dd><p>The Ewald energy consisting of overlap, self, and G-space sum.</p>
+</dd>
+</dl>
+</dd>
+<dt>See Also:</dt><dd><p>pyscf.pbc.gto.get_ewald_params</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.get_SI">
+<span class="sig-name descname"><span class="pre">get_SI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Gv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L17-L24"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.get_SI" title="Link to this definition">#</a></dt>
+<dd><p>Calculate the structure factor (0D, 1D, 2D, 3D) for all atoms; see MH (3.34).</p>
+<dl>
+<dt>Args:</dt><dd><p>cell : instance of <a class="reference internal" href="#pyscfad.pbc.gto.cell.Cell" title="pyscfad.pbc.gto.cell.Cell"><code class="xref py py-class docutils literal notranslate"><span class="pre">Cell</span></code></a></p>
+<dl class="simple">
+<dt>Gv<span class="classifier">(N,3) array</span></dt><dd><p>G vectors</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>SI<span class="classifier">(natm, ngrids) ndarray, dtype=np.complex128</span></dt><dd><p>The structure factor for each atom at each G-vector.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.get_lattice_Ls">
+<span class="sig-name descname"><span class="pre">get_lattice_Ls</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nimgs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rcut</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dimension</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">discard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/tools/pbc.py#L57-L107"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.get_lattice_Ls" title="Link to this definition">#</a></dt>
+<dd><p>Get the (Cartesian, unitful) lattice translation vectors for nearby images.
+The translation vectors can be used for the lattice summation.</p>
+<dl class="simple">
+<dt>Kwargs:</dt><dd><dl class="simple">
+<dt>discard:</dt><dd><p>Drop less important Ls based on AO values on grid</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.lattice_vectors">
+<span class="sig-name descname"><span class="pre">lattice_vectors</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L222-L226"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.lattice_vectors" title="Link to this definition">#</a></dt>
+<dd><p>Convert the primitive lattice vectors.</p>
+<p>Return 3x3 array in which each row represents one direction of the
+lattice vectors (unit in Bohr)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.pbc_eval_ao">
+<span class="sig-name descname"><span class="pre">pbc_eval_ao</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eval_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shls_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non0tab</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ao_loc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L228-L231"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.pbc_eval_ao" title="Link to this definition">#</a></dt>
+<dd><p>Evaluate PBC-AO function value on the given grids,</p>
+<dl>
+<dt>Args:</dt><dd><p>eval_name : str</p>
+<blockquote>
+<div><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Expression</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>“GTOval_sph”</p></td>
+<td><p>sum_T exp(ik*T) <a href="#id17"><span class="problematic" id="id18">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-odd"><td><p>“GTOval_ip_sph”</p></td>
+<td><p>nabla sum_T exp(ik*T) <a href="#id19"><span class="problematic" id="id20">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-even"><td><p>“GTOval_cart”</p></td>
+<td><p>sum_T exp(ik*T) <a href="#id21"><span class="problematic" id="id22">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-odd"><td><p>“GTOval_ip_cart”</p></td>
+<td><p>nabla sum_T exp(ik*T) <a href="#id23"><span class="problematic" id="id24">|</span></a>AO&gt;</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<dl class="simple">
+<dt>atm<span class="classifier">int32 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>bas<span class="classifier">int32 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>env<span class="classifier">float64 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>coords<span class="classifier">2D array, shape (N,3)</span></dt><dd><p>The coordinates of the grids.</p>
+</dd>
+</dl>
+</dd>
+<dt>Kwargs:</dt><dd><dl class="simple">
+<dt>shls_slice<span class="classifier">2-element list</span></dt><dd><p>(shl_start, shl_end).
+If given, only part of AOs (shl_start &lt;= shell_id &lt; shl_end) are
+evaluated.  By default, all shells defined in cell will be evaluated.</p>
+</dd>
+<dt>non0tab<span class="classifier">2D bool array</span></dt><dd><p>mask array to indicate whether the AO values are zero.  The mask
+array can be obtained by calling <code class="xref py py-func docutils literal notranslate"><span class="pre">dft.gen_grid.make_mask()</span></code></p>
+</dd>
+<dt>cutoff<span class="classifier">float</span></dt><dd><p>AO values smaller than cutoff will be set to zero. The default
+cutoff threshold is ~1e-22 (defined in gto/grid_ao_drv.h)</p>
+</dd>
+<dt>out<span class="classifier">ndarray</span></dt><dd><p>If provided, results are written into this array.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A list of 2D (or 3D) arrays to hold the AO values on grids.  Each
+element of the list corresponds to a k-point and it has the shape
+(N,nao) Or shape (*,N,nao).</p>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cell</span> <span class="o">=</span> <span class="n">pbc</span><span class="o">.</span><span class="n">gto</span><span class="o">.</span><span class="n">M</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">*</span><span class="mi">4</span><span class="p">,</span> <span class="n">atom</span><span class="o">=</span><span class="s1">&#39;He 1 1 1&#39;</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="s1">&#39;6-31g&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">coords</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">get_uniform_grids</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">kpts</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">make_kpts</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">&quot;GTOval_sph&quot;</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">ao_value</span><span class="p">)</span>
+<span class="go">27</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(1000, 2)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">&quot;GTOval_ig_sph&quot;</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">,</span> <span class="n">comp</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">ao_value</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">ao_value</span><span class="p">)</span>
+<span class="go">27</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(3, 1000, 2)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.pbc_eval_gto">
+<span class="sig-name descname"><span class="pre">pbc_eval_gto</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eval_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shls_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non0tab</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ao_loc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L228-L231"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.pbc_eval_gto" title="Link to this definition">#</a></dt>
+<dd><p>Evaluate PBC-AO function value on the given grids,</p>
+<dl>
+<dt>Args:</dt><dd><p>eval_name : str</p>
+<blockquote>
+<div><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Function</p></th>
+<th class="head"><p>Expression</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>“GTOval_sph”</p></td>
+<td><p>sum_T exp(ik*T) <a href="#id25"><span class="problematic" id="id26">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-odd"><td><p>“GTOval_ip_sph”</p></td>
+<td><p>nabla sum_T exp(ik*T) <a href="#id27"><span class="problematic" id="id28">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-even"><td><p>“GTOval_cart”</p></td>
+<td><p>sum_T exp(ik*T) <a href="#id29"><span class="problematic" id="id30">|</span></a>AO&gt;</p></td>
+</tr>
+<tr class="row-odd"><td><p>“GTOval_ip_cart”</p></td>
+<td><p>nabla sum_T exp(ik*T) <a href="#id31"><span class="problematic" id="id32">|</span></a>AO&gt;</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<dl class="simple">
+<dt>atm<span class="classifier">int32 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>bas<span class="classifier">int32 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>env<span class="classifier">float64 ndarray</span></dt><dd><p>libcint integral function argument</p>
+</dd>
+<dt>coords<span class="classifier">2D array, shape (N,3)</span></dt><dd><p>The coordinates of the grids.</p>
+</dd>
+</dl>
+</dd>
+<dt>Kwargs:</dt><dd><dl class="simple">
+<dt>shls_slice<span class="classifier">2-element list</span></dt><dd><p>(shl_start, shl_end).
+If given, only part of AOs (shl_start &lt;= shell_id &lt; shl_end) are
+evaluated.  By default, all shells defined in cell will be evaluated.</p>
+</dd>
+<dt>non0tab<span class="classifier">2D bool array</span></dt><dd><p>mask array to indicate whether the AO values are zero.  The mask
+array can be obtained by calling <code class="xref py py-func docutils literal notranslate"><span class="pre">dft.gen_grid.make_mask()</span></code></p>
+</dd>
+<dt>cutoff<span class="classifier">float</span></dt><dd><p>AO values smaller than cutoff will be set to zero. The default
+cutoff threshold is ~1e-22 (defined in gto/grid_ao_drv.h)</p>
+</dd>
+<dt>out<span class="classifier">ndarray</span></dt><dd><p>If provided, results are written into this array.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A list of 2D (or 3D) arrays to hold the AO values on grids.  Each
+element of the list corresponds to a k-point and it has the shape
+(N,nao) Or shape (*,N,nao).</p>
+</dd>
+</dl>
+<p>Examples:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cell</span> <span class="o">=</span> <span class="n">pbc</span><span class="o">.</span><span class="n">gto</span><span class="o">.</span><span class="n">M</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">*</span><span class="mi">4</span><span class="p">,</span> <span class="n">atom</span><span class="o">=</span><span class="s1">&#39;He 1 1 1&#39;</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="s1">&#39;6-31g&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">coords</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">get_uniform_grids</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">kpts</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">make_kpts</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">&quot;GTOval_sph&quot;</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">ao_value</span><span class="p">)</span>
+<span class="go">27</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(1000, 2)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">&quot;GTOval_ig_sph&quot;</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">,</span> <span class="n">comp</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">ao_value</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">ao_value</span><span class="p">)</span>
+<span class="go">27</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(3, 1000, 2)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.pbc_intor">
+<span class="sig-name descname"><span class="pre">pbc_intor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shls_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L66-L77"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.pbc_intor" title="Link to this definition">#</a></dt>
+<dd><p>One-electron integrals with PBC.</p>
+<div class="math notranslate nohighlight">
+\[\sum_T \int \mu(r) * [intor] * \nu (r-T) dr\]</div>
+<p>See also Mole.intor</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.energy_nuc">
+<span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.gto.cell.</span></span><span class="sig-name descname"><span class="pre">energy_nuc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ew_eta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ew_cut</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L80-L169"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.energy_nuc" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.ewald">
+<span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.gto.cell.</span></span><span class="sig-name descname"><span class="pre">ewald</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ew_eta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ew_cut</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L80-L169"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.ewald" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.get_SI">
+<span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.gto.cell.</span></span><span class="sig-name descname"><span class="pre">get_SI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Gv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L17-L24"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.get_SI" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.intor_cross">
+<span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.gto.cell.</span></span><span class="sig-name descname"><span class="pre">intor_cross</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cell1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cell2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shls_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L35-L64"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.intor_cross" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.pbc_intor">
+<span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.gto.cell.</span></span><span class="sig-name descname"><span class="pre">pbc_intor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shls_slice</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L66-L77"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.pbc_intor" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.shift_bas_center">
+<span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.gto.cell.</span></span><span class="sig-name descname"><span class="pre">shift_bas_center</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">r</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/pbc/gto/cell.py#L26-L33"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.shift_bas_center" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="pyscfad.pbc.gto.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">pyscfad.pbc.gto package</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="pyscfad.pbc.gto.eval_gto.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">pyscfad.pbc.gto.eval_gto module</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell"><code class="docutils literal notranslate"><span class="pre">Cell</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell.build"><code class="docutils literal notranslate"><span class="pre">Cell.build()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell.energy_nuc"><code class="docutils literal notranslate"><span class="pre">Cell.energy_nuc()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell.eval_ao"><code class="docutils literal notranslate"><span class="pre">Cell.eval_ao()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell.eval_gto"><code class="docutils literal notranslate"><span class="pre">Cell.eval_gto()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell.ewald"><code class="docutils literal notranslate"><span class="pre">Cell.ewald()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell.get_SI"><code class="docutils literal notranslate"><span class="pre">Cell.get_SI()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell.get_lattice_Ls"><code class="docutils literal notranslate"><span class="pre">Cell.get_lattice_Ls()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell.lattice_vectors"><code class="docutils literal notranslate"><span class="pre">Cell.lattice_vectors()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell.pbc_eval_ao"><code class="docutils literal notranslate"><span class="pre">Cell.pbc_eval_ao()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell.pbc_eval_gto"><code class="docutils literal notranslate"><span class="pre">Cell.pbc_eval_gto()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.Cell.pbc_intor"><code class="docutils literal notranslate"><span class="pre">Cell.pbc_intor()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.energy_nuc"><code class="docutils literal notranslate"><span class="pre">energy_nuc()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.ewald"><code class="docutils literal notranslate"><span class="pre">ewald()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.get_SI"><code class="docutils literal notranslate"><span class="pre">get_SI()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.intor_cross"><code class="docutils literal notranslate"><span class="pre">intor_cross()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.pbc_intor"><code class="docutils literal notranslate"><span class="pre">pbc_intor()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.shift_bas_center"><code class="docutils literal notranslate"><span class="pre">shift_bas_center()</span></code></a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/fishjojo/pyscfad/edit/doc/doc/source/api_reference/apidoc/pyscfad.pbc.gto.cell.rst">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="../../_sources/api_reference/apidoc/pyscfad.pbc.gto.cell.rst">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2021-2024, Xing Zhang.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+    <div class="footer-items__center">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.15.2.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
