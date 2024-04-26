@@ -590,8 +590,30 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="pyscfad-geomopt-geometric-solver-module">
-<h1>pyscfad.geomopt.geometric_solver module<a class="headerlink" href="#pyscfad-geomopt-geometric-solver-module" title="Link to this heading">#</a></h1>
+  <section id="module-pyscfad.geomopt.geometric_solver">
+<span id="pyscfad-geomopt-geometric-solver-module"></span><h1>pyscfad.geomopt.geometric_solver module<a class="headerlink" href="#module-pyscfad.geomopt.geometric_solver" title="Link to this heading">#</a></h1>
+<dl class="py exception">
+<dt class="sig sig-object py" id="pyscfad.geomopt.geometric_solver.NotConvergedError">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.geomopt.geometric_solver.</span></span><span class="sig-name descname"><span class="pre">NotConvergedError</span></span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/geomopt/geometric_solver.py#L87-L88"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.geomopt.geometric_solver.NotConvergedError" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">RuntimeError</span></code></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pyscfad.geomopt.geometric_solver.PySCFADEngine">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.geomopt.geometric_solver.</span></span><span class="sig-name descname"><span class="pre">PySCFADEngine</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value_and_grad</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxsteps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/geomopt/geometric_solver.py#L11-L59"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.geomopt.geometric_solver.PySCFADEngine" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Engine</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pyscfad.geomopt.geometric_solver.PySCFADEngine.calc_new">
+<span class="sig-name descname"><span class="pre">calc_new</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coords</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dirname</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/geomopt/geometric_solver.py#L28-L59"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.geomopt.geometric_solver.PySCFADEngine.calc_new" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyscfad.geomopt.geometric_solver.kernel">
+<span class="sig-prename descclassname"><span class="pre">pyscfad.geomopt.geometric_solver.</span></span><span class="sig-name descname"><span class="pre">kernel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value_and_grad</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">constraints</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxsteps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/v0.1.4/pyscfad/geomopt/geometric_solver.py#L61-L85"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.geomopt.geometric_solver.kernel" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
 </section>
 
 
@@ -631,6 +653,23 @@ document.write(`
               
                 <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
 
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.geomopt.geometric_solver.NotConvergedError"><code class="docutils literal notranslate"><span class="pre">NotConvergedError</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.geomopt.geometric_solver.PySCFADEngine"><code class="docutils literal notranslate"><span class="pre">PySCFADEngine</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.geomopt.geometric_solver.PySCFADEngine.calc_new"><code class="docutils literal notranslate"><span class="pre">PySCFADEngine.calc_new()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.geomopt.geometric_solver.kernel"><code class="docutils literal notranslate"><span class="pre">kernel()</span></code></a></li>
+</ul>
+  </nav></div>
 
   <div class="sidebar-secondary-item">
 
