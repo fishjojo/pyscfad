@@ -3,3 +3,8 @@
 =============
 API reference
 =============
+
+.. toctree::
+   :maxdepth: 1
+
+   apidoc/pyscfad

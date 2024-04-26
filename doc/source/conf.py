@@ -10,16 +10,15 @@ import sys
 import warnings
 import inspect
 
+project = "pyscfad"
+copyright = "2021-2024, Xing Zhang"
+author = "Xing Zhang"
+
 import pyscfad
-
-project = 'PySCFAD'
-copyright = '2021-2024, Xing Zhang'
-author = 'Xing Zhang'
-
 version = str(pyscfad.__version__)
 release = version
 
-language = 'en'
+language = "en"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -45,16 +44,25 @@ extensions = [
     "sphinxemoji.sphinxemoji", # emoji
 ]
 
-templates_path = ['_templates']
+templates_path = ["_templates"]
 source_suffix = [".rst"]
 source_encoding = "utf-8"
 master_doc = "index"
 exclude_patterns = []
 
+autosummary_generate = True
+autodoc_typehints = "none"
+
+numpydoc_show_class_members = False
+numpydoc_show_inherited_class_members = False
+numpydoc_attributes_as_param_list = False
+
+pygments_style = "sphinx"
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'pydata_sphinx_theme'
+html_theme = "pydata_sphinx_theme"
 html_logo = "_static/pyscfad_logo.svg"
 html_favicon = "_static/pyscfad_logo.svg"
 html_sourcelink_suffix = ""
@@ -67,7 +75,7 @@ html_context = {
     "doc_path": "doc/source",
 }
 
-html_static_path = ['_static']
+html_static_path = ["_static"]
 #html_css_files = ["css/pyscfad.css"]
 html_js_files = ["custom-icon.js"]
 
@@ -155,3 +163,19 @@ def linkcode_resolve(domain, info) -> str | None:
         f"https://github.com/fishjojo/pyscfad/blob/"
         f"v{pyscfad.__version__}/pyscfad/{fn}{linespec}"
     )
+
+def rstjinja(app, docname, source) -> None:
+    """
+    Render our pages as a jinja template for fancy templating goodness.
+    """
+    # https://www.ericholscher.com/blog/2016/jul/25/integrating-jinja-rst-sphinx/
+    # Make sure we're outputting HTML
+    if app.builder.format != "html":
+        return
+    src = source[0]
+    rendered = app.builder.templates.render_string(src, app.config.html_context)
+    source[0] = rendered
+
+
+def setup(app) -> None:
+    app.connect("source-read", rstjinja)
