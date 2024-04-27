@@ -161,7 +161,7 @@ def linkcode_resolve(domain, info) -> str | None:
 
     return (
         f"https://github.com/fishjojo/pyscfad/blob/"
-        f"v{pyscfad.__version__}/pyscfad/{fn}{linespec}"
+        f"doc/pyscfad/{fn}{linespec}"  # direct to the doc branch for now
     )
 
 def rstjinja(app, docname, source) -> None:

@@ -1,4 +1,5 @@
 ipython
+jinja2
 sphinx
 numpydoc
 sphinx_copybutton
