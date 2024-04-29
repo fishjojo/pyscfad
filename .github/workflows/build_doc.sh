@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+sudo apt-get install -y pandoc
+pip install pandoc
+
 pip install geometric
 pip install pyscf-properties
 pip install pyscfad
