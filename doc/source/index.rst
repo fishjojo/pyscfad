@@ -13,7 +13,7 @@ PySCFAD documentation
 `Source Repository <https://github.com/fishjojo/pyscfad>`__ |
 `Issues & Ideas <https://github.com/fishjojo/pyscfad/issues>`__
 
-:mod:`pyscfad` is an extension to the `PySCF <https://pyscf.org/>`__ package,
+pyscfad is an extension to the `PySCF <https://pyscf.org/>`__ package,
 providing automatic differentiation capabilities for various quantum chemistry
 methods. It is at an early stage of development. Comments and contributions are welcome. 
 
