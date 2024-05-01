@@ -17,5 +17,6 @@ We present a few examples of using pyscfad. Most of them are included in paper `
 
    01_scf
    02_oorpa
+   03_raman_ccsd
 
 _`[1]` `Differentiable quantum chemistry with PySCF for molecules and materials at the mean-field level and beyond <https://doi.org/10.1063/5.0118200>`_, X. Zhang, G. K.-L. Chan, *J. Chem. Phys.*, **157**, 204801 (2022)
