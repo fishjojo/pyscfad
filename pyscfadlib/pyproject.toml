@@ -1,5 +1,9 @@
 [tool.cibuildwheel]
 build-verbosity = 1
+
+test-requires = ["pytest", "pyscf==2.3.0"]
+test-command = "pytest {package}/test"
+
 container-engine = "docker"
 manylinux-x86_64-image = "manylinux2014"
 skip = ["pp*", "*musllinux*", "*universal2"]
