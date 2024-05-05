@@ -11,6 +11,7 @@ __version__ = _dct['__version__']
 class CMakeBuild(build_py):
     def run(self):
         platform = get_platform()
+        print('debug: ', platform)
         if platform.startswith('macos'):
             if platform.endswith('arm64'):
                 os.putenv('CMAKE_OSX_ARCHITECTURES', 'arm64')
