@@ -13,15 +13,13 @@ class CMakeBuild(build_py):
     def run(self):
         if sys.platform == 'darwin':
             platform = os.getenv('_PYTHON_HOST_PLATFORM')
-            print('debug: ', platform)
             if platform.endswith('arm64'):
                 os.putenv('CMAKE_OSX_ARCHITECTURES', 'arm64')
-                print('debug: arm64')
             elif platform.endswith('x86_64'):
                 os.putenv('CMAKE_OSX_ARCHITECTURES', 'x86_64')
-                print('debug: x86_64')
 
         self.plat_name = get_platform()
+        print('debug: ', self.plat_name)
         self.build_base = 'build'
         self.build_lib = os.path.join(self.build_base, 'lib')
         self.build_temp = os.path.join(self.build_base, f'temp.{self.plat_name}')

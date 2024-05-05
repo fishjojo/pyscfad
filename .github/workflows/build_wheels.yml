@@ -17,6 +17,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.16.5
         env:
           CIBW_ARCHS_LINUX: "x86_64"
+          CMAKE_CONFIGURE_ARGS: "-DWITH_F12=OFF"
         with:
           package-dir: pyscfadlib
           output-dir: pyscfadlib/wheelhouse
