@@ -56,7 +56,7 @@
     <link rel="prev" title="PySCFAD documentation" href="../index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="May 03, 2024"/>
+    <meta name="docbuild:last-update" content="May 05, 2024"/>
   </head>
   
   
@@ -445,6 +445,22 @@ install it via pip from <a class="reference external" href="https://pypi.org/pro
 </pre></div>
 </div>
 <p>More sophisticated instructions for installation can be found in the <a class="reference internal" href="install.html#install"><span class="std std-ref">Installation</span></a> page.</p>
+</section>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h2>
+<p>The examples of using pyscfad can be found in
+the <a class="reference external" href="https://github.com/fishjojo/pyscfad/tree/main/examples">source</a>.
+In addition, refer to the <a class="reference internal" href="tutorial/index.html#tutorial"><span class="std std-ref">Tutorials</span></a> page for more tutorials.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For pyscfad with versions &lt;= 0.1.4, one needs to configure pyscf
+in order to perform autodiff calculations.
+In the pyscf configure file (<code class="docutils literal notranslate"><span class="pre">$HOME/.pyscf_conf.py</span></code>), add</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pyscfad</span> <span class="o">=</span> <span class="kc">True</span>
+</pre></div>
+</div>
+<p>This will be no longer needed in later versions of pyscfad.</p>
+</div>
 <div class="toctree-wrapper compound">
 </div>
 </section>
@@ -497,6 +513,7 @@ install it via pip from <a class="reference external" href="https://pypi.org/pro
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installation">Installation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">Examples</a></li>
 </ul>
   </nav></div>
 

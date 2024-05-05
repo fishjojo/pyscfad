@@ -54,7 +54,7 @@
     <link rel="prev" title="Installation" href="install.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="May 03, 2024"/>
+    <meta name="docbuild:last-update" content="May 05, 2024"/>
   </head>
   
   
@@ -438,6 +438,30 @@ document.write(`
                   
   <section id="package-overview">
 <span id="overview"></span><h1>Package overview<a class="headerlink" href="#package-overview" title="Link to this heading">#</a></h1>
+<p>pyscfad is an extension package to pyscf, which is meant to serve as
+a framework for differentiable quantum chemistry calculations.
+As of version 0.1.4, pyscfad uses jax as its backend to perform
+automatic differentiation. However, a pytorch backend will be
+added in future releases.</p>
+<section id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Link to this heading">#</a></h2>
+<p>pyscfad allows the commonly used electron integrals to be differentiable
+(up to certain orders). This makes implementing differentiable
+quantum chemistry methods straightforward.
+In most scenarios, one can simply replace <code class="docutils literal notranslate"><span class="pre">numpy</span></code> with <code class="docutils literal notranslate"><span class="pre">jax.numpy</span></code>,
+if the method can be implemented mainly with Python (see many examples in pyscf).
+pyscfad also provides a few prebuilt quantum chemistry methods,
+including Hartree-Fock, MP2, coupled cluster methods, <em>etc.</em>,
+as illustrations and for research usages.
+However, the main purpose of pyscfad is to provide a framework within which
+users can develop their own methods.</p>
+</section>
+<section id="development">
+<h2>Development<a class="headerlink" href="#development" title="Link to this heading">#</a></h2>
+<p>Depending on the usage, many new features may be needed for the pyscfad core.
+If you find an interesting problem where autodiff can be useful,
+please don’t hesitate to submit an issue on the Github page.</p>
+</section>
 <section id="license">
 <h2>License<a class="headerlink" href="#license" title="Link to this heading">#</a></h2>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">MIT</span> <span class="n">License</span>
@@ -512,6 +536,8 @@ document.write(`
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#purpose">Purpose</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#development">Development</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#license">License</a></li>
 </ul>
   </nav></div>
