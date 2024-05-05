@@ -1,5 +1,4 @@
 import os
-import sys
 from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py
 from distutils.util import get_platform
@@ -11,15 +10,17 @@ __version__ = _dct['__version__']
 
 class CMakeBuild(build_py):
     def run(self):
-        if sys.platform == 'darwin':
-            platform = os.getenv('_PYTHON_HOST_PLATFORM')
+        platform = get_platform()
+        if platform.startswith('macos'):
             if platform.endswith('arm64'):
                 os.putenv('CMAKE_OSX_ARCHITECTURES', 'arm64')
             elif platform.endswith('x86_64'):
                 os.putenv('CMAKE_OSX_ARCHITECTURES', 'x86_64')
+            else:
+                os.putenv('CMAKE_OSX_ARCHITECTURES', 'x86_64;arm64')
+            print("debug: ", os.getenv('CMAKE_OSX_ARCHITECTURES'))
 
-        self.plat_name = get_platform()
-        print('debug: ', self.plat_name)
+        self.plat_name = platform
         self.build_base = 'build'
         self.build_lib = os.path.join(self.build_base, 'lib')
         self.build_temp = os.path.join(self.build_base, f'temp.{self.plat_name}')
