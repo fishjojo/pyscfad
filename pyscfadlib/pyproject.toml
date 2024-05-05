@@ -3,7 +3,7 @@ build-verbosity = 1
 
 test-requires = ["pytest", "pyscf==2.3.0"]
 test-command = "pytest {package}/test"
-test-skip = "cp38-macosx_*:arm64 cp311-macosx_*:arm64"
+test-skip = "cp38-macosx_arm64 cp311-macosx_arm64"
 
 container-engine = "docker"
 manylinux-x86_64-image = "manylinux2014"
