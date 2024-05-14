@@ -66,6 +66,11 @@ Or one can manually compile the C code, and then add pyscfadlib to ``PYTHONPATH`
    make
    export PYTHONPATH=$HOME/pyscfad/pyscfadlib:$PYTHONPATH
 
+.. note::
+
+    For Mac with ARM64 architectures, one needs to set the environment variable
+    ``CMAKE_OSX_ARCHITECTURES=arm64``.
+
 Dependencies
 ------------
 
