@@ -1,4 +1,4 @@
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscf.df import addons as pyscf_addons
 from pyscfad import lib
 from pyscfad import ao2mo

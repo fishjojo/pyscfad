@@ -1,8 +1,9 @@
 from functools import partial
 import numpy
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscf import ao2mo
 from pyscf.gto import mole as pyscf_mole
+from pyscf.gto import ATOM_OF
 from pyscf.gto.moleintor import _get_intor_and_comp
 from pyscfad.lib import ops, custom_jvp, jit, vmap
 from ._mole_helper import (
@@ -331,12 +332,25 @@ def _int1e_nuc_jvp_rc(mol, mol_t, intor):
     coords_t = mol_t.coords
     atmlst = range(mol.natm)
     nao = mol.nao
-    grad = np.zeros((mol.natm,3,nao,nao), dtype=float)
+
+    ecp_intor = 'ECP' in intor
+    if ecp_intor:
+        if not mol.has_ecp():
+            return 0
+        else:
+            ecp_atoms = set(mol._ecpbas[:,ATOM_OF])
+
+    grad = np.zeros((mol.natm,3,nao,nao))
     for k, ia in enumerate(atmlst):
         with mol.with_rinv_at_nucleus(ia):
-            vrinv = getints2c_rc(mol, intor, comp=3, rc_deriv=ia)
-            if 'ECP' not in intor:
+            if not ecp_intor:
+                vrinv = getints2c_rc(mol, intor, comp=3, rc_deriv=ia)
                 vrinv *= -mol.atom_charge(ia)
+            else:
+                if ia in ecp_atoms:
+                    vrinv = getints2c_rc(mol, intor, comp=3, rc_deriv=ia)
+                else:
+                    vrinv = 0
         grad = ops.index_update(grad, ops.index[k], vrinv)
     tangent_out = _int1e_dot_grad_tangent_r0(grad, coords_t)
     return tangent_out

@@ -1,5 +1,5 @@
 from functools import wraps
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscf.gto import mole as pyscf_mole
 from pyscf.lib import logger, param
 from pyscfad import util

@@ -3,10 +3,6 @@ import numpy
 import jax
 from pyscf import lib
 from pyscfad import gto, scf, cc
-from pyscfad import config
-
-config.update('pyscfad_scf_implicit_diff', True)
-config.update('pyscfad_ccsd_implicit_diff', True)
 
 def test_nuc_hessian(get_mol):
     mol = get_mol

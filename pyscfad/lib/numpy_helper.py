@@ -1,6 +1,6 @@
 from functools import partial
 import math
-from pyscf import numpy
+from jax import numpy
 from .jax_helper import jit, vmap
 from pyscfad import config
 from pyscfad.lib import ops

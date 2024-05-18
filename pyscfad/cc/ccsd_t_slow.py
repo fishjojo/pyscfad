@@ -1,11 +1,10 @@
 '''
 CCSD(T)
 '''
-from pyscf import numpy as np
-from pyscf.lib import logger
+from jax import numpy as np
 from pyscfad import config, config_update
 from pyscfad import lib
-from pyscfad.lib import jit, vmap
+from pyscfad.lib import logger, jit, vmap
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.tools.linear_solver import gen_gmres
 

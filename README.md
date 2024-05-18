@@ -8,73 +8,35 @@ PySCF with Auto-differentiation
 Installation
 ------------
 
----
-* To install the latest release, use the following commands:
+* To install the latest release, run:
 ```
-# install cmake
-pip install cmake
-
-# install OpenMP runtime used with clang
-# On Linux:
-sudo apt update
-sudo apt install libomp-dev
-
-# On OSX:
-brew install libomp
-
-# install pyscf
-pip install 'pyscf @ git+https://github.com/fishjojo/pyscf.git@ad#egg=pyscf' 
-pip install 'pyscf-properties @ git+https://github.com/fishjojo/properties.git@ad' 
-
-# install pyscfad
 pip install pyscfad
 ```
 
----
-* To install the development version, use the following command instead:
+* To install the development version, run:
 ```
 pip install git+https://github.com/fishjojo/pyscfad.git
 ```
 
-* The dependencies can be installed via a predefined conda environment
-```
-conda env create -f environment.yml
-conda activate pyscfad_env
-```
-
-* Alternatively, the dependencies can be installed from source
-```
-pip install numpy scipy h5py
-pip install jax jaxlib jaxopt
-
-# install pyscf
-cd $HOME; git clone https://github.com/fishjojo/pyscf.git
-cd pyscf; git checkout ad 
-cd pyscf/lib; mkdir build 
-cd build; cmake ..; make
-
-export PYTHONPATH=$HOME/pyscf:$PYTHONPATH
-```
-
----
-* One can also run PySCFAD inside a docker container:
-```
-docker pull fishjojo/pyscfad:latest
-docker run -rm -t -i fishjojo/pyscfad:latest /bin/bash
-```
+`pyscfad` depends on `pyscf==2.3.0`.
+Other dependencies include
+`numpy>=1.17`, `scipy<1.12`, `h5py`,
+`pyscfadlib`,
+`jax>=0.3.25` and `jaxlib>=0.3.25`.
 
 Running examples
 ----------------
 
 * In order to perform AD calculations, 
 the following lines need to be added to 
-the PySCF configure file($HOME/.pyscf\_conf.py)
+the PySCF configure file ($HOME/.pyscf\_conf.py)
 ```
 pyscfad = True
-pyscf_numpy_backend = 'jax'
-pyscf_scipy_linalg_backend = 'pyscfad'
-pyscf_scipy_backend = 'jax'
-# The followings are optional
-pyscfad_scf_implicit_diff = True
-pyscfad_ccsd_implicit_diff = True
 ```
+
+Citing PySCFAD
+--------------
+The following paper should be cited in publications utilizing the PySCFAD program package:
+
+[Differentiable quantum chemistry with PySCF for molecules and materials at the mean-field level and beyond](https://doi.org/10.1063/5.0118200), 
+X. Zhang, G. K.-L. Chan, *J. Chem. Phys.*, **157**, 204801 (2022)

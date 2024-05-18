@@ -1,6 +1,6 @@
 import numpy
+from jax import numpy as np
 from jax.scipy.linalg import expm
-from pyscf import numpy as np
 from pyscfad.lib import jit
 
 def pack_uniq_var(mat):

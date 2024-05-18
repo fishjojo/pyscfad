@@ -1,19 +1,18 @@
 import numpy
+from jax import numpy as np
 from pyscf import __config__
-from pyscf.pbc.lib.kpts_helper import gamma_point
+from pyscf import lib
+from pyscf.pbc.gto import Cell
 from pyscf.pbc.df import fft as pyscf_fft
-from pyscfad import util
-from pyscfad.lib import numpy as np
+#from pyscfad import util
 from pyscfad.pbc import tools
+from pyscfad.pbc.lib.kpts_helper import gamma_point
 
-def get_pp(mydf, kpts=None, cell=None):
-    '''Get the periodic pseudotential nuc-el AO matrix, with G=0 removed.
-    '''
+def get_pp(mydf, kpts=None):
     from pyscf import gto
     from pyscf.pbc.gto import pseudo
     from pyscfad.gto.mole import Mole
-    if cell is None:
-        cell = mydf.cell
+    cell = mydf.cell
     if kpts is None:
         kpts_lst = numpy.zeros((1,3))
     else:
@@ -29,7 +28,7 @@ def get_pp(mydf, kpts=None, cell=None):
     # vpploc evaluated in real-space
     vpplocR = tools.ifft(vpplocG, mesh).real
     vpp = [0] * len(kpts_lst)
-    for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts_lst, cell=cell):
+    for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts_lst):
         ao_ks = ao_ks_etc[0]
         for k, ao in enumerate(ao_ks):
             vpp[k] += np.dot(ao.T.conj()*vpplocR[p0:p1], ao)
@@ -120,9 +119,11 @@ def get_pp(mydf, kpts=None, cell=None):
     return np.asarray(vpp)
 
 
-@util.pytree_node(['cell','kpts'])
+#FIXME converting the class to Jax traceable type
+# sometimes lose tracing of its attributes
+#@util.pytree_node(['cell','kpts'])
 class FFTDF(pyscf_fft.FFTDF):
-    def __init__(self, cell, kpts=numpy.zeros((1,3)), **kwargs):
+    def __init__(self, cell, kpts=numpy.zeros((1,3))):#, **kwargs):
         from pyscf.pbc.dft import gen_grid
         from pyscfad.pbc.dft import numint
         self.cell = cell
@@ -133,25 +134,19 @@ class FFTDF(pyscf_fft.FFTDF):
         self.kpts = kpts
         self.grids = gen_grid.UniformGrids(cell)
 
-        # to mimic molecular DF object
         self.blockdim = getattr(__config__, 'pbc_df_df_DF_blockdim', 240)
 
-        # The following attributes are not input options.
-        # self.exxdiv has no effects. It was set in the get_k_kpts function to
-        # mimic the KRHF/KUHF object in the call to tools.get_coulG.
         self.exxdiv = None
         self._numint = numint.KNumInt()
         self._rsh_df = {}  # Range separated Coulomb DF objects
         self._keys = set(self.__dict__.keys())
-        self.__dict__.update(kwargs)
+        #self.__dict__.update(kwargs)
 
     def get_jk(self, dm, hermi=1, kpts=None, kpts_band=None,
-               with_j=True, with_k=True, omega=None, exxdiv=None, cell=None):
+               with_j=True, with_k=True, omega=None, exxdiv=None):
         from pyscfad.pbc.df import fft_jk
         if omega is not None:  # J/K for RSH functionals
             raise NotImplementedError
-            #return _sub_df_jk_(self, dm, hermi, kpts, kpts_band,
-            #                   with_j, with_k, omega, exxdiv)
 
         if kpts is None:
             if numpy.all(self.kpts == 0): # Gamma-point J/K by default
@@ -164,12 +159,44 @@ class FFTDF(pyscf_fft.FFTDF):
         vj = vk = None
         if kpts.shape == (3,):
             vj, vk = fft_jk.get_jk(self, dm, hermi, kpts, kpts_band,
-                                   with_j, with_k, exxdiv, cell=cell)
+                                   with_j, with_k, exxdiv)
         else:
             if with_k:
-                vk = fft_jk.get_k_kpts(self, dm, hermi, kpts, kpts_band, exxdiv, cell=cell)
+                vk = fft_jk.get_k_kpts(self, dm, hermi, kpts, kpts_band, exxdiv)
             if with_j:
-                vj = fft_jk.get_j_kpts(self, dm, hermi, kpts, kpts_band, cell=cell)
+                vj = fft_jk.get_j_kpts(self, dm, hermi, kpts, kpts_band)
         return vj, vk
+
+    def aoR_loop(self, grids=None, kpts=None, deriv=0):
+        if grids is None:
+            grids = self.grids
+            cell = self.cell
+        else:
+            cell = grids.cell
+
+        # NOTE stop tracing cell through grids
+        grids.cell = cell.view(Cell)
+        if grids.non0tab is None:
+            grids.build(with_non0tab=True)
+
+        if kpts is None:
+            kpts = self.kpts
+        kpts = np.asarray(kpts)
+
+        if (cell.dimension < 2 or
+            (cell.dimension == 2 and cell.low_dim_ft_type == 'inf_vacuum')):
+            raise RuntimeError('FFTDF method does not support low-dimension '
+                               'PBC system.  DF, MDF or AFTDF methods should '
+                               'be used.\nSee also examples/pbc/31-low_dimensional_pbc.py')
+
+        max_memory = max(2000, self.max_memory-lib.current_memory()[0])
+        ni = self._numint
+        nao = cell.nao_nr()
+        p1 = 0
+        for ao_k1_etc in ni.block_loop(cell, grids, nao, deriv, kpts,
+                                       max_memory=max_memory):
+            coords = ao_k1_etc[4]
+            p0, p1 = p1, p1 + coords.shape[0]
+            yield ao_k1_etc, p0, p1
 
     get_pp = get_pp

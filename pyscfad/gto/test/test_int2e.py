@@ -1,8 +1,9 @@
 import pytest
 import numpy as np
 import jax
+from jax import numpy as jnp
+
 import pyscf
-from pyscf import numpy as jnp
 from pyscfad import gto
 
 tol_val = 1e-12

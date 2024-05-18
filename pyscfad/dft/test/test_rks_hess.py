@@ -29,5 +29,5 @@ def test_rks_nuc_hess_gga(get_mol):
 
 def test_rks_nuc_hess_gga_hybrid(get_mol):
     mol = get_mol
-    hess = jacrev(jacrev(energy))(mol, 'b3lyp').coords.coords
+    hess = jacrev(jacrev(energy))(mol, 'b3lyp5').coords.coords
     assert abs(fp(hess) - -0.5114248632559669) < 1e-6

@@ -1,7 +1,7 @@
 import warnings
 from functools import partial
 import numpy
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscf.lib import load_library
 from pyscf.dft import numint
 from pyscf.dft.numint import SWITCH_SIZE

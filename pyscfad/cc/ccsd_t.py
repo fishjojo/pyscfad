@@ -3,14 +3,13 @@ import numpy
 from jax import custom_vjp
 from jax.tree_util import tree_flatten, tree_unflatten
 from pyscf.lib import (
-    logger,
     prange_tril,
     num_threads,
     current_memory,
 #    load_library
 )
 from pyscf.cc import ccsd_t as pyscf_ccsd_t
-
+from pyscfad.lib import logger
 #libcc = load_library('libcc')
 from pyscfadlib import libcc_vjp as libcc
 
@@ -26,6 +25,7 @@ def kernel(mycc, eris, t1=None, t2=None, verbose=logger.NOTE):
     def _ccsd_t_kernel(eris, t1, t2):
         t1 = numpy.asarray(t1)
         t2 = numpy.asarray(t2, order='C')
+        eris.fock = numpy.asarray(eris.fock, order='C')
         et = pyscf_ccsd_t.kernel(mycc, eris, t1, t2, verbose)
         return et
 

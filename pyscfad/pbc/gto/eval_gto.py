@@ -1,6 +1,7 @@
 from functools import partial
 import numpy
-from pyscf import numpy as np
+from jax import numpy as np
+from pyscf.pbc.gto import Cell
 from pyscf.pbc.gto.eval_gto import _get_intor_and_comp
 from pyscf.pbc.gto.eval_gto import eval_gto as pyscf_eval_gto
 from pyscfad.lib import custom_jvp
@@ -79,7 +80,7 @@ def eval_gto_diff_cell(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,10)))
 def _eval_gto(cell, eval_name, coords, comp, kpts, kpt,
               shls_slice, non0tab, ao_loc, out):
-    return pyscf_eval_gto(cell, eval_name, coords, comp=comp, kpts=kpts, kpt=kpt,
+    return pyscf_eval_gto(cell.view(Cell), eval_name, coords, comp=comp, kpts=kpts, kpt=kpt,
                           shls_slice=shls_slice, non0tab=non0tab, ao_loc=ao_loc, out=out)
 
 @_eval_gto.defjvp
@@ -122,7 +123,7 @@ def _eval_gto_jvp_r0(cell, cell_t, eval_name, coords,
         intor_ip = eval_name + '_deriv1'
         order = 0
 
-    ao1 = pyscf_eval_gto(cell, intor_ip, coords, None, kpts, kpt,
+    ao1 = pyscf_eval_gto(cell.view(Cell), intor_ip, coords, None, kpts, kpt,
                          shls_slice, non0tab, ao_loc, out=None)
 
     single_kpt = False

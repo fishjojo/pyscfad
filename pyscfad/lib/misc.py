@@ -1,6 +1,6 @@
 import numpy
 import jax
-from pyscf import numpy as np
+from jax import numpy as np
 from .jax_helper import jit
 
 def isarray(a):

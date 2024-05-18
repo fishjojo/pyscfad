@@ -1,8 +1,8 @@
 import pytest
 import numpy
 import jax
+from jax import numpy as jnp
 from pyscfad.pbc import gto
-from pyscfad.lib import numpy as jnp
 
 TEST_SET = ["int1e_ovlp", "int1e_kin"]
 

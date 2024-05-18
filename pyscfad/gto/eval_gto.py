@@ -1,7 +1,7 @@
 from functools import partial
 import numpy
 #import jax
-from pyscf import numpy as np
+from jax import numpy as np
 from pyscf.gto import mole as pyscf_mole
 from pyscf.gto.moleintor import make_loc
 from pyscf.gto.eval_gto import _get_intor_and_comp
