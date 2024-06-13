@@ -14,12 +14,13 @@ from pyscfad.soscf.ciah import (
 from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.lo import orth, boys
 
-def atomic_pops(mol, mo_coeff, method='mulliken'):
+def atomic_pops(mol, mo_coeff, method='mulliken', s=None):
     method = method.lower().replace('_', '-')
     nmo = mo_coeff.shape[1]
     proj = None
 
-    s = mol.intor_symmetric('int1e_ovlp')
+    if s is None:
+        s = mol.intor_symmetric('int1e_ovlp')
 
     if method == 'becke':
         raise NotImplementedError
@@ -65,10 +66,10 @@ def atomic_pops(mol, mo_coeff, method='mulliken'):
     return proj
 
 class PipekMezey(pyscf_pipek.PipekMezey):
-    def atomic_pops(self, mol, mo_coeff, method=None):
+    def atomic_pops(self, mol, mo_coeff, method=None, s=None):
         if method is None:
             method = self.pop_method
-        return numpy.asarray(atomic_pops(mol, mo_coeff, method))
+        return numpy.asarray(atomic_pops(mol, mo_coeff, method, s=s))
 
     kernel = boys.kernel
 
@@ -156,3 +157,11 @@ def pm(mol, mo_coeff, *,
     return np.dot(mo_coeff, u[:,sorted_idx])
 
 pipekmezey = pm
+
+def jacobi_sweep(mlo):
+    isstable, mo1 = mlo.stability_jacobi()
+    if not isstable:
+        mo = mlo.kernel(mo1)
+        mlo = jacobi_sweep(mlo)
+    return mlo
+
