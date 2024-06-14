@@ -160,52 +160,52 @@ def make_implicit_diff(fn, implicit_diff=False, fixed_point=True,
                        optimality_fun_has_aux=False,
                        solver_kwargs=None, gen_precond=None,
                        custom_vjp_from_optcond=False):
-    '''Wrap a function for implicit differentiation.
+    """Wrap a function for implicit differentiation.
 
-    Args:
-        fn : object
-            The function to be wrapped.
+    Parameters
+    ----------
+    fn : object
+        The function to be wrapped.
+    implicit_diff : bool, optional
+        If False, return `fn` without modification.
+        Otherwise, wrap `fn` to make it implicitly differentiable.
+        Default is ``False``.
+    fixed_point : bool, optional
+        If True, the optimality condition is defined by a fixed point
+        problem. Otherwise, the optimality condition should return 0.
+        Default is ``True``.
+    optimality_cond : object, optional
+        The funtion defining the optimality condition problem.
+    solver : object, optional
+        The function solves the linear equations.
+    has_aux : bool, optional
+        Whether `fn` returns auxiliary data. Default is ``False``.
+    nondiff_argnums : tuple of ints, optional
+        Specify which arguments are not differentiated with respect to,
+        by their indices in the argument list. Default is empty tuple.
+    use_converged_args : dict, optional
+        Specify in the backward propagation, which arguments should use
+        their converged values produced by `fn` in the forward pass.
+        The dict has the form ``{argnum: value}``, where ``argnum``
+        is the index of this argument in the argument list. Default is ``None``.
+    optimality_fun_has_aux : bool, optional
+        Whether the optimality function returns auxiliary data.
+        Default is False.
+    solver_kwargs : dict, optional
+        The keyword arguments passed to the linear solver function.
+        Default is empty dict.
+    gen_precond : object, optional
+        A function which generates the preconditioner
+        for the linear solver. `gen_precond` should
+        take the auxiliary data returned by the optimality function as
+        its argument, and return the preconditioner recognized by the
+        linear solver, which is usually a function or an array.
 
-    Kwargs:
-        implicit_diff : bool
-            If False, return `fn` without modification.
-            Otherwise, wrap `fn` to make it implicitly differentiable.
-            Default is `False`.
-        fixed_point : bool
-            If True, the optimality condition is defined by a fixed point
-            problem. Otherwise, the optimality condition should return 0.
-            Default is `True`.
-        optimality_cond : object
-            The funtion defining the optimality condition problem.
-        solver : object
-            The function solves the linear equations.
-        has_aux : bool
-            Whether `fn` returns auxiliary data. Default is `False`.
-        nondiff_argnums : tuple of ints
-            Specify which arguments are not differentiated with respect to,
-            by their indices in the argument list. Default is empty tuple.
-        use_converged_args : dict
-            Specify in the backward propagation, which arguments should use
-            their converged values produced by `fn` in the forward pass.
-            The dict has the form `{argnum: value}`, where `argnum`
-            is the index of this argument in the argument list. Default is `None`.
-        optimality_fun_has_aux : bool
-            Whether the optimality function returns auxiliary data.
-            Default is False.
-        solver_kwargs : dict
-            The keyword arguments passed to the linear solver function.
-            Default is empty dict.
-        gen_precond : object
-            A function which generates the preconditioner
-            for the linear solver. `gen_precond` should
-            take the auxiliary data returned by the optimality function as
-            its argument, and return the preconditioner recognized by the
-            linear solver, which is usually a function or an array.
-
-    Returns:
-        wrapped_fn : object
-            The wrapped function.
-    '''
+    Returns
+    -------
+    wrapped_fn : object
+        The wrapped function.
+    """
     if implicit_diff:
         if fixed_point:
             method = custom_fixed_point
