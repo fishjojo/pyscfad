@@ -47,7 +47,7 @@ class PySCFADEngineMPI(geometric.engine.Engine):
             coords = numpy.empty_like(coords.reshape(-1,3))
         # make sure coords are the same on each processor
         comm.Bcast(coords, root=0)
-        
+
         if rank == 0 and mol.verbose >= logger.NOTE:
             dump_mol_geometry(mol, coords*lib.param.BOHR)
 

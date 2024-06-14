@@ -3,7 +3,6 @@ import numpy
 from jax import numpy as np
 from pyscf.lib import module_method
 from pyscf.scf import uhf as pyscf_uhf
-from pyscfad import config
 from pyscfad import util
 from pyscfad.lib import logger, stop_grad
 from pyscfad.scf import hf

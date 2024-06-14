@@ -1,7 +1,7 @@
 from functools import reduce
 import numpy
 from jax import numpy as np
-from jax import jit
+#from jax import jit
 from jax import scipy
 from pyscf.mp.mp2 import _mo_without_core
 from pyscf.lib import logger
