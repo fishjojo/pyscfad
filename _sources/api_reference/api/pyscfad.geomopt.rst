@@ -20,6 +20,7 @@ pyscfad.geomopt
 
    
       optimize
+      optimize_mpi
 
    
    
@@ -39,5 +40,8 @@ pyscfad.geomopt
 
    
    pyscfad.geomopt.geometric_solver
+   
+   
+   pyscfad.geomopt.geometric_solver_mpi
    
 

@@ -56,6 +56,9 @@ pyscfad.cc
    pyscfad.cc.dfdcsd
    
    
+   pyscfad.cc.gccsd_t
+   
+   
    pyscfad.cc.rccsd
    
    

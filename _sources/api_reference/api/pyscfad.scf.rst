@@ -40,6 +40,9 @@ pyscfad.scf
    :recursive:
 
    
+   pyscfad.scf.addons
+   
+   
    pyscfad.scf.chkfile
    
    
