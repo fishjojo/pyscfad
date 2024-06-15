@@ -1,5 +1,6 @@
 import numpy as np
 import jax
+from jax import numpy as jnp
 
 def is_tensor(x):
     return isinstance(x, jax.Array)
