@@ -2,11 +2,11 @@ from functools import partial
 import numpy
 import jax
 from jax import custom_vjp
-from jax import numpy as np
 from pyscf import __config__
 from pyscf.lib import direct_sum, current_memory
 #from pyscf.mp.mp2 import _ChemistsERIs
 from pyscfad import config
+from pyscfad import numpy as np
 from pyscfad import util
 from pyscfad.lib import vmap, logger
 from pyscfad.ao2mo import _ao2mo

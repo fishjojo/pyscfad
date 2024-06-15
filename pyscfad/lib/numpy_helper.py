@@ -1,15 +1,11 @@
 from functools import partial
 import math
-from jax import numpy
+from pyscfad import numpy as np
 from .jax_helper import jit, vmap
 from pyscfad import config
 from pyscfad.lib import ops
 
-einsum = numpy.einsum
-dot = numpy.dot
-
-__all__ = ['numpy', 'einsum', 'dot',
-           'PLAIN', 'HERMITIAN', 'ANTIHERMI', 'SYMMETRIC',
+__all__ = ['PLAIN', 'HERMITIAN', 'ANTIHERMI', 'SYMMETRIC',
            'unpack_triu', 'unpack_tril', 'pack_tril']
 
 PLAIN = 0
@@ -24,19 +20,19 @@ def _unpack_triu(triu, filltril=HERMITIAN):
     '''
     assert triu.ndim == 1
     nd = int(math.sqrt(2*triu.size))
-    out = numpy.zeros((nd,nd), dtype=triu.dtype)
-    idx = numpy.triu_indices(nd)
+    out = np.zeros((nd,nd), dtype=triu.dtype)
+    idx = np.triu_indices(nd)
     out = ops.index_update(out, idx, triu)
     if filltril == PLAIN:
         return out
     elif filltril == HERMITIAN:
-        out += numpy.tril(out.T.conj(), -1)
+        out += np.tril(out.T.conj(), -1)
         return out
     elif filltril == ANTIHERMI:
         out -= out.conj().T
         return out
     elif filltril == SYMMETRIC:
-        out += numpy.tril(out.T, -1)
+        out += np.tril(out.T, -1)
         return out
     else:
         raise KeyError
@@ -60,19 +56,19 @@ def _unpack_tril(tril, filltriu=HERMITIAN):
     '''
     assert tril.ndim == 1
     nd = int(math.sqrt(2*tril.size))
-    out = numpy.zeros((nd,nd), dtype=tril.dtype)
-    idx = numpy.tril_indices(nd)
+    out = np.zeros((nd,nd), dtype=tril.dtype)
+    idx = np.tril_indices(nd)
     out = ops.index_update(out, idx, tril)
     if filltriu == PLAIN:
         return out
     elif filltriu == HERMITIAN:
-        out += numpy.triu(out.T.conj(), 1)
+        out += np.triu(out.T.conj(), 1)
         return out
     elif filltriu == ANTIHERMI:
         out -= out.T.conj()
         return out
     elif filltriu == SYMMETRIC:
-        out += numpy.triu(out.T, 1)
+        out += np.triu(out.T, 1)
         return out
     else:
         raise KeyError
@@ -100,7 +96,7 @@ def pack_tril(a, axis=-1, out=None):
         from pyscfad.lib import _numpy_helper_opt
         return _numpy_helper_opt._pack_tril(a, axis, out)
     def fn(mat):
-        idx = numpy.tril_indices(mat.shape[0])
+        idx = np.tril_indices(mat.shape[0])
         return mat[idx].ravel()
 
     if a.ndim == 3:

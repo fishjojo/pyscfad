@@ -1,7 +1,7 @@
 '''
 CCSD(T)
 '''
-from jax import numpy as np
+from pyscfad import numpy as np
 from pyscfad import config, config_update
 from pyscfad import lib
 from pyscfad.lib import logger, jit, vmap

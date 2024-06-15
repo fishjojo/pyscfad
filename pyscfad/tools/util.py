@@ -1,4 +1,4 @@
-from jax import numpy as np
+from pyscfad import numpy as np
 from pyscfad.soscf.ciah import extract_rotation
 
 def rotate_mo1(mo_coeff, x):

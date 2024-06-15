@@ -11,5 +11,5 @@ from pyscfad._src._config import (
     config_update
 )
 
-import jax
-jax.config.update("jax_enable_x64", True)
+#import jax
+#jax.config.update("jax_enable_x64", True)

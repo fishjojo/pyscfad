@@ -1,5 +1,6 @@
 import h5py
 from pyscf.lib.chkfile import save_mol
+from pyscfad import ops
 from pyscfad.lib.chkfile import save
 
 def dump_scf(mol, chkfile, e_tot, mo_energy, mo_coeff, mo_occ,
@@ -11,6 +12,10 @@ def dump_scf(mol, chkfile, e_tot, mo_energy, mo_coeff, mo_occ,
     else:
         save_mol(mol, chkfile)
 
+    e_tot = ops.convert_to_numpy(e_tot)
+    mo_energy = ops.convert_to_numpy(mo_energy)
+    mo_occ = ops.convert_to_numpy(mo_occ)
+    mo_coeff = ops.convert_to_numpy(mo_coeff)
     scf_dic = {'e_tot'    : e_tot,
                'mo_energy': mo_energy,
                'mo_occ'   : mo_occ,

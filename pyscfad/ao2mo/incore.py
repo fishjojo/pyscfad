@@ -1,6 +1,6 @@
-from jax import numpy as np
 from pyscf.ao2mo import incore
 from pyscf.ao2mo.incore import iden_coeffs
+from pyscfad import numpy as np
 from pyscfad import lib
 from pyscfad.lib import jit, vmap
 

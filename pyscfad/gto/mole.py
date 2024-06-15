@@ -1,7 +1,7 @@
 from functools import wraps
-from jax import numpy as np
 from pyscf.gto import mole as pyscf_mole
 from pyscf.lib import logger, param
+from pyscfad import numpy as np
 from pyscfad import util
 from pyscfad.lib import custom_jvp, vmap
 from pyscfad.gto import moleintor
@@ -12,7 +12,7 @@ Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
 
 def energy_nuc(mol, charges=None, **kwargs):
     if charges is None:
-        charges = mol.atom_charges()
+        charges = mol.atom_charges().astype(float)
     if len(charges) <= 1:
         return 0.0
     r = distance_matrix(mol.atom_coords())

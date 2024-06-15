@@ -1,10 +1,11 @@
 import numpy
 import scipy.linalg
-from jax import numpy as np
 from pyscf.lib import prange
 from pyscf.lib import diis as pyscf_diis
 from pyscf.lib.diis import INCORE_SIZE, BLOCK_SIZE
-from pyscfad.lib import logger, stop_grad
+from pyscfad import numpy as np
+from pyscfad.ops import stop_grad
+from pyscfad.lib import logger
 
 # pylint: disable=consider-using-f-string
 class DIIS(pyscf_diis.DIIS):

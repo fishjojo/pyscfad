@@ -5,7 +5,6 @@ from functools import (
 )
 import numpy
 import jax
-from jax import numpy as np
 
 from pyscf.data import nist
 from pyscf.lib import module_method
@@ -13,13 +12,14 @@ from pyscf.scf import hf as pyscf_hf
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
 
 from pyscfad import config
+from pyscfad import numpy as np
 from pyscfad import util
 from pyscfad import lib
+from pyscfad.ops import stop_grad
 from pyscfad.lib import (
     logger,
     jit,
     stop_trace,
-    stop_grad,
 )
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad import df
@@ -233,10 +233,10 @@ def _dot_eri_dm_s1(eri, dm, with_j, with_k):
 def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
     dm = np.asarray(dm)
     nao = dm.shape[-1]
-    if eri.dtype == np.complex128 or eri.size == nao**4:
+    if np.iscomplexobj(eri) or eri.size == nao**4:
         vj, vk = _dot_eri_dm_s1(eri, dm, with_j, with_k)
     else:
-        if eri.dtype == np.complex128:
+        if np.iscomplexobj(eri):
             raise NotImplementedError
         vj, vk = _vhf.incore(eri, dm, hermi, with_j, with_k)
     return vj, vk
@@ -289,7 +289,7 @@ def dip_moment(mol, dm, unit='Debye', verbose=logger.NOTE, **kwargs):
         ao_dip = mol.intor_symmetric('int1e_r', comp=3)
     el_dip = np.einsum('xij,ji->x', ao_dip, dm).real
 
-    charges = mol.atom_charges()
+    charges = mol.atom_charges().astype(float)
     coords  = mol.atom_coords()
     nucl_dip = np.einsum('i,ix->x', charges, coords)
     mol_dip = nucl_dip - el_dip

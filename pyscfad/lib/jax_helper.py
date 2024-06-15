@@ -6,18 +6,16 @@ Helper functions for jax
 import numpy
 import jax
 #from jax import tree_util
-from pyscf import __config__
-
-PYSCFAD = getattr(__config__, 'pyscfad', False)
+from pyscfad import backend
 
 def stop_grad(x):
-    if PYSCFAD:
+    if backend.backend() == 'jax':
         return jax.lax.stop_gradient(x)
     else:
         return x
 
 def stop_trace(fn):
-    if PYSCFAD:
+    if backend.backend() == 'jax':
         def wrapped_fn(*args, **kwargs):
             args_no_grad = [stop_grad(arg) for arg in args]
             kwargs_no_grad = {k : stop_grad(v) for k, v in kwargs.items()}
@@ -27,7 +25,7 @@ def stop_trace(fn):
         return fn
 
 def jit(fun, **kwargs):
-    if PYSCFAD:
+    if backend.backend() == 'jax':
         return jax.jit(fun, **kwargs)
     else:
         return fun
@@ -74,7 +72,7 @@ def vmap_numpy(fun, in_axes=0, out_axes=0, axis_name=None, axis_size=None, signa
 
     return vmap_f
 
-if PYSCFAD:
+if backend.backend() == 'jax':
     def vmap(fun, in_axes=0, out_axes=0, axis_name=None, axis_size=None, signature=None):
         f_vmap = jax.vmap(fun, in_axes=in_axes, out_axes=out_axes,
                           axis_name=axis_name, axis_size=axis_size)
@@ -82,7 +80,7 @@ if PYSCFAD:
 else:
     vmap = vmap_numpy
 
-if PYSCFAD:
+if backend.backend() == 'jax':
     custom_jvp = jax.custom_jvp
 else:
     class custom_jvp():
@@ -99,7 +97,6 @@ else:
 
         def __call__(self, *args, **kwargs):
             return self.fun(*args, **kwargs)
-
 
 #def dataclass(cls):
 #    data_cls = dataclasses.dataclass()(cls)

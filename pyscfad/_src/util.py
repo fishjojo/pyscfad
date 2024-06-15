@@ -1,9 +1,6 @@
 import warnings
 from jax import tree_util
-from pyscf import __config__
-
-PYSCFAD = getattr(__config__, 'pyscfad', False)
-
+from pyscfad import backend
 
 def _dict_hash(this):
     from pyscf.lib.misc import finger
@@ -125,7 +122,7 @@ def pytree_node(leaf_names, num_args=0):
         tree_util.register_pytree_node(cls, tree_flatten, tree_unflatten)
         return cls
 
-    if PYSCFAD:
+    if backend.backend() == 'jax':
         return class_as_pytree_node
     else:
         return class_orig

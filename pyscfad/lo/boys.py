@@ -1,10 +1,10 @@
 import numpy
 import scipy
 import jax
-from jax import numpy as np
 from pyscf.lib import logger
 from pyscf.lo import boys as pyscf_boys
-from pyscfad.lib import stop_grad
+from pyscfad import numpy as np
+from pyscfad.ops import stop_grad
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.soscf.ciah import (
     extract_rotation,
