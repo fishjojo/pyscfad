@@ -3,13 +3,12 @@ from pyscf.gto.mole import (ATOM_OF, ANG_OF, NPRIM_OF, NCTR_OF,
                             KAPPA_OF, PTR_EXP, PTR_COEFF, PTR_ENV_START)
 
 def uncontract(mol, shls_slice=None):
-    """
-    Return the uncontracted basis functions.
+    """Uncontract basis functions.
 
     Parameters
     ----------
-    mol : Mole instance
-        Mole instance with the contracted basis functions.
+    mol : :class:`Mole` instance
+        :class:`Mole` instance with the contracted basis functions.
 
     shls_slice : tuple
         Starting and ending indices of the shells being
@@ -18,8 +17,8 @@ def uncontract(mol, shls_slice=None):
 
     Returns
     -------
-    mol1 : Mole instance
-        Mole instance with the uncontracted basis functions.
+    mol1 : :class:`Mole` instance
+        :class:`Mole` instance with the uncontracted basis functions.
 
     Notes
     -----
@@ -73,7 +72,7 @@ def shlmap_ctr2unctr(mol):
 
     Parameters
     ----------
-    mol : Mole instance
+    mol : :class:`Mole` instance
 
     Returns
     -------
@@ -91,12 +90,11 @@ def shlmap_ctr2unctr(mol):
     return map_c2u
 
 def setup_exp(mol):
-    """
-    Find unique exponents of the basis functions.
+    """Find unique exponents of the basis functions.
 
     Parameters
     ----------
-    mol : Mole instance
+    mol : :class:`Mole` instance
 
     Returns
     -------
@@ -139,12 +137,11 @@ def setup_exp(mol):
     return es, es_of, env_of
 
 def setup_ctr_coeff(mol):
-    """
-    Find unique contraction coefficients of the basis functions.
+    """Find unique contraction coefficients of the basis functions.
 
     Parameters
     ----------
-    mol : Mole instance
+    mol : :class:`Mole` instance
 
     Returns
     -------

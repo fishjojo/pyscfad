@@ -6,7 +6,8 @@ from pyscf.lib import logger
 from pyscf import gto
 from pyscf.df.outcore import _guess_shell_ranges
 from pyscf import __config__
-from pyscfad.lib import ops, vmap, jit
+from pyscfad import ops
+from pyscfad.ops import vmap, jit
 from pyscfad import config
 from . import addons, _int3c_cross_opt
 

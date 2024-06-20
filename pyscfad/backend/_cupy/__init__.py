@@ -1,32 +1,25 @@
 from types import ModuleType
 try:
-    import torch as torch
+    import cupy as cp
 except ImportError as err:
-    raise ImportError("Unable to import torch.") from err
-
-from ..config import default_floatx
-if default_floatx() == 'float64':
-    torch.set_default_dtype(torch.float64)
-
-from torch import (
-    is_tensor as is_array,
-)
+    raise ImportError("Unable to import cupy.") from err
 
 from .._common import (
+    stop_gradient,
     class_as_pytree_node,
     custom_jvp,
-)
-from .numpy import (
-    iscomplexobj,
+    jit,
+    index,
+    index_update,
+    index_add,
+    index_mul,
 )
 from .core import (
+    is_array,
     to_numpy,
-    stop_gradient,
-    vmap,
-    jit,
 )
 
-class TorchBackend:
+class CupyBackend:
     def __init__(self, package):
         self._pkg = package
         self._cache = {}
@@ -47,8 +40,7 @@ class TorchBackend:
         except AttributeError as err:
             raise AttributeError(f"{self._pkg.__name__} has no attribute {name}") from err
 
-backend = TorchBackend(torch)
-backend._cache['iscomplexobj'] = iscomplexobj
+backend = CupyBackend(cp)
 
 backend._cache['is_array'] = is_array
 backend._cache['to_numpy'] = to_numpy
@@ -56,5 +48,9 @@ backend._cache['stop_gradient'] = stop_gradient
 backend._cache['class_as_pytree_node'] = class_as_pytree_node
 backend._cache['custom_jvp'] = custom_jvp
 backend._cache['jit'] = jit
-backend._cache['vmap'] = vmap
+backend._cache['vmap'] = NotImplemented
+backend._cache['index'] = index
+backend._cache['index_update'] = index_update
+backend._cache['index_add'] = index_add
+backend._cache['index_mul'] = index_mul
 

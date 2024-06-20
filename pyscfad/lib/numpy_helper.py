@@ -1,17 +1,25 @@
 from functools import partial
 import math
+from pyscf.lib.numpy_helper import (
+    PLAIN,
+    HERMITIAN,
+    ANTIHERMI,
+    SYMMETRIC,
+)
 from pyscfad import numpy as np
-from .jax_helper import jit, vmap
+from pyscfad import ops
+from pyscfad.ops import jit, vmap
 from pyscfad import config
-from pyscfad.lib import ops
 
-__all__ = ['PLAIN', 'HERMITIAN', 'ANTIHERMI', 'SYMMETRIC',
-           'unpack_triu', 'unpack_tril', 'pack_tril']
-
-PLAIN = 0
-HERMITIAN = 1
-ANTIHERMI = 2
-SYMMETRIC = 3
+__all__ = [
+    'PLAIN',
+    'HERMITIAN',
+    'ANTIHERMI',
+    'SYMMETRIC',
+    'unpack_triu',
+    'unpack_tril',
+    'pack_tril'
+]
 
 @partial(jit, static_argnums=1)
 def _unpack_triu(triu, filltril=HERMITIAN):
@@ -42,9 +50,9 @@ def unpack_triu(triu, filltril=HERMITIAN, axis=-1, out=None):
         out = _unpack_triu(triu, filltril)
     elif triu.ndim == 2:
         if axis == -1 or axis == 1:
-            out = vmap(_unpack_triu, (0,None))(triu, filltril)
+            out = vmap(_unpack_triu, (0,None), signature='(n)->(m,m)')(triu, filltril)
         elif axis == 0 or axis == -2:
-            out = vmap(_unpack_triu, (1,None))(triu, filltril)
+            out = vmap(_unpack_triu, (1,None), signature='(n)->(m,m)')(triu, filltril)
     else:
         raise NotImplementedError
     return out

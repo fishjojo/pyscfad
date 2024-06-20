@@ -1,12 +1,13 @@
 import torch
-from keras_core import ops
 
-stop_gradient = ops.stop_gradient
-convert_to_tensor = ops.convert_to_tensor
+def to_numpy(x):
+    return x.numpy(force=True)
 
-def is_tensor(x):
-    return isinstance(x, torch.Tensor)
+def stop_gradient(x):
+    return x.detach()
 
-def convert_to_numpy(x):
-    x = stop_gradient(x)
-    return ops.convert_to_numpy(x)
+def vmap(fun, in_axes=0, out_axes=0, chunk_size=None, signature=None):
+    return torch.vmap(fun, in_dims=in_axes, out_dims=out_axes, chunk_size=chunk_size)
+
+def jit(obj, **kwargs):
+    return torch.jit.script(obj, **kwargs)

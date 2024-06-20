@@ -1,14 +1,20 @@
+"""
+Default configurations related to the backend.
+"""
 import os
 import sys
 import json
+import importlib
+import contextlib
+import threading
 
 # default
 _FLOATX = 'float64'
-_EPSILON = sys.float_info.epsilon
 _BACKEND = 'jax'
 
-_allowed_floatx = ('float16', 'float32', 'float64')
-_allowed_backend = ('numpy', 'jax', 'torch', 'tensorflow')
+_allowed_floatx = ('float32', 'float64')
+_allowed_backend = ('numpy', 'cupy', 'jax', 'torch')
+_floatx = _backend = None
 
 if 'PYSCFAD_HOME' in os.environ:
     _base_dir = os.environ['PYSCFAD_HOME']
@@ -28,19 +34,18 @@ if os.path.exists(_config_path):
         _config = {}
 
     _floatx = _config.get('floatx', None)
-    if _floatx in _allowed_floatx:
-        _FLOATX = _floatx
-    _epsilon = _config.get('epsilon', None)
-    if isinstance(_epsilon, float):
-        _EPSILON = _epsilon
     _backend = _config.get('backend', None)
-    if _backend in _allowed_backend:
-        _BACKEND = _backend
 
+# NOTE environment variables overwrite configure file
+if 'PYSCFAD_FLOATX' in os.environ:
+    _floatx = os.environ['PYSCFAD_FLOATX']
 if 'PYSCFAD_BACKEND' in os.environ:
     _backend = os.environ['PYSCFAD_BACKEND']
-    if _backend in _allowed_backend:
-        _BACKEND = _backend
+
+if _floatx in _allowed_floatx:
+    _FLOATX = _floatx
+if _backend in _allowed_backend:
+    _BACKEND = _backend
 
 if not os.path.exists(_PYSCFAD_DIR):
     try:
@@ -51,7 +56,6 @@ if not os.path.exists(_PYSCFAD_DIR):
 if not os.path.exists(_config_path):
     _config = {
         "floatx": _FLOATX,
-        "epsilon": _EPSILON,
         "backend": _BACKEND,
     }
     try:
@@ -60,21 +64,48 @@ if not os.path.exists(_config_path):
     except IOError:
         pass
 
-if _BACKEND in ('torch', 'tensorflow'):
-    # Keras configuration
-    os.environ["KERAS_BACKEND"] = _BACKEND
-    try:
-        import keras_core as keras
-    except ImportError as err:
-        raise ImportError('Unable to import keras_core.') from err
-    keras.config.set_floatx(_FLOATX)
-    keras.config.set_epsilon(_EPSILON)
-    del keras
-
+del (_floatx, _backend)
 del (os, sys, json)
 
-def backend():
+def default_backend():
     return _BACKEND
 
-def floatx():
+def default_floatx():
     return _FLOATX
+
+
+#---------------- dynamic backend update ----------------#
+
+_current_backend = None
+_backend_cache = {}
+
+def set_backend(backend_name):
+    if not backend_name in _allowed_backend:
+        raise KeyError(f"Required backend {backend_name} is not supported.")
+
+    with threading.RLock():
+        global _current_backend
+        if backend_name in _backend_cache:
+            _current_backend = _backend_cache[backend_name]
+        else:
+            try:
+                module = importlib.import_module(f"pyscfad.backend._{backend_name}").backend
+            except Exception:
+                raise RuntimeError("Failed setting backend {backend_name}.")
+            _backend_cache[backend_name] = module
+            _current_backend = module
+
+def get_backend():
+    return _current_backend
+
+@contextlib.contextmanager
+def with_backend(backend_name):
+    with threading.RLock():
+        global _current_backend
+        previous_backend = _current_backend
+        set_backend(backend_name)
+        try:
+            yield
+        finally:
+            _current_backend = previous_backend
+

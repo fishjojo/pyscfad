@@ -6,8 +6,8 @@ from pyscfad import ops
 def flush(rec, msg, *args):
     args_list = []
     for arg in args:
-        if ops.is_tensor(arg):
-            arg = ops.convert_to_numpy(arg)
+        if ops.is_array(arg):
+            arg = ops.to_numpy(arg)
         args_list.append(getattr(arg, 'val', arg))
     rec.stdout.write(msg % tuple(args_list))
     rec.stdout.write('\n')

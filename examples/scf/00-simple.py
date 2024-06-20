@@ -1,4 +1,3 @@
-import pyscf
 from pyscfad import gto, scf
 
 """
@@ -11,9 +10,16 @@ mol.basis   = '631g'
 mol.verbose = 5
 mol.build()
 
-mf = scf.RHF(mol)
-mf.kernel()
-jac = mf.energy_grad()
+from pyscfad import config
+#config.update('pyscfad_scf_implicit_diff', True)
+
+def energy(mol):
+    mf = scf.RHF(mol)
+    ehf = mf.kernel()
+    return ehf
+import jax
+jac = jax.grad(energy)(mol)
+#jac = mf.energy_grad()
 print(f'Nuclaer gradient:\n{jac.coords}')
 print(f'Gradient wrt basis exponents:\n{jac.exp}')
 print(f'Gradient wrt basis contraction coefficients:\n{jac.ctr_coeff}')

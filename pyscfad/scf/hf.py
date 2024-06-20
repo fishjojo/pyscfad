@@ -15,12 +15,12 @@ from pyscfad import config
 from pyscfad import numpy as np
 from pyscfad import util
 from pyscfad import lib
-from pyscfad.ops import stop_grad
-from pyscfad.lib import (
-    logger,
-    jit,
+from pyscfad.ops import (
+    stop_grad,
     stop_trace,
+    jit,
 )
+from pyscfad.lib import logger
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad import df
 from pyscfad.scf import _vhf
@@ -123,11 +123,11 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     mo_energy = mo_coeff = mo_occ = None
 
     s1e = mf.get_ovlp(mol)
-    cond = numpy.linalg.cond(stop_grad(s1e))
-    log.debug('cond(S) = %s', cond)
-    if cond.max()*1e-17 > conv_tol:
-        log.warn('Singularity detected in overlap matrix (condition number = %4.3g). '
-                 'SCF may be inaccurate and hard to converge.', cond.max())
+    #cond = numpy.linalg.cond(stop_grad(s1e))
+    #log.debug('cond(S) = %s', cond)
+    #if cond.max()*1e-17 > conv_tol:
+    #    log.warn('Singularity detected in overlap matrix (condition number = %4.3g). '
+    #             'SCF may be inaccurate and hard to converge.', cond.max())
 
     if mf.max_cycle <= 0:
         # Skip SCF iterations. Compute only the total energy of the initial density
@@ -341,7 +341,7 @@ def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
     return f
 
 
-@util.pytree_node(Traced_Attributes, num_args=1)
+#@util.pytree_node(Traced_Attributes, num_args=1)
 class SCF(pyscf_hf.SCF):
     '''
     A subclass of :class:`pyscf.scf.hf.SCF` where the following
@@ -473,6 +473,7 @@ class SCF(pyscf_hf.SCF):
                              overwrite_mol=False)
         return self
 
+    check_sanity = stop_trace(pyscf_hf.SCF.check_sanity)
     make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
     energy_elec = energy_elec
     get_fock = get_fock

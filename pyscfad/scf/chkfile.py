@@ -12,10 +12,10 @@ def dump_scf(mol, chkfile, e_tot, mo_energy, mo_coeff, mo_occ,
     else:
         save_mol(mol, chkfile)
 
-    e_tot = ops.convert_to_numpy(e_tot)
-    mo_energy = ops.convert_to_numpy(mo_energy)
-    mo_occ = ops.convert_to_numpy(mo_occ)
-    mo_coeff = ops.convert_to_numpy(mo_coeff)
+    e_tot = ops.to_numpy(e_tot)
+    mo_energy = ops.to_numpy(mo_energy)
+    mo_occ = ops.to_numpy(mo_occ)
+    mo_coeff = ops.to_numpy(mo_coeff)
     scf_dic = {'e_tot'    : e_tot,
                'mo_energy': mo_energy,
                'mo_occ'   : mo_occ,

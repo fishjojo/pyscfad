@@ -2,7 +2,7 @@ from pyscf.ao2mo import incore
 from pyscf.ao2mo.incore import iden_coeffs
 from pyscfad import numpy as np
 from pyscfad import lib
-from pyscfad.lib import jit, vmap
+from pyscfad.ops import jit, vmap
 
 def full(eri_ao, mo_coeff, verbose=0, compact=True, **kwargs):
     nao = mo_coeff.shape[0]

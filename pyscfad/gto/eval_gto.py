@@ -1,12 +1,18 @@
 from functools import partial
 import numpy
 #import jax
-from jax import numpy as np
+
 from pyscf.gto import mole as pyscf_mole
 from pyscf.gto.moleintor import make_loc
 from pyscf.gto.eval_gto import _get_intor_and_comp
 from pyscf.gto.eval_gto import eval_gto as pyscf_eval_gto
-from pyscfad.lib import jit, custom_jvp, vmap
+
+from pyscfad import numpy as np
+from pyscfad.ops import (
+    custom_jvp,
+    jit,
+    vmap,
+)
 from pyscfad.gto._moleintor_helper import get_bas_label, promote_xyz
 from pyscfad.gto._mole_helper import (
     setup_exp,
