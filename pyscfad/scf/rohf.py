@@ -174,7 +174,7 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
 @util.pytree_node(hf.Traced_Attributes, num_args=1)
 class ROHF(hf.SCF, pyscf_rohf.ROHF):
     def __init__(self, mol, **kwargs):
-        pyscf_rohf.ROHF.__init__(self, mol)
+        super().__init__(mol)
         self.__dict__.update(kwargs)
 
     def eig(self, fock, s):

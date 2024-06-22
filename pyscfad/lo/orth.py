@@ -3,7 +3,7 @@ import numpy
 import scipy
 from jax import scipy as jax_scipy
 from pyscfad import numpy as np
-from pyscfad.lib import custom_jvp
+from pyscfad.ops import custom_jvp
 
 @partial(custom_jvp, nondiff_argnums=(1,))
 def lowdin(s, thresh=1e-15):

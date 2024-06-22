@@ -1,7 +1,8 @@
 import numpy
-from jax import numpy as np
+from pyscfad import numpy as np
 from pyscf.fci import cistring
-from pyscfad.lib import vmap, ops, stop_grad
+from pyscfad import ops
+from pyscfad.ops import vmap, stop_grad
 from pyscfad.lib.linalg_helper import davidson
 from pyscfad.gto import mole
 from pyscfad import ao2mo

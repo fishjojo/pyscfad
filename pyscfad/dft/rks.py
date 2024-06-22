@@ -1,12 +1,12 @@
 import numpy
-from jax import numpy as np
 from pyscf import __config__
 from pyscf.lib import current_memory
 from pyscf.lib import logger
 from pyscf.dft import rks as pyscf_rks
 from pyscf.dft import gen_grid
+from pyscfad import numpy as np
 from pyscfad import util
-from pyscfad.lib import stop_grad
+from pyscfad.ops import stop_grad
 from pyscfad.scf import hf
 from pyscfad.dft import numint
 
@@ -114,51 +114,38 @@ def energy_elec(ks, dm=None, h1e=None, vhf=None):
         vhf = ks.get_veff(ks.mol, dm)
     e1 = np.einsum('ij,ji->', h1e, dm)
     e2 = vhf.ecoul + vhf.exc
-    ks.scf_summary['e1'] = stop_grad(e1).real
-    ks.scf_summary['coul'] = stop_grad(vhf.ecoul).real
-    ks.scf_summary['exc'] = stop_grad(vhf.exc).real
+    ks.scf_summary['e1'] = e1.real
+    ks.scf_summary['coul'] = vhf.ecoul.real
+    ks.scf_summary['exc'] = vhf.exc.real
     logger.debug(ks, 'E1 = %s  Ecoul = %s  Exc = %s', e1, vhf.ecoul, vhf.exc)
     return (e1+e2).real, e2
 
-NELEC_ERROR_TOL = getattr(__config__, 'dft_rks_prune_error_tol', 0.02)
 def prune_small_rho_grids_(ks, mol, dm, grids):
     mol = stop_grad(mol)
     dm = stop_grad(dm)
     rho = ks._numint.get_rho(mol, dm, grids, ks.max_memory)
-    n = numpy.dot(rho, grids.weights)
-    if abs(n-mol.nelectron) < NELEC_ERROR_TOL*n:
-        rho *= grids.weights
-        idx = abs(rho) > ks.small_rho_cutoff / grids.weights.size
-        logger.debug(ks, 'Drop grids %d',
-                     grids.weights.size - numpy.count_nonzero(idx))
-        grids.coords  = numpy.asarray(grids.coords [idx], order='C')
-        grids.weights = numpy.asarray(grids.weights[idx], order='C')
-        grids.non0tab = grids.make_mask(mol, grids.coords)
-    return grids
+    return grids.prune_by_density_(rho, ks.small_rho_cutoff)
 
 def _dft_common_init_(mf, xc='LDA,VWN'):
     mf.xc = xc
     mf.nlc = ''
+    mf.disp = None
     mf.grids = None
     mf.nlcgrids = None
     # Use rho to filter grids
-    mf.small_rho_cutoff = getattr(__config__, 'dft_rks_RKS_small_rho_cutoff', 1e-7)
-##################################################
-# don't modify the following attributes, they are not input options
+    mf.small_rho_cutoff = getattr(
+        __config__, 'dft_rks_RKS_small_rho_cutoff', 1e-7)
     mf._numint = numint.NumInt()
-    mf._keys = mf._keys.union(['xc', 'nlc', 'omega', 'grids', 'nlcgrids',
-                               'small_rho_cutoff'])
 
 def _dft_common_post_init_(mf):
     if mf.grids is None:
         mf.grids = gen_grid.Grids(stop_grad(mf.mol))
-        mf.grids.level = getattr(__config__, 'dft_rks_RKS_grids_level',
-                                 mf.grids.level)
+        mf.grids.level = getattr(
+            __config__, 'dft_rks_RKS_grids_level', mf.grids.level)
     if mf.nlcgrids is None:
         mf.nlcgrids = gen_grid.Grids(stop_grad(mf.mol))
-        mf.nlcgrids.level = getattr(__config__, 'dft_rks_RKS_nlcgrids_level',
-                                    mf.nlcgrids.level)
-
+        mf.nlcgrids.level = getattr(
+            __config__, 'dft_rks_RKS_nlcgrids_level', mf.nlcgrids.level)
 
 class KohnShamDFT(pyscf_rks.KohnShamDFT):
     __init__ = _dft_common_init_
@@ -174,6 +161,23 @@ class KohnShamDFT(pyscf_rks.KohnShamDFT):
 
 @util.pytree_node(hf.Traced_Attributes, num_args=1)
 class RKS(KohnShamDFT, hf.RHF):
+    """Subclass of :class:`pyscf.dft.rks.RKS` with traceable attributes.
+
+    Attributes
+    ----------
+    mol : :class:`pyscfad.gto.Mole`
+        :class:`pyscfad.gto.Mole` instance.
+    mo_coeff : array
+        MO coefficients.
+    mo_energy : array
+        MO energies.
+    _eri : array
+        Two-electron repulsion integrals.
+
+    Notes
+    -----
+    Grid response is not considered with AD.
+    """
     def __init__(self, mol, xc='LDA,VWN', **kwargs):
         hf.RHF.__init__(self, mol)
         KohnShamDFT.__init__(self, xc)

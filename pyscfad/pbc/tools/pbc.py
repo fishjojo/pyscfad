@@ -1,10 +1,12 @@
 import warnings
 import copy
 import numpy as np
-from jax import numpy as jnp
 from pyscf import lib
 from pyscf.pbc.tools import get_monkhorst_pack_size, cutoff_to_mesh
-from pyscfad.lib import stop_grad, ops, logger
+from pyscfad import numpy as jnp
+from pyscfad import ops
+from pyscfad.ops import stop_grad
+from pyscfad.lib import logger
 
 def fft(f, mesh):
     '''

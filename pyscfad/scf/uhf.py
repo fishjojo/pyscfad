@@ -4,7 +4,7 @@ from pyscf.lib import module_method
 from pyscf.scf import uhf as pyscf_uhf
 from pyscfad import numpy as np
 from pyscfad import util
-from pyscfad.ops import stop_grad
+from pyscfad.ops import stop_trace
 from pyscfad.lib import logger
 from pyscfad.scf import hf
 
@@ -72,10 +72,9 @@ def energy_elec(mf, dm=None, h1e=None, vhf=None):
     e_coul =(np.einsum('ij,ji->', vhf[0], dm[0]) +
              np.einsum('ij,ji->', vhf[1], dm[1])) * .5
     e_elec = (e1 + e_coul).real
-    mf.scf_summary['e1'] = stop_grad(e1).real
-    mf.scf_summary['e2'] = stop_grad(e_coul).real
-    logger.debug(mf, 'E1 = %s  Ecoul = %s',
-                 stop_grad(e1), stop_grad(e_coul).real)
+    mf.scf_summary['e1'] = e1.real
+    mf.scf_summary['e2'] = e_coul.real
+    logger.debug(mf, 'E1 = %s  Ecoul = %s', e1, e_coul.real)
     return e_elec, e_coul
 
 
@@ -92,7 +91,7 @@ def make_rdm1(mo_coeff, mo_occ, **kwargs):
 @util.pytree_node(hf.Traced_Attributes, num_args=1)
 class UHF(hf.SCF, pyscf_uhf.UHF):
     def __init__(self, mol, **kwargs):
-        pyscf_uhf.UHF.__init__(self, mol)
+        super().__init__(mol)
         self.__dict__.update(kwargs)
 
     def eig(self, h, s):
@@ -118,6 +117,8 @@ class UHF(hf.SCF, pyscf_uhf.UHF):
             vhf += np.asarray(vhf_last)
         return vhf
 
+    spin_square = stop_trace(pyscf_uhf.UHF.spin_square)
     get_fock = get_fock
     make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
     energy_elec = energy_elec
+

@@ -1,7 +1,6 @@
 import sys
 import warnings
 import numpy
-from jax import numpy as np
 from jax import scipy
 from pyscf import __config__
 from pyscf.lib.linalg_helper import (
@@ -9,7 +8,9 @@ from pyscf.lib.linalg_helper import (
     _sort_by_similarity,
     _sort_elast,
 )
-from pyscfad.lib import logger, stop_grad, jit
+from pyscfad import numpy as np
+from pyscfad.lib import logger
+from pyscfad.ops import stop_grad, jit
 
 DAVIDSON_LINDEP = getattr(__config__, 'lib_linalg_helper_davidson_lindep', 1e-14)
 MAX_MEMORY = getattr(__config__, 'lib_linalg_helper_davidson_max_memory', 2000)

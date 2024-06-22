@@ -1,6 +1,5 @@
 from functools import (
     partial,
-    reduce,
     wraps,
 )
 import numpy
@@ -29,7 +28,7 @@ from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scipy.linalg import eigh
 from pyscfad.tools.linear_solver import gen_gmres
 
-Traced_Attributes = ['mol', '_eri']#, 'mo_coeff', 'mo_energy']
+Traced_Attributes = ['mol', '_eri', 'mo_coeff', 'mo_energy']
 
 def _scf_optimality_cond(dm, mf, s1e, h1e):
     mol = getattr(mf, 'cell', mf.mol)
@@ -123,11 +122,6 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     mo_energy = mo_coeff = mo_occ = None
 
     s1e = mf.get_ovlp(mol)
-    #cond = numpy.linalg.cond(stop_grad(s1e))
-    #log.debug('cond(S) = %s', cond)
-    #if cond.max()*1e-17 > conv_tol:
-    #    log.warn('Singularity detected in overlap matrix (condition number = %4.3g). '
-    #             'SCF may be inaccurate and hard to converge.', cond.max())
 
     if mf.max_cycle <= 0:
         # Skip SCF iterations. Compute only the total energy of the initial density
@@ -158,7 +152,7 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
         chkfile.save_mol(mol, mf.chkfile)
 
     # A preprocessing hook before the SCF iteration
-    #mf.pre_kernel(locals())
+    mf.pre_kernel(locals())
 
     # SCF iteration
     # NOTE if use implicit differentiation, only dm will have gradient.
@@ -211,7 +205,7 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     log.timer('scf_cycle', *cput0)
     del log
     # A post-processing hook before return
-    #mf.post_kernel(locals())
+    mf.post_kernel(locals())
     return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 
@@ -252,23 +246,22 @@ def energy_elec(mf, dm=None, h1e=None, vhf=None):
         vhf = mf.get_veff(mf.mol, dm)
     e1 = np.einsum('ij,ji->', h1e, dm).real
     e_coul = np.einsum('ij,ji->', vhf, dm).real * .5
-    mf.scf_summary['e1'] = stop_grad(e1)
-    mf.scf_summary['e2'] = stop_grad(e_coul)
-    logger.debug(mf, 'E1 = %s  E_coul = %s',
-                 stop_grad(e1), stop_grad(e_coul))
+    mf.scf_summary['e1'] = e1
+    mf.scf_summary['e2'] = e_coul
+    logger.debug(mf, 'E1 = %s  E_coul = %s', e1, e_coul)
     return e1+e_coul, e_coul
 
 
 @wraps(pyscf_hf.make_rdm1)
 def make_rdm1(mo_coeff, mo_occ, **kwargs):
     mocc = mo_coeff[:,mo_occ>0]
-    dm = np.dot(mocc*mo_occ[mo_occ>0], mocc.conj().T)
+    dm = (mocc*mo_occ[mo_occ>0]) @ mocc.conj().T
     return dm
 
 
 @wraps(pyscf_hf.level_shift)
 def level_shift(s, d, f, factor):
-    dm_vir = s - reduce(np.dot, (s, d, s))
+    dm_vir = s - s @ d @ s
     return f + dm_vir * factor
 
 
@@ -276,7 +269,7 @@ def level_shift(s, d, f, factor):
 def dip_moment(mol, dm, unit='Debye', verbose=logger.NOTE, **kwargs):
     log = logger.new_logger(mol, verbose)
 
-    if 'unit_symbol' in kwargs:  # pragma: no cover
+    if 'unit_symbol' in kwargs:
         log.warn('Kwarg "unit_symbol" was deprecated. It was replaced by kwarg '
                  'unit since PySCF-1.5.')
         unit = kwargs['unit_symbol']
@@ -287,10 +280,10 @@ def dip_moment(mol, dm, unit='Debye', verbose=logger.NOTE, **kwargs):
 
     with mol.with_common_orig((0,0,0)):
         ao_dip = mol.intor_symmetric('int1e_r', comp=3)
-    el_dip = np.einsum('xij,ji->x', ao_dip, dm).real
+    el_dip = np.einsum('xij,ji->x', np.asarray(ao_dip), dm).real
 
-    charges = mol.atom_charges().astype(float)
-    coords  = mol.atom_coords()
+    charges = np.asarray(mol.atom_charges(), dtype=float)
+    coords  = np.asarray(mol.atom_coords())
     nucl_dip = np.einsum('i,ix->x', charges, coords)
     mol_dip = nucl_dip - el_dip
 
@@ -304,8 +297,8 @@ def dip_moment(mol, dm, unit='Debye', verbose=logger.NOTE, **kwargs):
 
 
 def damping(s, d, f, factor):
-    dm_vir = np.eye(s.shape[0]) - np.dot(s, d)
-    f0 = reduce(np.dot, (dm_vir, f, d, s))
+    dm_vir = np.eye(s.shape[0]) - s @ d
+    f0 = dm_vir @ f @ d @ s
     f0 = (f0 + f0.conj().T) * (factor/(factor+1.))
     return f - f0
 
@@ -341,26 +334,25 @@ def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
     return f
 
 
-#@util.pytree_node(Traced_Attributes, num_args=1)
+@util.pytree_node(Traced_Attributes, num_args=1)
 class SCF(pyscf_hf.SCF):
-    '''
-    A subclass of :class:`pyscf.scf.hf.SCF` where the following
-    attributes can be traced.
+    """Subclass of :class:`pyscf.scf.hf.SCF` with traceable attributes.
 
-    Attributes:
-        mol : :class:`pyscfad.gto.Mole` object
-            Molecular structure and global options.
-        mo_coeff : array
-            Molecular orbital coefficients.
-        mo_energy : array
-            Molecular orbital energies.
-        _eri : array
-            Two electron repulsion integrals.
-    '''
+    Attributes
+    ----------
+    mol : :class:`pyscfad.gto.Mole`
+        :class:`pyscfad.gto.Mole` instance.
+    mo_coeff : array
+        MO coefficients.
+    mo_energy : array
+        MO energies.
+    _eri : array
+        Two-electron repulsion integrals.
+    """
     DIIS = SCF_DIIS
 
     def __init__(self, mol, **kwargs):
-        pyscf_hf.SCF.__init__(self, mol)
+        super().__init__(mol)
         self.__dict__.update(kwargs)
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
@@ -385,18 +377,27 @@ class SCF(pyscf_hf.SCF):
     def get_init_guess(self, mol=None, key='minao'):
         if mol is None:
             mol = self.mol
-        mol = stop_grad(mol)
-        dm0 = pyscf_hf.SCF.get_init_guess(self, mol, key)
+        dm0 = pyscf_hf.SCF.get_init_guess(self, stop_grad(mol), key)
         dm0 = numpy.asarray(dm0) #remove tags
         return dm0
 
     # pylint: disable=arguments-differ
     def kernel(self, dm0=None, **kwargs):
+        self.dump_flags()
         self.build(self.mol)
-        self.converged, self.e_tot, \
-                self.mo_energy, self.mo_coeff, self.mo_occ = \
-                kernel(self, self.conv_tol, self.conv_tol_grad,
-                       dm0=dm0, **kwargs)
+
+        if self.max_cycle > 0 or self.mo_coeff is None:
+            self.converged, self.e_tot, \
+                    self.mo_energy, self.mo_coeff, self.mo_occ = \
+                    kernel(self, self.conv_tol, self.conv_tol_grad,
+                           dm0=dm0, callback=self.callback,
+                           conv_check=self.conv_check, **kwargs)
+        else:
+            self.e_tot = kernel(self, self.conv_tol, self.conv_tol_grad,
+                                dm0=dm0, callback=self.callback,
+                                conv_check=self.conv_check, **kwargs)[1]
+
+        self._finalize()
         return self.e_tot
 
     def _eigh(self, h, s):
@@ -406,16 +407,33 @@ class SCF(pyscf_hf.SCF):
         return self._eigh(h, s)
 
     def energy_grad(self, dm0=None, mode='rev'):
-        '''
-        Energy gradient with respect to AO parameters computed by AD.
-        In principle, MO response is not needed, and we can just take
-        the derivative of eigen decomposition with converged
-        density matrix. But here it is implemented in this way to show
-        the difference between unrolling for loops and implicit differentiation.
+        """Computing energy gradients w.r.t AO parameters.
 
-        NOTE:
-            The attributes of the SCF instance will not be modified
-        '''
+        In principle, MO response is not needed, and it is sufficient to
+        compute the gradient of the eigen decomposition with the converged
+        density matrix. But this function is implemented as to trace the SCF iterations
+        to show the difference between unrolling for loops and implicit differentiation.
+
+        Parameters
+        ----------
+        dm0 : array, optional
+            Input density matrix.
+        mode : string, default='rev'
+            Differentiating using the ``forward`` or ``reverse`` mode.
+
+        Returns
+        -------
+        mol : :class:`pyscfad.gto.Mole`
+            :class:`Mole` object that contains the gradients.
+
+        Notes
+        -----
+        The attributes of the :class:`SCF` instance will not be modified.
+        This function only works with the JAX backend.
+
+        .. deprecated:: 0.2.0
+            This function will be deprecated in PySCFAD 0.2.0.
+        """
         if dm0 is None:
             try:
                 dm0 = self.make_rdm1()
@@ -457,6 +475,7 @@ class SCF(pyscf_hf.SCF):
             vj, vk = self.get_jk(mol, dm, hermi=hermi)
             return vj - vk * .5
 
+    @wraps(pyscf_hf.SCF.dip_moment)
     def dip_moment(self, mol=None, dm=None, unit='Debye', verbose=logger.NOTE,
                    **kwargs):
         if mol is None:
@@ -473,6 +492,10 @@ class SCF(pyscf_hf.SCF):
                              overwrite_mol=False)
         return self
 
+    def energy_nuc(self):
+        # recompute nuclear energy to trace it
+        return self.mol.energy_nuc()
+
     check_sanity = stop_trace(pyscf_hf.SCF.check_sanity)
     make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
     energy_elec = energy_elec
@@ -481,6 +504,14 @@ class SCF(pyscf_hf.SCF):
 
 @util.pytree_node(Traced_Attributes, num_args=1)
 class RHF(SCF, pyscf_hf.RHF):
+    @wraps(pyscf_hf.RHF.check_sanity)
+    def check_sanity(self):
+        mol = self.mol
+        if mol.nelectron != 1 and mol.spin != 0:
+            logger.warn(self, 'Invalid number of electrons %d for RHF method.',
+                        mol.nelectron)
+        return SCF.check_sanity(self)
+
     @wraps(pyscf_hf.RHF.get_veff)
     def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
         if mol is None:

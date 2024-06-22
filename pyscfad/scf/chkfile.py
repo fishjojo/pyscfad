@@ -1,6 +1,6 @@
 import h5py
 from pyscf.lib.chkfile import save_mol
-from pyscfad import ops
+from pyscfad.ops import stop_grad
 from pyscfad.lib.chkfile import save
 
 def dump_scf(mol, chkfile, e_tot, mo_energy, mo_coeff, mo_occ,
@@ -12,12 +12,8 @@ def dump_scf(mol, chkfile, e_tot, mo_energy, mo_coeff, mo_occ,
     else:
         save_mol(mol, chkfile)
 
-    e_tot = ops.to_numpy(e_tot)
-    mo_energy = ops.to_numpy(mo_energy)
-    mo_occ = ops.to_numpy(mo_occ)
-    mo_coeff = ops.to_numpy(mo_coeff)
-    scf_dic = {'e_tot'    : e_tot,
-               'mo_energy': mo_energy,
-               'mo_occ'   : mo_occ,
-               'mo_coeff' : mo_coeff}
+    scf_dic = {'e_tot'    : stop_grad(e_tot),
+               'mo_energy': stop_grad(mo_energy),
+               'mo_occ'   : stop_grad(mo_occ),
+               'mo_coeff' : stop_grad(mo_coeff)}
     save(chkfile, 'scf', scf_dic)

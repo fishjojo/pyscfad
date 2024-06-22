@@ -1,13 +1,16 @@
 import warnings
 import numpy
-from jax import numpy as np
 from jax.scipy.special import erf, erfc
 from pyscf import __config__
 from pyscf.gto.mole import PTR_COORD
 from pyscf.gto.moleintor import _get_intor_and_comp
 from pyscf.pbc.gto import cell as pyscf_cell
+
+from pyscfad import numpy as np
+from pyscfad import ops
+from pyscfad.ops import stop_grad
 from pyscfad import util
-from pyscfad.lib import stop_grad, ops, logger
+from pyscfad.lib import logger
 from pyscfad.gto import mole
 from pyscfad.gto._mole_helper import setup_exp, setup_ctr_coeff
 from pyscfad.pbc.gto import _pbcintor
@@ -172,32 +175,32 @@ energy_nuc = ewald
 
 @util.pytree_node(mole.Traced_Attributes+['abc'])
 class Cell(mole.Mole, pyscf_cell.Cell):
+    """Subclass of :class:`pyscf.pbc.gto.Cell` with traceable attributes.
+
+    Attributes
+    ----------
+    coords : array
+        Atomic coordinates.
+    exp : array
+        Exponents of Gaussian basis functions.
+    ctr_coeff : array
+        Contraction coefficients of Gaussian basis functions.
+    r0 : array
+        Centers of Gaussian basis functions. Currently this is
+        not used as the basis functions are atom centered. This
+        is a placeholder for floating Gaussian basis sets.
+    abc : array
+        Lattice vectors.
+    """
+    _keys = {'abc'}
+
     def __init__(self, **kwargs):
-        mole.Mole.__init__(self, **kwargs)
-        self.a = None # lattice vectors, (a1,a2,a3)
-        self.abc = None # traced lattice vectors
-        # if set, defines a spherical cutoff
-        # of fourier components, with .5 * G**2 < ke_cutoff
-        self.ke_cutoff = None
-
-        self.pseudo = None
-        self.dimension = 3
-        # TODO: Simple hack for now; the implementation of ewald depends on the
-        #       density-fitting class.  This determines how the ewald produces
-        #       its energy.
-        self.low_dim_ft_type = None
-
-##################################################
-# These attributes are initialized by build function if not given
-        self.mesh = None
-        self.rcut = None
-
-##################################################
-# don't modify the following variables, they are not input arguments
-        keys = ('precision', 'exp_to_discard')
-        self._keys = self._keys.union(self.__dict__).union(keys)
-        self.__dict__.update(kwargs)
-
+        self.coords = None
+        self.exp = None
+        self.ctr_coeff = None
+        self.r0 = None
+        self.abc = None
+        pyscf_cell.Cell.__init__(self, **kwargs)
 
     def build(self, *args, **kwargs):
         trace_coords = kwargs.pop('trace_coords', True)
@@ -215,7 +218,7 @@ class Cell(mole.Mole, pyscf_cell.Cell):
         if trace_ctr_coeff:
             self.ctr_coeff, _, _ = setup_ctr_coeff(self)
         if trace_r0:
-            pass
+            raise NotImplementedError
         if trace_lattice_vectors:
             self.abc = np.asarray(self.lattice_vectors())
 

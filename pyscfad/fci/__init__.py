@@ -1,5 +1,5 @@
 from functools import reduce
-from jax import numpy as np
+from pyscfad import numpy as np
 from pyscfad import ao2mo
 from pyscfad.fci import fci_slow
 from pyscfad.fci.fci_slow import fci_ovlp

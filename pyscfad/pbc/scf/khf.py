@@ -1,17 +1,18 @@
 import sys
 import h5py
 import numpy
-from jax import numpy as np
 from pyscf import __config__
 from pyscf.pbc.scf import khf as pyscf_khf
-#from pyscfad import util
-from pyscfad.lib import stop_grad, logger
+from pyscfad import util
+from pyscfad import numpy as np
+from pyscfad.ops import stop_grad
+from pyscfad.lib import logger
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
 from pyscfad.pbc.scf import hf as pbchf
 
 # TODO add mo_coeff, which requires AD wrt complex numbers
-#Traced_Attributes = ['cell', 'mo_energy', 'with_df']
+Traced_Attributes = ['cell', 'mo_energy',]# 'with_df']
 
 def get_ovlp(mf, cell=None, kpts=None):
     if cell is None:
@@ -45,8 +46,8 @@ def energy_elec(mf, dm_kpts=None, h1e_kpts=None, vhf_kpts=None):
     nkpts = len(dm_kpts)
     e1 = 1./nkpts * np.einsum('kij,kji', dm_kpts, h1e_kpts)
     e_coul = 1./nkpts * np.einsum('kij,kji', dm_kpts, vhf_kpts) * 0.5
-    mf.scf_summary['e1'] = stop_grad(e1.real)
-    mf.scf_summary['e2'] = stop_grad(e_coul.real)
+    mf.scf_summary['e1'] = e1.real
+    mf.scf_summary['e2'] = e_coul.real
     logger.debug(mf, 'E1 = %s  E_coul = %s', e1, e_coul)
     if abs(e_coul.imag > mf.cell.precision*10):
         logger.warn(mf, 'Coulomb energy has imaginary part %s. '
@@ -92,18 +93,26 @@ def make_rdm1(mo_coeff_kpts, mo_occ_kpts, **kwargs):
     dm = [mol_hf.make_rdm1(mo_coeff_kpts[k], mo_occ_kpts[k]) for k in range(nkpts)]
     return np.asarray(dm)
 
-#@util.pytree_node(Traced_Attributes, num_args=1)
+@util.pytree_node(Traced_Attributes, num_args=1)
 class KSCF(pbchf.SCF, pyscf_khf.KSCF):
+    """Subclass of :class:`pyscf.pbc.scf.khf.KSCF` with traceable attributes.
+
+    Attributes
+    ----------
+    cell : :class:`pyscfad.pbc.gto.Cell`
+        :class:`pyscfad.pbc.gto.Cell` instance.
+    mo_energy : array
+        MO energies.
+    """
     def __init__(self, cell, kpts=numpy.zeros((1,3)),
-                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')):#, **kwargs):
+                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'),
+                 **kwargs):
         if not cell._built:
             sys.stderr.write('Warning: cell.build() is not called in input\n')
             cell.build()
-        self.cell = cell
         mol_hf.SCF.__init__(self, cell)
 
         self.with_df = df.FFTDF(cell, kpts=kpts)
-        # Range separation JK builder
         self.rsjk = None
 
         self.exxdiv = exxdiv
@@ -111,32 +120,25 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         self.conv_tol = max(cell.precision * 10, 1e-8)
 
         self.exx_built = False
-        self._keys = self._keys.union(['cell', 'exx_built', 'exxdiv', 'with_df', 'rsjk'])
-        #self.__dict__.update(kwargs)
+        self.__dict__.update(kwargs)
 
     def get_jk(self, cell=None, dm_kpts=None, hermi=1, kpts=None, kpts_band=None,
                with_j=True, with_k=True, omega=None, **kwargs):
-        #if cell is None:
-        #    cell = self.cell
         if kpts is None:
             kpts = self.kpts
         if dm_kpts is None:
             dm_kpts = self.make_rdm1()
-        cpu0 = (logger.process_clock(), logger.perf_counter())
+
+        log = logger.new_logger(self)
+        cpu0 = (log._t0, log._w0)
         if self.rsjk:
             raise NotImplementedError
         else:
             vj, vk = self.with_df.get_jk(dm_kpts, hermi, kpts, kpts_band,
                                          with_j, with_k, omega, self.exxdiv)
-        logger.timer(self, 'vj and vk', *cpu0)
+        log.timer('vj and vk', *cpu0)
+        del log
         return vj, vk
-
-    def get_init_guess(self, cell=None, key='minao'):
-        if cell is None:
-            cell = self.cell
-        dm0 = pyscf_khf.KSCF.get_init_guess(self, stop_grad(cell), key)
-        dm0 = numpy.asarray(dm0)
-        return dm0
 
     def eig(self, h_kpts, s_kpts):
         nkpts = len(h_kpts)
@@ -175,4 +177,29 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
     get_k = pyscf_khf.KSCF.get_k
     get_grad = pyscf_khf.KSCF.get_grad
 
-KRHF = KSCF
+@util.pytree_node(Traced_Attributes, num_args=1)
+class KRHF(KSCF, pyscf_khf.KRHF):
+    def get_init_guess(self, cell=None, key='minao', s1e=None):
+        from pyscf import lib
+        if s1e is None:
+            s1e = self.get_ovlp(cell)
+        dm = mol_hf.SCF.get_init_guess(self, cell, key)
+        nkpts = len(self.kpts)
+        if dm.ndim == 2:
+            # dm[nao,nao] at gamma point -> dm_kpts[nkpts,nao,nao]
+            dm = numpy.repeat(dm[None,:,:], nkpts, axis=0)
+        dm_kpts = dm
+
+        ne = lib.einsum('kij,kji->', dm_kpts, stop_grad(s1e)).real
+        # FIXME: consider the fractional num_electron or not? This maybe
+        # relate to the charged system.
+        nelectron = float(self.cell.tot_electrons(nkpts))
+        if abs(ne - nelectron) > 0.01*nkpts:
+            logger.debug(self, 'Big error detected in the electron number '
+                         'of initial guess density matrix (Ne/cell = %g)!\n'
+                         '  This can cause huge error in Fock matrix and '
+                         'lead to instability in SCF for low-dimensional '
+                         'systems.\n  DM is normalized wrt the number '
+                         'of electrons %s', ne/nkpts, nelectron/nkpts)
+            dm_kpts *= (nelectron / ne).reshape(-1,1,1)
+        return dm_kpts

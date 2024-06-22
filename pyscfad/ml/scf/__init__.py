@@ -1,3 +1,3 @@
-'''
-Mean-field methods for machine learning
-'''
+"""
+Mean-field theory.
+"""

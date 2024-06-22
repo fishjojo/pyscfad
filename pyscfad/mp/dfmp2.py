@@ -8,7 +8,8 @@ from pyscf.lib import direct_sum, current_memory
 from pyscfad import config
 from pyscfad import numpy as np
 from pyscfad import util
-from pyscfad.lib import vmap, logger
+from pyscfad.ops import vmap
+from pyscfad.lib import logger
 from pyscfad.ao2mo import _ao2mo
 from pyscfad.mp import mp2
 

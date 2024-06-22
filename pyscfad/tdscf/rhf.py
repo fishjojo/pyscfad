@@ -1,10 +1,11 @@
 from functools import reduce
 import numpy
-from jax import vmap
-from jax import numpy as np
 from pyscf import symm
 from pyscf.scf import hf_symm
 from pyscf.tdscf import rhf as pyscf_tdrhf
+from pyscfad import numpy as np
+from pyscfad import ops
+from pyscfad.ops import vmap, stop_grad
 from pyscfad import util
 from pyscfad.lib import logger, chkfile
 from pyscfad.lib.linalg_helper import davidson1
@@ -150,9 +151,9 @@ def cis_ovlp(mol1, mol2, mo1, mo2, nocc1, nocc2, nmo1, nmo2, x1, x2):
 
 # pylint: disable=abstract-method
 @util.pytree_node(Traced_Attributes, num_args=1)
-class TDMixin(pyscf_tdrhf.TDMixin):
+class TDBase(pyscf_tdrhf.TDBase):
     def __init__(self, mf, **kwargs):
-        pyscf_tdrhf.TDMixin.__init__(self, mf)
+        pyscf_tdrhf.TDBase.__init__(self, mf)
         self.__dict__.update(kwargs)
 
     def get_ab(self, mf=None):
@@ -163,12 +164,12 @@ class TDMixin(pyscf_tdrhf.TDMixin):
     def get_precond(self, hdiag):
         def precond(x, e, x0):
             diagd = hdiag - (e-self.level_shift)
-            diagd = diagd.at[abs(diagd)<1e-8].set(1e-8)
+            diagd = ops.index_update(diagd, ops.index[abs(diagd)<1e-8], 1e-8)
             return x/diagd
         return precond
 
 @util.pytree_node(Traced_Attributes, num_args=1)
-class TDA(TDMixin, pyscf_tdrhf.TDA):
+class TDA(TDBase, pyscf_tdrhf.TDA):
     def gen_vind(self, mf=None):
         if mf is None:
             mf = self._scf
@@ -189,7 +190,7 @@ class TDA(TDMixin, pyscf_tdrhf.TDA):
         precond = self.get_precond(hdiag)
 
         if x0 is None:
-            x0 = self.init_guess(self._scf, self.nstates)
+            x0 = self.init_guess(stop_grad(self._scf), self.nstates)
 
         def pickeig(w, v, nroots, envs):
             idx = numpy.where(w > self.positive_eig_threshold)[0]

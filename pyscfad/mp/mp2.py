@@ -6,7 +6,8 @@ from pyscf.mp import mp2 as pyscf_mp2
 from pyscfad import numpy as np
 from pyscfad import util
 from pyscfad import lib
-from pyscfad.lib import ops, logger
+from pyscfad.lib import logger
+from pyscfad import ops
 from pyscfad import ao2mo
 
 WITH_T2 = getattr(pyscf_config, 'mp_mp2_with_t2', True)

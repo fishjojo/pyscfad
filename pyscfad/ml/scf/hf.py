@@ -1,3 +1,6 @@
+"""
+SCF with given Fock matrix.
+"""
 from pyscfad import ops
 from pyscfad import numpy as np
 from pyscfad.scf import hf
@@ -13,16 +16,17 @@ class SCF(hf.SCF):
             return np.linalg.eigh(h)
 
         # orthogonalize basis
+        s = np.asarray(s)
         x = cholesky_orth(s)
-        h_orth = np.dot(np.dot(x.T.conj(), h), x)
+        h_orth = x.T.conj() @ h @ x
         e, c = np.linalg.eigh(h_orth)
-        c = np.dot(x, c)
+        c = x @ c
         return e, c
 
     def get_occ(self, mo_energy=None, mo_coeff=None):
         if mo_energy is None:
             mo_energy = self.mo_energy
-        mo_energy = ops.convert_to_numpy(mo_energy)
+        mo_energy = ops.to_numpy(mo_energy)
         return super().get_occ(mo_energy)
 
 if __name__ == '__main__':
@@ -41,8 +45,7 @@ if __name__ == '__main__':
     mf = SCF(mol)
     s = mf.get_ovlp()
     mo_energy, mo_coeff = mf.eig(fock, s)
-    mo_occ = mf.get_occ(mo_energy) # get_occ returns a numpy array
-    mo_occ = ops.convert_to_tensor(mo_occ)
+    mo_occ = np.asarray(mf.get_occ(mo_energy)) # get_occ returns a numpy array
     dm1 = mf.make_rdm1(mo_coeff, mo_occ)
     dip = mf.dip_moment(dm=dm1)
     dip_norm = np.linalg.norm(dip)
