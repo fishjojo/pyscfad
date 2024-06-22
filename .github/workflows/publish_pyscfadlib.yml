@@ -95,7 +95,8 @@ jobs:
         with:
           name: cibw_wheels_macos_x86
           path: dist
-        run: ls -R dist
+
+      - run: ls -R dist
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -115,7 +116,8 @@ jobs:
         with:
           name: cibw_wheels_macos_arm64
           path: dist
-        run: ls -R dist
+
+      - run: ls -R dist
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
