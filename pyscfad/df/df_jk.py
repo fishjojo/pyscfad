@@ -1,4 +1,4 @@
-from jax import numpy as np
+from pyscfad import numpy as np
 from pyscfad import config
 from .addons import restore
 from ._df_jk_opt import get_jk as get_jk_opt

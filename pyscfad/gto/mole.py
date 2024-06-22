@@ -1,42 +1,35 @@
 from functools import wraps
-from jax import numpy as np
 from pyscf.gto import mole as pyscf_mole
 from pyscf.lib import logger, param
+from pyscfad import numpy as np
 from pyscfad import util
-from pyscfad.lib import custom_jvp, vmap
 from pyscfad.gto import moleintor
 from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
 
 Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
 
-def energy_nuc(mol, charges=None, **kwargs):
+@wraps(pyscf_mole.inter_distance)
+def inter_distance(mol, coords=None):
+    if coords is None:
+        coords = mol.atom_coords()
+    r = coords[:,None,:] - coords[None,:,:]
+    rr = np.sum(r*r, axis=2)
+    rr = np.sqrt(np.where(rr>1e-10, rr, 0))
+    return rr
+
+@wraps(pyscf_mole.classical_coulomb_energy)
+def classical_coulomb_energy(mol, charges=None, coords=None):
     if charges is None:
-        charges = mol.atom_charges()
+        charges = np.asarray(mol.atom_charges(), dtype=float)
     if len(charges) <= 1:
         return 0.0
-    r = distance_matrix(mol.atom_coords())
-    enuc = np.einsum('i,ij,j->', charges, 1./r, charges) * .5
+    rr = inter_distance(mol, coords)
+    rr = np.where(rr>1e-5, rr, 1e200)
+    enuc = np.einsum('i,ij,j->', charges, 1./rr, charges) * .5
     return enuc
 
-@custom_jvp
-def distance_matrix(coords):
-    r  = np.linalg.norm(coords[:,None,:] - coords[None,:,:], axis=2)
-    r += np.eye(r.shape[-1]) * 1e200
-    return r
-
-@distance_matrix.defjvp
-def distance_matrix_jvp(primals, tangents):
-    coords, = primals
-    coords_t, = tangents
-    rnorm = primal_out = distance_matrix(coords)
-    def body(r1, r2, rnorm, coords_t):
-        r = r1 - r2
-        jvp = np.dot(r / rnorm[:,None], coords_t)
-        return jvp
-    tangent_out = vmap(body, (0,None,0,0))(coords, coords, rnorm, coords_t)
-    tangent_out += tangent_out.T
-    return primal_out, tangent_out
+energy_nuc = classical_coulomb_energy
 
 @wraps(pyscf_mole.intor_cross)
 def intor_cross(intor, mol1, mol2, comp=None, grids=None):
@@ -55,22 +48,24 @@ def nao_nr_range(mol, bas_id0, bas_id1):
 
 @util.pytree_node(Traced_Attributes)
 class Mole(pyscf_mole.Mole):
-    '''
-    A subclass of :class:`pyscf.gto.Mole`, where the following
-    attributes can be traced.
+    """Subclass of :class:`pyscf.gto.Mole` with traceable attributes.
 
-    Attributes:
-        coords : array
-            Atomic coordinates.
-        exp : array
-            Exponents of Gaussian basis functions.
-        ctr_coeff : array
-            Contraction coefficients of Gaussian basis functions.
-        r0 : array
-            Centers of Gaussian basis functions. Currently this is
-            not used as the basis functions are atom centered. This
-            is a placeholder for floating Gaussian basis sets.
-    '''
+    Attributes
+    ----------
+    coords : array
+        Atomic coordinates.
+    exp : array
+        Exponents of Gaussian basis functions.
+    ctr_coeff : array
+        Contraction coefficients of Gaussian basis functions.
+    r0 : array
+        Centers of Gaussian basis functions. Currently this is
+        not used as the basis functions are atom centered. This
+        is a placeholder for floating Gaussian basis sets.
+    """
+
+    _keys = {'coords', 'exp', 'ctr_coeff', 'r0'}
+
     def __init__(self, **kwargs):
         self.coords = None
         self.exp = None

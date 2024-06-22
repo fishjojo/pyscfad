@@ -1,0 +1,3 @@
+"""
+Mean-field theory.
+"""

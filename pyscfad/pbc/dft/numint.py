@@ -1,9 +1,10 @@
 import sys
 import numpy
-from jax import numpy as np
 from pyscf.pbc.dft import numint as pyscf_numint
 from pyscf.pbc.dft.gen_grid import BLKSIZE
-from pyscfad.lib import ops, stop_grad
+from pyscfad import numpy as np
+from pyscfad import ops
+from pyscfad.ops import stop_grad
 from pyscfad.dft import numint
 from pyscfad.dft.numint import eval_mat, _contract_rho, _dot_ao_dm
 

@@ -1,6 +1,6 @@
 from pyscf.ao2mo import addons as pyscf_addons
 from pyscfad import lib
-from pyscfad.lib import vmap
+from pyscfad.ops import vmap
 
 class load(pyscf_addons.load):
     def __enter__(self):

@@ -1,11 +1,11 @@
 import numpy
-from jax import numpy as np
 from pyscf import __config__
 from pyscf.lib import logger
 from pyscf.pbc.dft import krks as pyscf_krks
 from pyscf.pbc.dft import gen_grid, multigrid
-#from pyscfad import util
-from pyscfad.lib import stop_grad
+from pyscfad import util
+from pyscfad import numpy as np
+from pyscfad.ops import stop_grad
 from pyscfad.dft.rks import VXC
 from pyscfad.pbc.scf import khf
 from pyscfad.pbc.dft import rks
@@ -77,10 +77,26 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     del log
     return vxc
 
-#@util.pytree_node(khf.Traced_Attributes, num_args=1)
+@util.pytree_node(khf.Traced_Attributes, num_args=1)
 class KRKS(rks.KohnShamDFT, khf.KRHF):
+    """Subclass of :class:`pyscf.pbc.dft.krks.KRKS` with traceable attributes.
+
+    Attributes
+    ----------
+    cell : :class:`pyscfad.pbc.gto.Cell`
+        :class:`pyscfad.pbc.gto.Cell` instance.
+    mo_coeff : array
+        MO coefficients.
+    mo_energy : array
+        MO energies.
+
+    Notes
+    -----
+    Grid response is not considered with AD.
+    """
     def __init__(self, cell, kpts=numpy.zeros((1,3)), xc='LDA,VWN',
-                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'), **kwargs):
+                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'),
+                 **kwargs):
         khf.KRHF.__init__(self, cell, kpts, exxdiv, **kwargs)
         rks.KohnShamDFT.__init__(self, xc)
         self.__dict__.update(kwargs)
@@ -88,7 +104,6 @@ class KRKS(rks.KohnShamDFT, khf.KRHF):
         # otherwise stop_grad(mol) won't work.
         # Currently, no grid response is considered.
         rks.KohnShamDFT.__post_init__(self)
-
 
     def dump_flags(self, verbose=None):
         khf.KRHF.dump_flags(self, verbose)
@@ -106,9 +121,9 @@ class KRKS(rks.KohnShamDFT, khf.KRHF):
         weight = 1./len(h1e_kpts)
         e1 = weight * np.einsum('kij,kji', h1e_kpts, dm_kpts)
         tot_e = e1 + vhf.ecoul + vhf.exc
-        self.scf_summary['e1'] = stop_grad(e1.real)
-        self.scf_summary['coul'] = stop_grad(vhf.ecoul.real)
-        self.scf_summary['exc'] = stop_grad(vhf.exc.real)
+        self.scf_summary['e1'] = e1.real
+        self.scf_summary['coul'] = vhf.ecoul.real
+        self.scf_summary['exc'] = vhf.exc.real
         logger.debug(self, 'E1 = %s  Ecoul = %s  Exc = %s', e1, vhf.ecoul, vhf.exc)
         return tot_e.real, vhf.ecoul + vhf.exc
 

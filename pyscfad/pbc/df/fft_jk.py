@@ -1,9 +1,9 @@
 import numpy
-from jax import numpy as np
-from jax import vmap
 from pyscf import lib as pyscf_lib
 from pyscf.pbc.df.df_jk import _format_dms, _format_kpts_band, _format_jks
-from pyscfad.lib import ops
+from pyscfad import numpy as np
+from pyscfad import ops
+from pyscfad.ops import vmap
 from pyscfad.pbc import tools
 from pyscfad.pbc.df.df_jk import _ewald_exxdiv_for_G0
 from pyscfad.pbc.lib.kpts_helper import is_zero, gamma_point

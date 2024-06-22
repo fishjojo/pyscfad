@@ -33,7 +33,7 @@ def get_cell():
     cell.a = lattice
     cell.basis = basis
     cell.pseudo = pseudo
-    cell.build(trace_coords=True)
+    cell.build(trace_exp=False, trace_ctr_coeff=False)
     return cell
 
 @pytest.fixture

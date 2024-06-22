@@ -1,15 +1,19 @@
 """
 PySCF with auto-differentiation
 """
+import sys
 from pyscfad.version import __version__
-
-#from pyscfad import util
-#from pyscfad import implicit_diff
 
 from pyscfad._src._config import (
     config,
     config_update
 )
 
-import jax
-jax.config.update("jax_enable_x64", True)
+# export backend.numpy to pyscfad namespace
+# pylint: disable=useless-import-alias
+from pyscfad.backend import numpy as numpy
+from pyscfad.backend import ops as ops
+sys.modules['pyscfad.numpy'] = numpy
+sys.modules['pyscfad.ops'] = ops
+
+del sys

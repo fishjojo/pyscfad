@@ -1,9 +1,9 @@
 import numpy
 from pyscf.scf import diis as pyscf_cdiis
 from pyscfad import config
+from pyscfad.ops import stop_grad
 from pyscfad.lib import (
     logger,
-    stop_grad,
     diis,
 )
 

@@ -1,7 +1,8 @@
 from jax import numpy as np
 from pyscf.lib import current_memory
 from pyscfad import util
-from pyscfad.lib import logger, jit
+from pyscfad.lib import logger
+from pyscfad.ops import jit
 from pyscfad import ao2mo
 from pyscfad.cc import ccsd
 from pyscfad.cc import rintermediates as imd

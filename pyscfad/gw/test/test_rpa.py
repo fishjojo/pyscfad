@@ -24,7 +24,7 @@ def get_h2o():
 
     config.reset()
 
-def test_nuc_grad(get_h2o):
+def test_nuc_grad_skip(get_h2o):
     mol = get_h2o
     auxbasis = pyscf_df.addons.make_auxbasis(mol, mp2fit=True)
     auxmol = df.addons.make_auxmol(mol, auxbasis)

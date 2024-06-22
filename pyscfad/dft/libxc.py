@@ -1,28 +1,24 @@
 from functools import partial
-from jax import numpy as np
-from jax import jit, custom_jvp
 from pyscf.dft import libxc
 from pyscf.dft.libxc import parse_xc, is_lda, is_meta_gga
+from pyscfad import numpy as np
+from pyscfad.ops import jit, custom_jvp
 
 def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
     # NOTE only consider exc and vxc
     if deriv > 1:
         raise NotImplementedError
 
-    hyb, fn_facs = parse_xc(xc_code)
-    if omega is not None:
-        hyb = hyb[:2] + (float(omega),)
-
-    exc = _eval_xc_comp(rho, hyb, fn_facs, spin, relativity, deriv=0, verbose=verbose)
+    exc = _eval_xc_comp(rho, xc_code, spin, relativity, deriv=0, omega=omega, verbose=verbose)
     if deriv == 0:
         vxc = (None,) * 4
     elif deriv == 1:
-        vxc = _eval_xc_comp(rho, hyb, fn_facs, spin, relativity, deriv=1, verbose=verbose)
+        vxc = _eval_xc_comp(rho, xc_code, spin, relativity, deriv=1, omega=omega, verbose=verbose)
     return exc, vxc, None, None
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
-def _eval_xc_comp(rho, hyb, fn_facs, spin=0, relativity=0, deriv=1, verbose=None):
-    out = libxc._eval_xc(hyb, fn_facs, rho, spin, relativity, deriv, verbose)[deriv]
+def _eval_xc_comp(rho, xc_code, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
+    out = libxc.eval_xc(xc_code, rho, spin, relativity, deriv, omega, verbose)[deriv]
     if deriv == 1:
         out = tuple(out)
         if len(out) < 4:
@@ -34,16 +30,17 @@ def _eval_xc_comp(rho, hyb, fn_facs, spin=0, relativity=0, deriv=1, verbose=None
     return out
 
 @_eval_xc_comp.defjvp
-def _eval_xc_comp_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
+def _eval_xc_comp_jvp(xc_code, spin, relativity, deriv, omega, verbose,
                       primals, tangents):
     rho, = primals
     rho_t, = tangents
     if deriv > 2:
         raise NotImplementedError
 
-    val  = _eval_xc_comp(rho, hyb, fn_facs, spin, relativity, deriv, verbose)
-    val1 = _eval_xc_comp(rho, hyb, fn_facs, spin, relativity, deriv+1, verbose)
+    val  = _eval_xc_comp(rho, xc_code, spin, relativity, deriv, omega, verbose)
+    val1 = _eval_xc_comp(rho, xc_code, spin, relativity, deriv+1, omega, verbose)
 
+    hyb, fn_facs = parse_xc(xc_code)
     fn_ids = [x[0] for x in fn_facs]
     n = len(fn_ids)
     if (n == 0 or

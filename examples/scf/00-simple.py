@@ -1,4 +1,3 @@
-import pyscf
 from pyscfad import gto, scf
 
 """
@@ -12,7 +11,6 @@ mol.verbose = 5
 mol.build()
 
 mf = scf.RHF(mol)
-mf.kernel()
 jac = mf.energy_grad()
 print(f'Nuclaer gradient:\n{jac.coords}')
 print(f'Gradient wrt basis exponents:\n{jac.exp}')

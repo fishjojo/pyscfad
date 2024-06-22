@@ -1,12 +1,14 @@
 import numpy
-from jax import numpy as np
 from pyscf import __config__
 from pyscf.lib import logger
 from pyscf.pbc.dft import rks as pyscf_rks
 from pyscf.pbc.dft import gen_grid, multigrid
 from pyscf.pbc.dft.rks import prune_small_rho_grids_
-#from pyscfad import util
-from pyscfad.lib import stop_grad
+from pyscf.pbc.lib.kpts import KPoints
+
+from pyscfad import util
+from pyscfad import numpy as np
+from pyscfad.ops import stop_grad
 from pyscfad.dft import rks as mol_ks
 from pyscfad.dft.rks import VXC
 from pyscfad.pbc.scf import hf as pbchf
@@ -81,26 +83,51 @@ def _dft_common_init_(mf, xc='LDA,VWN', **kwargs):
     from pyscfad.pbc.scf import khf
     mf.xc = xc
     mf.grids = None
-    mf.small_rho_cutoff = getattr(__config__, 'dft_rks_RKS_small_rho_cutoff', 1e-7)
+    mf.nlc = ''
+    mf.nlcgrids = None
+    mf.small_rho_cutoff = getattr(
+        __config__, 'dft_rks_RKS_small_rho_cutoff', 1e-7)
     if isinstance(mf, khf.KSCF):
-        mf._numint = numint.KNumInt(mf.kpts)
+        if isinstance(mf.kpts, KPoints):
+            mf._numint = numint.KNumInt(mf.kpts.kpts)
+        else:
+            mf._numint = numint.KNumInt(mf.kpts)
     else:
         mf._numint = numint.NumInt()
-    mf._keys = mf._keys.union(['xc', 'grids', 'small_rho_cutoff'])
 
 def _dft_common_post_init_(mf):
     from pyscf.pbc.gto import Cell
     if mf.grids is None:
         mf.grids = gen_grid.UniformGrids(mf.cell.view(Cell))
+    if mf.nlcgrids is None:
+        mf.nlcgrids = gen_grid.UniformGrids(mf.cell.view(Cell))
 
-class KohnShamDFT(mol_ks.KohnShamDFT):
+class KohnShamDFT(mol_ks.KohnShamDFT, pyscf_rks.KohnShamDFT):
     __init__ = _dft_common_init_
     __post_init__ = _dft_common_post_init_
 
-#@util.pytree_node(pbchf.Traced_Attributes, num_args=1)
+    dump_flags = pyscf_rks.KohnShamDFT.dump_flags
+
+@util.pytree_node(pbchf.Traced_Attributes, num_args=1)
 class RKS(KohnShamDFT, pbchf.RHF):
+    """Subclass of :class:`pyscf.pbc.dft.rks.RKS` with traceable attributes.
+
+    Attributes
+    ----------
+    cell : :class:`pyscfad.pbc.gto.Cell`
+        :class:`pyscfad.pbc.gto.Cell` instance.
+    mo_coeff : array
+        MO coefficients.
+    mo_energy : array
+        MO energies.
+
+    Notes
+    -----
+    Grid response is not considered with AD.
+    """
     def __init__(self, cell, xc='LDA,VWN', kpt=numpy.zeros(3),
-                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'), **kwargs):
+                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'),
+                 **kwargs):
         pbchf.RHF.__init__(self, cell, kpt, exxdiv, **kwargs)
         KohnShamDFT.__init__(self, xc)
         self.__dict__.update(kwargs)

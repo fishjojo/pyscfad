@@ -5,7 +5,7 @@ from pyscf import lib as pyscf_lib
 from pyscf.lib import logger
 from pyscf.df import df as pyscf_df
 from pyscfad import util
-from pyscfad.lib import isarray
+from pyscfad.ops import isarray
 from pyscfad.df import addons, incore, df_jk
 
 @util.pytree_node(['mol', 'auxmol', '_cderi'], num_args=1)

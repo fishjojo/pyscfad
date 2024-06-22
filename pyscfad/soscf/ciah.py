@@ -1,7 +1,8 @@
 import numpy
-from jax import numpy as np
+# TODO add other backend for expm
 from jax.scipy.linalg import expm
-from pyscfad.lib import jit
+from pyscfad import numpy as np
+from pyscfad.ops import jit
 
 def pack_uniq_var(mat):
     nmo = mat.shape[0]

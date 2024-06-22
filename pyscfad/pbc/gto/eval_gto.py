@@ -1,10 +1,10 @@
 from functools import partial
 import numpy
-from jax import numpy as np
 from pyscf.pbc.gto import Cell
 from pyscf.pbc.gto.eval_gto import _get_intor_and_comp
 from pyscf.pbc.gto.eval_gto import eval_gto as pyscf_eval_gto
-from pyscfad.lib import custom_jvp
+from pyscfad import numpy as np
+from pyscfad.ops import custom_jvp
 from pyscfad.gto.eval_gto import _eval_gto_dot_grad_tangent_r0
 
 def eval_gto(cell, eval_name, coords, comp=None, kpts=None, kpt=None,

@@ -1,10 +1,10 @@
 import numpy
-from jax import numpy as np
 from pyscf.lib import logger, current_memory
 from pyscf import df as pyscf_df
 from pyscf.gw import rpa as pyscf_rpa
+from pyscfad import numpy as np
 from pyscfad import util
-from pyscfad.lib import vmap, jit
+from pyscfad.ops import vmap, jit
 from pyscfad import scf, dft, df
 from pyscfad.df.addons import restore
 

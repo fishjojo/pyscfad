@@ -1,9 +1,10 @@
 from functools import reduce, wraps
 import numpy
-from jax import numpy as np
 from pyscf.scf import rohf as pyscf_rohf
+from pyscfad import numpy as np
 from pyscfad import util
-from pyscfad.lib import logger, stop_grad
+from pyscfad.ops import stop_grad
+from pyscfad.lib import logger
 from pyscfad.scf import hf, uhf, chkfile
 
 @wraps(pyscf_rohf.energy_elec)
@@ -173,7 +174,7 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
 @util.pytree_node(hf.Traced_Attributes, num_args=1)
 class ROHF(hf.SCF, pyscf_rohf.ROHF):
     def __init__(self, mol, **kwargs):
-        pyscf_rohf.ROHF.__init__(self, mol)
+        super().__init__(mol)
         self.__dict__.update(kwargs)
 
     def eig(self, fock, s):

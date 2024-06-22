@@ -1,11 +1,18 @@
 from functools import partial
 import numpy
-from jax import numpy as np
+
 from pyscf import ao2mo
 from pyscf.gto import mole as pyscf_mole
 from pyscf.gto import ATOM_OF
 from pyscf.gto.moleintor import _get_intor_and_comp
-from pyscfad.lib import ops, custom_jvp, jit, vmap
+
+from pyscfad import numpy as np
+from pyscfad import ops
+from pyscfad.ops import (
+    custom_jvp,
+    jit,
+    vmap,
+)
 from ._mole_helper import (
     setup_exp,
     setup_ctr_coeff,
