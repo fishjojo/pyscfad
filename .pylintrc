@@ -10,7 +10,6 @@
 # Files or directories to be skipped. They should be base names, not paths.
 ignore=test,
        backend,
-       numpy,
        ml,
 
 # Files or directories matching the regex patterns are skipped. The regex

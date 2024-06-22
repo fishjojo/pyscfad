@@ -1,4 +1,3 @@
-import numpy
 from pyscf import __config__
 from pyscf.lib import current_memory
 from pyscf.lib import logger

@@ -1,6 +1,6 @@
 import numpy
-from pyscfad import numpy as np
 from pyscf.fci import cistring
+from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.ops import vmap, stop_grad
 from pyscfad.lib.linalg_helper import davidson

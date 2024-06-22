@@ -374,7 +374,7 @@ class SCF(pyscf_hf.SCF):
         vj, vk = dot_eri_dm(_eri, dm, hermi, with_j, with_k)
         return vj, vk
 
-    def get_init_guess(self, mol=None, key='minao'):
+    def get_init_guess(self, mol=None, key='minao', **kwargs):
         if mol is None:
             mol = self.mol
         dm0 = pyscf_hf.SCF.get_init_guess(self, stop_grad(mol), key)
