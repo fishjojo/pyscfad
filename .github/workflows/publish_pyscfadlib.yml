@@ -94,11 +94,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: cibw_wheels_macos_x86
+          path: artifact
+
+      - run: |
+          ls -R artifact
+          unzip artifact/cibw_wheels_macos_x86.zip -d dist
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: $GITHUB_WORKSPACE
 
   publish_pypi_macos_arm64:
     name: publish macos_arm64 wheels to pypi
@@ -114,9 +117,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: cibw_wheels_macos_arm64
+          path: artifact
+
+      - run: |
+          ls -R artifact
+          unzip artifact/cibw_wheels_macos_arm64.zip -d dist
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: $GITHUB_WORKSPACE
 
