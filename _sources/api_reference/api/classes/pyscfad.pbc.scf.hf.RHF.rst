@@ -33,14 +33,6 @@ pyscfad.pbc.scf.hf.RHF
          
          
          
-           ~RHF.dump_chk
-         
-         
-         
-         
-         
-         
-           ~RHF.energy_nuc
          
          
          
@@ -49,24 +41,37 @@ pyscfad.pbc.scf.hf.RHF
          
          
          
-           ~RHF.get_hcore
-         
-         
-           ~RHF.get_init_guess
-         
-         
-         
-           ~RHF.get_jk
          
          
          
          
          
-           ~RHF.get_ovlp
          
          
          
-           ~RHF.get_veff
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
          
          
          

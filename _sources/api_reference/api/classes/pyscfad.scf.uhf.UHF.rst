@@ -105,6 +105,8 @@ pyscfad.scf.uhf.UHF
          
          
          
+           ~UHF.spin_square
+         
          
          
          

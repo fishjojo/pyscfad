@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>pyscfad.pbc.scf.khf.KSCF &#8212; pyscfad 0.1.4 documentation</title>
+    <title>pyscfad.pbc.scf.khf.KSCF &#8212; pyscfad 0.1.5 documentation</title>
   
   
   
@@ -38,7 +38,7 @@
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=3ee479438cf8b5e0d341" />
   <script src="../../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=3ee479438cf8b5e0d341"></script>
 
-    <script src="../../../_static/documentation_options.js?v=23027dbc"></script>
+    <script src="../../../_static/documentation_options.js?v=98feffa1"></script>
     <script src="../../../_static/doctools.js?v=9a2dae69"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -53,10 +53,10 @@
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
     <link rel="next" title="pyscfad.pbc.scf.khf.KSCF.dump_chk" href="methods/pyscfad.pbc.scf.khf.KSCF.dump_chk.html" />
-    <link rel="prev" title="pyscfad.pbc.scf.khf.KRHF" href="pyscfad.pbc.scf.khf.KRHF.html" />
+    <link rel="prev" title="pyscfad.pbc.scf.khf.KRHF.get_init_guess" href="methods/pyscfad.pbc.scf.khf.KRHF.get_init_guess.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Jun 14, 2024"/>
+    <meta name="docbuild:last-update" content="Jun 22, 2024"/>
   </head>
   
   
@@ -562,8 +562,6 @@ document.write(`
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.gto.mole.html">pyscfad.gto.mole</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.gto.mole.Mole.html">pyscfad.gto.mole.Mole</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.gto.mole.distance_matrix_jvp.html">pyscfad.gto.mole.distance_matrix_jvp</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.gto.mole.energy_nuc.html">pyscfad.gto.mole.energy_nuc</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.gto.mole.nao_nr_range.html">pyscfad.gto.mole.nao_nr_range</a></li>
 </ul>
 </details></li>
@@ -708,22 +706,7 @@ document.write(`
 </details></li>
 </ul>
 </details></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../tdscf.html">TDSCF methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.tdscf.html">pyscfad.tdscf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.tdscf.rhf.html">pyscfad.tdscf.rhf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="pyscfad.tdscf.rhf.CIS.html">pyscfad.tdscf.rhf.CIS</a></li>
-<li class="toctree-l4"><a class="reference internal" href="pyscfad.tdscf.rhf.TDA.html">pyscfad.tdscf.rhf.TDA</a></li>
-<li class="toctree-l4"><a class="reference internal" href="pyscfad.tdscf.rhf.TDMixin.html">pyscfad.tdscf.rhf.TDMixin</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.tdscf.rhf.cis_ovlp.html">pyscfad.tdscf.rhf.cis_ovlp</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.tdscf.rhf.gen_tda_hop.html">pyscfad.tdscf.rhf.gen_tda_hop</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.tdscf.rhf.gen_tda_operation.html">pyscfad.tdscf.rhf.gen_tda_operation</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.tdscf.rhf.get_ab.html">pyscfad.tdscf.rhf.get_ab</a></li>
-</ul>
-</details></li>
-</ul>
-</details></li>
-</ul>
-</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tdscf.html">TDSCF methods</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../tools.html">Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.tools.html">pyscfad.tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.tools.linear_solver.html">pyscfad.tools.linear_solver</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -819,8 +802,21 @@ document.write(`
 <h1>pyscfad.pbc.scf.khf.KSCF<a class="headerlink" href="#pyscfad-pbc-scf-khf-kscf" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyscfad.pbc.scf.khf.KSCF">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.scf.khf.</span></span><span class="sig-name descname"><span class="pre">KSCF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[0.,</span> <span class="pre">0.,</span> <span class="pre">0.]])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exxdiv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ewald'</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/pbc/scf/khf.py#L96-L176"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.scf.khf.KSCF" title="Link to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.scf.khf.</span></span><span class="sig-name descname"><span class="pre">KSCF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[0.,</span> <span class="pre">0.,</span> <span class="pre">0.]])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exxdiv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ewald'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/pbc/scf/khf.py#L96-L178"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.scf.khf.KSCF" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference internal" href="pyscfad.pbc.scf.hf.SCF.html#pyscfad.pbc.scf.hf.SCF" title="pyscfad.pbc.scf.hf.SCF"><code class="xref py py-class docutils literal notranslate"><span class="pre">SCF</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">KSCF</span></code></p>
+<p>Subclass of <code class="xref py py-class docutils literal notranslate"><span class="pre">pyscf.pbc.scf.khf.KSCF</span></code> with traceable attributes.</p>
+<p class="rubric">Attributes</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<tbody>
+<tr class="row-odd"><td><p><strong>cell</strong></p></td>
+<td><p>(<code class="xref py py-class docutils literal notranslate"><span class="pre">pyscfad.pbc.gto.Cell</span></code>) <code class="xref py py-class docutils literal notranslate"><span class="pre">pyscfad.pbc.gto.Cell</span></code> instance.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>mo_energy</strong></p></td>
+<td><p>(array) MO energies.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
@@ -845,28 +841,25 @@ document.write(`
 <tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_hcore.html#pyscfad.pbc.scf.khf.KSCF.get_hcore" title="pyscfad.pbc.scf.khf.KSCF.get_hcore"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_hcore</span></code></a>([cell, kpts])</p></td>
 <td><p>Get the core Hamiltonian AO matrices at sampled k-points.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_init_guess.html#pyscfad.pbc.scf.khf.KSCF.get_init_guess" title="pyscfad.pbc.scf.khf.KSCF.get_init_guess"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_init_guess</span></code></a>([cell, key])</p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_j.html#pyscfad.pbc.scf.khf.KSCF.get_j" title="pyscfad.pbc.scf.khf.KSCF.get_j"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_j</span></code></a>([cell, dm_kpts, hermi, kpts, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_j.html#pyscfad.pbc.scf.khf.KSCF.get_j" title="pyscfad.pbc.scf.khf.KSCF.get_j"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_j</span></code></a>([cell, dm_kpts, hermi, kpts, ...])</p></td>
 <td><p>Compute J matrix for the given density matrix and k-point (kpt).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_jk.html#pyscfad.pbc.scf.khf.KSCF.get_jk" title="pyscfad.pbc.scf.khf.KSCF.get_jk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_jk</span></code></a>([cell, dm_kpts, hermi, kpts, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_jk.html#pyscfad.pbc.scf.khf.KSCF.get_jk" title="pyscfad.pbc.scf.khf.KSCF.get_jk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_jk</span></code></a>([cell, dm_kpts, hermi, kpts, ...])</p></td>
 <td><p>Get Coulomb (J) and exchange (K) following <code class="xref py py-func docutils literal notranslate"><span class="pre">scf.hf.RHF.get_jk_()</span></code>.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_k.html#pyscfad.pbc.scf.khf.KSCF.get_k" title="pyscfad.pbc.scf.khf.KSCF.get_k"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_k</span></code></a>([cell, dm_kpts, hermi, kpts, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_k.html#pyscfad.pbc.scf.khf.KSCF.get_k" title="pyscfad.pbc.scf.khf.KSCF.get_k"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_k</span></code></a>([cell, dm_kpts, hermi, kpts, ...])</p></td>
 <td><p>Compute K matrix for the given density matrix.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_occ.html#pyscfad.pbc.scf.khf.KSCF.get_occ" title="pyscfad.pbc.scf.khf.KSCF.get_occ"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_occ</span></code></a>([mo_energy_kpts, mo_coeff_kpts])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_occ.html#pyscfad.pbc.scf.khf.KSCF.get_occ" title="pyscfad.pbc.scf.khf.KSCF.get_occ"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_occ</span></code></a>([mo_energy_kpts, mo_coeff_kpts])</p></td>
 <td><p>Label the occupancies for each orbital for sampled k-points.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_ovlp.html#pyscfad.pbc.scf.khf.KSCF.get_ovlp" title="pyscfad.pbc.scf.khf.KSCF.get_ovlp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_ovlp</span></code></a>([cell, kpts])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_ovlp.html#pyscfad.pbc.scf.khf.KSCF.get_ovlp" title="pyscfad.pbc.scf.khf.KSCF.get_ovlp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_ovlp</span></code></a>([cell, kpts])</p></td>
 <td><p>Get the overlap AO matrices at sampled k-points.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_veff.html#pyscfad.pbc.scf.khf.KSCF.get_veff" title="pyscfad.pbc.scf.khf.KSCF.get_veff"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_veff</span></code></a>([cell, dm_kpts, dm_last, vhf_last, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.get_veff.html#pyscfad.pbc.scf.khf.KSCF.get_veff" title="pyscfad.pbc.scf.khf.KSCF.get_veff"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_veff</span></code></a>([cell, dm_kpts, dm_last, vhf_last, ...])</p></td>
 <td><p>Hartree-Fock potential matrix for the given density matrix.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.make_rdm1.html#pyscfad.pbc.scf.khf.KSCF.make_rdm1" title="pyscfad.pbc.scf.khf.KSCF.make_rdm1"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_rdm1</span></code></a>([mo_coeff_kpts, mo_occ_kpts])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.scf.khf.KSCF.make_rdm1.html#pyscfad.pbc.scf.khf.KSCF.make_rdm1" title="pyscfad.pbc.scf.khf.KSCF.make_rdm1"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_rdm1</span></code></a>([mo_coeff_kpts, mo_occ_kpts])</p></td>
 <td><p>One-particle density matrix in AO representation</p></td>
 </tr>
 </tbody>
@@ -887,12 +880,12 @@ document.write(`
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="pyscfad.pbc.scf.khf.KRHF.html"
+       href="methods/pyscfad.pbc.scf.khf.KRHF.get_init_guess.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">pyscfad.pbc.scf.khf.KRHF</p>
+        <p class="prev-next-title">pyscfad.pbc.scf.khf.KRHF.get_init_guess</p>
       </div>
     </a>
     <a class="right-next"

@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>pyscfad.pbc.scf.khf.KSCF.get_init_guess &#8212; pyscfad 0.1.4 documentation</title>
+    <title>pyscfad.scf.hf.SCF.check_sanity &#8212; pyscfad 0.1.5 documentation</title>
   
   
   
@@ -38,23 +38,23 @@
 <link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=3ee479438cf8b5e0d341" />
   <script src="../../../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=3ee479438cf8b5e0d341"></script>
 
-    <script src="../../../../_static/documentation_options.js?v=23027dbc"></script>
+    <script src="../../../../_static/documentation_options.js?v=98feffa1"></script>
     <script src="../../../../_static/doctools.js?v=9a2dae69"></script>
     <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../../../_static/design-tabs.js?v=f930bc37"></script>
     <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/classes/methods/pyscfad.pbc.scf.khf.KSCF.get_init_guess';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/classes/methods/pyscfad.scf.hf.SCF.check_sanity';</script>
     <script src="../../../../_static/custom-icon.js?v=40bda21d"></script>
     <link rel="icon" href="../../../../_static/pyscfad_logo.svg"/>
     <link rel="index" title="Index" href="../../../../genindex.html" />
     <link rel="search" title="Search" href="../../../../search.html" />
-    <link rel="next" title="pyscfad.pbc.scf.khf.KSCF.get_j" href="pyscfad.pbc.scf.khf.KSCF.get_j.html" />
-    <link rel="prev" title="pyscfad.pbc.scf.khf.KSCF.get_hcore" href="pyscfad.pbc.scf.khf.KSCF.get_hcore.html" />
+    <link rel="next" title="pyscfad.scf.hf.SCF.density_fit" href="pyscfad.scf.hf.SCF.density_fit.html" />
+    <link rel="prev" title="pyscfad.scf.hf.SCF" href="../pyscfad.scf.hf.SCF.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Jun 14, 2024"/>
+    <meta name="docbuild:last-update" content="Jun 22, 2024"/>
   </head>
   
   
@@ -560,8 +560,6 @@ document.write(`
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.gto.mole.html">pyscfad.gto.mole</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../pyscfad.gto.mole.Mole.html">pyscfad.gto.mole.Mole</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.gto.mole.distance_matrix_jvp.html">pyscfad.gto.mole.distance_matrix_jvp</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.gto.mole.energy_nuc.html">pyscfad.gto.mole.energy_nuc</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.gto.mole.nao_nr_range.html">pyscfad.gto.mole.nao_nr_range</a></li>
 </ul>
 </details></li>
@@ -604,8 +602,8 @@ document.write(`
 </details></li>
 </ul>
 </details></li>
-<li class="toctree-l1 current active has-children"><a class="reference internal" href="../../../pbc.html">Methods for Solids</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2 current active has-children"><a class="reference internal" href="../../pyscfad.pbc.html">pyscfad.pbc</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../pbc.html">Methods for Solids</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../pyscfad.pbc.html">pyscfad.pbc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.pbc.df.html">pyscfad.pbc.df</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../pyscfad.pbc.df.df_jk.html">pyscfad.pbc.df.df_jk</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../pyscfad.pbc.df.fft.html">pyscfad.pbc.df.fft</a></li>
@@ -629,11 +627,11 @@ document.write(`
 <li class="toctree-l4"><a class="reference internal" href="../../pyscfad.pbc.lib.kpts_helper.html">pyscfad.pbc.lib.kpts_helper</a></li>
 </ul>
 </details></li>
-<li class="toctree-l3 current active has-children"><a class="reference internal" href="../../pyscfad.pbc.scf.html">pyscfad.pbc.scf</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.pbc.scf.html">pyscfad.pbc.scf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.pbc.scf.KRHF.html">pyscfad.pbc.scf.KRHF</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.pbc.scf.RHF.html">pyscfad.pbc.scf.RHF</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../pyscfad.pbc.scf.hf.html">pyscfad.pbc.scf.hf</a></li>
-<li class="toctree-l4 current active"><a class="reference internal" href="../../pyscfad.pbc.scf.khf.html">pyscfad.pbc.scf.khf</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../pyscfad.pbc.scf.khf.html">pyscfad.pbc.scf.khf</a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.pbc.tools.html">pyscfad.pbc.tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -658,8 +656,8 @@ document.write(`
 </details></li>
 </ul>
 </details></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../../scf.html">Hartree-Fock methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../pyscfad.scf.html">pyscfad.scf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../../../scf.html">Hartree-Fock methods</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="../../pyscfad.scf.html">pyscfad.scf</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="../../functions/pyscfad.scf.RHF.html">pyscfad.scf.RHF</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../functions/pyscfad.scf.ROHF.html">pyscfad.scf.ROHF</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../functions/pyscfad.scf.UHF.html">pyscfad.scf.UHF</a></li>
@@ -680,9 +678,9 @@ document.write(`
 <li class="toctree-l4"><a class="reference internal" href="../pyscfad.scf.diis.SCF_DIIS.html">pyscfad.scf.diis.SCF_DIIS</a></li>
 </ul>
 </details></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.scf.hf.html">pyscfad.scf.hf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 current active has-children"><a class="reference internal" href="../../pyscfad.scf.hf.html">pyscfad.scf.hf</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l4"><a class="reference internal" href="../pyscfad.scf.hf.RHF.html">pyscfad.scf.hf.RHF</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../pyscfad.scf.hf.SCF.html">pyscfad.scf.hf.SCF</a></li>
+<li class="toctree-l4 current active"><a class="reference internal" href="../pyscfad.scf.hf.SCF.html">pyscfad.scf.hf.SCF</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.hf.damping.html">pyscfad.scf.hf.damping</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.hf.dot_eri_dm.html">pyscfad.scf.hf.dot_eri_dm</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.hf.get_fock.html">pyscfad.scf.hf.get_fock</a></li>
@@ -706,22 +704,7 @@ document.write(`
 </details></li>
 </ul>
 </details></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../../tdscf.html">TDSCF methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../../pyscfad.tdscf.html">pyscfad.tdscf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.tdscf.rhf.html">pyscfad.tdscf.rhf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../pyscfad.tdscf.rhf.CIS.html">pyscfad.tdscf.rhf.CIS</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../pyscfad.tdscf.rhf.TDA.html">pyscfad.tdscf.rhf.TDA</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../pyscfad.tdscf.rhf.TDMixin.html">pyscfad.tdscf.rhf.TDMixin</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.cis_ovlp.html">pyscfad.tdscf.rhf.cis_ovlp</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.gen_tda_hop.html">pyscfad.tdscf.rhf.gen_tda_hop</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.gen_tda_operation.html">pyscfad.tdscf.rhf.gen_tda_operation</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.get_ab.html">pyscfad.tdscf.rhf.get_ab</a></li>
-</ul>
-</details></li>
-</ul>
-</details></li>
-</ul>
-</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tdscf.html">TDSCF methods</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../tools.html">Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../pyscfad.tools.html">pyscfad.tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.tools.linear_solver.html">pyscfad.tools.linear_solver</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -794,9 +777,9 @@ document.write(`
     <li class="breadcrumb-item"><i class="fa-solid fa-ellipsis"></i></li>
     
     
-    <li class="breadcrumb-item"><a href="../pyscfad.pbc.scf.khf.KSCF.html" class="nav-link">pyscfad.pbc.scf.khf.KSCF</a></li>
+    <li class="breadcrumb-item"><a href="../pyscfad.scf.hf.SCF.html" class="nav-link">pyscfad.scf.hf.SCF</a></li>
     
-    <li class="breadcrumb-item active" aria-current="page">pyscfad.pbc....</li>
+    <li class="breadcrumb-item active" aria-current="page">pyscfad.scf....</li>
   </ul>
 </nav>
 </div>
@@ -813,12 +796,17 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="pyscfad-pbc-scf-khf-kscf-get-init-guess">
-<h1>pyscfad.pbc.scf.khf.KSCF.get_init_guess<a class="headerlink" href="#pyscfad-pbc-scf-khf-kscf-get-init-guess" title="Link to this heading">#</a></h1>
+  <section id="pyscfad-scf-hf-scf-check-sanity">
+<h1>pyscfad.scf.hf.SCF.check_sanity<a class="headerlink" href="#pyscfad-scf-hf-scf-check-sanity" title="Link to this heading">#</a></h1>
 <dl class="py method">
-<dt class="sig sig-object py" id="pyscfad.pbc.scf.khf.KSCF.get_init_guess">
-<span class="sig-prename descclassname"><span class="pre">KSCF.</span></span><span class="sig-name descname"><span class="pre">get_init_guess</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'minao'</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/pbc/scf/khf.py#L134-L139"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.scf.khf.KSCF.get_init_guess" title="Link to this definition">#</a></dt>
-<dd></dd></dl>
+<dt class="sig sig-object py" id="pyscfad.scf.hf.SCF.check_sanity">
+<span class="sig-prename descclassname"><span class="pre">SCF.</span></span><span class="sig-name descname"><span class="pre">check_sanity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/backend/ops.py#L41-L44"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf.SCF.check_sanity" title="Link to this definition">#</a></dt>
+<dd><p>Check input of class/object attributes, check whether a class method is
+overwritten.  It does not check the attributes which are prefixed with
+“_”.  The
+return value of method set is the object itself.  This allows a series
+of functions/methods to be executed in pipe.</p>
+</dd></dl>
 
 </section>
 
@@ -833,20 +821,20 @@ document.write(`
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="pyscfad.pbc.scf.khf.KSCF.get_hcore.html"
+       href="../pyscfad.scf.hf.SCF.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">pyscfad.pbc.scf.khf.KSCF.get_hcore</p>
+        <p class="prev-next-title">pyscfad.scf.hf.SCF</p>
       </div>
     </a>
     <a class="right-next"
-       href="pyscfad.pbc.scf.khf.KSCF.get_j.html"
+       href="pyscfad.scf.hf.SCF.density_fit.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">pyscfad.pbc.scf.khf.KSCF.get_j</p>
+        <p class="prev-next-title">pyscfad.scf.hf.SCF.density_fit</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -868,7 +856,7 @@ document.write(`
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.scf.khf.KSCF.get_init_guess"><code class="docutils literal notranslate"><span class="pre">KSCF.get_init_guess()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.scf.hf.SCF.check_sanity"><code class="docutils literal notranslate"><span class="pre">SCF.check_sanity()</span></code></a></li>
 </ul>
   </nav></div>
 
@@ -876,7 +864,7 @@ document.write(`
 
   
   <div class="tocsection editthispage">
-    <a href="https://github.com/fishjojo/pyscfad/edit/doc/doc/source/api_reference/api/classes/methods/pyscfad.pbc.scf.khf.KSCF.get_init_guess.rst">
+    <a href="https://github.com/fishjojo/pyscfad/edit/doc/doc/source/api_reference/api/classes/methods/pyscfad.scf.hf.SCF.check_sanity.rst">
       <i class="fa-solid fa-pencil"></i>
       
       
@@ -891,7 +879,7 @@ document.write(`
   <div class="sidebar-secondary-item">
 
   <div class="tocsection sourcelink">
-    <a href="../../../../_sources/api_reference/api/classes/methods/pyscfad.pbc.scf.khf.KSCF.get_init_guess.rst">
+    <a href="../../../../_sources/api_reference/api/classes/methods/pyscfad.scf.hf.SCF.check_sanity.rst">
       <i class="fa-solid fa-file-lines"></i> Show Source
     </a>
   </div>

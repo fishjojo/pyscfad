@@ -33,15 +33,6 @@ pyscfad.pbc.scf.khf.KRHF
          
          
          
-           ~KRHF.dump_chk
-         
-         
-         
-         
-           ~KRHF.eig
-         
-         
-           ~KRHF.energy_elec
          
          
          
@@ -49,39 +40,34 @@ pyscfad.pbc.scf.khf.KRHF
          
          
          
-           ~KRHF.get_fermi
          
          
-           ~KRHF.get_fock
          
          
-           ~KRHF.get_grad
          
          
-           ~KRHF.get_hcore
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
          
          
            ~KRHF.get_init_guess
          
          
-           ~KRHF.get_j
-         
-         
-           ~KRHF.get_jk
-         
-         
-         
-           ~KRHF.get_k
-         
-         
-           ~KRHF.get_occ
-         
-         
-           ~KRHF.get_ovlp
-         
-         
-         
-           ~KRHF.get_veff
          
          
          
@@ -92,7 +78,12 @@ pyscfad.pbc.scf.khf.KRHF
          
          
          
-           ~KRHF.make_rdm1
+         
+         
+         
+         
+         
+         
          
          
          

@@ -30,6 +30,8 @@ pyscfad.scf.hf.SCF
          
          
          
+           ~SCF.check_sanity
+         
          
            ~SCF.density_fit
          
@@ -50,6 +52,8 @@ pyscfad.scf.hf.SCF
          
            ~SCF.energy_grad
          
+         
+           ~SCF.energy_nuc
          
          
          

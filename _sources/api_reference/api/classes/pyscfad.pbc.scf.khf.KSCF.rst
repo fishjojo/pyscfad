@@ -61,8 +61,6 @@ pyscfad.pbc.scf.khf.KSCF
            ~KSCF.get_hcore
          
          
-           ~KSCF.get_init_guess
-         
          
            ~KSCF.get_j
          

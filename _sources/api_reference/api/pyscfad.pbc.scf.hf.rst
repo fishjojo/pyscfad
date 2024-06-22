@@ -23,16 +23,6 @@ pyscfad.pbc.scf.hf
 
    
    
-   .. rubric:: Functions
-
-   .. autosummary::
-      :toctree: functions/
-
-   
-      get_ovlp
-      normalize_dm_
-
-   
    
 
 

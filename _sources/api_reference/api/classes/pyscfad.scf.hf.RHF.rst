@@ -46,6 +46,8 @@ pyscfad.scf.hf.RHF
          
          
          
+           ~RHF.check_sanity
+         
          
          
          

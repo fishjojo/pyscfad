@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>pyscfad.scf.hf.SCF &#8212; pyscfad 0.1.4 documentation</title>
+    <title>pyscfad.scf.hf.SCF &#8212; pyscfad 0.1.5 documentation</title>
   
   
   
@@ -38,7 +38,7 @@
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=3ee479438cf8b5e0d341" />
   <script src="../../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=3ee479438cf8b5e0d341"></script>
 
-    <script src="../../../_static/documentation_options.js?v=23027dbc"></script>
+    <script src="../../../_static/documentation_options.js?v=98feffa1"></script>
     <script src="../../../_static/doctools.js?v=9a2dae69"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -52,11 +52,11 @@
     <link rel="icon" href="../../../_static/pyscfad_logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="pyscfad.scf.hf.SCF.density_fit" href="methods/pyscfad.scf.hf.SCF.density_fit.html" />
+    <link rel="next" title="pyscfad.scf.hf.SCF.check_sanity" href="methods/pyscfad.scf.hf.SCF.check_sanity.html" />
     <link rel="prev" title="pyscfad.scf.hf.RHF.get_veff" href="methods/pyscfad.scf.hf.RHF.get_veff.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Jun 14, 2024"/>
+    <meta name="docbuild:last-update" content="Jun 22, 2024"/>
   </head>
   
   
@@ -562,8 +562,6 @@ document.write(`
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.gto.mole.html">pyscfad.gto.mole</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.gto.mole.Mole.html">pyscfad.gto.mole.Mole</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.gto.mole.distance_matrix_jvp.html">pyscfad.gto.mole.distance_matrix_jvp</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.gto.mole.energy_nuc.html">pyscfad.gto.mole.energy_nuc</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.gto.mole.nao_nr_range.html">pyscfad.gto.mole.nao_nr_range</a></li>
 </ul>
 </details></li>
@@ -708,22 +706,7 @@ document.write(`
 </details></li>
 </ul>
 </details></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../tdscf.html">TDSCF methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.tdscf.html">pyscfad.tdscf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.tdscf.rhf.html">pyscfad.tdscf.rhf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="pyscfad.tdscf.rhf.CIS.html">pyscfad.tdscf.rhf.CIS</a></li>
-<li class="toctree-l4"><a class="reference internal" href="pyscfad.tdscf.rhf.TDA.html">pyscfad.tdscf.rhf.TDA</a></li>
-<li class="toctree-l4"><a class="reference internal" href="pyscfad.tdscf.rhf.TDMixin.html">pyscfad.tdscf.rhf.TDMixin</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.tdscf.rhf.cis_ovlp.html">pyscfad.tdscf.rhf.cis_ovlp</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.tdscf.rhf.gen_tda_hop.html">pyscfad.tdscf.rhf.gen_tda_hop</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.tdscf.rhf.gen_tda_operation.html">pyscfad.tdscf.rhf.gen_tda_operation</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.tdscf.rhf.get_ab.html">pyscfad.tdscf.rhf.get_ab</a></li>
-</ul>
-</details></li>
-</ul>
-</details></li>
-</ul>
-</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tdscf.html">TDSCF methods</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../tools.html">Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.tools.html">pyscfad.tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.tools.linear_solver.html">pyscfad.tools.linear_solver</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -819,43 +802,53 @@ document.write(`
 <h1>pyscfad.scf.hf.SCF<a class="headerlink" href="#pyscfad-scf-hf-scf" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyscfad.scf.hf.SCF">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.scf.hf.</span></span><span class="sig-name descname"><span class="pre">SCF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf.py#L344-L478"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf.SCF" title="Link to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.scf.hf.</span></span><span class="sig-name descname"><span class="pre">SCF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf.py#L337-L502"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf.SCF" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">SCF</span></code></p>
-<p>A subclass of <code class="xref py py-class docutils literal notranslate"><span class="pre">pyscf.scf.hf.SCF</span></code> where the following
-attributes can be traced.</p>
-<dl>
-<dt>Attributes:</dt><dd><dl>
-<dt>mol<span class="classifier"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyscfad.gto.Mole</span></code> object</span></dt><dd><p>Molecular structure and global options.</p>
-</dd>
-<dt>mo_coeff<span class="classifier">array</span></dt><dd><p>Molecular orbital coefficients.</p>
-</dd>
-<dt>mo_energy<span class="classifier">array</span></dt><dd><p>Molecular orbital energies.</p>
-</dd>
-<dt>_eri<span class="classifier">array</span></dt><dd><p>Two electron repulsion integrals.</p>
-</dd>
-</dl>
-</dd>
-</dl>
+<p>Subclass of <code class="xref py py-class docutils literal notranslate"><span class="pre">pyscf.scf.hf.SCF</span></code> with traceable attributes.</p>
+<p class="rubric">Attributes</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<tbody>
+<tr class="row-odd"><td><p><strong>mol</strong></p></td>
+<td><p>(<code class="xref py py-class docutils literal notranslate"><span class="pre">pyscfad.gto.Mole</span></code>) <code class="xref py py-class docutils literal notranslate"><span class="pre">pyscfad.gto.Mole</span></code> instance.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>mo_coeff</strong></p></td>
+<td><p>(array) MO coefficients.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>mo_energy</strong></p></td>
+<td><p>(array) MO energies.</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>_eri</strong></p></td>
+<td><p>(array) Two-electron repulsion integrals.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 <p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.density_fit.html#pyscfad.scf.hf.SCF.density_fit" title="pyscfad.scf.hf.SCF.density_fit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">density_fit</span></code></a>([auxbasis, with_df, only_dfj])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.check_sanity.html#pyscfad.scf.hf.SCF.check_sanity" title="pyscfad.scf.hf.SCF.check_sanity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">check_sanity</span></code></a>(**kwargs)</p></td>
+<td><p>Check input of class/object attributes, check whether a class method is overwritten.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.density_fit.html#pyscfad.scf.hf.SCF.density_fit" title="pyscfad.scf.hf.SCF.density_fit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">density_fit</span></code></a>([auxbasis, with_df, only_dfj])</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.dip_moment.html#pyscfad.scf.hf.SCF.dip_moment" title="pyscfad.scf.hf.SCF.dip_moment"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dip_moment</span></code></a>([mol, dm, unit, verbose])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.dip_moment.html#pyscfad.scf.hf.SCF.dip_moment" title="pyscfad.scf.hf.SCF.dip_moment"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dip_moment</span></code></a>([mol, dm, unit, verbose])</p></td>
 <td><p>Dipole moment calculation</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.dump_chk.html#pyscfad.scf.hf.SCF.dump_chk" title="pyscfad.scf.hf.SCF.dump_chk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dump_chk</span></code></a>(envs)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.dump_chk.html#pyscfad.scf.hf.SCF.dump_chk" title="pyscfad.scf.hf.SCF.dump_chk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dump_chk</span></code></a>(envs)</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.eig.html#pyscfad.scf.hf.SCF.eig" title="pyscfad.scf.hf.SCF.eig"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eig</span></code></a>(h, s)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.eig.html#pyscfad.scf.hf.SCF.eig" title="pyscfad.scf.hf.SCF.eig"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eig</span></code></a>(h, s)</p></td>
 <td><p>Solver for generalized eigenvalue problem</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.energy_elec.html#pyscfad.scf.hf.SCF.energy_elec" title="pyscfad.scf.hf.SCF.energy_elec"><code class="xref py py-obj docutils literal notranslate"><span class="pre">energy_elec</span></code></a>([dm, h1e, vhf])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.energy_elec.html#pyscfad.scf.hf.SCF.energy_elec" title="pyscfad.scf.hf.SCF.energy_elec"><code class="xref py py-obj docutils literal notranslate"><span class="pre">energy_elec</span></code></a>([dm, h1e, vhf])</p></td>
 <td><p>Electronic part of Hartree-Fock energy, for given core hamiltonian and HF potential</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.energy_grad.html#pyscfad.scf.hf.SCF.energy_grad" title="pyscfad.scf.hf.SCF.energy_grad"><code class="xref py py-obj docutils literal notranslate"><span class="pre">energy_grad</span></code></a>([dm0, mode])</p></td>
-<td><p>Energy gradient with respect to AO parameters computed by AD.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.energy_grad.html#pyscfad.scf.hf.SCF.energy_grad" title="pyscfad.scf.hf.SCF.energy_grad"><code class="xref py py-obj docutils literal notranslate"><span class="pre">energy_grad</span></code></a>([dm0, mode])</p></td>
+<td><p>Computing energy gradients w.r.t AO parameters.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.energy_nuc.html#pyscfad.scf.hf.SCF.energy_nuc" title="pyscfad.scf.hf.SCF.energy_nuc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">energy_nuc</span></code></a>()</p></td>
+<td><p></p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf.SCF.get_fock.html#pyscfad.scf.hf.SCF.get_fock" title="pyscfad.scf.hf.SCF.get_fock"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_fock</span></code></a>([h1e, s1e, vhf, dm, cycle, diis, ...])</p></td>
 <td><p>F = h^{core} + V^{HF}</p></td>
@@ -902,11 +895,11 @@ attributes can be traced.</p>
       </div>
     </a>
     <a class="right-next"
-       href="methods/pyscfad.scf.hf.SCF.density_fit.html"
+       href="methods/pyscfad.scf.hf.SCF.check_sanity.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">pyscfad.scf.hf.SCF.density_fit</p>
+        <p class="prev-next-title">pyscfad.scf.hf.SCF.check_sanity</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
