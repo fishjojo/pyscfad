@@ -1,7 +1,7 @@
 [tool.cibuildwheel]
 build-verbosity = 1
 
-test-requires = ["pytest", "pyscf>=2.3.0"]
+test-requires = ["pytest", "pyscf>=2.3"]
 test-command = "pytest {package}/test"
 test-skip = "cp38-macosx_arm64 cp311-macosx_arm64"
 
