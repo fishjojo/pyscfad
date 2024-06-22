@@ -28,11 +28,14 @@ jobs:
           CMAKE_CONFIGURE_ARGS: "-DWITH_F12=OFF"
         with:
           package-dir: pyscfadlib
-          output-dir: dist
+          output-dir: pyscfadlib/wheelhouse
           config-file: "{package}/pyproject.toml"
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: pyscfadlib/wheelhouse
+
 
   publish_pypi_macos_arm64:
     name: Build wheels on ${{ matrix.os }}
@@ -55,8 +58,10 @@ jobs:
           CMAKE_OSX_ARCHITECTURES: arm64
         with:
           package-dir: pyscfadlib
-          output-dir: dist
+          output-dir: pyscfadlib/wheelhouse
           config-file: "{package}/pyproject.toml"
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: pyscfadlib/wheelhouse

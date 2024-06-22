@@ -36,16 +36,30 @@ class CMakeBuild(build_py):
         super().run()
 
 from wheel.bdist_wheel import bdist_wheel
-initialize_options = bdist_wheel.initialize_options
+initialize_options_1 = bdist_wheel.initialize_options
 def initialize_with_default_plat_name(self):
-    initialize_options(self)
+    initialize_options_1(self)
     self.plat_name = get_platform()
+    self.plat_name_supplied = True
 bdist_wheel.initialize_options = initialize_with_default_plat_name
+
+try:
+    from setuptools.command.bdist_wheel import bdist_wheel
+    initialize_options_2 = bdist_wheel.initialize_options
+    def initialize_with_default_plat_name(self):
+        initialize_options_2(self)
+        self.plat_name = get_platform()
+        self.plat_name_supplied = True
+    bdist_wheel.initialize_options = initialize_with_default_plat_name
+except ImportError:
+    pass
 
 setup(
     name='pyscfadlib',
     version=__version__,
     description='Support library for PySCFAD',
+    long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     author='Xing Zhang',
     author_email='xzhang8@caltech.edu',
     include_package_data=True,

@@ -1,6 +1,6 @@
 # Change log
 
-## pyscfad 0.1.5
+## pyscfad 0.1.5 (June 22, 2024)
 * Changes
   * pyscfad is now compatable with pyscf 2.6.
   * Add `backend` module (experimental).
