@@ -21,7 +21,7 @@ setup(
         'jax>=0.3.25',
         'jaxlib>=0.3.25',
         'pyscf>=2.3',
-        'pyscfadlib==0.1.4',
+        'pyscfadlib>=0.1.4',
         #'pyscf-properties @ git+https://github.com/fishjojo/properties.git@ad',
     ],
     url='https://github.com/fishjojo/pyscfad',
