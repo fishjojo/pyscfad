@@ -9,6 +9,8 @@ setup(
     name='pyscfad',
     version=__version__,
     description='PySCF with autodiff',
+    long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     author='Xing Zhang',
     author_email='xzhang8@caltech.edu',
     include_package_data=True,

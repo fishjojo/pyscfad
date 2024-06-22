@@ -24,21 +24,11 @@ pip install pyscfad
 pip install git+https://github.com/fishjojo/pyscfad.git
 ```
 
-`pyscfad` depends on `pyscf==2.3.0`.
+`pyscfad` depends on `pyscf>=2.3.0`.
 Other dependencies include
 `numpy>=1.17`, `scipy<1.12`, `h5py`,
 `pyscfadlib`,
 `jax>=0.3.25` and `jaxlib>=0.3.25`.
-
-Running examples
-----------------
-
-* In order to perform AD calculations, 
-the following lines need to be added to 
-the PySCF configure file ($HOME/.pyscf\_conf.py)
-```
-pyscfad = True
-```
 
 Citing PySCFAD
 --------------

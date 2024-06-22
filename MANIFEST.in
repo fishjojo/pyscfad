@@ -1,5 +1,5 @@
 include MANIFEST.in
-include README.md setup.py LICENSE
+include README.md CHANGELOG.md setup.py LICENSE
 
 include pyscfad/geomopt/log.ini
 
