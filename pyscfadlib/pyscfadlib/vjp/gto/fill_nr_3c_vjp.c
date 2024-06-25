@@ -1,11 +1,12 @@
 #include <stdlib.h>
 #include "config.h"
 #include "cint.h"
-#include "np_helper/np_helper.h"
 #include "gto/gto.h"
 
+#define MIN(X, Y)       ((X) < (Y) ? (X) : (Y))
+#define MAX(X, Y)       ((X) > (Y) ? (X) : (Y))
+
 #define BLKSIZE 8
-#define MAXTHREADS 256
 
 static void fill_ij_r0_s2_igtj(double *vjp, double *in, double* ybar, int comp,
                             size_t ip, size_t nij, int di, int dj, int dk)
@@ -173,11 +174,9 @@ void GTOnr3c_ij_r0_vjp(int (*intor)(), void (*fill)(), double *vjp, double *ybar
                                                  atm, natm, bas, nbas, env);
         const int njobs = (MAX(nish,njsh) / BLKSIZE + 1) * nksh;
 
-        double *vjpbufs[MAXTHREADS];
-
 #pragma omp parallel
 {
-        int jobid;
+        int i, jobid;
         double *buf = malloc(sizeof(double) * (di*di*di*comp + cache_size));
         int thread_id = omp_get_thread_num();
         double *vjp_loc;
@@ -186,7 +185,6 @@ void GTOnr3c_ij_r0_vjp(int (*intor)(), void (*fill)(), double *vjp, double *ybar
         } else {
             vjp_loc = calloc(natm_ij*comp, sizeof(double));
         }
-        vjpbufs[thread_id] = vjp_loc;
 
         #pragma omp for nowait schedule(dynamic)
         for (jobid = 0; jobid < njobs; jobid++) {
@@ -195,8 +193,11 @@ void GTOnr3c_ij_r0_vjp(int (*intor)(), void (*fill)(), double *vjp, double *ybar
         }
         free(buf);
 
-        NPomp_dsum_reduce_inplace(vjpbufs, natm_ij*comp);
         if (thread_id != 0) {
+            for (i = 0; i < natm_ij*comp; i++) {
+                #pragma omp atomic
+                vjp[i] += vjp_loc[i];
+            }
             free(vjp_loc);
         }
 }

@@ -94,12 +94,12 @@ def getints4c_bwd(intor, comp, hermi, aosym, out, shls_slice, grids,
         leaves.append(vjp_coords)
 
     if mol.exp is not None:
-        pass
+        raise NotImplementedError
         #vjp_exp = getints4c_exp_bwd(intor, shls_slice, comp, aosym, out,
         #                            mol, ybar)
 
     if mol.ctr_coeff is not None:
-        pass
+        raise NotImplementedError
         #vjp_coeff = getints4c_coeff_bwd(intor, shls_slice, comp, aosym, out,
         #                                mol, ybar)
 

@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include "config.h"
-#include "np_helper/np_helper.h"
+
+#define HERMITIAN    1
+#define ANTIHERMI    2
+#define SYMMETRIC    3
 
 static void dsymm_triu(int n, double *tril, double *mat, int hermi)
 {

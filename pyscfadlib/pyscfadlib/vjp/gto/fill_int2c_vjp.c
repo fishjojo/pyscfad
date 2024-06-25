@@ -4,7 +4,6 @@
 #include <math.h>
 #include "config.h"
 #include "cint.h"
-#include "np_helper/np_helper.h"
 #include "gto/gto.h"
 
 #define IPOW(x, n) ((int) rint(pow(x, n)))
@@ -12,7 +11,6 @@
 #define NORM_S 0.282094791773878143
 #define NORM_P 0.488602511902919921
 
-#define MAXTHREADS 256
 #define LEN_LABELS 120
 #define CACHESIZE 144000
 
@@ -400,8 +398,6 @@ void GTOint2c_r0_vjp(int (*intor)(), double* vjp, double* ybar,
     size_t cache_of = cache_size;
     cache_size += CACHESIZE;
 
-    double *vjpbufs[MAXTHREADS];
-
 #pragma omp parallel
 {
     int thread_id = omp_get_thread_num();
@@ -411,9 +407,8 @@ void GTOint2c_r0_vjp(int (*intor)(), double* vjp, double* ybar,
     } else {
         vjp_loc = calloc(natm*ndim, sizeof(double));
     }
-    vjpbufs[thread_id] = vjp_loc;
 
-    int ij, ish, jsh;
+    int i, ij, ish, jsh;
     double *cache = malloc(sizeof(double) * cache_size);
     #pragma omp for schedule(dynamic, 4)
     for (ij = 0; ij < nish*njsh; ij++) {
@@ -432,10 +427,13 @@ void GTOint2c_r0_vjp(int (*intor)(), double* vjp, double* ybar,
                 atm, natm, bas, nbas, env, cache, cache_of);
         }
     }
-
     free(cache);
-    NPomp_dsum_reduce_inplace(vjpbufs, natm*ndim);
+
     if (thread_id != 0) {
+        for (i = 0; i < natm*ndim; i++) {
+            #pragma omp atomic
+            vjp[i] += vjp_loc[i];
+        }
         free(vjp_loc);
     }
 }
@@ -459,8 +457,6 @@ void GTOint2c_rc_vjp(int (*intor)(), double* vjp, double* ybar,
     size_t cache_of = cache_size;
     cache_size += CACHESIZE;
 
-    double *vjpbufs[MAXTHREADS];
-
 #pragma omp parallel
 {
     int thread_id = omp_get_thread_num();
@@ -470,9 +466,8 @@ void GTOint2c_rc_vjp(int (*intor)(), double* vjp, double* ybar,
     } else {
         vjp_loc = calloc(ndim, sizeof(double));
     }
-    vjpbufs[thread_id] = vjp_loc;
 
-    int ij, ish, jsh;
+    int i, ij, ish, jsh;
     double *cache = malloc(sizeof(double) * cache_size);
     #pragma omp for schedule(dynamic, 4)
     for (ij = 0; ij < nish*njsh; ij++) {
@@ -493,8 +488,12 @@ void GTOint2c_rc_vjp(int (*intor)(), double* vjp, double* ybar,
     }
 
     free(cache);
-    NPomp_dsum_reduce_inplace(vjpbufs, ndim);
+
     if (thread_id != 0) {
+        for (i = 0; i < ndim; i++) {
+            #pragma omp atomic
+            vjp[i] += vjp_loc[i];
+        }
         free(vjp_loc);
     }
 }
@@ -523,8 +522,6 @@ void GTOint2c_exp_vjp(int (*intor)(), //intor is always *_cart
     size_t cache_of = cache_size;
     cache_size += CACHESIZE * 4;
 
-    double *vjpbufs[MAXTHREADS];
-
 #pragma omp parallel
 {
     int thread_id = omp_get_thread_num();
@@ -534,9 +531,8 @@ void GTOint2c_exp_vjp(int (*intor)(), //intor is always *_cart
     } else {
         vjp_loc = calloc(nes, sizeof(double));
     }
-    vjpbufs[thread_id] = vjp_loc;
 
-    int ij, ish, jsh;
+    int i, ij, ish, jsh;
     double *cache = malloc(sizeof(double) * cache_size);
     #pragma omp for schedule(dynamic, 4)
     for (ij = 0; ij < nish*njsh; ij++) {
@@ -557,8 +553,12 @@ void GTOint2c_exp_vjp(int (*intor)(), //intor is always *_cart
     }
 
     free(cache);
-    NPomp_dsum_reduce_inplace(vjpbufs, nes);
+
     if (thread_id != 0) {
+        for (i = 0; i < nes; i++) {
+            #pragma omp atomic
+            vjp[i] += vjp_loc[i];
+        }
         free(vjp_loc);
     }
 }
@@ -587,8 +587,6 @@ void GTOint2c_coeff_vjp(int (*intor)(),
     size_t cache_of = cache_size;
     cache_size += CACHESIZE;
 
-    double *vjpbufs[MAXTHREADS];
-
 #pragma omp parallel
 {
     int thread_id = omp_get_thread_num();
@@ -598,9 +596,8 @@ void GTOint2c_coeff_vjp(int (*intor)(),
     } else {
         vjp_loc = calloc(ncs, sizeof(double));
     }
-    vjpbufs[thread_id] = vjp_loc;
 
-    int ij, ish, jsh;
+    int i, ij, ish, jsh;
     double *cache = malloc(sizeof(double) * cache_size);
     #pragma omp for schedule(dynamic, 4)
     for (ij = 0; ij < nish*njsh; ij++) {
@@ -621,8 +618,12 @@ void GTOint2c_coeff_vjp(int (*intor)(),
     }
 
     free(cache);
-    NPomp_dsum_reduce_inplace(vjpbufs, ncs);
+
     if (thread_id != 0) {
+        for (i = 0; i < ncs; i++) {
+            #pragma omp atomic
+            vjp[i] += vjp_loc[i];
+        }
         free(vjp_loc);
     }
 }

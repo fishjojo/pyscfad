@@ -12,15 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_library(cgto SHARED 
+#FIXME here renaming pyscf libraries to avoid runtime conflict
+add_library(cgto_ad SHARED
   fill_int2c.c fill_nr_3c.c fill_r_3c.c fill_int2e.c fill_r_4c.c
   ft_ao.c ft_ao_deriv.c fill_grids_int2c.c
   grid_ao_drv.c deriv1.c deriv2.c nr_ecp.c nr_ecp_deriv.c
   autocode/auto_eval1.c)
-add_dependencies(cgto np_helper)
+add_dependencies(cgto_ad np_helper_ad)
 
-set_target_properties(cgto PROPERTIES
+set_target_properties(cgto_ad PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 
-target_link_libraries(cgto cintad np_helper ${BLAS_LIBRARIES} ${OPENMP_C_PROPERTIES})
+target_link_libraries(cgto_ad cintad np_helper_ad ${BLAS_LIBRARIES} ${OPENMP_C_PROPERTIES})
 

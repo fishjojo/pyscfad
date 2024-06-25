@@ -1,10 +1,10 @@
 from pyscf.ao2mo import addons as pyscf_addons
 from pyscfad import lib
-from pyscfad.ops import vmap
+from pyscfad.ops import is_array, vmap
 
 class load(pyscf_addons.load):
     def __enter__(self):
-        if lib.isarray(self.eri):
+        if is_array(self.eri):
             return self.eri
         else:
             raise NotImplementedError

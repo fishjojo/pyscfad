@@ -79,14 +79,13 @@ elseif (APPLE)
   set(CMAKE_INSTALL_RPATH "@loader_path;@loader_path/thirdparty/lib;@loader_path/thirdparty/lib64")
   set(CMAKE_BUILD_RPATH "@loader_path;@loader_path/thirdparty/lib;@loader_path/thirdparty/lib64")
 else ()
-  set(CMAKE_SKIP_BUILD_RPATH  True)
-  set(CMAKE_BUILD_WITH_INSTALL_RPATH True)
+  set(CMAKE_SKIP_BUILD_RPATH  TRUE)
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
   set(CMAKE_INSTALL_RPATH "\$ORIGIN:\$ORIGIN/thirdparty/lib:\$ORIGIN/thirdparty/lib64")
 endif()
 
 add_subdirectory(np_helper)
 add_subdirectory(gto)
-add_subdirectory(vhf)
 add_subdirectory(vjp)
 
 set(C_LINK_TEMPLATE "<CMAKE_C_COMPILER> <CMAKE_SHARED_LIBRARY_C_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> <CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>")
@@ -120,5 +119,5 @@ if(BUILD_LIBCINT)
         -DCMAKE_C_CREATE_SHARED_LIBRARY:STRING=${C_LINK_TEMPLATE}
         -DBUILD_MARCH_NATIVE:STRING=${BUILD_MARCH_NATIVE}
   )
-  add_dependencies(cgto libcint)
+  add_dependencies(cgto_ad libcint)
 endif()

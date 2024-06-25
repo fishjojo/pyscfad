@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_library(np_helper SHARED 
+add_library(np_helper_ad SHARED
   transpose.c pack_tril.c npdot.c condense.c omp_reduce.c np_helper.c)
 
-set_target_properties(np_helper PROPERTIES
+set_target_properties(np_helper_ad PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 
-target_link_libraries(np_helper ${BLAS_LIBRARIES} ${OPENMP_C_PROPERTIES})
+target_link_libraries(np_helper_ad ${BLAS_LIBRARIES} ${OPENMP_C_PROPERTIES})

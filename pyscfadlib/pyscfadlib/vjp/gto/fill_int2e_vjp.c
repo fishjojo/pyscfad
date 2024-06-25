@@ -1,4 +1,4 @@
-/* Copyright 2021 The PySCF Developers. All Rights Reserved.
+/* Copyright 2021-2024 The PySCF Developers. All Rights Reserved.
 
    Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
 #include <stdlib.h>
 #include "config.h"
 #include "cint.h"
-#include "np_helper/np_helper.h"
 
-#define MAXTHREADS 256
+#define MIN(X, Y)       ((X) < (Y) ? (X) : (Y))
+#define MAX(X, Y)       ((X) > (Y) ? (X) : (Y))
 
 int GTOmax_shell_dim(const int *ao_loc, const int *shls_slice, int ncenter)
 {
@@ -224,8 +224,6 @@ void GTOnr2e_fill_r0_vjp(int (*intor)(), void (*fill)(), int (*fprescreen)(),
     const int cache_size = GTOmax_cache_size(intor, shls_slice, 4,
                                              atm, natm, bas, nbas, env);
 
-    double *vjpbufs[MAXTHREADS];
-
 #pragma omp parallel
 {
     int thread_id = omp_get_thread_num();
@@ -235,7 +233,6 @@ void GTOnr2e_fill_r0_vjp(int (*intor)(), void (*fill)(), int (*fprescreen)(),
     } else {
         vjp_loc = calloc(natm*comp, sizeof(double));
     }
-    vjpbufs[thread_id] = vjp_loc;
 
     int ij, i, j;
     double *buf = malloc(sizeof(double) * (di*di*di*di*comp + cache_size));
@@ -248,14 +245,18 @@ void GTOnr2e_fill_r0_vjp(int (*intor)(), void (*fill)(), int (*fprescreen)(),
     }
     free(buf);
 
-    //minus sign for nuclear derivative
-    for (i = 0; i < natm*comp; i++) {
-        vjp_loc[i] *= -1.;
-    }
-
-    NPomp_dsum_reduce_inplace(vjpbufs, natm*comp);
     if (thread_id != 0) {
+        for (i = 0; i < natm*comp; i++) {
+            #pragma omp atomic
+            vjp[i] += vjp_loc[i];
+        }
         free(vjp_loc);
     }
 }
+
+    //minus sign for nuclear derivative
+    int i;
+    for (i = 0; i < natm*comp; i++) {
+        vjp[i] *= -1.;
+    }
 }

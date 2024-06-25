@@ -11,7 +11,7 @@ def get_h2o():
     mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
     mol.basis = 'ccpvdz'
     mol.verbose=0
-    mol.build()
+    mol.build(trace_exp=False, trace_ctr_coeff=False)
     return mol
 
 def ints_cross_single(intor, mol):
