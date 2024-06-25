@@ -7,7 +7,7 @@ add_library(cgto_vjp SHARED
 set_target_properties(cgto_vjp PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
-target_link_libraries(cgto_vjp cgto np_helper ${OPENMP_C_PROPERTIES})
+target_link_libraries(cgto_vjp cgto_ad ${OPENMP_C_PROPERTIES})
 
 #np_helper
 add_library(np_helper_vjp SHARED
@@ -16,7 +16,7 @@ add_library(np_helper_vjp SHARED
 set_target_properties(np_helper_vjp PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
-target_link_libraries(np_helper_vjp np_helper ${OPENMP_C_PROPERTIES})
+target_link_libraries(np_helper_vjp ${OPENMP_C_PROPERTIES})
 
 #ao2mo
 add_library(ao2mo_vjp SHARED
@@ -25,7 +25,7 @@ add_library(ao2mo_vjp SHARED
 set_target_properties(ao2mo_vjp PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
-target_link_libraries(ao2mo_vjp np_helper ${OPENMP_C_PROPERTIES})
+target_link_libraries(ao2mo_vjp np_helper_ad ${OPENMP_C_PROPERTIES})
 
 #vhf
 add_library(cvhf_vjp SHARED
@@ -35,7 +35,7 @@ add_library(cvhf_vjp SHARED
 set_target_properties(cvhf_vjp PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
-target_link_libraries(cvhf_vjp np_helper ${OPENMP_C_PROPERTIES})
+target_link_libraries(cvhf_vjp np_helper_ad ${OPENMP_C_PROPERTIES})
 
 #cc
 add_library(cc_vjp SHARED
@@ -47,4 +47,4 @@ add_library(cc_vjp SHARED
 set_target_properties(cc_vjp PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
-target_link_libraries(cc_vjp np_helper ${OPENMP_C_PROPERTIES})
+target_link_libraries(cc_vjp np_helper_ad ${OPENMP_C_PROPERTIES})

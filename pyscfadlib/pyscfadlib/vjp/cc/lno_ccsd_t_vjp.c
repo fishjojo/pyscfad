@@ -4,7 +4,7 @@
 #include "vhf/fblas.h"
 #include "ccsd_t.h"
 
-#define MAX_THREADS 256
+#define MAX_THREADS 128
 
 static void get_wz(double *w0_mat, double *w0, double* z0,
                    int nocc, int nvir, int a, int b, int c,

@@ -3,7 +3,7 @@
 #include "np_helper/np_helper.h"
 #include "vhf/fblas.h"
 
-#define MAX_THREADS     256
+#define MAX_THREADS     128
 #define OUTPUTIJ        1
 #define INPUT_IJ        2
 
