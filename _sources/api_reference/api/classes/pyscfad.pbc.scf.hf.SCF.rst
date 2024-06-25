@@ -33,6 +33,8 @@ pyscfad.pbc.scf.hf.SCF
          
          
          
+         
+         
            ~SCF.dump_chk
          
          
@@ -41,6 +43,7 @@ pyscfad.pbc.scf.hf.SCF
          
          
            ~SCF.energy_nuc
+         
          
          
          
@@ -67,6 +70,10 @@ pyscfad.pbc.scf.hf.SCF
          
          
            ~SCF.get_veff
+         
+         
+         
+         
          
          
          

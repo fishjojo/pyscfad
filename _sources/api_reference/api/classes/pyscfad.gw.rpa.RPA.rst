@@ -22,7 +22,6 @@ pyscfad.gw.rpa.RPA
       
          
          
-         
            ~RPA.ao2mo
          
          
@@ -32,7 +31,10 @@ pyscfad.gw.rpa.RPA
          
          
          
+         
            ~RPA.kernel
+         
+         
          
          
          

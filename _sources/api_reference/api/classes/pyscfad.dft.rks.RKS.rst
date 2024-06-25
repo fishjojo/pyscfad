@@ -55,7 +55,10 @@ pyscfad.dft.rks.RKS
          
          
          
+         
+         
            ~RKS.energy_elec
+         
          
          
          
@@ -90,7 +93,10 @@ pyscfad.dft.rks.RKS
          
          
          
+         
+         
            ~RKS.nuc_grad_method
+         
          
          
          

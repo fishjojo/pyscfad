@@ -31,7 +31,6 @@ pyscfad.cc.rccsd.RCCSD
          
          
          
-         
            ~RCCSD.amplitude_equation
          
          
@@ -68,7 +67,9 @@ pyscfad.cc.rccsd.RCCSD
          
          
          
+         
            ~RCCSD.kernel
+         
          
          
          

@@ -104,16 +104,6 @@ pyscfad.pbc.scf.hf.RHF
          
          
          
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
 
    
    

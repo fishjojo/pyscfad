@@ -29,14 +29,16 @@ pyscfad.scf.hf.SCF
          
          
          
-         
            ~SCF.check_sanity
+         
+         
          
          
            ~SCF.density_fit
          
          
            ~SCF.dip_moment
+         
          
          
            ~SCF.dump_chk
@@ -54,6 +56,7 @@ pyscfad.scf.hf.SCF
          
          
            ~SCF.energy_nuc
+         
          
          
          
@@ -83,10 +86,13 @@ pyscfad.scf.hf.SCF
          
          
          
+         
+         
            ~SCF.kernel
          
          
            ~SCF.make_rdm1
+         
          
          
          

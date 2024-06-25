@@ -24,8 +24,8 @@ pyscfad.pbc.df.fft.FFTDF
          
          
          
-         
            ~FFTDF.aoR_loop
+         
          
          
          
@@ -48,6 +48,7 @@ pyscfad.pbc.df.fft.FFTDF
          
          
            ~FFTDF.get_pp
+         
          
          
          

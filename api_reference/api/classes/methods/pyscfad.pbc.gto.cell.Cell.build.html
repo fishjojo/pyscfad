@@ -54,7 +54,7 @@
     <link rel="prev" title="pyscfad.pbc.gto.cell.Cell" href="../pyscfad.pbc.gto.cell.Cell.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Jun 22, 2024"/>
+    <meta name="docbuild:last-update" content="Jun 25, 2024"/>
   </head>
   
   
@@ -704,7 +704,22 @@ document.write(`
 </details></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../tdscf.html">TDSCF methods</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../tdscf.html">TDSCF methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../pyscfad.tdscf.html">pyscfad.tdscf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.tdscf.rhf.html">pyscfad.tdscf.rhf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.tdscf.rhf.CIS.html">pyscfad.tdscf.rhf.CIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.tdscf.rhf.TDA.html">pyscfad.tdscf.rhf.TDA</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.tdscf.rhf.TDBase.html">pyscfad.tdscf.rhf.TDBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.cis_ovlp.html">pyscfad.tdscf.rhf.cis_ovlp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.gen_tda_hop.html">pyscfad.tdscf.rhf.gen_tda_hop</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.gen_tda_operation.html">pyscfad.tdscf.rhf.gen_tda_operation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.get_ab.html">pyscfad.tdscf.rhf.get_ab</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../tools.html">Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../pyscfad.tools.html">pyscfad.tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.tools.linear_solver.html">pyscfad.tools.linear_solver</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -801,49 +816,39 @@ document.write(`
 <dl class="py method">
 <dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell.build">
 <span class="sig-prename descclassname"><span class="pre">Cell.</span></span><span class="sig-name descname"><span class="pre">build</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/pbc/gto/cell.py#L205-L223"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell.build" title="Link to this definition">#</a></dt>
-<dd><p>Setup Mole molecule and Cell and initialize some control parameters.
-Whenever you change the value of the attributes of <a class="reference internal" href="../pyscfad.pbc.gto.cell.Cell.html#pyscfad.pbc.gto.cell.Cell" title="pyscfad.pbc.gto.cell.Cell"><code class="xref py py-class docutils literal notranslate"><span class="pre">Cell</span></code></a>,
-you need call this function to refresh the internal data of Cell.</p>
+<dd><p>Setup moleclue and initialize some control parameters.  Whenever you
+change the value of the attributes of <code class="xref py py-class docutils literal notranslate"><span class="pre">Mole</span></code>, you need call
+this function to refresh the internal data of Mole.</p>
 <dl class="simple">
 <dt>Kwargs:</dt><dd><dl class="simple">
-<dt>a<span class="classifier">(3,3) ndarray</span></dt><dd><p>The real-space cell lattice vectors. Each row represents
-a lattice vector.</p>
+<dt>dump_input<span class="classifier">bool</span></dt><dd><p>whether to dump the contents of input file in the output file</p>
 </dd>
-<dt>mesh<span class="classifier">(3,) ndarray of ints</span></dt><dd><p>The number of <em>positive</em> G-vectors along each direction.</p>
+<dt>parse_arg<span class="classifier">bool</span></dt><dd><p>whether to read the sys.argv and overwrite the relevant parameters</p>
 </dd>
-<dt>ke_cutoff<span class="classifier">float</span></dt><dd><p>If set, defines a spherical cutoff of planewaves, with .5 * G**2 &lt; ke_cutoff
-The default value is estimated based on <code class="xref py py-attr docutils literal notranslate"><span class="pre">precision</span></code></p>
+<dt>verbose<span class="classifier">int</span></dt><dd><p>Print level.  If given, overwrite <code class="xref py py-attr docutils literal notranslate"><span class="pre">Mole.verbose</span></code></p>
 </dd>
-<dt>precision<span class="classifier">float</span></dt><dd><p>To control Ewald sums and lattice sums accuracy</p>
+<dt>output<span class="classifier">str or None</span></dt><dd><p>Output file.  If given, overwrite <code class="xref py py-attr docutils literal notranslate"><span class="pre">Mole.output</span></code></p>
 </dd>
-<dt>nimgs<span class="classifier">(3,) ndarray of ints</span></dt><dd><p>Number of repeated images in lattice summation to produce
-periodicity. This value can be estimated based on the required
-precision.  It’s recommended NOT making changes to this value.</p>
+<dt>max_memory<span class="classifier">int, float</span></dt><dd><p>Allowd memory in MB.  If given, overwrite <code class="xref py py-attr docutils literal notranslate"><span class="pre">Mole.max_memory</span></code></p>
 </dd>
-<dt>rcut<span class="classifier">float</span></dt><dd><p>Cutoff radius (unit Bohr) in lattice summation to produce
-periodicity. The value can be estimated based on the required
-precision.  It’s recommended NOT making changes to this value.</p>
+<dt>atom<span class="classifier">list or str</span></dt><dd><p>To define molecluar structure.</p>
 </dd>
-<dt>pseudo<span class="classifier">dict or str</span></dt><dd><p>To define pseudopotential.</p>
+<dt>basis<span class="classifier">dict or str</span></dt><dd><p>To define basis set.</p>
 </dd>
-<dt>ecp<span class="classifier">dict or str</span></dt><dd><p>To define ECP type pseudopotential.</p>
+<dt>nucmod<span class="classifier">dict or str</span></dt><dd><p>Nuclear model.  If given, overwrite <code class="xref py py-attr docutils literal notranslate"><span class="pre">Mole.nucmod</span></code></p>
 </dd>
-<dt>h<span class="classifier">(3,3) ndarray</span></dt><dd><p>a.T. Deprecated</p>
+<dt>charge<span class="classifier">int</span></dt><dd><p>Charge of molecule. It affects the electron numbers
+If given, overwrite <code class="xref py py-attr docutils literal notranslate"><span class="pre">Mole.charge</span></code></p>
 </dd>
-<dt>dimension<span class="classifier">int</span></dt><dd><p>Default is 3</p>
+<dt>spin<span class="classifier">int</span></dt><dd><p>2S, num. alpha electrons - num. beta electrons to control
+multiplicity. If setting spin = None , multiplicity will be
+guessed based on the neutral molecule.
+If given, overwrite <code class="xref py py-attr docutils literal notranslate"><span class="pre">Mole.spin</span></code></p>
 </dd>
-<dt>low_dim_ft_type<span class="classifier">str</span></dt><dd><p>For semi-empirical periodic systems, whether to calculate
-integrals at the non-PBC dimension using the sampled mesh grids in
-infinity vacuum (inf_vacuum) or truncated Coulomb potential
-(analytic_2d_1). Unless explicitly specified, analytic_2d_1 is
-used for 2D system and inf_vacuum is assumed for 1D and 0D.</p>
+<dt>symmetry<span class="classifier">bool or str</span></dt><dd><p>Whether to use symmetry.  If given a string of point group
+name, the given point group symmetry will be used.</p>
 </dd>
-<dt>space_group_symmetry<span class="classifier">bool</span></dt><dd><p>Whether to consider space group symmetry. Default is False.</p>
-</dd>
-<dt>symmorphic<span class="classifier">bool</span></dt><dd><p>Whether the lattice is symmorphic. If set to True, even if the
-lattice is non-symmorphic, only symmorphic space group symmetry
-will be considered. Default is False, meaning the space group is
-determined by the lattice symmetry to be symmorphic or non-symmorphic.</p>
+<dt>magmom<span class="classifier">list</span></dt><dd><p>Collinear spin of each atom. Default is [0.0,]*natm</p>
 </dd>
 </dl>
 </dd>

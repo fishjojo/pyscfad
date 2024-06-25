@@ -23,8 +23,8 @@ pyscfad.pbc.dft.numint.NumInt
          
          
          
-         
            ~NumInt.block_loop
+         
          
          
          
@@ -51,6 +51,7 @@ pyscfad.pbc.dft.numint.NumInt
          
          
            ~NumInt.nr_rks
+         
          
          
          

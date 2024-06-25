@@ -23,8 +23,8 @@ pyscfad.mp.mp2.MP2
          
          
          
-         
            ~MP2.ao2mo
+         
          
          
          
@@ -47,6 +47,7 @@ pyscfad.mp.mp2.MP2
          
          
            ~MP2.make_rdm1
+         
          
          
          

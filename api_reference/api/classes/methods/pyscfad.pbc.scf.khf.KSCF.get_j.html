@@ -54,7 +54,7 @@
     <link rel="prev" title="pyscfad.pbc.scf.khf.KSCF.get_hcore" href="pyscfad.pbc.scf.khf.KSCF.get_hcore.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Jun 22, 2024"/>
+    <meta name="docbuild:last-update" content="Jun 25, 2024"/>
   </head>
   
   
@@ -704,7 +704,22 @@ document.write(`
 </details></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../tdscf.html">TDSCF methods</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../../tdscf.html">TDSCF methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../pyscfad.tdscf.html">pyscfad.tdscf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.tdscf.rhf.html">pyscfad.tdscf.rhf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.tdscf.rhf.CIS.html">pyscfad.tdscf.rhf.CIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.tdscf.rhf.TDA.html">pyscfad.tdscf.rhf.TDA</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.tdscf.rhf.TDBase.html">pyscfad.tdscf.rhf.TDBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.cis_ovlp.html">pyscfad.tdscf.rhf.cis_ovlp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.gen_tda_hop.html">pyscfad.tdscf.rhf.gen_tda_hop</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.gen_tda_operation.html">pyscfad.tdscf.rhf.gen_tda_operation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.tdscf.rhf.get_ab.html">pyscfad.tdscf.rhf.get_ab</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../tools.html">Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../pyscfad.tools.html">pyscfad.tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.tools.linear_solver.html">pyscfad.tools.linear_solver</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -800,7 +815,7 @@ document.write(`
 <h1>pyscfad.pbc.scf.khf.KSCF.get_j<a class="headerlink" href="#pyscfad-pbc-scf-khf-kscf-get-j" title="Link to this heading">#</a></h1>
 <dl class="py method">
 <dt class="sig sig-object py" id="pyscfad.pbc.scf.khf.KSCF.get_j">
-<span class="sig-prename descclassname"><span class="pre">KSCF.</span></span><span class="sig-name descname"><span class="pre">get_j</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm_kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts_band</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">omega</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/../../../../../../opt/hostedtoolcache/Python/3.11.9/x64/lib/python3.11/site-packages/pyscf/pbc/scf/khf.py#L597-L600"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.scf.khf.KSCF.get_j" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">KSCF.</span></span><span class="sig-name descname"><span class="pre">get_j</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm_kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts_band</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">omega</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/../../../../../../opt/hostedtoolcache/Python/3.11.9/x64/lib/python3.11/site-packages/pyscf/pbc/scf/khf.py#L509-L512"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.scf.khf.KSCF.get_j" title="Link to this definition">#</a></dt>
 <dd><p>Compute J matrix for the given density matrix and k-point (kpt).
 When kpts_band is given, the J matrices on kpts_band are evaluated.</p>
 <blockquote>

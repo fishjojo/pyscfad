@@ -53,8 +53,8 @@ pyscfad.pbc.gto.cell.Cell
          
          
          
-         
            ~Cell.build
+         
          
          
          
@@ -144,6 +144,8 @@ pyscfad.pbc.gto.cell.Cell
          
          
            ~Cell.pbc_intor
+         
+         
          
          
          

@@ -25,7 +25,10 @@ pyscfad.dft.rks.KohnShamDFT
          
          
          
+         
+         
            ~KohnShamDFT.reset
+         
          
          
          

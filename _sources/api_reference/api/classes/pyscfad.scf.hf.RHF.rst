@@ -45,7 +45,6 @@ pyscfad.scf.hf.RHF
          
          
          
-         
            ~RHF.check_sanity
          
          
@@ -72,7 +71,13 @@ pyscfad.scf.hf.RHF
          
          
          
+         
+         
+         
            ~RHF.get_veff
+         
+         
+         
          
          
          

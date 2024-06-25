@@ -23,8 +23,8 @@ pyscfad.mp.dfmp2.MP2
          
          
          
-         
            ~MP2.ao2mo
+         
          
          
          
@@ -44,6 +44,7 @@ pyscfad.mp.dfmp2.MP2
          
          
            ~MP2.loop_ao2mo
+         
          
          
          

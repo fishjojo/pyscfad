@@ -24,8 +24,8 @@ pyscfad.df.df.DF
          
          
          
-         
            ~DF.build
+         
          
          
          
@@ -48,6 +48,7 @@ pyscfad.df.df.DF
          
          
            ~DF.reset
+         
          
          
          

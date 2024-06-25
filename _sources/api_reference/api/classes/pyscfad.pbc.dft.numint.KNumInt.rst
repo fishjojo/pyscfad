@@ -23,8 +23,8 @@ pyscfad.pbc.dft.numint.KNumInt
          
          
          
-         
            ~KNumInt.block_loop
+         
          
          
          
@@ -53,6 +53,7 @@ pyscfad.pbc.dft.numint.KNumInt
          
          
            ~KNumInt.nr_rks
+         
          
          
          

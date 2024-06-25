@@ -38,7 +38,4 @@ pyscfad.gto
    pyscfad.gto.moleintor
    
    
-   pyscfad.gto.moleintor_opt
-   
-   
 

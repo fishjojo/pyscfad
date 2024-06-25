@@ -34,7 +34,6 @@ pyscfad.gto.mole.Mole
          
          
          
-         
            ~Mole.atom_coords
          
          
@@ -90,7 +89,9 @@ pyscfad.gto.mole.Mole
          
          
          
+         
            ~Mole.intor
+         
          
          
          

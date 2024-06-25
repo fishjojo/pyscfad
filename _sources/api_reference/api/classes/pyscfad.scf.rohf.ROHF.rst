@@ -45,6 +45,7 @@ pyscfad.scf.rohf.ROHF
          
          
          
+         
            ~ROHF.dump_chk
          
          
@@ -54,6 +55,7 @@ pyscfad.scf.rohf.ROHF
          
          
            ~ROHF.energy_elec
+         
          
          
          
@@ -87,7 +89,10 @@ pyscfad.scf.rohf.ROHF
          
          
          
+         
+         
            ~ROHF.make_rdm1
+         
          
          
          

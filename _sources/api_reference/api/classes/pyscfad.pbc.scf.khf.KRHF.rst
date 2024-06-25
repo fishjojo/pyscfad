@@ -51,21 +51,11 @@ pyscfad.pbc.scf.khf.KRHF
          
          
          
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
            ~KRHF.get_init_guess
+         
+         
+         
+         
          
          
          

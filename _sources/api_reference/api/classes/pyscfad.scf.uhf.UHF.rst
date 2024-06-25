@@ -51,10 +51,12 @@ pyscfad.scf.uhf.UHF
          
          
          
+         
            ~UHF.eig
          
          
            ~UHF.energy_elec
+         
          
          
          
@@ -75,6 +77,8 @@ pyscfad.scf.uhf.UHF
          
          
            ~UHF.get_veff
+         
+         
          
          
          
@@ -106,6 +110,7 @@ pyscfad.scf.uhf.UHF
          
          
            ~UHF.spin_square
+         
          
          
          
