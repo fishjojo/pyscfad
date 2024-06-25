@@ -71,14 +71,14 @@ def intor_cross_jvp(intor, comp, grids,
         tangent_out += np.einsum('nxyij,nx->yij', grad2, mol2_t.coords).reshape(primal_out.shape)
 
     if mol1.ctr_coeff is not None:
-        pass
+        raise NotImplementedError
     if mol1.exp is not None:
-        pass
+        raise NotImplementedError
 
     if mol2.ctr_coeff is not None:
-        pass
+        raise NotImplementedError
     if mol2.exp is not None:
-        pass
+        raise NotImplementedError
 
     return primal_out, tangent_out
 
