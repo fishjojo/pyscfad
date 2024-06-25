@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include "config.h"
 #include "vhf/fblas.h"
-#include "ccsd_t.h"
+#include "vjp/cc/ccsd_t.h"
 
 static double lnoccsdt_get_energy(double *mat, double *w, double *v,
                                   double *mo_energy, int nocc,

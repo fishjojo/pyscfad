@@ -35,36 +35,6 @@
 void NPdsymm_triu(int n, double *mat, int hermi);
 void NPzhermi_triu(int n, double complex *mat, int hermi);
 void NPdunpack_tril(int n, double *tril, double *mat, int hermi);
-void NPdunpack_row(int ndim, int row_id, double *tril, double *row);
-void NPzunpack_tril(int n, double complex *tril, double complex *mat,
-                    int hermi);
-void NPdpack_tril(int n, double *tril, double *mat);
-void NPzpack_tril(int n, double complex *tril, double complex *mat);
-
-void NPdtranspose(int n, int m, double *a, double *at);
-void NPztranspose(int n, int m, double complex *a, double complex *at);
-void NPdtranspose_021(int *shape, double *a, double *at);
-void NPztranspose_021(int *shape, double complex *a, double complex *at);
-
-void NPdunpack_tril_2d(int count, int n, double *tril, double *mat, int hermi);
-void NPzunpack_tril_2d(int count, int n,
-                       double complex *tril, double complex *mat, int hermi);
-void NPdpack_tril_2d(int count, int n, double *tril, double *mat);
-
-void NPomp_split(size_t *start, size_t *end, size_t n);
-void NPomp_dsum_reduce_inplace(double **vec, size_t count);
-void NPomp_dprod_reduce_inplace(double **vec, size_t count);
-void NPomp_zsum_reduce_inplace(double complex **vec, size_t count);
-void NPomp_zprod_reduce_inplace(double complex **vec, size_t count);
 
 void NPdset0(double *p, const size_t n);
-void NPzset0(double complex *p, const size_t n);
 void NPdcopy(double *out, const double *in, const size_t n);
-void NPzcopy(double complex *out, const double complex *in, const size_t n);
-
-void NPdgemm(const char trans_a, const char trans_b,
-             const int m, const int n, const int k,
-             const int lda, const int ldb, const int ldc,
-             const int offseta, const int offsetb, const int offsetc,
-             double *a, double *b, double *c,
-             const double alpha, const double beta);
