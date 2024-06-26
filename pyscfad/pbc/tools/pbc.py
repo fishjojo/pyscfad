@@ -4,16 +4,13 @@ import copy
 import numpy as np
 from pyscf import lib
 from pyscf.pbc import tools as pyscf_pbctools
-from pyscf.pbc.tools import get_monkhorst_pack_size, cutoff_to_mesh
 from pyscfad import numpy as jnp
 from pyscfad import ops
-from pyscfad.ops import stop_grad
+from pyscfad.ops import stop_grad, stop_trace
 from pyscfad.lib import logger
 
+@wraps(pyscf_pbctools.fft)
 def fft(f, mesh):
-    '''
-    3D FFT with jax.numpy backend
-    '''
     if f.size == 0:
         return np.zeros_like(f)
 
@@ -26,10 +23,8 @@ def fft(f, mesh):
     else:
         return g3d.reshape(-1, ngrids)
 
+@wraps(pyscf_pbctools.ifft)
 def ifft(g, mesh):
-    '''
-    3D inverse FFT with jax.numpy backend
-    '''
     if g.size == 0:
         return np.zeros_like(g)
 
@@ -42,19 +37,12 @@ def ifft(g, mesh):
     else:
         return f3d.reshape(-1, ngrids)
 
+@wraps(pyscf_pbctools.fftk)
 def fftk(f, mesh, expmikr):
-    r'''Perform the 3D FFT of a real-space function which is (periodic*e^{ikr}).
-
-    fk(k+G) = \sum_r fk(r) e^{-i(k+G)r} = \sum_r [f(k)e^{-ikr}] e^{-iGr}
-    '''
     return fft(f*expmikr, mesh)
 
-
+@wraps(pyscf_pbctools.ifftk)
 def ifftk(g, mesh, expikr):
-    r'''Perform the 3D inverse FFT of f(k+G) into a function which is (periodic*e^{ikr}).
-
-    fk(r) = (1/Ng) \sum_G fk(k+G) e^{i(k+G)r} = (1/Ng) \sum_G [fk(k+G)e^{iGr}] e^{ikr}
-    '''
     return ifft(g, mesh) * expikr
 
 # modified from pyscf v2.6
@@ -141,8 +129,8 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
     if wrap_around and abs(k).sum() > 1e-9:
         b = cell.reciprocal_vectors()
         box_edge = jnp.einsum('i,ij->ij', np.asarray(mesh)//2+0.5, b)
-        assert (all(np.linalg.solve(stop_grad(box_edge.T), k).round(9).astype(int)==0))
-        reduced_coords = np.linalg.solve(stop_grad(box_edge.T), stop_grad(kG.T)).T.round(9)
+        assert (all(stop_trace(np.linalg.solve)(box_edge.T, k).round(9).astype(int)==0))
+        reduced_coords = stop_trace(np.linalg.solve)(box_edge.T, kG.T).T.round(9)
         on_edge = reduced_coords.astype(int)
         if cell.dimension >= 1:
             equal2boundary |= reduced_coords[:,0] == 1
@@ -161,6 +149,8 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
             kG = ops.index_add(kG, ops.index[on_edge[:,2]==-1],  2 * box_edge[2])
 
     absG2 = jnp.einsum('gi,gi->g', kG, kG)
+    G0_idx = jnp.where(absG2==0)[0]
+    absG2 = jnp.where(absG2!=0, absG2, 0)
 
     if getattr(mf, 'kpts', None) is not None:
         kpts = mf.kpts
@@ -172,7 +162,8 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
         Rc = (3*Nk*cell.vol/(4*np.pi))**(1./3)
         with np.errstate(divide='ignore',invalid='ignore'):
             coulG = 4*np.pi/absG2*(1.0 - jnp.cos(jnp.sqrt(absG2)*Rc))
-        coulG = ops.index_update(coulG, ops.index[absG2==0], 4*np.pi*0.5*Rc**2)
+        if len(G0_idx) > 0:
+            coulG = ops.index_update(coulG, ops.index[G0_idx], 4*np.pi*0.5*Rc**2)
 
         if cell.dimension < 3:
             raise NotImplementedError
@@ -182,10 +173,10 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
         # Ewald probe charge method to get the leading term of the finite size
         # error in exchange integrals
 
-        G0_idx = jnp.where(absG2==0)[0]
         if cell.dimension != 2 or cell.low_dim_ft_type == 'inf_vacuum':
             with np.errstate(divide='ignore'):
                 coulG = 4*np.pi/absG2
+            if len(G0_idx) > 0:
                 coulG = ops.index_update(coulG, ops.index[G0_idx], 0)
 
         elif cell.dimension == 2:
@@ -227,8 +218,11 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
 
     return coulG
 
+get_monkhorst_pack_size = stop_trace(pyscf_pbctools.get_monkhorst_pack_size)
+cutoff_to_mesh = stop_trace(pyscf_pbctools.cutoff_to_mesh)
+
 def madelung(cell, kpts):
-    Nk = get_monkhorst_pack_size(stop_grad(cell), stop_grad(kpts))
+    Nk = get_monkhorst_pack_size(cell, kpts)
     ecell = copy.copy(cell)
     ecell._atm = np.array([[1, cell._env.size, 0, 0, 0, 0]])
     ecell._env = np.append(cell._env, [0., 0., 0.])

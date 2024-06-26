@@ -18,7 +18,7 @@ def get_gth_vlocG(cell, Gv):
     vlocG = pp_int.get_gth_vlocG_part1(cell, Gv)
 
     # Add the C1, C2, C3, C4 contributions
-    G2 = np.einsum('ix,ix->i', Gv, Gv)
+    G2 = np.einsum("ix,ix->i", Gv, Gv)
     for ia in range(cell.natm):
         symb = cell.atom_symbol(ia)
         if symb not in cell._pseudo:

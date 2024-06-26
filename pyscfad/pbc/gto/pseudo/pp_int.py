@@ -25,7 +25,6 @@ def get_gth_vlocG_part1(cell, Gv):
     elif cell.dimension == 2:
         raise NotImplementedError
     else:
-        raise NotImplementedError('Low dimension ft_type %s'
-                                  ' not implemented for dimension %d' %
-                                  (cell.low_dim_ft_type, cell.dimension))
+        raise NotImplementedError(f'Low dimension ft_type {cell.low_dim_ft_type}'
+                                  f' not implemented for dimension {cell.dimension}')
     return vlocG

@@ -2,7 +2,6 @@ import numpy
 from jax import numpy as np
 from pyscf import __config__
 from pyscf import lib
-from pyscf.pbc.gto import Cell
 from pyscf.pbc.df import fft as pyscf_fft
 #from pyscfad import util
 from pyscfad.pbc import tools
@@ -31,7 +30,7 @@ def get_pp(mydf, kpts=None):
     for ao_ks_etc, p0, p1 in mydf.aoR_loop(mydf.grids, kpts_lst):
         ao_ks = ao_ks_etc[0]
         for k, ao in enumerate(ao_ks):
-            vpp[k] += np.dot(ao.T.conj()*vpplocR[p0:p1], ao)
+            vpp[k] += (ao.T.conj()*vpplocR[p0:p1]) @ ao
         ao = ao_ks = None
 
     # vppnonloc evaluated in reciprocal space
@@ -124,7 +123,7 @@ def get_pp(mydf, kpts=None):
 #@util.pytree_node(['cell','kpts'])
 class FFTDF(pyscf_fft.FFTDF):
     def __init__(self, cell, kpts=numpy.zeros((1,3))):#, **kwargs):
-        from pyscf.pbc.dft import gen_grid
+        from pyscfad.pbc.dft import gen_grid
         from pyscfad.pbc.dft import numint
         self.cell = cell
         self.stdout = cell.stdout
@@ -173,9 +172,6 @@ class FFTDF(pyscf_fft.FFTDF):
             cell = self.cell
         else:
             cell = grids.cell
-
-        # NOTE stop tracing cell through grids
-        grids.cell = cell.view(Cell)
         if grids.non0tab is None:
             grids.build(with_non0tab=True)
 

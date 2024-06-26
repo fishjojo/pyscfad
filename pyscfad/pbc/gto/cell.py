@@ -77,13 +77,14 @@ def get_uniform_grids(cell, mesh=None, wrap_around=True):
     if mesh is None:
         mesh = cell.mesh
 
+    a = cell.lattice_vectors()
     if wrap_around:
         qv = cartesian_prod([numpy.fft.fftfreq(x) for x in mesh])
-        coords = qv @ cell.lattice_vectors()
+        coords = qv @ a
     else:
         mesh = numpy.asarray(mesh, float)
         qv = cartesian_prod([numpy.arange(x) for x in mesh])
-        a_frac = np.einsum('i,ij->ij', 1./mesh, cell.lattice_vectors())
+        a_frac = (1./mesh)[:,None] * a
         coords = qv @ a_frac
     return coords
 gen_uniform_grids = get_uniform_grids
@@ -141,7 +142,31 @@ def pbc_intor(cell, intor, comp=None, hermi=0, kpts=None, kpt=None,
                           kpt=kpt, shls_slice=shls_slice, **kwargs)
     return res
 
+@wraps(pyscf_cell.get_ewald_params)
+def get_ewald_params(cell, precision=None, mesh=None):
+    if cell.natm == 0:
+        return 0, 0
+
+    if precision is None:
+        precision = cell.precision
+
+    if (cell.dimension < 2 or
+          (cell.dimension == 2 and cell.low_dim_ft_type == 'inf_vacuum')):
+        ew_cut = cell.rcut
+        ew_eta = numpy.sqrt(max(numpy.log(4*numpy.pi*ew_cut**2/precision)/ew_cut**2, .1))
+    elif cell.dimension == 2:
+        a = cell.lattice_vectors()
+        ew_cut = a[2,2] / 2
+        # ewovrl ~ erfc(eta*rcut) / rcut ~ e^{(-eta**2 rcut*2)} < precision
+        log_precision = numpy.log(precision / (cell.atom_charges().sum()*16*numpy.pi**2))
+        ew_eta = (-log_precision)**.5 / ew_cut
+    else:  # dimension == 3
+        ew_eta = 1./cell.vol**(1./6)
+        ew_cut = pyscf_cell._estimate_rcut(stop_grad(ew_eta)**2, 0, 1., precision)
+    return ew_eta, ew_cut
+
 # modified from pyscf v2.3
+@wraps(pyscf_cell.ewald)
 def ewald(cell, ew_eta=None, ew_cut=None):
     if cell.a is None:
         return mole.energy_nuc(cell)
@@ -317,6 +342,15 @@ class Cell(mole.Mole, pyscf_cell.Cell):
     def get_abs_kpts(self, scaled_kpts):
         return np.dot(scaled_kpts, self.reciprocal_vectors())
 
+    @wraps(pyscf_cell.Cell.cutoff_to_mesh)
+    def cutoff_to_mesh(self, ke_cutoff):
+        a = self.lattice_vectors()
+        dim = self.dimension
+        mesh = pbctools.cutoff_to_mesh(a, ke_cutoff)
+        if dim < 2 or (dim == 2 and self.low_dim_ft_type == 'inf_vacuum'):
+            mesh[dim:] = self.mesh[dim:]
+        return mesh
+
     def pbc_eval_gto(self, eval_name, coords, comp=None, kpts=None, kpt=None,
                      shls_slice=None, non0tab=None, ao_loc=None, out=None):
         return pbc_eval_gto(self, eval_name, coords, comp, kpts, kpt,
@@ -331,12 +365,14 @@ class Cell(mole.Mole, pyscf_cell.Cell):
         else:
             return mole.eval_gto(self, eval_name, coords, comp,
                                  shls_slice, non0tab, ao_loc, out)
+
     eval_ao = eval_gto
     pbc_intor = pbc_intor
     get_Gv = get_Gv
     get_Gv_weights = get_Gv_weights
     get_SI = get_SI
     gen_uniform_grids = get_uniform_grids = get_uniform_grids
+    get_ewald_params = get_ewald_params
     ewald = ewald
     energy_nuc = ewald
     get_lattice_Ls = pbctools.get_lattice_Ls

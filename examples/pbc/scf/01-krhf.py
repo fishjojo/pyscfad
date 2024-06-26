@@ -5,7 +5,7 @@
 1 Si     0.0109162228     0.0028233781     0.0028233781
 ----------------------------------------------
 '''
-
+import jax
 from pyscfad.pbc import gto
 from pyscfad.pbc import scf, df
 
@@ -25,10 +25,13 @@ cell.atom = atom
 cell.a = lattice
 cell.basis = basis
 cell.pseudo = pseudo
+cell.verbose = 4
 cell.build()
 kpts = cell.make_kpts([2,1,1])
 
-mf = scf.KRHF(cell, kpts=kpts, exxdiv=None)
-mf.kernel()
-jac = mf.energy_grad()
-print(jac.coords)
+def hf_energy(cell, kpts):
+    mf = scf.KRHF(cell, kpts=kpts, exxdiv=None)
+    e_tot = mf.kernel()
+    return e_tot
+e_tot, jac = jax.value_and_grad(hf_energy)(cell, kpts)
+print(f'Nuclaer gradient:\n{jac.coords}')
