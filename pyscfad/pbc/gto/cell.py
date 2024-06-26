@@ -1,7 +1,9 @@
+from functools import wraps
 import warnings
 import numpy
 from jax.scipy.special import erf, erfc
 from pyscf import __config__
+from pyscf.lib import cartesian_prod
 from pyscf.gto.mole import PTR_COORD
 from pyscf.gto.moleintor import _get_intor_and_comp
 from pyscf.pbc.gto import cell as pyscf_cell
@@ -17,14 +19,74 @@ from pyscfad.pbc.gto import _pbcintor
 from pyscfad.pbc.gto.eval_gto import eval_gto as pbc_eval_gto
 from pyscfad.pbc import tools as pbctools
 
-def get_SI(cell, Gv=None):
+@wraps(pyscf_cell.get_Gv)
+def get_Gv(cell, mesh=None, **kwargs):
+    return get_Gv_weights(cell, mesh, **kwargs)[0]
+
+@wraps(pyscf_cell.get_Gv_weights)
+def get_Gv_weights(cell, mesh=None, **kwargs):
+    if mesh is None:
+        mesh = cell.mesh
+    if 'gs' in kwargs:
+        warnings.warn('cell.gs is deprecated.  It is replaced by cell.mesh,'
+                      'the number of PWs (=2*gs+1) along each direction.')
+        mesh = [2*n+1 for n in kwargs['gs']]
+
+    # Default, the 3D uniform grids
+    rx = numpy.fft.fftfreq(mesh[0], 1./mesh[0])
+    ry = numpy.fft.fftfreq(mesh[1], 1./mesh[1])
+    rz = numpy.fft.fftfreq(mesh[2], 1./mesh[2])
+    b = cell.reciprocal_vectors()
+    weights = abs(np.linalg.det(b))
+
+    if (cell.dimension < 2 or
+        (cell.dimension == 2 and cell.low_dim_ft_type == 'inf_vacuum')):
+        raise NotImplementedError
+
+    Gvbase = (rx, ry, rz)
+    Gv = cartesian_prod(Gvbase) @ b
+    Gv = Gv.reshape(-1, 3)
+
+    # 1/cell.vol == det(b)/(2pi)^3
+    weights *= 1/(2*numpy.pi)**3
+    return Gv, Gvbase, weights
+
+@wraps(pyscf_cell.get_SI)
+def get_SI(cell, Gv=None, mesh=None, atmlst=None):
     coords = cell.atom_coords()
-    ngrids = numpy.prod(cell.mesh)
-    if Gv is None or Gv.shape[0] == ngrids:
-        Gv = cell.get_Gv()
-    GvT = Gv.T
-    SI = np.exp(-1j*np.dot(coords, GvT))
+    if atmlst is not None:
+        coords = coords[numpy.asarray(atmlst)]
+    if Gv is None:
+        if mesh is None:
+            mesh = cell.mesh
+        basex, basey, basez = cell.get_Gv_weights(mesh)[1]
+        b = cell.reciprocal_vectors()
+        rb = coords @ b.T
+        SIx = np.exp(-1j*np.einsum('z,g->zg', rb[:,0], basex))
+        SIy = np.exp(-1j*np.einsum('z,g->zg', rb[:,1], basey))
+        SIz = np.exp(-1j*np.einsum('z,g->zg', rb[:,2], basez))
+        SI = SIx[:,:,None,None] * SIy[:,None,:,None] * SIz[:,None,None,:]
+        natm = coords.shape[0]
+        SI = SI.reshape(natm, -1)
+    else:
+        SI = np.exp(-1j * (coords @ Gv.T))
     return SI
+
+@wraps(pyscf_cell.get_uniform_grids)
+def get_uniform_grids(cell, mesh=None, wrap_around=True):
+    if mesh is None:
+        mesh = cell.mesh
+
+    if wrap_around:
+        qv = cartesian_prod([numpy.fft.fftfreq(x) for x in mesh])
+        coords = qv @ cell.lattice_vectors()
+    else:
+        mesh = numpy.asarray(mesh, float)
+        qv = cartesian_prod([numpy.arange(x) for x in mesh])
+        a_frac = np.einsum('i,ij->ij', 1./mesh, cell.lattice_vectors())
+        coords = qv @ a_frac
+    return coords
+gen_uniform_grids = get_uniform_grids
 
 def shift_bas_center(cell0, r):
     cell = cell0.copy()
@@ -222,11 +284,38 @@ class Cell(mole.Mole, pyscf_cell.Cell):
         if trace_lattice_vectors:
             self.abc = np.asarray(self.lattice_vectors())
 
+    @property
+    def vol(self):
+        return abs(np.linalg.det(self.lattice_vectors()))
+
     def lattice_vectors(self):
         if self.abc is None:
             return pyscf_cell.Cell.lattice_vectors(self)
         else:
             return self.abc
+
+    @wraps(pyscf_cell.Cell.get_scaled_atom_coords)
+    def get_scaled_atom_coords(self, a=None):
+        if a is None:
+            a = self.lattice_vectors()
+        return np.dot(self.atom_coords(), np.linalg.inv(a))
+
+    @wraps(pyscf_cell.Cell.reciprocal_vectors)
+    def reciprocal_vectors(self, norm_to=2*numpy.pi):
+        a = self.lattice_vectors()
+        if self.dimension == 1:
+            assert(abs(a[0] @ a[1]) < 1e-9 and
+                   abs(a[0] @ a[2]) < 1e-9 and
+                   abs(a[1] @ a[2]) < 1e-9)
+        elif self.dimension == 2:
+            assert(abs(a[0] @ a[2]) < 1e-9 and
+                   abs(a[1] @ a[2]) < 1e-9)
+        b = np.linalg.inv(a.T)
+        return norm_to * b
+
+    @wraps(pyscf_cell.Cell.get_abs_kpts)
+    def get_abs_kpts(self, scaled_kpts):
+        return np.dot(scaled_kpts, self.reciprocal_vectors())
 
     def pbc_eval_gto(self, eval_name, coords, comp=None, kpts=None, kpt=None,
                      shls_slice=None, non0tab=None, ao_loc=None, out=None):
@@ -244,7 +333,10 @@ class Cell(mole.Mole, pyscf_cell.Cell):
                                  shls_slice, non0tab, ao_loc, out)
     eval_ao = eval_gto
     pbc_intor = pbc_intor
+    get_Gv = get_Gv
+    get_Gv_weights = get_Gv_weights
     get_SI = get_SI
+    gen_uniform_grids = get_uniform_grids = get_uniform_grids
     ewald = ewald
     energy_nuc = ewald
     get_lattice_Ls = pbctools.get_lattice_Ls

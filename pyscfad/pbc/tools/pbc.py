@@ -1,7 +1,9 @@
+from functools import wraps
 import warnings
 import copy
 import numpy as np
 from pyscf import lib
+from pyscf.pbc import tools as pyscf_pbctools
 from pyscf.pbc.tools import get_monkhorst_pack_size, cutoff_to_mesh
 from pyscfad import numpy as jnp
 from pyscfad import ops
@@ -55,7 +57,8 @@ def ifftk(g, mesh, expikr):
     '''
     return ifft(g, mesh) * expikr
 
-# modified from pyscf v2.3
+# modified from pyscf v2.6
+@wraps(pyscf_pbctools.get_lattice_Ls)
 def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
     if dimension is None:
         if cell.dimension < 2 or cell.low_dim_ft_type == 'inf_vacuum':
@@ -68,9 +71,10 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
     if dimension == 0 or rcut <= 0:
         return np.zeros((1, 3))
 
-    a = cell.lattice_vectors()
+    a1 = cell.lattice_vectors()
+    a = ops.to_numpy(a1)
 
-    scaled_atom_coords = np.linalg.solve(stop_grad(a.T), stop_grad(cell.atom_coords().T)).T
+    scaled_atom_coords = ops.to_numpy(cell.get_scaled_atom_coords())
     atom_boundary_max = scaled_atom_coords[:,:dimension].max(axis=0)
     atom_boundary_min = scaled_atom_coords[:,:dimension].min(axis=0)
     if (np.any(atom_boundary_max > 1) or np.any(atom_boundary_min < -1)):
@@ -86,29 +90,31 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
         ub = (rcut + abs(r[2,3:]).sum()) / abs(r[2,2])
         return ub
 
-    xb = find_boundary(stop_grad(a[[1,2,0]]))
+    xb = find_boundary(a[[1,2,0]])
     if dimension > 1:
-        yb = find_boundary(stop_grad(a[[2,0,1]]))
+        yb = find_boundary(a[[2,0,1]])
     else:
         yb = 0
     if dimension > 2:
-        zb = find_boundary(stop_grad(a))
+        zb = find_boundary(a)
     else:
         zb = 0
     bounds = np.ceil([xb, yb, zb]).astype(int)
     Ts = lib.cartesian_prod((np.arange(-bounds[0], bounds[0]+1),
                              np.arange(-bounds[1], bounds[1]+1),
                              np.arange(-bounds[2], bounds[2]+1)))
-    Ls = jnp.dot(Ts[:,:dimension], a[:dimension])
+    Ls = jnp.dot(Ts[:,:dimension], a1[:dimension])
 
-    ovlp_penalty += 1e-200  # avoid /0
-    Ts_scaled = (Ts[:,:dimension] + 1e-200) / ovlp_penalty
-    ovlp_penalty_fac = 1. / abs(Ts_scaled).min(axis=1)
-    Ls_mask = np.linalg.norm(stop_grad(Ls), axis=1) * (1-ovlp_penalty_fac) < rcut
-    Ls = Ls[Ls_mask]
+    if discard:
+        ovlp_penalty += 1e-200  # avoid /0
+        Ts_scaled = (Ts[:,:dimension] + 1e-200) / ovlp_penalty
+        ovlp_penalty_fac = 1. / abs(Ts_scaled).min(axis=1)
+        Ls_mask = np.linalg.norm(stop_grad(Ls), axis=1) * (1-ovlp_penalty_fac) < rcut
+        Ls = Ls[Ls_mask]
     return jnp.asarray(Ls)
 
 
+@wraps(pyscf_pbctools.get_coulG)
 def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
               wrap_around=True, omega=None, **kwargs):
     exxdiv = exx
@@ -123,7 +129,6 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
         warnings.warn('cell.gs is deprecated.  It is replaced by cell.mesh,'
                       'the number of PWs (=2*gs+1) along each direction.')
         mesh = [2*n+1 for n in kwargs['gs']]
-
     if Gv is None:
         Gv = cell.get_Gv(mesh)
 
@@ -177,7 +182,7 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
         # Ewald probe charge method to get the leading term of the finite size
         # error in exchange integrals
 
-        G0_idx = np.where(stop_grad(absG2)==0)[0]
+        G0_idx = jnp.where(absG2==0)[0]
         if cell.dimension != 2 or cell.low_dim_ft_type == 'inf_vacuum':
             with np.errstate(divide='ignore'):
                 coulG = 4*np.pi/absG2
@@ -195,6 +200,7 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
                 coulG = weights*4*np.pi/absG2
             if len(G0_idx) > 0:
                 coulG = ops.index_update(coulG, ops.index[G0_idx], -2*np.pi*Ld2**2)
+
         elif cell.dimension == 1:
             logger.warn(cell, 'No method for PBC dimension 1, dim-type %s.'
                         '  cell.low_dim_ft_type="inf_vacuum"  should be set.',
@@ -204,7 +210,9 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
         if cell.dimension > 0 and exxdiv == 'ewald' and len(G0_idx) > 0:
             coulG = ops.index_add(coulG, ops.index[G0_idx], Nk*cell.vol*madelung(cell, kpts))
 
-    coulG = ops.index_update(coulG, ops.index[equal2boundary], 0)
+    if equal2boundary is not None:
+        coulG = ops.index_update(coulG, ops.index[equal2boundary], 0)
+
     if omega is not None:
         if omega > 0:
             # long range part

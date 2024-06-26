@@ -120,6 +120,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
                 fh5['scf/kpt'] = stop_grad(self.kpt)
         return self
 
+    check_sanity = stop_trace(pyscf_pbc_hf.SCF.check_sanity)
     get_veff = pyscf_pbc_hf.SCF.get_veff
     energy_nuc = pyscf_pbc_hf.SCF.energy_nuc
     energy_grad = NotImplemented

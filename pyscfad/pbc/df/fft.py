@@ -10,7 +10,7 @@ from pyscfad.pbc.lib.kpts_helper import gamma_point
 
 def get_pp(mydf, kpts=None):
     from pyscf import gto
-    from pyscf.pbc.gto import pseudo
+    from pyscfad.pbc.gto import pseudo
     from pyscfad.gto.mole import Mole
     cell = mydf.cell
     if kpts is None:
