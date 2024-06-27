@@ -1,3 +1,17 @@
+'''
+stress tensor
+----------------------------
+[[-7.57812381e-01  1.65085403e-09  1.65085540e-09]
+ [ 1.65085006e-09 -7.57812381e-01  1.65084496e-09]
+ [ 1.65084745e-09  1.65084512e-09 -7.57812381e-01]]
+[[-3.59347869e-03  7.82820248e-12  7.82820901e-12]
+ [ 7.82818367e-12 -3.59347869e-03  7.82815947e-12]
+ [ 7.82817132e-12  7.82816026e-12 -3.59347869e-03]]
+[[-6.59876007e-01  1.43750484e-09  1.43750604e-09]
+ [ 1.43750138e-09 -6.59876007e-01  1.43749694e-09]
+ [ 1.43749911e-09  1.43749708e-09 -6.59876007e-01]]
+----------------------------
+'''
 import numpy
 import jax
 from jax import numpy as np
@@ -5,8 +19,8 @@ from pyscf.data.nist import BOHR, HARTREE2EV
 from pyscfad.pbc import gto as pbcgto
 from pyscfad.pbc import scf as pbcscf
 
-aas = numpy.arange(5,6.0,0.1,dtype=float)
-for aa in aas:
+#aas = numpy.arange(5,6.0,0.1,dtype=float)
+for aa in [5.]:
     basis = 'gth-szv'
     pseudo = 'gth-pade'
     lattice = numpy.asarray([[0., aa/2, aa/2],
