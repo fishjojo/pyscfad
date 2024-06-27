@@ -18,7 +18,7 @@ setup(
     python_requires='>=3.8',
     install_requires=[
         'numpy>=1.17',
-        'scipy<1.12',
+        'scipy',
         'h5py',
         'jax>=0.3.25',
         'jaxlib>=0.3.25',
