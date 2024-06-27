@@ -5,7 +5,7 @@ from pyscf import __config__
 from pyscf.pbc.scf import khf as pyscf_khf
 from pyscfad import util
 from pyscfad import numpy as np
-from pyscfad.ops import stop_grad
+from pyscfad.ops import stop_grad, stop_trace
 from pyscfad.lib import logger
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
@@ -203,3 +203,5 @@ class KRHF(KSCF, pyscf_khf.KRHF):
                          'of electrons %s', ne/nkpts, nelectron/nkpts)
             dm_kpts *= (nelectron / ne).reshape(-1,1,1)
         return dm_kpts
+
+    check_sanity = stop_trace(pyscf_khf.KRHF.check_sanity)

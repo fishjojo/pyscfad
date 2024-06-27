@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include "vhf/fblas.h"
-#include "ccsd_t.h"
+#include "vjp/cc/ccsd_t.h"
 
 /* copied from pyscf */
 size_t _ccsd_t_gen_jobs(CacheJob *jobs, int nocc, int nvir,

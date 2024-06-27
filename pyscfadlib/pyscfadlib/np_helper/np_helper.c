@@ -24,14 +24,6 @@ void NPdset0(double *p, const size_t n)
         }
 }
 
-void NPzset0(double complex *p, const size_t n)
-{
-        size_t i;
-        for (i = 0; i < n; i++) {
-                p[i] = 0;
-        }
-}
-
 void NPdcopy(double *out, const double *in, const size_t n)
 {
         size_t i;
@@ -40,10 +32,3 @@ void NPdcopy(double *out, const double *in, const size_t n)
         }
 }
 
-void NPzcopy(double complex *out, const double complex *in, const size_t n)
-{
-        size_t i;
-        for (i = 0; i < n; i++) {
-                out[i] = in[i];
-        }
-}

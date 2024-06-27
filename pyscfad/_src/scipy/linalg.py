@@ -35,7 +35,7 @@ def eigh(a, b=None, lower=True, eigvals_only=False, overwrite_a=False,
 @partial(custom_jvp, nondiff_argnums=(2,))
 def _eigh(a, b, deg_thresh=DEG_THRESH):
     w, v = scipy.linalg.eigh(a, b=b)
-    w = np.asarray(w, dtype=v.dtype)
+    w = np.asarray(w, dtype=float)
     return w, v
 
 @_eigh.defjvp
@@ -63,7 +63,7 @@ def _eigh_jvp_jitted(w, v, Fmat, at, bt, bmask):
     vt_bt_v = np.dot(v.conj().T, np.dot(bt, v))
     vt_bt_v_w = np.dot(vt_bt_v, np.diag(w))
     da_minus_ds = vt_at_v - vt_bt_v_w
-    dw = np.diag(da_minus_ds)#.real
+    dw = np.diag(da_minus_ds).real
 
     dv = np.dot(v, np.multiply(Fmat, da_minus_ds) - np.multiply(bmask, vt_bt_v) * .5)
     return dw, dv
@@ -71,7 +71,7 @@ def _eigh_jvp_jitted(w, v, Fmat, at, bt, bmask):
 @jit
 def _eigh_jvp_jitted_nob(v, Fmat, at):
     vt_at_v = np.dot(v.conj().T, np.dot(at, v))
-    dw = np.diag(vt_at_v)
+    dw = np.diag(vt_at_v).real
     dv = np.dot(v, np.multiply(Fmat, vt_at_v))
     return dw, dv
 

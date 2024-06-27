@@ -2,21 +2,9 @@
 #include "config.h"
 #include "np_helper/np_helper.h"
 #include "vhf/fblas.h"
+#include "vjp/util/util.h"
 
 #define MAX_THREADS     128
-
-static void pack_tril(int n, double *tril, double *mat)
-{
-    size_t i, j, ij;
-    for (ij = 0, i = 0; i < n; i++) {
-        for (j = 0; j < i; j++, ij++) {
-            tril[ij] += mat[i*n+j];
-            tril[ij] += mat[j*n+i];
-        }
-        tril[ij] += mat[i*n+i];
-        ij++;
-    }
-}
 
 // vk_bar in F order
 // eri_bar = einsum('pki,ij->pkj', buf1, vk_bar)
@@ -64,8 +52,8 @@ void df_vk_vjp(double *eri_tril_bar, double *dm_bar,
                double *eri_tril, double *dm,
                int naux, int nao)
 {
-    const size_t nao2 = nao * nao;
-    const size_t nao_pair = nao * (nao+1) /2;
+    const size_t nao2 = (size_t)nao * nao;
+    const size_t nao_pair = (size_t)nao * (nao+1) /2;
     double *dm_bar_bufs[MAX_THREADS];
     #pragma omp parallel
     {
@@ -78,7 +66,7 @@ void df_vk_vjp(double *eri_tril_bar, double *dm_bar,
             dm_bar_priv = calloc(nao2, sizeof(double));
         }
         dm_bar_bufs[thread_id] = dm_bar_priv;
-        double *cache = malloc((nao2*2+2) * sizeof(double));
+        double *cache = malloc(nao2*2 * sizeof(double));
         #pragma omp for schedule(dynamic)
         for (i = 0; i < naux; i++) {
             _contract_vk(eri_tril_bar+i*nao_pair, dm_bar_priv,
@@ -87,7 +75,7 @@ void df_vk_vjp(double *eri_tril_bar, double *dm_bar,
         }
         free(cache);
 
-        NPomp_dsum_reduce_inplace(dm_bar_bufs, nao2);
+        omp_dsum_reduce_inplace(dm_bar_bufs, nao2);
         if (thread_id != 0) {
             free(dm_bar_priv);
         }

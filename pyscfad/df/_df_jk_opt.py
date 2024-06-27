@@ -58,20 +58,20 @@ def get_jk_bwd(hermi, with_j, with_k, direct_scf_tol,
     rargs = (ctypes.c_int(nao), (ctypes.c_int*4)(0, nao, 0, nao),
              null, ctypes.c_int(0))
     max_memory = dfobj.max_memory - lib.current_memory()[0]
-    blksize = max(4, int(min(dfobj.blockdim, max_memory*.4e6/8/nao**2)))
+    blksize = max(4, int(min(dfobj.blockdim, max_memory*.3e6/8/nao**2)))
     buf = numpy.empty((blksize,nao,nao))
     p1 = 0
     for eri1 in dfobj.loop(blksize):
         naux, nao_pair = eri1.shape
         p0, p1 = p1, p1 + naux
         if with_j:
-            rho_bar = numpy.einsum('ix,px->ip', vj_bar_tril, eri1)
-            dmtril_bar = numpy.einsum('ip,px->ix', rho_bar, eri1)
+            rho_bar = vj_bar_tril @ eri1.T
+            dmtril_bar = rho_bar @ eri1
             dms_bar += lib.unpack_tril(dmtril_bar)
 
-            rho = numpy.einsum('ix,px->ip', dmtril, eri1)
-            eri_bar[p0:p1] += numpy.einsum('ip,ix->px', rho, vj_bar_tril)
-            eri_bar[p0:p1] += numpy.einsum('ix,ip->px', dmtril, rho_bar)
+            rho = dmtril @ eri1.T
+            eri_bar[p0:p1] += rho.T @ vj_bar_tril
+            eri_bar[p0:p1] += rho_bar.T @ dmtril
 
         for k in range(nset):
             #TODO save buf1 on disk to avoid recomputation

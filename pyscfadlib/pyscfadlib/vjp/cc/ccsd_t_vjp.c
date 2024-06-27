@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include "config.h"
-#include "np_helper/np_helper.h"
 #include "vhf/fblas.h"
-#include "ccsd_t.h"
+#include "vjp/cc/ccsd_t.h"
+#include "vjp/util/util.h"
 
 #define MAX_THREADS 128
 
@@ -457,12 +457,12 @@ void ccsd_t_energy_vjp(double *mo_energy, double *t1T, double *t2T,
         free(jobs_vjp);
         free(cache1);
 
-        NPomp_dsum_reduce_inplace(mo_energy_bar_bufs, nmo);
-        NPomp_dsum_reduce_inplace(t1T_bar_bufs, nvir*nocc);
-        NPomp_dsum_reduce_inplace(t2T_bar_bufs, nvir*nvir*nocc*nocc);
-        NPomp_dsum_reduce_inplace(vooo_bar_bufs, nvir*nocc*nocc*nocc);
-        NPomp_dsum_reduce_inplace(fvo_bar_bufs, nvir*nocc);
-        NPomp_dsum_reduce_inplace(cache_row_a_bar_bufs, da*a1*nocc*nmo);
+        omp_dsum_reduce_inplace(mo_energy_bar_bufs, nmo);
+        omp_dsum_reduce_inplace(t1T_bar_bufs, nvir*nocc);
+        omp_dsum_reduce_inplace(t2T_bar_bufs, nvir*nvir*nocc*nocc);
+        omp_dsum_reduce_inplace(vooo_bar_bufs, nvir*nocc*nocc*nocc);
+        omp_dsum_reduce_inplace(fvo_bar_bufs, nvir*nocc);
+        omp_dsum_reduce_inplace(cache_row_a_bar_bufs, da*a1*nocc*nmo);
         if (thread_id != 0) {
             free(mo_energy_bar_priv);
             free(t1T_bar_priv);
@@ -473,18 +473,18 @@ void ccsd_t_energy_vjp(double *mo_energy, double *t1T, double *t2T,
         }
 
         if (a0 > 0) {
-            NPomp_dsum_reduce_inplace(cache_col_a_bar_bufs, a0*da*nocc*nmo);
+            omp_dsum_reduce_inplace(cache_col_a_bar_bufs, a0*da*nocc*nmo);
             if (thread_id != 0) {
                 free(cache_col_a_bar_priv);
             }
         }
         if (b1 <= a0) {
-            NPomp_dsum_reduce_inplace(cache_row_b_bar_bufs, db*b1*nocc*nmo);
+            omp_dsum_reduce_inplace(cache_row_b_bar_bufs, db*b1*nocc*nmo);
             if (thread_id != 0) {
                 free(cache_row_b_bar_priv);
             }
             if (b0 > 0) {
-                NPomp_dsum_reduce_inplace(cache_col_b_bar_bufs, b0*db*nocc*nmo);
+                omp_dsum_reduce_inplace(cache_col_b_bar_bufs, b0*db*nocc*nmo);
                 if (thread_id != 0) {
                     free(cache_col_b_bar_priv);
                 }

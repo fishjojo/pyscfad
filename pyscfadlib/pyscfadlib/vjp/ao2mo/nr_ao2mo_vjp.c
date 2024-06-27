@@ -2,6 +2,7 @@
 #include "config.h"
 #include "np_helper/np_helper.h"
 #include "vhf/fblas.h"
+#include "vjp/util/util.h"
 
 #define MAX_THREADS     128
 #define OUTPUTIJ        1
@@ -16,20 +17,6 @@ struct _AO2MOvjpEnvs {
     int ket_count;
     double *mo_coeff;
 };
-
-
-static void pack_tril(int n, double *tril, double *mat)
-{
-    size_t i, j, ij;
-    for (ij = 0, i = 0; i < n; i++) {
-        for (j = 0; j < i; j++, ij++) {
-            tril[ij] += mat[i*n+j];
-            tril[ij] += mat[j*n+i];
-        }
-        tril[ij] += mat[i*n+i];
-        ij++;
-    }
-}
 
 
 int AO2MOmmm_nr_vjp_s2_iltj(double *eri_bar, double *mo_coeff_bar,
@@ -204,7 +191,7 @@ void AO2MOnr_e2_vjp_drv(void (*ftrans)(), int (*fmmm)(),
         }
         free(buf);
 
-        NPomp_dsum_reduce_inplace(mo_coeff_bar_bufs, nao*nmo);
+        omp_dsum_reduce_inplace(mo_coeff_bar_bufs, nao*nmo);
         if (thread_id != 0) {
             free(mo_coeff_bar_priv);
         }

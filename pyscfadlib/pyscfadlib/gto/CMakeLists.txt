@@ -18,7 +18,6 @@ add_library(cgto_ad SHARED
   ft_ao.c ft_ao_deriv.c fill_grids_int2c.c
   grid_ao_drv.c deriv1.c deriv2.c nr_ecp.c nr_ecp_deriv.c
   autocode/auto_eval1.c)
-add_dependencies(cgto_ad np_helper_ad)
 
 set_target_properties(cgto_ad PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})

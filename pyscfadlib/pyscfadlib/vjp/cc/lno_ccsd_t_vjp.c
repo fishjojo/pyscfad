@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include "config.h"
-#include "np_helper/np_helper.h"
 #include "vhf/fblas.h"
-#include "ccsd_t.h"
+#include "vjp/cc/ccsd_t.h"
+#include "vjp/util/util.h"
 
 #define MAX_THREADS 128
 
@@ -528,13 +528,13 @@ void lnoccsdt_energy_vjp(double *mat, double *mo_energy, double *t1T, double *t2
         free(jobs_vjp);
         free(cache1);
 
-        NPomp_dsum_reduce_inplace(mat_bar_bufs, nocc*nocc);
-        NPomp_dsum_reduce_inplace(mo_energy_bar_bufs, nmo);
-        NPomp_dsum_reduce_inplace(t1T_bar_bufs, nvir*nocc);
-        NPomp_dsum_reduce_inplace(t2T_bar_bufs, nvir*nvir*nocc*nocc);
-        NPomp_dsum_reduce_inplace(vooo_bar_bufs, nvir*nocc*nocc*nocc);
-        NPomp_dsum_reduce_inplace(fvo_bar_bufs, nvir*nocc);
-        NPomp_dsum_reduce_inplace(cache_row_a_bar_bufs, da*db*nocc*nmo);
+        omp_dsum_reduce_inplace(mat_bar_bufs, nocc*nocc);
+        omp_dsum_reduce_inplace(mo_energy_bar_bufs, nmo);
+        omp_dsum_reduce_inplace(t1T_bar_bufs, nvir*nocc);
+        omp_dsum_reduce_inplace(t2T_bar_bufs, nvir*nvir*nocc*nocc);
+        omp_dsum_reduce_inplace(vooo_bar_bufs, nvir*nocc*nocc*nocc);
+        omp_dsum_reduce_inplace(fvo_bar_bufs, nvir*nocc);
+        omp_dsum_reduce_inplace(cache_row_a_bar_bufs, da*db*nocc*nmo);
         if (thread_id != 0) {
             free(mat_bar_priv);
             free(mo_energy_bar_priv);
@@ -546,14 +546,14 @@ void lnoccsdt_energy_vjp(double *mat, double *mo_energy, double *t1T, double *t2
         }
 
         if (b0 != 0 || b1 != nvir) {
-            NPomp_dsum_reduce_inplace(cache_col_a_bar_bufs, da*db*nocc*nmo);
+            omp_dsum_reduce_inplace(cache_col_a_bar_bufs, da*db*nocc*nmo);
             if (thread_id != 0) {
                 free(cache_col_a_bar_priv);
             }
         }
         if (c1 <= b0) {
-            NPomp_dsum_reduce_inplace(cache_row_b_bar_bufs, da*dc*nocc*nmo);
-            NPomp_dsum_reduce_inplace(cache_col_b_bar_bufs, da*dc*nocc*nmo);
+            omp_dsum_reduce_inplace(cache_row_b_bar_bufs, da*dc*nocc*nmo);
+            omp_dsum_reduce_inplace(cache_col_b_bar_bufs, da*dc*nocc*nmo);
             if (thread_id != 0) {
                 free(cache_row_b_bar_priv);
                 free(cache_col_b_bar_priv);

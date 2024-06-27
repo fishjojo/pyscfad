@@ -18,6 +18,7 @@ cell.atom = atom
 cell.a = lattice
 cell.basis = basis
 cell.pseudo = pseudo
+cell.verbose = 4
 cell.build(trace_exp=False, trace_ctr_coeff=False)
 
 def ehf(cell):
