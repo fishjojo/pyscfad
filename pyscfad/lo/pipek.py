@@ -5,7 +5,7 @@ import jax
 from pyscf.lib import logger
 from pyscf.lo import pipek as pyscf_pipek
 from pyscfad import numpy as np
-from pyscfad.lib import vmap
+from pyscfad.ops import vmap
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.soscf.ciah import (
     extract_rotation,
