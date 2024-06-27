@@ -26,7 +26,7 @@ pip install git+https://github.com/fishjojo/pyscfad.git
 
 `pyscfad` depends on `pyscf>=2.3.0`.
 Other dependencies include
-`numpy>=1.17`, `scipy<1.12`, `h5py`,
+`numpy>=1.17`, `scipy`, `h5py`,
 `pyscfadlib`,
 `jax>=0.3.25` and `jaxlib>=0.3.25`.
 
