@@ -62,6 +62,8 @@ pyscfad.pbc.gto.cell.Cell
          
          
          
+           ~Cell.cutoff_to_mesh
+         
          
          
          
@@ -88,15 +90,25 @@ pyscfad.pbc.gto.cell.Cell
          
          
          
+           ~Cell.gen_uniform_grids
          
+         
+           ~Cell.get_Gv
+         
+         
+           ~Cell.get_Gv_weights
          
          
            ~Cell.get_SI
          
          
+           ~Cell.get_abs_kpts
          
          
          
+         
+         
+           ~Cell.get_ewald_params
          
          
          
@@ -105,7 +117,11 @@ pyscfad.pbc.gto.cell.Cell
          
          
          
+           ~Cell.get_scaled_atom_coords
          
+         
+         
+           ~Cell.get_uniform_grids
          
          
          
@@ -148,6 +164,8 @@ pyscfad.pbc.gto.cell.Cell
          
          
          
+         
+           ~Cell.reciprocal_vectors
          
          
          

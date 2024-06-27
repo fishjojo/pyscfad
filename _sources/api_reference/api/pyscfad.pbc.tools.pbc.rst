@@ -19,12 +19,6 @@ pyscfad.pbc.tools.pbc
       :toctree: functions/
 
    
-      fft
-      fftk
-      get_coulG
-      get_lattice_Ls
-      ifft
-      ifftk
       madelung
 
    

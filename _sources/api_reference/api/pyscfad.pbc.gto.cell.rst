@@ -28,9 +28,6 @@ pyscfad.pbc.gto.cell
       :toctree: functions/
 
    
-      energy_nuc
-      ewald
-      get_SI
       intor_cross
       pbc_intor
       shift_bas_center

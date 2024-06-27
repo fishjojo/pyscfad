@@ -29,6 +29,8 @@ pyscfad.pbc.scf.hf.SCF
          
          
          
+           ~SCF.check_sanity
+         
          
          
          

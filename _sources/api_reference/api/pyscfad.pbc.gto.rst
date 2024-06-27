@@ -35,4 +35,7 @@ pyscfad.pbc.gto
    pyscfad.pbc.gto.eval_gto
    
    
+   pyscfad.pbc.gto.pseudo
+   
+   
 

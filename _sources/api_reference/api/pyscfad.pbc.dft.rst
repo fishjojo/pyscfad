@@ -39,6 +39,9 @@ pyscfad.pbc.dft
    :recursive:
 
    
+   pyscfad.pbc.dft.gen_grid
+   
+   
    pyscfad.pbc.dft.krks
    
    
