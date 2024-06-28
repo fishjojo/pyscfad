@@ -1,5 +1,14 @@
 # Change log
 
+## pyscfad 0.1.6 (June 27, 2024)
+* Changes
+  * Update GMRES solver according to scipy updates.
+
+* Bug fixes
+  * Fix minor import error in `lo.pipek`.
+  * Fix PBC lattice response.
+  * Fix pyscfadlib runtime link issue.
+
 ## pyscfad 0.1.5 (June 22, 2024)
 * Changes
   * pyscfad is now compatable with pyscf 2.6.
