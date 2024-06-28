@@ -80,7 +80,7 @@ pyscfad requires the following dependencies.
 Package                                                supported versions
 =====================================================  ==================
 `numpy <https://numpy.org>`_                           >=1.17
-`scipy <https://scipy.org>`_                           < 1.12 `[1]`_
+`scipy <https://scipy.org>`_                           >=1.7
 `h5py <https://www.h5py.org/>`_                        >=2.7
 `jax <https://jax.readthedocs.io/en/latest/>`_         >=0.3.25
 `jaxlib <https://pypi.org/project/jaxlib/>`_           >=0.3.25
@@ -88,5 +88,3 @@ Package                                                supported versions
 `pyscfadlib <https://pypi.org/project/pyscfadlib/>`_   >=0.1.4
 =====================================================  ==================
 
-_`[1]` scipy v1.12 introduces a new implementation of the GMRES method,
-which causes errors when solving the fixed point problem in implicit differentiation.

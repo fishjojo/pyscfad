@@ -5,7 +5,7 @@ pip install wheel
 pip install pytest
 pip install pytest-cov
 pip install numpy
-pip install 'scipy<1.12'
+pip install scipy
 pip install h5py
 pip install jaxlib
 pip install jax

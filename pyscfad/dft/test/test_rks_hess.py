@@ -1,5 +1,5 @@
 import pytest
-from jax import jacrev
+import jax
 from pyscf.lib import fp
 from pyscfad import gto, dft
 
@@ -19,15 +19,15 @@ def energy(mol, xc):
 
 def test_rks_nuc_hess_lda(get_mol):
     mol = get_mol
-    hess = jacrev(jacrev(energy))(mol, 'lda,vwn').coords.coords
+    hess = jax.hessian(energy)(mol, 'lda,vwn').coords.coords
     assert abs(fp(hess) - -0.5301815984221748) < 1e-6
 
 def test_rks_nuc_hess_gga(get_mol):
     mol = get_mol
-    hess = jacrev(jacrev(energy))(mol, 'pbe, pbe').coords.coords
+    hess = jax.hessian(energy)(mol, 'pbe, pbe').coords.coords
     assert abs(fp(hess) - -0.5146764054396936) < 1e-6
 
 def test_rks_nuc_hess_gga_hybrid(get_mol):
     mol = get_mol
-    hess = jacrev(jacrev(energy))(mol, 'b3lyp5').coords.coords
+    hess = jax.hessian(energy)(mol, 'b3lyp5').coords.coords
     assert abs(fp(hess) - -0.5114248632559669) < 1e-6
