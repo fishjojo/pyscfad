@@ -8,7 +8,7 @@ from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
 
 Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
-Exclude_Aux_Names=("verbose")
+Exclude_Aux_Names = ('verbose',)
 
 
 @wraps(pyscf_mole.inter_distance)

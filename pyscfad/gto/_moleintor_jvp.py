@@ -7,7 +7,6 @@ from pyscf.gto import ATOM_OF
 from pyscf.gto.moleintor import _get_intor_and_comp
 
 from pyscfad import numpy as np
-from pyscfad import ops
 from pyscfad.ops import (
     custom_jvp,
     jit,
@@ -612,7 +611,7 @@ def _gen_int2e_jvp_r0(mol, mol_t, intors):
     idx_b = idx[None,None,None,:,None,None]
     idx_c = idx[None,None,None,None,:,None]
     idx_d = idx[None,None,None,None,None,:]
-    
+
     eri1_a = -intor4c(mol, intor_a, aosym='s1').reshape(3,-1,nao,nao,nao,nao)
     jvp = _gen_int2e_fill_jvp_r0(eri1_a, coords_t, aoslices, idx_a)
 
