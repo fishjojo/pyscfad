@@ -1,7 +1,7 @@
 from functools import partial
 from pyscfad import ops
 
-def pytree_node(leaf_names, num_args=0):
+def pytree_node(leaf_names, num_args=0, exclude_aux_name=()):
     """Class decorator that registers the underlying class as a pytree node.
 
     See `jax document <https://jax.readthedocs.io/en/latest/pytrees.html>`_
@@ -16,6 +16,10 @@ def pytree_node(leaf_names, num_args=0):
         This is useful when the ``__init__`` method of the class
         has positional arguments that are named differently than
         the actual attribute names. Default value is 0.
+    exclude_aux_name : tuple, default=()
+        A set of static attribute names that are not used for comparing
+        the pytrees. Note that ``jax.jit`` recompiles the function for input
+        pytrees with differen static attribute values.
 
     Notes
     -----
@@ -24,4 +28,7 @@ def pytree_node(leaf_names, num_args=0):
     than 0, the sequence of positional arguments in ``leaf_names`` must
     follow that in the ``__init__`` method.
     """
-    return partial(ops.class_as_pytree_node, leaf_names=leaf_names, num_args=num_args)
+    return partial(ops.class_as_pytree_node,
+                   leaf_names=leaf_names,
+                   num_args=num_args,
+                   exclude_aux_name=exclude_aux_name)

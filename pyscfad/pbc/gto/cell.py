@@ -260,7 +260,7 @@ def ewald(cell, ew_eta=None, ew_cut=None):
 
 energy_nuc = ewald
 
-@util.pytree_node(mole.Traced_Attributes+['abc'])
+@util.pytree_node(mole.Traced_Attributes+['abc'], exclude_aux_name=mole.Exclude_Aux_Names)
 class Cell(mole.Mole, pyscf_cell.Cell):
     """Subclass of :class:`pyscf.pbc.gto.Cell` with traceable attributes.
 

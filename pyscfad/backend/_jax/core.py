@@ -85,21 +85,29 @@ def _dict_equality(d1, d2):
 
 
 class _AuxData:
-    def __init__(self, **kwargs):
-        self.data = {**kwargs}
+    def __init__(self, data, exclude_name=()):
+        self.data = data
+        self.exclude_name = exclude_name
+
+    @property
+    def data_for_hash(self):
+        if self.exclude_name:
+            return {k : v for k, v in self.data.items() if k not in self.exclude_name}
+        else:
+            return self.data
 
     def __eq__(self, other):
         if self is other:
             return True
         if not isinstance(other, _AuxData):
             return False
-        return _dict_equality(self.data, other.data)
+        return _dict_equality(self.data_for_hash, other.data_for_hash)
 
     def __hash__(self):
-        return _dict_hash(self.data)
+        return _dict_hash(self.data_for_hash)
 
 
-def class_as_pytree_node(cls, leaf_names, num_args=0):
+def class_as_pytree_node(cls, leaf_names, num_args=0, exclude_aux_name=()):
     def tree_flatten(obj):
         keys = obj.__dict__.keys()
         for leaf_name in leaf_names:
@@ -112,8 +120,8 @@ def class_as_pytree_node(cls, leaf_names, num_args=0):
                           f'the node {obj.__class__} as none of those was specified.')
 
         aux_keys = list(set(keys) - set(leaf_names))
-        aux_data = list(getattr(obj, key, None) for key in aux_keys)
-        metadata = (num_args,) + (_AuxData(**dict(zip(aux_keys, aux_data))),)
+        aux_data = {k : getattr(obj, k, None) for k in aux_keys}
+        metadata = (num_args, _AuxData(aux_data, exclude_name=exclude_aux_name))
         return children, metadata
 
     def tree_unflatten(metadata, children):

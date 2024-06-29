@@ -56,8 +56,9 @@ def intor_cross_jvp(intor, comp, grids,
         s1a = -intor_cross(intor_ip_bra, mol1, mol2, comp=None, grids=grids).reshape(3,-1,nao1,nao2)
 
         idx1 = np.arange(nao1)
-        grad1 = _gen_int1e_fill_grad_r0(s1a, aoslices1, idx1[None,None,:,None])
-        tangent_out += np.einsum('nxyij,nx->yij', grad1, mol1_t.coords).reshape(primal_out.shape)
+        tangent_out += _gen_int1e_fill_jvp_r0(
+                            s1a, mol1_t.coords, aoslices1,
+                            idx1[None,None,:,None]).reshape(primal_out.shape)
 
     if mol2.coords is not None:
         aoslices2 = mol2.aoslice_by_atom()[:,2:4]
@@ -67,8 +68,9 @@ def intor_cross_jvp(intor, comp, grids,
         order_a = int1e_get_dr_order(intor_ip_ket)[0]
         s1b = s1b.reshape(3**order_a,3,-1,nao1,nao2).transpose(1,0,2,3,4).reshape(3,-1,nao1,nao2)
         idx2 = np.arange(nao2)
-        grad2 = _gen_int1e_fill_grad_r0(s1b, aoslices2, idx2[None,None,None,:])
-        tangent_out += np.einsum('nxyij,nx->yij', grad2, mol2_t.coords).reshape(primal_out.shape)
+        tangent_out += _gen_int1e_fill_jvp_r0(
+                            s1b, mol2_t.coords, aoslices2,
+                            idx2[None,None,None,:]).reshape(primal_out.shape)
 
     if mol1.ctr_coeff is not None:
         raise NotImplementedError
@@ -248,34 +250,22 @@ def intor4c_jvp(intor, comp, hermi, aosym, out, shls_slice, grids,
 def _int1e_jvp_r0(mol, mol_t, intor):
     s1 = -intor2c(mol, intor, comp=3)
     aoslices = mol.aoslice_by_atom()[:,2:4]
-    grad = _fill_grad_r0(s1, aoslices)
-    tangent_out = _int1e_dot_grad_tangent_r0(grad, mol_t.coords)
-    return tangent_out
+    idx = np.arange(mol.nao)[None,:,None]
+    jvp = _int1e_fill_jvp_r0_s2(s1, mol_t.coords, aoslices, idx)
+    return jvp
 
 @jit
-def _fill_grad_r0(eri1, aoslices):
-    nao = eri1.shape[-1]
-    shape = [1,] * eri1.ndim
-    shape[1] = nao
-    idx = np.arange(nao)
-    idx = idx.reshape(shape)
-    def body(slices):
-        p0, p1 = slices[:]
-        mask = (idx >= p0) & (idx < p1)
-        return np.where(mask, eri1, np.array(0, dtype=eri1.dtype))
-    grad = vmap(body)(aoslices)
-    return grad
-
-@jit
-def _int1e_dot_grad_tangent_r0(grad, tangent):
-    tangent_out = np.einsum('nxij,nx->ij', grad, tangent)
-    tangent_out += tangent_out.T
-    return tangent_out
+def _int1e_fill_jvp_r0_s2(ints, coords_t, aoslices, aoidx):
+    def _fill(sl, coord_t):
+        mask = (aoidx >= sl[0]) & (aoidx < sl[1])
+        grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
+        return np.einsum('xij,x->ij', grad, coord_t)
+    jvp = np.sum(vmap(_fill)(aoslices, coords_t), axis=0)
+    jvp += jvp.T
+    return jvp
 
 def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b, rc_deriv=None, hermi=0):
     coords_t = mol_t.coords
-    #atmlst = range(mol.natm)
-    aoslices = mol.aoslice_by_atom()[:,2:4]
     nao = mol.nao
 
     s1a = -getints2c_rc(mol, intor_a, hermi=0, rc_deriv=rc_deriv).reshape(3,-1,nao,nao)
@@ -284,36 +274,29 @@ def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b, rc_deriv=None, hermi=0):
         order_a = int1e_get_dr_order(intor_b)[0]
         s1b = -getints2c_rc(mol, intor_b, hermi=0, rc_deriv=rc_deriv)
         s1b = s1b.reshape(3**order_a,3,-1,nao,nao).transpose(1,0,2,3,4).reshape(3,-1,nao,nao)
-    #jvp = np.zeros(s1a.shape[1:])
-    #for k, ia in enumerate(atmlst):
-    #    p0, p1 = aoslices[ia,2:]
-    #    ta = np.einsum('xyij,x->yij', s1a[...,p0:p1,:], coords_t[k])
-    #    tb = np.einsum('xyij,x->yij', s1b[...,p0:p1], coords_t[k])
-    #    jvp = ops.index_add(jvp, ops.index[:,p0:p1], ta)
-    #    jvp = ops.index_add(jvp, ops.index[:,:,p0:p1], tb)
-    idx = np.arange(nao)
-    grad = _gen_int1e_fill_grad_r0(s1a, aoslices, idx[None,None,:,None])
-    if hermi == 0:
-        grad = grad + _gen_int1e_fill_grad_r0(s1b, aoslices, idx[None,None,None,:])
+
+    aoslices = mol.aoslice_by_atom()[:,2:4]
+    aoidx = np.arange(nao)
+    jvp = _gen_int1e_fill_jvp_r0(s1a, coords_t, aoslices, aoidx[None,None,:,None])
     if rc_deriv is not None:
-        grad_rc = -s1a
-        if hermi == 0:
-            grad_rc -= s1b
-        grad = ops.index_add(grad, ops.index[rc_deriv], grad_rc)
-    jvp = np.einsum('nxyij,nx->yij', grad, coords_t)
-    if hermi == 1:
+        jvp += np.einsum('xyij,x->yij', -s1a, coords_t[rc_deriv])
+
+    if hermi == 0:
+        jvp += _gen_int1e_fill_jvp_r0(s1b, coords_t, aoslices, aoidx[None,None,None,:])
+        if rc_deriv is not None:
+            jvp += np.einsum('xyij,x->yij', -s1b, coords_t[rc_deriv])
+    elif hermi == 1:
         jvp += jvp.transpose(0,2,1)
     return jvp
 
 @jit
-def _gen_int1e_fill_grad_r0(s1, aoslices, idx):
-    def body(slices):
-        p0, p1 = slices[:]
-        mask = (idx >= p0) & (idx < p1)
-        grad = np.where(mask, s1, np.array(0, dtype=s1.dtype))
-        return grad
-    grad = vmap(body)(aoslices)
-    return grad
+def _gen_int1e_fill_jvp_r0(ints, coords_t, aoslices, aoidx):
+    def _fill(sl, coord_t):
+        mask = (aoidx >= sl[0]) & (aoidx < sl[1])
+        grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
+        return np.einsum('xyij,x->yij', grad, coord_t)
+    jvp = np.sum(vmap(_fill)(aoslices, coords_t), axis=0)
+    return jvp
 
 def _int1e_r_jvp_r0(mol, mol_t, intor):
     coords_t = mol_t.coords
@@ -340,14 +323,14 @@ def _int1e_nuc_jvp_rc(mol, mol_t, intor):
     atmlst = range(mol.natm)
     nao = mol.nao
 
+    jvp = np.zeros((nao,nao), dtype=float)
     ecp_intor = 'ECP' in intor
     if ecp_intor:
         if not mol.has_ecp():
-            return 0
+            return jvp
         else:
             ecp_atoms = set(mol._ecpbas[:,ATOM_OF])
 
-    grad = np.zeros((mol.natm,3,nao,nao))
     for k, ia in enumerate(atmlst):
         with mol.with_rinv_at_nucleus(ia):
             if not ecp_intor:
@@ -357,17 +340,19 @@ def _int1e_nuc_jvp_rc(mol, mol_t, intor):
                 if ia in ecp_atoms:
                     vrinv = getints2c_rc(mol, intor, comp=3, rc_deriv=ia)
                 else:
-                    vrinv = 0
-        grad = ops.index_update(grad, ops.index[k], vrinv)
-    tangent_out = _int1e_dot_grad_tangent_r0(grad, coords_t)
-    return tangent_out
+                    continue
+        jvp_k = np.einsum('xij,x->ij', vrinv, coords_t[ia])
+        jvp_k += jvp_k.T
+        jvp += jvp_k
+    return jvp
 
 def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b, hermi=0):
     coords_t = mol_t.coords
     atmlst = range(mol.natm)
     nao = mol.nao
     _, comp = _get_intor_and_comp(intor_a)
-    grad = np.zeros((mol.natm,3,comp//3,nao,nao), dtype=float)
+
+    jvp = np.zeros((comp//3,nao,nao), dtype=float)
     for k, ia in enumerate(atmlst):
         with mol.with_rinv_at_nucleus(ia):
             vrinv = getints2c_rc(mol, intor_a, rc_deriv=ia).reshape(3,-1,nao,nao)
@@ -378,8 +363,7 @@ def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b, hermi=0):
                 vrinv += s1b.reshape(3,-1,nao,nao)
             if 'ECP' not in intor_a:
                 vrinv *= -mol.atom_charge(ia)
-        grad = ops.index_update(grad, ops.index[k], vrinv)
-    jvp = np.einsum('nxyij,nx->yij', grad, coords_t)
+        jvp += np.einsum('xyij,x->yij', vrinv, coords_t[ia])
     if hermi == 1:
         jvp = jvp + jvp.transpose(0,2,1)
     return jvp
@@ -603,43 +587,24 @@ def _int1e_jvp_exp(mol, mol_t, intor, shls_slice, comp, hermi):
 def _int2e_jvp_r0(mol, mol_t, intor):
     eri1 = -intor4c(mol, intor, comp=None, aosym='s1')
     aoslices = mol.aoslice_by_atom()[:,2:4]
-    grad = _fill_grad_r0(eri1, aoslices)
-    return _int2e_dot_grad_tangent_r0(grad, mol_t.coords)
+    idx = np.arange(mol.nao)[:,None,None,None]
+    return _int2e_fill_jvp_r0_s4(eri1, mol_t.coords, aoslices, idx)
 
 @jit
-def _int2e_dot_grad_tangent_r0(grad, tangent):
-    tangent_out = np.einsum('nxijkl,nx->ijkl', grad, tangent)
-    tangent_out += tangent_out.transpose(1,0,2,3)
-    tangent_out += tangent_out.transpose(2,3,0,1)
-    return tangent_out
+def _int2e_fill_jvp_r0_s4(ints, coords_t, aoslices, aoidx):
+    def _fill(sl, coord_t):
+        mask = (aoidx >= sl[0]) & (aoidx < sl[1])
+        grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
+        return np.einsum('xijkl,x->ijkl', grad, coord_t)
+    jvp = np.sum(vmap(_fill)(aoslices, coords_t), axis=0)
+    jvp += jvp.transpose(1,0,2,3)
+    jvp += jvp.transpose(2,3,0,1)
+    return jvp
 
 def _gen_int2e_jvp_r0(mol, mol_t, intors):
     coords_t = mol_t.coords
     nao = mol.nao
     intor_a, intor_b, intor_c, intor_d = intors
-    eri1_a = -intor4c(mol, intor_a, aosym='s1').reshape(3,-1,nao,nao,nao,nao)
-    if intor_b:
-        orders = int2e_get_dr_order(intor_b)
-        off = 3**orders[0]
-        eri1_b = -intor4c(mol, intor_b, aosym='s1')
-        eri1_b = eri1_b.reshape(off,3,-1,nao,nao,nao,nao)
-        eri1_b = eri1_b.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
-    else:
-        eri1_b = eri1_a.transpose(0,1,3,2,4,5)
-
-    orders = int2e_get_dr_order(intor_c)
-    off = 3**(orders[0]+orders[1])
-    eri1_c = -intor4c(mol, intor_c, aosym='s1')
-    eri1_c = eri1_c.reshape(off,3,-1,nao,nao,nao,nao)
-    eri1_c = eri1_c.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
-    if intor_d:
-        orders = int2e_get_dr_order(intor_d)
-        off = 3**(orders[0]+orders[1]+orders[2])
-        eri1_d = -intor4c(mol, intor_d, aosym='s1')
-        eri1_d = eri1_d.reshape(off,3,-1,nao,nao,nao,nao)
-        eri1_d = eri1_d.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
-    else:
-        eri1_d = eri1_c.transpose(0,1,2,3,5,4)
 
     aoslices = mol.aoslice_by_atom()[:,2:4]
     idx = np.arange(nao)
@@ -647,28 +612,48 @@ def _gen_int2e_jvp_r0(mol, mol_t, intors):
     idx_b = idx[None,None,None,:,None,None]
     idx_c = idx[None,None,None,None,:,None]
     idx_d = idx[None,None,None,None,None,:]
-    grad = _gen_int2e_fill_grad_r0(eri1_a, eri1_b, eri1_c, eri1_d, aoslices,
-                                   idx_a, idx_b, idx_c, idx_d)
-    jvp = np.einsum('nxyijkl,nx->yijkl', grad, coords_t)
+    
+    eri1_a = -intor4c(mol, intor_a, aosym='s1').reshape(3,-1,nao,nao,nao,nao)
+    jvp = _gen_int2e_fill_jvp_r0(eri1_a, coords_t, aoslices, idx_a)
+
+    if intor_b:
+        orders = int2e_get_dr_order(intor_b)
+        off = 3**orders[0]
+        eri1_b = -intor4c(mol, intor_b, aosym='s1')
+        eri1_b = eri1_b.reshape(off,3,-1,nao,nao,nao,nao)
+        eri1_b = eri1_b.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
+        jvp += _gen_int2e_fill_jvp_r0(eri1_b, coords_t, aoslices, idx_b)
+    else:
+        jvp += jvp.transpose(0,2,1,3,4)
+
+    orders = int2e_get_dr_order(intor_c)
+    off = 3**(orders[0]+orders[1])
+    eri1_c = -intor4c(mol, intor_c, aosym='s1')
+    eri1_c = eri1_c.reshape(off,3,-1,nao,nao,nao,nao)
+    eri1_c = eri1_c.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
+    jvp_c = _gen_int2e_fill_jvp_r0(eri1_c, coords_t, aoslices, idx_c)
+    jvp += jvp_c
+
+    if intor_d:
+        orders = int2e_get_dr_order(intor_d)
+        off = 3**(orders[0]+orders[1]+orders[2])
+        eri1_d = -intor4c(mol, intor_d, aosym='s1')
+        eri1_d = eri1_d.reshape(off,3,-1,nao,nao,nao,nao)
+        eri1_d = eri1_d.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
+        jvp += _gen_int2e_fill_jvp_r0(eri1_d, coords_t, aoslices, idx_d)
+    else:
+        jvp += jvp_c.transpose(0,1,2,4,3)
+
     return jvp
 
 @jit
-def _gen_int2e_fill_grad_r0(eri1_a, eri1_b, eri1_c, eri1_d, aoslices,
-                            idx_a, idx_b, idx_c, idx_d):
-    def body(slices):
-        p0, p1 = slices[:]
-        mask_a = (idx_a >= p0) & (idx_a < p1)
-        mask_b = (idx_b >= p0) & (idx_b < p1)
-        mask_c = (idx_c >= p0) & (idx_c < p1)
-        mask_d = (idx_d >= p0) & (idx_d < p1)
-        grad_a = np.where(mask_a, eri1_a, np.array(0, dtype=eri1_a.dtype))
-        grad_b = np.where(mask_b, eri1_b, np.array(0, dtype=eri1_b.dtype))
-        grad_c = np.where(mask_c, eri1_c, np.array(0, dtype=eri1_c.dtype))
-        grad_d = np.where(mask_d, eri1_d, np.array(0, dtype=eri1_d.dtype))
-        grad = grad_a + grad_b + grad_c + grad_d
-        return grad
-    grad = vmap(body)(aoslices)
-    return grad
+def _gen_int2e_fill_jvp_r0(ints, coords_t, aoslices, aoidx):
+    def _fill(sl, coord_t):
+        mask = (aoidx >= sl[0]) & (aoidx < sl[1])
+        grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
+        return np.einsum('xyijkl,x->yijkl', grad, coord_t)
+    jvp = np.sum(vmap(_fill)(aoslices, coords_t), axis=0)
+    return jvp
 
 @jit
 def _int2e_dot_grad_tangent_s4(grad, tangent):
