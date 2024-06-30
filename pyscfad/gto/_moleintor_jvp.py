@@ -99,7 +99,7 @@ def _getints2c_rc(mol, intor, shls_slice=None, comp=None,
 @_getints2c_rc.defjvp
 def _getints2c_rc_jvp(intor, shls_slice, comp, hermi, out, rc_deriv,
                       primals, tangents):
-    if shls_slice is not None:
+    if hermi == 2:
         raise NotImplementedError
 
     mol, = primals
@@ -109,7 +109,8 @@ def _getints2c_rc_jvp(intor, shls_slice, comp, hermi, out, rc_deriv,
 
     if mol.coords is not None:
         intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor)
-        tangent_out += _gen_int1e_jvp_r0(mol, mol_t, intor_ip_bra, intor_ip_ket, rc_deriv)
+        tangent_out += _gen_int1e_jvp_r0(mol, mol_t, intor_ip_bra, intor_ip_ket,
+                                         rc_deriv=rc_deriv, shls_slice=shls_slice)
 
     if mol.ctr_coeff is not None:
         tangent_out += _int1e_jvp_cs(mol, mol_t, intor, shls_slice, comp, hermi)
@@ -136,9 +137,6 @@ def intor2c_jvp(intor, comp, hermi, aosym, out, shls_slice, grids,
     if hermi == 2:
         msg = 'Integrals with anti-hermitian symmetry are not differentiable.'
         raise NotImplementedError(msg)
-    if shls_slice is not None:
-        msg = f'AD for integral {intor} with subblocks of shells are not supported.'
-        raise NotImplementedError(msg)
 
     mol, = primals
     mol_t, = tangents
@@ -160,13 +158,15 @@ def intor2c_jvp(intor, comp, hermi, aosym, out, shls_slice, grids,
             raise NotImplementedError(f'Integral {intor} is not supported for AD.')
 
         if intor_ip_bra or intor_ip_ket:
-            tangent_out += _gen_int1e_jvp_r0(mol, mol_t,
-                                intor_ip_bra, intor_ip_ket, hermi=hermi).reshape(tangent_out.shape)
+            tangent_out += _gen_int1e_jvp_r0(
+                                mol, mol_t, intor_ip_bra, intor_ip_ket,
+                                hermi=hermi, shls_slice=shls_slice).reshape(tangent_out.shape)
             if 'nuc' in intor_ip_bra and 'nuc' in intor_ip_ket:
                 intor_ip_bra = intor_ip_bra.replace('nuc', 'rinv')
                 intor_ip_ket = intor_ip_ket.replace('nuc', 'rinv')
-                tangent_out += _gen_int1e_nuc_jvp_rc(mol, mol_t,
-                                intor_ip_bra, intor_ip_ket, hermi=hermi).reshape(tangent_out.shape)
+                tangent_out += _gen_int1e_nuc_jvp_rc(
+                                mol, mol_t, intor_ip_bra, intor_ip_ket,
+                                hermi=hermi, shls_slice=shls_slice).reshape(tangent_out.shape)
         elif fname == 'int1e_r':
             tangent_out += _int1e_r_jvp_r0(mol, mol_t, intor_ip)
         else:
@@ -213,9 +213,6 @@ def intor4c_jvp(intor, comp, hermi, aosym, out, shls_slice, grids,
     if grids is not None:
         msg = 'Integrals on grids are not differentiable.'
         raise NotImplementedError(msg)
-    if shls_slice is not None:
-        msg = f'AD for integral {intor} with subblocks of shells are not supported.'
-        raise NotImplementedError(msg)
     if aosym != 's1':
         msg = f'AD for integral {intor} with aosym = {aosym} is not supported.'
         raise NotImplementedError(msg)
@@ -236,7 +233,10 @@ def intor4c_jvp(intor, comp, hermi, aosym, out, shls_slice, grids,
                 intor2 = None
             if orders[2] == 0 and orders[3] == 0:
                 intor4 = None
-            tangent_out += _gen_int2e_jvp_r0(mol, mol_t, [intor1, intor2, intor3, intor4])
+            tangent_out += _gen_int2e_jvp_r0(
+                                mol, mol_t,
+                                (intor1, intor2, intor3, intor4),
+                                shls_slice=shls_slice)
         else:
             tangent_out += _int2e_jvp_r0(mol, mol_t, intor1)
 
@@ -263,24 +263,36 @@ def _int1e_fill_jvp_r0_s2(ints, coords_t, aoslices, aoidx):
     jvp += jvp.T
     return jvp
 
-def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b, rc_deriv=None, hermi=0):
+def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b,
+                      rc_deriv=None, hermi=0, shls_slice=None):
+    if shls_slice is None:
+        shls_slice = (0, mol.nbas, 0, mol.nbas)
+    ao_loc = moleintor.make_loc(mol._bas, intor_a)
+    i0, i1, j0, j1 = shls_slice[:4]
+    if hermi == 1:
+        assert (i0 == j0 and i1 == j1)
+    naoi = ao_loc[i1] - ao_loc[i0]
+    naoj = ao_loc[j1] - ao_loc[j0]
+
+    s1a = -getints2c_rc(mol, intor_a,
+                        hermi=0, rc_deriv=rc_deriv,
+                        shls_slice=shls_slice).reshape(3,-1,naoi,naoj)
+
     coords_t = mol_t.coords
-    nao = mol.nao
-
-    s1a = -getints2c_rc(mol, intor_a, hermi=0, rc_deriv=rc_deriv).reshape(3,-1,nao,nao)
-    s1b = None
-    if hermi == 0:
-        order_a = int1e_get_dr_order(intor_b)[0]
-        s1b = -getints2c_rc(mol, intor_b, hermi=0, rc_deriv=rc_deriv)
-        s1b = s1b.reshape(3**order_a,3,-1,nao,nao).transpose(1,0,2,3,4).reshape(3,-1,nao,nao)
-
-    aoslices = mol.aoslice_by_atom()[:,2:4]
-    aoidx = np.arange(nao)
+    aoslices = mol.aoslice_by_atom()[:,2:4] - ao_loc[i0]
+    aoidx = np.arange(naoi)
     jvp = _gen_int1e_fill_jvp_r0(s1a, coords_t, aoslices, aoidx[None,None,:,None])
     if rc_deriv is not None:
         jvp += np.einsum('xyij,x->yij', -s1a, coords_t[rc_deriv])
 
     if hermi == 0:
+        order_a = int1e_get_dr_order(intor_b)[0]
+        s1b = -getints2c_rc(mol, intor_b, hermi=0, rc_deriv=rc_deriv,
+                            shls_slice=shls_slice)
+        s1b = s1b.reshape(3**order_a,3,-1,naoi,naoj).transpose(1,0,2,3,4).reshape(3,-1,naoi,naoj)
+
+        aoslices = mol.aoslice_by_atom()[:,2:4] - ao_loc[j0]
+        aoidx = np.arange(naoj)
         jvp += _gen_int1e_fill_jvp_r0(s1b, coords_t, aoslices, aoidx[None,None,None,:])
         if rc_deriv is not None:
             jvp += np.einsum('xyij,x->yij', -s1b, coords_t[rc_deriv])
@@ -345,29 +357,41 @@ def _int1e_nuc_jvp_rc(mol, mol_t, intor):
         jvp += jvp_k
     return jvp
 
-def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b, hermi=0):
-    coords_t = mol_t.coords
-    atmlst = range(mol.natm)
-    nao = mol.nao
-    _, comp = _get_intor_and_comp(intor_a)
+def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b,
+                          hermi=0, shls_slice=None):
+    if shls_slice is None:
+        shls_slice = (0, mol.nbas, 0, mol.nbas)
+    ao_loc = moleintor.make_loc(mol._bas, intor_a)
+    i0, i1, j0, j1 = shls_slice[:4]
+    if hermi == 1:
+        assert (i0 == j0 and i1 == j1)
+    naoi = ao_loc[i1] - ao_loc[i0]
+    naoj = ao_loc[j1] - ao_loc[j0]
 
-    jvp = np.zeros((comp//3,nao,nao), dtype=float)
+    atmlst = range(mol.natm)
+    _, comp = _get_intor_and_comp(intor_a)
+    jvp = np.zeros((comp//3,naoi,naoj), dtype=float)
     for k, ia in enumerate(atmlst):
         with mol.with_rinv_at_nucleus(ia):
-            vrinv = getints2c_rc(mol, intor_a, rc_deriv=ia).reshape(3,-1,nao,nao)
+            vrinv = getints2c_rc(mol, intor_a, rc_deriv=ia,
+                                 shls_slice=shls_slice).reshape(3,-1,naoi,naoj)
             if hermi == 0:
                 order_a = int1e_get_dr_order(intor_b)[0]
-                s1b = getints2c_rc(mol, intor_b, rc_deriv=ia)
-                s1b = s1b.reshape(3**order_a,3,-1,nao,nao).transpose(1,0,2,3,4)
-                vrinv += s1b.reshape(3,-1,nao,nao)
+                s1b = getints2c_rc(mol, intor_b, rc_deriv=ia, shls_slice=shls_slice)
+                s1b = s1b.reshape(3**order_a,3,-1,naoi,naoj).transpose(1,0,2,3,4)
+                vrinv += s1b.reshape(3,-1,naoi,naoj)
             if 'ECP' not in intor_a:
                 vrinv *= -mol.atom_charge(ia)
-        jvp += np.einsum('xyij,x->yij', vrinv, coords_t[ia])
+        jvp += np.einsum('xyij,x->yij', vrinv, mol_t.coords[ia])
     if hermi == 1:
         jvp = jvp + jvp.transpose(0,2,1)
     return jvp
 
 def _int1e_jvp_cs(mol, mol_t, intor, shls_slice, comp, hermi):
+    nbas = mol.nbas
+    if shls_slice is not None:
+        assert shls_slice == (0, nbas, 0, nbas)
+
     ctr_coeff = mol.ctr_coeff
     ctr_coeff_t = mol_t.ctr_coeff
 
@@ -458,6 +482,10 @@ def _int1e_jvp_cs(mol, mol_t, intor, shls_slice, comp, hermi):
 
 # FIXME allow higher order derivatives
 def _int1e_jvp_exp(mol, mol_t, intor, shls_slice, comp, hermi):
+    nbas = mol.nbas
+    if shls_slice is not None:
+        assert shls_slice == (0, nbas, 0, nbas)
+
     mol1 = get_fakemol_exp(mol)
     mol1._atm[:,pyscf_mole.CHARGE_OF] = 0 # set nuclear charge to zero
     if intor.endswith('_sph'):
@@ -600,46 +628,63 @@ def _int2e_fill_jvp_r0_s4(ints, coords_t, aoslices, aoidx):
     jvp += jvp.transpose(2,3,0,1)
     return jvp
 
-def _gen_int2e_jvp_r0(mol, mol_t, intors):
-    coords_t = mol_t.coords
+def _gen_int2e_jvp_r0(mol, mol_t, intors, shls_slice=None):
     nao = mol.nao
     intor_a, intor_b, intor_c, intor_d = intors
 
-    aoslices = mol.aoslice_by_atom()[:,2:4]
-    idx = np.arange(nao)
-    idx_a = idx[None,None,:,None,None,None]
-    idx_b = idx[None,None,None,:,None,None]
-    idx_c = idx[None,None,None,None,:,None]
-    idx_d = idx[None,None,None,None,None,:]
+    nbas = mol.nbas
+    if shls_slice is None:
+        shls_slice = (0, nbas, 0, nbas, 0, nbas, 0, nbas)
+    ao_loc = moleintor.make_loc(mol._bas, intor_a)
+    i0, i1, j0, j1, k0, k1, l0, l1 = shls_slice[:]
+    naoi = ao_loc[i1] - ao_loc[i0]
+    naoj = ao_loc[j1] - ao_loc[j0]
+    naok = ao_loc[k1] - ao_loc[k0]
+    naol = ao_loc[l1] - ao_loc[l0]
 
-    eri1_a = -intor4c(mol, intor_a, aosym='s1').reshape(3,-1,nao,nao,nao,nao)
-    jvp = _gen_int2e_fill_jvp_r0(eri1_a, coords_t, aoslices, idx_a)
+    eri1_a = -intor4c(mol, intor_a, aosym='s1',
+                      shls_slice=shls_slice).reshape(3,-1,naoi,naoj,naok,naol)
+
+    coords_t = mol_t.coords
+    aoslices = mol.aoslice_by_atom()[:,2:4]
+    aoslices_a = aoslices - ao_loc[i0]
+    idx_a = np.arange(naoi)[None,None,:,None,None,None]
+    jvp = _gen_int2e_fill_jvp_r0(eri1_a, coords_t, aoslices_a, idx_a)
 
     if intor_b:
         orders = int2e_get_dr_order(intor_b)
         off = 3**orders[0]
-        eri1_b = -intor4c(mol, intor_b, aosym='s1')
-        eri1_b = eri1_b.reshape(off,3,-1,nao,nao,nao,nao)
-        eri1_b = eri1_b.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
-        jvp += _gen_int2e_fill_jvp_r0(eri1_b, coords_t, aoslices, idx_b)
+        eri1_b = -intor4c(mol, intor_b, aosym='s1', shls_slice=shls_slice)
+        eri1_b = eri1_b.reshape(off,3,-1,naoi,naoj,naok,naol)
+        eri1_b = eri1_b.transpose(1,0,2,3,4,5,6).reshape(3,-1,naoi,naoj,naok,naol)
+
+        aoslices_b = aoslices - ao_loc[j0]
+        idx_b = np.arange(naoj)[None,None,None,:,None,None]
+        jvp += _gen_int2e_fill_jvp_r0(eri1_b, coords_t, aoslices_b, idx_b)
     else:
         jvp += jvp.transpose(0,2,1,3,4)
 
     orders = int2e_get_dr_order(intor_c)
     off = 3**(orders[0]+orders[1])
-    eri1_c = -intor4c(mol, intor_c, aosym='s1')
-    eri1_c = eri1_c.reshape(off,3,-1,nao,nao,nao,nao)
-    eri1_c = eri1_c.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
-    jvp_c = _gen_int2e_fill_jvp_r0(eri1_c, coords_t, aoslices, idx_c)
+    eri1_c = -intor4c(mol, intor_c, aosym='s1', shls_slice=shls_slice)
+    eri1_c = eri1_c.reshape(off,3,-1,naoi,naoj,naok,naol)
+    eri1_c = eri1_c.transpose(1,0,2,3,4,5,6).reshape(3,-1,naoi,naoj,naok,naol)
+
+    aoslices_c = aoslices - ao_loc[k0]
+    idx_c = np.arange(naok)[None,None,None,None,:,None]
+    jvp_c = _gen_int2e_fill_jvp_r0(eri1_c, coords_t, aoslices_c, idx_c)
     jvp += jvp_c
 
     if intor_d:
         orders = int2e_get_dr_order(intor_d)
         off = 3**(orders[0]+orders[1]+orders[2])
-        eri1_d = -intor4c(mol, intor_d, aosym='s1')
-        eri1_d = eri1_d.reshape(off,3,-1,nao,nao,nao,nao)
-        eri1_d = eri1_d.transpose(1,0,2,3,4,5,6).reshape(3,-1,nao,nao,nao,nao)
-        jvp += _gen_int2e_fill_jvp_r0(eri1_d, coords_t, aoslices, idx_d)
+        eri1_d = -intor4c(mol, intor_d, aosym='s1', shls_slice=shls_slice)
+        eri1_d = eri1_d.reshape(off,3,-1,naoi,naoj,naok,naol)
+        eri1_d = eri1_d.transpose(1,0,2,3,4,5,6).reshape(3,-1,naoi,naoj,naok,naol)
+
+        aoslices_d = aoslices - ao_loc[l0]
+        idx_d = np.arange(naol)[None,None,None,None,None,:]
+        jvp += _gen_int2e_fill_jvp_r0(eri1_d, coords_t, aoslices_d, idx_d)
     else:
         jvp += jvp_c.transpose(0,1,2,4,3)
 
@@ -664,6 +709,10 @@ def _int2e_dot_grad_tangent_s4(grad, tangent):
 def _int2e_jvp_cs(mol, mol_t, intor, shls_slice, comp):
     ctr_coeff = mol.ctr_coeff
     ctr_coeff_t = mol_t.ctr_coeff
+
+    nbas = mol.nbas
+    if shls_slice is not None:
+        assert shls_slice == (0, nbas, 0, nbas, 0, nbas, 0, nbas)
 
     mol1 = get_fakemol_cs(mol)
 
@@ -806,6 +855,10 @@ def _int2e_jvp_cs(mol, mol_t, intor, shls_slice, comp):
 
 # FIXME allow higher order derivatives
 def _int2e_jvp_exp(mol, mol_t, intor, shls_slice, comp):
+    nbas = mol.nbas
+    if shls_slice is not None:
+        assert shls_slice == (0, nbas, 0, nbas, 0, nbas, 0, nbas)
+
     mol1 = get_fakemol_exp(mol)
     mol1._atm[:,pyscf_mole.CHARGE_OF] = 0 # set nuclear charge to zero
     if intor.endswith('_sph'):
@@ -1019,6 +1072,7 @@ def _int2e_jvp_exp(mol, mol_t, intor, shls_slice, comp):
         tangent_out = tangent_out[0]
     return tangent_out
 
+@jit
 def _int2e_c2s(eris_cart, c2s):
     eris_sph = np.einsum('pi,qj,cpqrs,rk,sl->cijkl',
                          c2s, c2s, eris_cart, c2s, c2s)
