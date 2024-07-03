@@ -113,3 +113,12 @@ class Mole(pyscf_mole.Mole):
         return moleintor.intor(self, intor, comp=comp, hermi=hermi,
                                aosym=aosym, out=out, shls_slice=shls_slice,
                                grids=grids)
+
+    def to_pyscf(self):
+        mol = self.view(pyscf_mole.Mole)
+        del mol.coords
+        del mol.exp
+        del mol.ctr_coeff
+        del mol.r0
+        return mol
+

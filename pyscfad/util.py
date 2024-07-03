@@ -32,3 +32,49 @@ def pytree_node(leaf_names, num_args=0, exclude_aux_name=()):
                    leaf_names=leaf_names,
                    num_args=num_args,
                    exclude_aux_name=exclude_aux_name)
+
+def to_pyscf(obj, nocopy_names=(), out=None):
+    """Convert the pyscfad object to its pyscf counterpart.
+
+    This function effectively removes the tracing of the object
+    and its members.
+
+    Parameters
+    ----------
+    obj : object
+        The pyscfad object to be converted.
+    nocopy_names : tuple, default=()
+        Names of attributes that are not copied to the pyscf object.
+    out : object, optional
+        The target pyscf object.
+
+    Notes
+    -----
+    Member arrays will be converted (whether a copy is made depends on
+    the implementation of ``__array__`` function) to numpy arrays.
+    """
+    if obj.__module__.startswith("pyscf."):
+        return obj
+
+    if out is None:
+        from importlib import import_module
+        from pyscf.lib.misc import omniobj
+        mod = import_module(obj.__module__.replace("pyscfad", "pyscf"))
+        cls = getattr(mod, obj.__class__.__name__)
+        out = cls(omniobj)
+
+    cls_keys = [getattr(cls, "_keys", ()) for cls in out.__class__.__mro__[:-1]]
+    out_keys = set(out.__dict__).union(*cls_keys)
+    # Only overwrite the attributes of the same name.
+    keys = set(obj.__dict__).intersection(out_keys)
+    keys = keys - set(nocopy_names)
+
+    for key in keys:
+        val = getattr(obj, key)
+        if ops.is_array(val):
+            val = ops.to_numpy(val)
+        elif hasattr(val, "to_pyscf"):
+            val = val.to_pyscf()
+        setattr(out, key, val)
+    return out
+

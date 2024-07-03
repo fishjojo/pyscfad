@@ -377,7 +377,7 @@ class SCF(pyscf_hf.SCF):
     def get_init_guess(self, mol=None, key='minao', **kwargs):
         if mol is None:
             mol = self.mol
-        dm0 = pyscf_hf.SCF.get_init_guess(self, stop_grad(mol), key)
+        dm0 = pyscf_hf.SCF.get_init_guess(self, mol.to_pyscf(), key)
         dm0 = numpy.asarray(dm0) #remove tags
         return dm0
 
@@ -496,10 +496,13 @@ class SCF(pyscf_hf.SCF):
         # recompute nuclear energy to trace it
         return self.mol.energy_nuc()
 
-    check_sanity = stop_trace(pyscf_hf.SCF.check_sanity)
+    def check_sanity(self):
+        return pyscf_hf.SCF.check_sanity(self.to_pyscf())
+
     make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
     energy_elec = energy_elec
     get_fock = get_fock
+    to_pyscf = util.to_pyscf
 
 
 @util.pytree_node(Traced_Attributes, num_args=1)

@@ -3,7 +3,6 @@ from jax import scipy
 from pyscf import __config__
 from pyscf.df.outcore import _guess_shell_ranges
 from pyscfad import numpy as np
-from pyscfad import ops
 from pyscfad.ops import (
     custom_jvp,
     vmap,
