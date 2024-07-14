@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+sudo apt-get -qq install liblapack-dev
+
 pip install nanobind
 
 cd pyscfadlib/pyscfadlib

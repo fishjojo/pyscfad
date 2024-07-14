@@ -56,15 +56,23 @@ endif()
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 if (NOT BLAS_LIBRARIES)
-#enable_language(Fortran)
-find_package(BLAS)
-check_function_exists(ffsll HAVE_FFS)
+  find_package(BLAS)
 endif()
 
 if (NOT BLAS_LIBRARIES)
   message(FATAL_ERROR "A required library with BLAS API not found.")
 else()
   message(STATUS "BLAS libraries: ${BLAS_LIBRARIES}")
+endif()
+
+if (NOT LAPACK_LIBRARIES)
+  find_package(LAPACK)
+endif()
+
+if (NOT LAPACK_LIBRARIES)
+  message(FATAL_ERROR "A required library with LAPACK API not found.")
+else()
+  message(STATUS "LAPACK libraries: ${LAPACK_LIBRARIES}")
 endif()
 
 option(ENABLE_OPENMP "Compiling C extensions with openmp" ON)
