@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+pip install nanobind
+
 cd pyscfadlib/pyscfadlib
 mkdir build
 cmake -B build
