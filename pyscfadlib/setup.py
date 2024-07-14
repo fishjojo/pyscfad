@@ -68,6 +68,8 @@ setup(
     cmdclass={'build_py': CMakeBuild},
     install_requires=[
         'numpy>=1.17',
+        'nanobind',
+        'jaxlib',
     ],
     url='https://github.com/fishjojo/pyscfad',
     license='MIT',

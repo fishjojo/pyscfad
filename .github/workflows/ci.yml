@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     environment: ci
     steps:
@@ -24,10 +24,12 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install pyscf
         run: ./.github/workflows/install_pyscf.sh
+      - name: build pyscfadlib
+        run: ./.github/workflows/build_pyscfadlib.sh
       - name: test
         run: ./.github/workflows/run_test.sh
       - name: Upload coverage to codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           token: ${{secrets.CODECOV_TOKEN}}
           files: ./pyscfad/coverage.xml

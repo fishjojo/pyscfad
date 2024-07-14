@@ -43,7 +43,7 @@ class NumpyBackend:
 
 backend = NumpyBackend(np)
 
-# FIXME maybe separate ops from numpy
+# TODO maybe separate ops from numpy
 backend._cache['is_array'] = is_array
 backend._cache['to_numpy'] = to_numpy
 backend._cache['stop_gradient'] = stop_gradient

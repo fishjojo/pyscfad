@@ -36,7 +36,7 @@ def pytree_node(leaf_names, num_args=0, exclude_aux_name=()):
 def to_pyscf(obj, nocopy_names=(), out=None):
     """Convert the pyscfad object to its pyscf counterpart.
 
-    This function effectively removes the tracing of the object
+    The conversion effectively removes the tracing of the object
     and its members.
 
     Parameters
