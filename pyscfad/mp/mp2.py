@@ -196,6 +196,16 @@ class MP2(pyscf_mp2.MP2):
     def init_amps(self, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2):
         return kernel(self, mo_energy, mo_coeff, eris, with_t2)
 
+    def _finalize(self):
+        log = logger.new_logger(self)
+        log.note(f'E({self.__class__.__name__}) = %.15g  E_corr = %.15g',
+                 self.e_tot, self.e_corr)
+        log.note(f'E(SCS-{self.__class__.__name__}) = %.15g  E_corr = %.15g',
+                 self.e_tot_scs, self.emp2_scs)
+        log.info('E_corr(same-spin) = %.15g', self.e_corr_ss)
+        log.info('E_corr(oppo-spin) = %.15g', self.e_corr_os)
+        return self
+
 RMP2 = MP2
 
 class _ChemistsERIs(pyscf_mp2._ChemistsERIs):
