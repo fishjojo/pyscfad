@@ -12,11 +12,11 @@ from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
 from pyscfad import config
 from pyscfad import numpy as np
 from pyscfad import util
-from pyscfad import lib
 from pyscfad import ops
+from pyscfad import lib
 from pyscfad.lib import logger
+from pyscfad.df import df_jk
 from pyscfad.implicit_diff import make_implicit_diff
-from pyscfad import df
 from pyscfad.scf import _vhf
 from pyscfad.scf import chkfile
 from pyscfad.scf.diis import SCF_DIIS
@@ -453,7 +453,7 @@ class SCF(pyscf_hf.SCF):
             return jac.mol
 
     def density_fit(self, auxbasis=None, with_df=None, only_dfj=False):
-        return df.density_fit(self, auxbasis, with_df, only_dfj)
+        return df_jk.density_fit(self, auxbasis, with_df, only_dfj)
 
     @wraps(pyscf_hf.SCF.get_veff)
     def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):

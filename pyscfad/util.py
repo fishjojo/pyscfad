@@ -58,10 +58,17 @@ def to_pyscf(obj, nocopy_names=(), out=None):
 
     if out is None:
         from importlib import import_module
-        from pyscf.lib.misc import omniobj
+        from pyscf.lib.misc import omniobj, set_class
         mod = import_module(obj.__module__.replace("pyscfad", "pyscf"))
         cls = getattr(mod, obj.__class__.__name__)
         out = cls(omniobj)
+        if cls.__name__ == "_DFHF":
+            mf_cls = obj.__class__.__mro__[2]
+            mf_mod = import_module(mf_cls.__module__.replace("pyscfad", "pyscf"))
+            mf_cls = getattr(mf_mod, mf_cls.__name__)
+            # need to initilize the mean-field object to get the attributes
+            out = cls(mf_cls(omniobj))
+            out = set_class(out, (cls, mf_cls))
 
     cls_keys = [getattr(cls, "_keys", ()) for cls in out.__class__.__mro__[:-1]]
     out_keys = set(out.__dict__).union(*cls_keys)

@@ -51,8 +51,9 @@ class DF(pyscf_df.DF):
         '''Reset mol and clean up relevant attributes for scanner mode'''
         if mol is not None:
             self.mol = mol
-        # NOTE resetting auxmol will lose its tracing
-        #self.auxmol = None
+        # NOTE resetting auxmol will lose its tracing,
+        # but its contribution should be included in mol
+        self.auxmol = None
         self._cderi = None
         if not isinstance(self._cderi_to_save, str) and not self.incore:
             # pylint: disable=consider-using-with
@@ -96,3 +97,6 @@ class DF(pyscf_df.DF):
                     yield out
             else:
                 raise NotImplementedError
+
+    to_pyscf = util.to_pyscf
+
