@@ -9,6 +9,7 @@ from .._common import (
     class_as_pytree_node,
     custom_jvp,
     jit, # TODO use numba
+    while_loop,
     index,
     index_update,
     index_add,
@@ -51,6 +52,7 @@ backend._cache['class_as_pytree_node'] = class_as_pytree_node
 backend._cache['custom_jvp'] = custom_jvp
 backend._cache['jit'] = jit
 backend._cache['vmap'] = vmap
+backend._cache['while_loop'] = while_loop
 backend._cache['index'] = index
 backend._cache['index_update'] = index_update
 backend._cache['index_add'] = index_add

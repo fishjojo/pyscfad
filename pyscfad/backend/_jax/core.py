@@ -10,9 +10,6 @@ def to_numpy(x):
     x = jax.lax.stop_gradient(x)
     return x.__array__()
 
-def convert_to_tensor(x, dtype=None, **kwargs):
-    return jnp.asarray(x, dtype=dtype, **kwargs)
-
 def vmap(fun, in_axes=0, out_axes=0, chunk_size=None, signature=None):
     return jax.vmap(fun, in_axes=in_axes, out_axes=out_axes)
 

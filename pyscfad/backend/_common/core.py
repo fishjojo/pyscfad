@@ -21,6 +21,12 @@ class custom_jvp:
 def jit(fun, **kwargs):
     return fun
 
+def while_loop(cond_fun, body_fun, init_val):
+    val = init_val
+    while cond_fun(val):
+        val = body_fun(val)
+    return val
+
 # TODO deprecate these
 class _Indexable(object):
     # pylint: disable=line-too-long

@@ -1,17 +1,19 @@
 # pylint: skip-file
+import jax
 from pyscf.lib import logger
 from pyscf.lib.logger import *
-from pyscfad import ops
+from pyscfad import util
 
 def flush(rec, msg, *args):
-    args_list = []
-    for arg in args:
-        if ops.is_array(arg):
-            arg = ops.to_numpy(arg)
-        args_list.append(getattr(arg, 'val', arg))
-    rec.stdout.write(msg % tuple(args_list))
-    rec.stdout.write('\n')
-    rec.stdout.flush()
+    def _flush(*args):
+        rec.stdout.write(msg % args)
+        rec.stdout.write('\n')
+        rec.stdout.flush()
+
+    if any(util.is_tracer(arg) for arg in args):
+        jax.debug.callback(_flush, *args)
+    else:
+        _flush(*args)
 
 def timer(rec, msg, cpu0=None, wall0=None):
     if cpu0 is None:
@@ -30,6 +32,12 @@ def timer(rec, msg, cpu0=None, wall0=None):
             flush(rec, '    CPU time for %s %9.2f sec' % (msg, rec._t0-cpu0))
         return rec._t0
 
+def get_t0(rec):
+    return (rec._t0, rec._w0)
+
+# FIXME monkey patch
 logger.flush = flush
 logger.timer = timer
 logger.Logger.timer = timer
+logger.Logger.get_t0 = get_t0
+

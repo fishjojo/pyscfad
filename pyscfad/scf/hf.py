@@ -3,10 +3,9 @@ from functools import (
     wraps,
 )
 import numpy
-import jax
 
 from pyscf.data import nist
-from pyscf.lib import module_method
+from pyscf.lib import alias, module_method
 from pyscf.scf import hf as pyscf_hf
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
 
@@ -14,11 +13,7 @@ from pyscfad import config
 from pyscfad import numpy as np
 from pyscfad import util
 from pyscfad import lib
-from pyscfad.ops import (
-    stop_grad,
-    stop_trace,
-    jit,
-)
+from pyscfad import ops
 from pyscfad.lib import logger
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad import df
@@ -30,47 +25,41 @@ from pyscfad.tools.linear_solver import gen_gmres
 
 Traced_Attributes = ['mol', '_eri', 'mo_coeff', 'mo_energy']
 
-def _scf_optimality_cond(dm, mf, s1e, h1e):
-    mol = getattr(mf, 'cell', mf.mol)
-    vhf = mf.get_veff(mol, dm)
+def _scf_fixed_point(dm, mf, s1e, h1e):
+    vhf = mf.get_veff(mf.mol, dm)
     fock = mf.get_fock(h1e, s1e, vhf, dm)
     mo_energy, mo_coeff = mf.eig(fock, s1e)
-    mo_occ = stop_trace(mf.get_occ)(mo_energy, mo_coeff)
+    mo_occ = mf.get_occ(mo_energy, mo_coeff)
     dm = mf.make_rdm1(mo_coeff, mo_occ)
     del mo_energy, mo_occ
     return dm
 
 
 def _scf(dm, mf, s1e, h1e, *,
-         conv_tol=1e-10, conv_tol_grad=None, diis=None,
-         dump_chk=True, callback=None, log=None):
-    if conv_tol_grad is None:
-        conv_tol_grad = numpy.sqrt(conv_tol)
-    if log is None:
-        log = logger.new_logger(mf)
+         conv_tol, conv_tol_grad, diis=None,
+         dump_chk=False, callback=None, log,
+         e_tot, vhf, cput1):
     scf_conv = False
-    mol = getattr(mf, 'cell', mf.mol)
-    vhf = mf.get_veff(mol, dm)
-    e_tot = mf.energy_tot(dm, h1e, vhf)
-    log.info('init E= %.15g', e_tot)
-    cput1 = log.timer('initialize scf')
+    fock_last = None
+    mol = mf.mol
 
     for cycle in range(mf.max_cycle):
         dm_last = dm
         last_hf_e = e_tot
 
-        fock = mf.get_fock(h1e, s1e, vhf, dm, cycle, diis)
+        fock = mf.get_fock(h1e, s1e, vhf, dm, cycle, diis, fock_last=fock_last)
         mo_energy, mo_coeff = mf.eig(fock, s1e)
-        mo_occ = stop_trace(mf.get_occ)(mo_energy, mo_coeff)
+        mo_occ = mf.get_occ(mo_energy, mo_coeff)
         dm = mf.make_rdm1(mo_coeff, mo_occ)
         vhf = mf.get_veff(mol, dm, dm_last, vhf)
         e_tot = mf.energy_tot(dm, h1e, vhf)
 
-        fock = stop_trace(mf.get_fock)(h1e, s1e, vhf, dm)
-        norm_gorb = numpy.linalg.norm(stop_trace(mf.get_grad)(mo_coeff, mo_occ, fock))
+        fock_last = fock
+        fock = mf.get_fock(h1e, s1e, vhf, dm)
+        norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
         if not TIGHT_GRAD_CONV_TOL:
-            norm_gorb = norm_gorb / numpy.sqrt(norm_gorb.size)
-        norm_ddm = numpy.linalg.norm(stop_grad(dm - dm_last))
+            norm_gorb = norm_gorb / np.sqrt(norm_gorb.size)
+        norm_ddm = np.linalg.norm(dm-dm_last)
         log.info('cycle= %d E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g',
                  cycle+1, e_tot, e_tot-last_hf_e, norm_gorb, norm_ddm)
 
@@ -85,53 +74,44 @@ def _scf(dm, mf, s1e, h1e, *,
         if callable(callback):
             callback(locals())
 
-        cput1 = log.timer(f'cycle = {cycle+1}', *cput1)
+        cput1 = log.timer(f'cycle = {cycle+1:d}', *cput1)
 
         if scf_conv:
             break
+
     return dm, scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 
+@wraps(pyscf_hf.kernel)
 def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
            dump_chk=True, dm0=None, callback=None, conv_check=True, **kwargs):
     log = logger.new_logger(mf)
-    cput0 = (log._t0, log._w0)
+    cput0 = log.get_t0()
     if conv_tol_grad is None:
         conv_tol_grad = numpy.sqrt(conv_tol)
         log.info('Set gradient conv threshold to %g', conv_tol_grad)
 
-    mol = getattr(mf, 'cell', mf.mol)
+    mol = mf.mol
+    s1e = mf.get_ovlp(mol)
+
     if dm0 is None:
-        dm = mf.get_init_guess(mol, mf.init_guess)
+        dm = mf.get_init_guess(mol, mf.init_guess, s1e=s1e)
     else:
         dm = dm0
 
     h1e = mf.get_hcore(mol)
-    # NOTE if use implicit differentiation,
-    # the eri derivative will be lost if not computed before SCF iterations.
-    if config.scf_implicit_diff:
-        if getattr(mf, 'with_df', None) is not None:
-            if hasattr(mf.with_df, '_cderi') and mf.with_df._cderi is None:
-                mf.with_df.build()
-        else:
-            if mf._eri is None:
-                aosym = 's4' if config.moleintor_opt else 's1'
-                mf._eri = mol.intor('int2e', aosym=aosym)
+    vhf = mf.get_veff(mol, dm)
+    e_tot = mf.energy_tot(dm, h1e, vhf)
+    log.info('init E= %.15g', e_tot)
 
     scf_conv = False
     mo_energy = mo_coeff = mo_occ = None
 
-    s1e = mf.get_ovlp(mol)
-
+    # Skip SCF iterations. Compute only the total energy of the initial density
     if mf.max_cycle <= 0:
-        # Skip SCF iterations. Compute only the total energy of the initial density
-        vhf = mf.get_veff(mol, dm)
-        e_tot = mf.energy_tot(dm, h1e, vhf)
-        log.info('init E= %.15g', e_tot)
-
         fock = mf.get_fock(h1e, s1e, vhf, dm)
         mo_energy, mo_coeff = mf.eig(fock, s1e)
-        mo_occ = stop_trace(mf.get_occ)(mo_energy, mo_coeff)
+        mo_occ = mf.get_occ(mo_energy, mo_coeff)
         # hack for ROHF
         mo_energy = getattr(mo_energy, 'mo_energy', mo_energy)
         return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
@@ -143,6 +123,13 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
         mf_diis = mf.DIIS(mf, mf.diis_file)
         mf_diis.space = mf.diis_space
         mf_diis.rollback = mf.diis_space_rollback
+        mf_diis.damp = mf.diis_damp
+
+        # We get the used orthonormalized AO basis from any old eigendecomposition.
+        # Since the ingredients for the Fock matrix has already been built, we can
+        # just go ahead and use it to determine the orthonormal basis vectors.
+        fock = mf.get_fock(h1e, s1e, vhf, dm)
+        _, mf_diis.Corth = mf.eig(fock, s1e)
     else:
         mf_diis = None
 
@@ -154,39 +141,46 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     # A preprocessing hook before the SCF iteration
     mf.pre_kernel(locals())
 
-    # SCF iteration
+    cput1 = log.timer('initialize scf', *cput0)
+    # wrapped function for SCF iteration that is implicitly differentiable
+    _scf_wrapped = make_implicit_diff(
+        _scf,
+        config.scf_implicit_diff,
+        optimality_cond=_scf_fixed_point,
+        solver=gen_gmres(),
+        has_aux=True,
+    )
+    if config.scf_implicit_diff:
+        vhf = ops.stop_grad(vhf)
     # NOTE if use implicit differentiation, only dm will have gradient.
-    dm, scf_conv, e_tot, mo_energy, mo_coeff, mo_occ = \
-            make_implicit_diff(_scf, config.scf_implicit_diff,
-                    optimality_cond=_scf_optimality_cond,
-                    solver=gen_gmres(), has_aux=True)(
-                 dm, mf, s1e, h1e,
-                 conv_tol=conv_tol, conv_tol_grad=conv_tol_grad,
-                 diis=mf_diis, dump_chk=dump_chk, callback=callback, log=log)
+    dm, scf_conv, e_tot, mo_energy, mo_coeff, mo_occ = _scf_wrapped(
+        dm, mf, s1e, h1e,
+        conv_tol=conv_tol, conv_tol_grad=conv_tol_grad,
+        diis=mf_diis, dump_chk=dump_chk, callback=callback,
+        log=log, e_tot=e_tot, vhf=vhf, cput1=cput1,
+    )
 
-    run_extra_cycle = False
+    _extra_cycle = False
     if config.scf_implicit_diff and (not conv_check or not scf_conv):
         log.warn('\tAn extra scf cycle is going to be run\n'
                  '\tin order to restore the mo_energy derivatives\n'
                  '\tmissing in implicit differentiation.')
-        run_extra_cycle = True
+        _extra_cycle = True
 
-    if (scf_conv and conv_check) or run_extra_cycle:
-        # An extra diagonalization, to remove level shift
-        vhf = mf.get_veff(mol, dm)
+    if (scf_conv and conv_check) or _extra_cycle:
+        vhf = mf.get_veff(mf.mol, dm)
         fock = mf.get_fock(h1e, s1e, vhf, dm)
         mo_energy, mo_coeff = mf.eig(fock, s1e)
-        mo_occ = stop_trace(mf.get_occ)(mo_energy, mo_coeff)
+        mo_occ = mf.get_occ(mo_energy, mo_coeff)
         dm, dm_last = mf.make_rdm1(mo_coeff, mo_occ), dm
         vhf = mf.get_veff(mol, dm, dm_last, vhf)
         e_tot, last_hf_e = mf.energy_tot(dm, h1e, vhf), e_tot
 
-        fock = stop_trace(mf.get_fock)(h1e, s1e, vhf, dm)
-        norm_gorb = numpy.linalg.norm(stop_trace(mf.get_grad)(mo_coeff, mo_occ, fock))
-        del fock, vhf
+        fock = mf.get_fock(h1e, s1e, vhf, dm)
+        norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
         if not TIGHT_GRAD_CONV_TOL:
-            norm_gorb = norm_gorb / numpy.sqrt(norm_gorb.size)
-        norm_ddm = numpy.linalg.norm(stop_grad(dm - dm_last))
+            norm_gorb = norm_gorb / np.sqrt(norm_gorb.size)
+        norm_ddm = np.linalg.norm(dm - dm_last)
 
         conv_tol = conv_tol * 10
         conv_tol_grad = conv_tol_grad * 3
@@ -209,7 +203,7 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 
-@partial(jit, static_argnums=(2,3))
+@partial(ops.jit, static_argnums=(2,3))
 def _dot_eri_dm_s1(eri, dm, with_j, with_k):
     nao = dm.shape[-1]
     eri = eri.reshape((nao,)*4)
@@ -296,20 +290,18 @@ def dip_moment(mol, dm, unit='Debye', verbose=logger.NOTE, **kwargs):
     return mol_dip
 
 
-def damping(s, d, f, factor):
-    dm_vir = np.eye(s.shape[0]) - s @ d
-    f0 = dm_vir @ f @ d @ s
-    f0 = (f0 + f0.conj().T) * (factor/(factor+1.))
-    return f - f0
-
-
+@wraps(pyscf_hf.get_fock)
 def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
-             diis_start_cycle=None, level_shift_factor=None, damp_factor=None):
+             diis_start_cycle=None, level_shift_factor=None, damp_factor=None,
+             fock_last=None):
     if h1e is None:
         h1e = mf.get_hcore()
     if vhf is None:
         vhf = mf.get_veff(mf.mol, dm)
+
+    # hack for DFT
     vhf = getattr(vhf, 'vxc', vhf)
+
     f = h1e + vhf
     if cycle < 0 and diis is None:  # Not inside the SCF iteration
         return f
@@ -325,10 +317,10 @@ def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
     if dm is None:
         dm = mf.make_rdm1()
 
-    if 0 <= cycle < diis_start_cycle-1 and abs(damp_factor) > 1e-4:
-        f = damping(s1e, dm*.5, f, damp_factor)
+    if 0 <= cycle < diis_start_cycle-1 and abs(damp_factor) > 1e-4 and fock_last is not None:
+        f = pyscf_hf.damping(f, fock_last, damp_factor)
     if diis is not None and cycle >= diis_start_cycle:
-        f = diis.update(s1e, dm, f, mf, h1e, vhf)
+        f = diis.update(s1e, dm, f, mf, h1e, vhf, f_prev=fock_last)
     if abs(level_shift_factor) > 1e-4:
         f = level_shift(s1e, dm*.5, f, level_shift_factor)
     return f
@@ -377,12 +369,11 @@ class SCF(pyscf_hf.SCF):
     def get_init_guess(self, mol=None, key='minao', **kwargs):
         if mol is None:
             mol = self.mol
-        dm0 = pyscf_hf.SCF.get_init_guess(self, mol.to_pyscf(), key)
-        dm0 = numpy.asarray(dm0) #remove tags
+        dm0 = pyscf_hf.SCF.get_init_guess(self, mol.to_pyscf(), key, **kwargs)
+        dm0 = np.asarray(dm0) #remove tags
         return dm0
 
-    # pylint: disable=arguments-differ
-    def kernel(self, dm0=None, **kwargs):
+    def scf(self, dm0=None, **kwargs):
         self.dump_flags()
         self.build(self.mol)
 
@@ -399,6 +390,8 @@ class SCF(pyscf_hf.SCF):
 
         self._finalize()
         return self.e_tot
+
+    kernel = alias(scf, alias_name='kernel')
 
     def _eigh(self, h, s):
         return eigh(h, s)
@@ -434,6 +427,7 @@ class SCF(pyscf_hf.SCF):
         .. deprecated:: 0.2.0
             This function will be deprecated in PySCFAD 0.2.0.
         """
+        import jax
         if dm0 is None:
             try:
                 dm0 = self.make_rdm1()
@@ -498,6 +492,11 @@ class SCF(pyscf_hf.SCF):
 
     def check_sanity(self):
         return pyscf_hf.SCF.check_sanity(self.to_pyscf())
+
+    def get_occ(self, mo_energy=None, mo_coeff=None):
+        if mo_energy is None:
+            mo_energy = self.mo_energy
+        return pyscf_hf.SCF.get_occ(self, ops.to_numpy(mo_energy))
 
     make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
     energy_elec = energy_elec

@@ -2,7 +2,7 @@ from functools import partial
 from pyscfad import ops
 
 def pytree_node(leaf_names, num_args=0, exclude_aux_name=()):
-    """Class decorator that registers the underlying class as a pytree node.
+    """Class decorator that registers the underlying class as a pytree.
 
     See `jax document <https://jax.readthedocs.io/en/latest/pytrees.html>`_
     for the definition of pytrees.
@@ -78,3 +78,16 @@ def to_pyscf(obj, nocopy_names=(), out=None):
         setattr(out, key, val)
     return out
 
+def is_tracer(a):
+    """Test if the object is an tracer.
+
+    Parameters
+    ----------
+    a : object
+        The object to be tested.
+
+    Notes
+    -----
+    Only works for the jax backend.
+    """
+    return any(cls.__name__.endswith("Tracer") for cls in a.__class__.__mro__)

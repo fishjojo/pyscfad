@@ -12,6 +12,7 @@ __all__ = [
     'custom_jvp',
     'jit',
     'vmap',
+    'while_loop',
     'index',
     'index_update',
     'index_add',

@@ -16,7 +16,10 @@ from jax import (
     custom_jvp,
     jit,
 )
-from jax.lax import stop_gradient
+from jax.lax import (
+    stop_gradient,
+    while_loop,
+)
 from .core import (
     is_array,
     to_numpy,
@@ -58,6 +61,7 @@ backend._cache['class_as_pytree_node'] = class_as_pytree_node
 backend._cache['custom_jvp'] = custom_jvp
 backend._cache['jit'] = jit
 backend._cache['vmap'] = vmap
+backend._cache['while_loop'] = while_loop
 backend._cache['index'] = index
 backend._cache['index_update'] = index_update
 backend._cache['index_add'] = index_add

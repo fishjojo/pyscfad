@@ -1,10 +1,10 @@
 import numpy
-import scipy.linalg
+import scipy
 from pyscf.lib import prange
 from pyscf.lib import diis as pyscf_diis
 from pyscf.lib.diis import INCORE_SIZE, BLOCK_SIZE
 from pyscfad import numpy as np
-from pyscfad.ops import stop_grad
+from pyscfad import ops
 from pyscfad.lib import logger
 
 # pylint: disable=consider-using-f-string
@@ -35,9 +35,7 @@ class DIIS(pyscf_diis.DIIS):
             self._store(xkey, x)
             if x.size < INCORE_SIZE or self.incore:
                 # no need to trace error vector
-                x = numpy.asarray(stop_grad(x))
-                xprev = numpy.asarray(stop_grad(self._xprev))
-                self._store(ekey, x - xprev)
+                self._store(ekey, ops.to_numpy(x - ops.to_numpy(self._xprev)))
             else:  # not call _store to reduce memory footprint
                 if ekey not in self._diisfile:
                     self._diisfile.create_dataset(ekey, (x.size,), x.dtype)
