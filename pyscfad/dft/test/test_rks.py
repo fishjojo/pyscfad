@@ -1,6 +1,8 @@
 import pytest
 import numpy
+import jax
 from pyscfad import gto, dft
+from pyscfad import config_update
 
 BOHR = 0.52917721092
 disp = 1e-4
@@ -119,3 +121,13 @@ def test_rks_nuc_grad_nlc_skip(get_mol, get_mol_p, get_mol_m):
 
     g_fd = (ep-em) / disp * BOHR
     assert abs(g[1,2] - g_fd) < 2e-4
+
+def test_df_rks_nuc_grad(get_mol):
+    with config_update('pyscfad_scf_implicit_diff', True):
+        mol = get_mol
+        def energy(mol):
+            mf = dft.RKS(mol, xc='PBE,PBE').density_fit()
+            return mf.kernel()
+        g = jax.grad(energy)(mol).coords
+        # finite difference reference
+        assert abs(g[1,2] - -0.007387325326884536) < 1e-6

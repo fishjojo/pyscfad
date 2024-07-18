@@ -491,7 +491,7 @@ class SCF(pyscf_hf.SCF):
         return self.mol.energy_nuc()
 
     def check_sanity(self):
-        return pyscf_hf.SCF.check_sanity(self.to_pyscf())
+        return pyscf_hf.SCF.check_sanity(ops.stop_grad(self))
 
     def get_occ(self, mo_energy=None, mo_coeff=None):
         if mo_energy is None:

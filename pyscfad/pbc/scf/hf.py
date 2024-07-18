@@ -17,7 +17,7 @@ Traced_Attributes = ['cell', 'mo_coeff', 'mo_energy',]# 'with_df']
 @wraps(pyscf_pbc_hf.get_ovlp)
 def get_ovlp(cell, kpt=np.zeros(3)):
     s = cell.pbc_intor('int1e_ovlp', hermi=0, kpts=kpt)
-    return s
+    return np.asarray(s)
 
 @util.pytree_node(Traced_Attributes, num_args=1)
 class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):

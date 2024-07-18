@@ -4,27 +4,24 @@ import jax
 from pyscf import df as pyscf_df
 from pyscfad import gto, dft, df
 from pyscfad.gw import rpa
-from pyscfad import config
+from pyscfad import config_update
 
 @pytest.fixture
 def get_h2o():
-    config.update('pyscfad_scf_implicit_diff', True)
+    with config_update('pyscfad_scf_implicit_diff', True):
+        mol = gto.Mole()
+        mol.verbose = 0
+        mol.atom = [
+            [8 , [0. , 0.     , 0.]],
+            [1 , [0. , -0.7571 , 0.5861]],
+            [1 , [0. , 0.7571 , 0.5861]]]
+        mol.basis = 'def2-svp'
+        mol.max_memory = 8000
+        mol.incore_anyway = True
+        mol.build(trace_exp=False, trace_ctr_coeff=False)
+        yield mol
 
-    mol = gto.Mole()
-    mol.verbose = 0
-    mol.atom = [
-        [8 , [0. , 0.     , 0.]],
-        [1 , [0. , -0.7571 , 0.5861]],
-        [1 , [0. , 0.7571 , 0.5861]]]
-    mol.basis = 'def2-svp'
-    mol.max_memory = 8000
-    mol.incore_anyway = True
-    mol.build(trace_exp=False, trace_ctr_coeff=False)
-    yield mol
-
-    config.reset()
-
-def test_nuc_grad_skip(get_h2o):
+def test_nuc_grad(get_h2o):
     mol = get_h2o
     auxbasis = pyscf_df.addons.make_auxbasis(mol, mp2fit=True)
     auxmol = df.addons.make_auxmol(mol, auxbasis)

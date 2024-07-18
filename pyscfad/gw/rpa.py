@@ -86,8 +86,8 @@ def get_rpa_ecorr(rpa, Lpq, freqs, wts):
 @util.pytree_node(['_scf','mol','with_df','mo_energy','mo_coeff'], num_args=1)
 class RPA(pyscf_rpa.RPA):
     def __init__(self, mf, frozen=None, auxbasis=None, **kwargs):
-        self.mol = mf.mol
         self._scf = mf
+        self.mol = mf.mol
         self.verbose = self.mol.verbose
         self.stdout = self.mol.stdout
         self.max_memory = mf.max_memory

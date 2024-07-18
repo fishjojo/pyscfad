@@ -9,7 +9,7 @@ from pyscfad.ops import stop_grad
 from pyscfad.scf import hf
 from pyscfad.dft import numint
 
-@util.pytree_node([])
+@util.pytree_node(['vxc', 'ecoul', 'exc'])
 class VXC():
     def __init__(self, **kwargs):
         self.vxc = None
