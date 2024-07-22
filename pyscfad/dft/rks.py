@@ -4,20 +4,22 @@ from pyscf.lib import logger
 from pyscf.dft import rks as pyscf_rks
 from pyscf.dft import gen_grid
 from pyscfad import numpy as np
-from pyscfad import util
+from pyscfad import pytree
 from pyscfad.ops import stop_grad
 from pyscfad.scf import hf
 from pyscfad.dft import numint
 
-@util.pytree_node(['vxc', 'ecoul', 'exc'])
-class VXC():
-    def __init__(self, **kwargs):
-        self.vxc = None
-        self.ecoul = None
-        self.exc = None
-        self.vj = None
-        self.vk = None
-        self.__dict__.update(kwargs)
+class VXC(pytree.PytreeNode):
+    _dynamic_attr = {'vxc', 'ecoul', 'exc', 'vj', 'vk'}
+
+    def __init__(self, vxc=None,
+                 ecoul=None, exc=None,
+                 vj=None, vk=None):
+        self.vxc = vxc
+        self.ecoul = ecoul
+        self.exc = exc
+        self.vj = vj
+        self.vk = vk
 
     def __repr__(self):
         return self.vxc.__repr__()
@@ -158,7 +160,6 @@ class KohnShamDFT(pyscf_rks.KohnShamDFT):
             self.nlcgrids.reset(mol)
         return self
 
-@util.pytree_node(hf.Traced_Attributes, num_args=1)
 class RKS(KohnShamDFT, hf.RHF):
     """Subclass of :class:`pyscf.dft.rks.RKS` with traceable attributes.
 

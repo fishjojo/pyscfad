@@ -3,16 +3,12 @@ import h5py
 import numpy
 from pyscf import __config__
 from pyscf.pbc.scf import khf as pyscf_khf
-from pyscfad import util
 from pyscfad import numpy as np
 from pyscfad.ops import stop_grad, stop_trace
 from pyscfad.lib import logger
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
 from pyscfad.pbc.scf import hf as pbchf
-
-# TODO add mo_coeff, which requires AD wrt complex numbers
-Traced_Attributes = ['cell', 'mo_energy',]# 'with_df']
 
 def get_ovlp(mf, cell=None, kpts=None):
     if cell is None:
@@ -93,7 +89,6 @@ def make_rdm1(mo_coeff_kpts, mo_occ_kpts, **kwargs):
     dm = [mol_hf.make_rdm1(mo_coeff_kpts[k], mo_occ_kpts[k]) for k in range(nkpts)]
     return np.asarray(dm)
 
-@util.pytree_node(Traced_Attributes, num_args=1)
 class KSCF(pbchf.SCF, pyscf_khf.KSCF):
     """Subclass of :class:`pyscf.pbc.scf.khf.KSCF` with traceable attributes.
 
@@ -105,8 +100,7 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         MO energies.
     """
     def __init__(self, cell, kpts=numpy.zeros((1,3)),
-                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'),
-                 **kwargs):
+                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')):
         if not cell._built:
             sys.stderr.write('Warning: cell.build() is not called in input\n')
             cell.build()
@@ -120,7 +114,6 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         self.conv_tol = max(cell.precision * 10, 1e-8)
 
         self.exx_built = False
-        self.__dict__.update(kwargs)
 
     def get_jk(self, cell=None, dm_kpts=None, hermi=1, kpts=None, kpts_band=None,
                with_j=True, with_k=True, omega=None, **kwargs):
@@ -177,7 +170,6 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
     get_k = pyscf_khf.KSCF.get_k
     get_grad = stop_trace(pyscf_khf.KSCF.get_grad)
 
-@util.pytree_node(Traced_Attributes, num_args=1)
 class KRHF(KSCF, pyscf_khf.KRHF):
     def get_init_guess(self, cell=None, key='minao', s1e=None):
         from pyscf import lib

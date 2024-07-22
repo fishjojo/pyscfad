@@ -5,21 +5,17 @@ import numpy
 from pyscf import __config__
 from pyscf.pbc.scf import hf as pyscf_pbc_hf
 from pyscf.pbc.scf.hf import _format_jks
-from pyscfad import util
 from pyscfad import numpy as np
 from pyscfad.ops import stop_grad, stop_trace
 from pyscfad.lib import logger
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
 
-Traced_Attributes = ['cell', 'mo_coeff', 'mo_energy',]# 'with_df']
-
 @wraps(pyscf_pbc_hf.get_ovlp)
 def get_ovlp(cell, kpt=np.zeros(3)):
     s = cell.pbc_intor('int1e_ovlp', hermi=0, kpts=kpt)
     return np.asarray(s)
 
-@util.pytree_node(Traced_Attributes, num_args=1)
 class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
     """Subclass of :class:`pyscf.pbc.scf.hf.SCF` with traceable attributes.
 
@@ -33,8 +29,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
         MO energies.
     """
     def __init__(self, cell, kpt=numpy.zeros(3),
-                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'),
-                 **kwargs):
+                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')):
         if not cell._built:
             sys.stderr.write('Warning: cell.build() is not called in input\n')
             cell.build()
@@ -46,8 +41,6 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
         self.exxdiv = exxdiv
         self.kpt = kpt
         self.conv_tol = max(cell.precision * 10, 1e-8)
-
-        self.__dict__.update(kwargs)
 
     def get_init_guess(self, cell=None, key='minao', s1e=None):
         if cell is None:
@@ -129,7 +122,6 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
     energy_grad = NotImplemented
 
 
-@util.pytree_node(Traced_Attributes, num_args=1)
 class RHF(SCF, pyscf_pbc_hf.RHF):
     pass
 

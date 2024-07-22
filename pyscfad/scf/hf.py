@@ -11,6 +11,7 @@ from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
 
 from pyscfad import config
 from pyscfad import numpy as np
+from pyscfad import pytree
 from pyscfad import util
 from pyscfad import ops
 from pyscfad import lib
@@ -326,8 +327,7 @@ def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
     return f
 
 
-@util.pytree_node(Traced_Attributes, num_args=1)
-class SCF(pyscf_hf.SCF):
+class SCF(pytree.PytreeNode, pyscf_hf.SCF):
     """Subclass of :class:`pyscf.scf.hf.SCF` with traceable attributes.
 
     Attributes
@@ -342,10 +342,7 @@ class SCF(pyscf_hf.SCF):
         Two-electron repulsion integrals.
     """
     DIIS = SCF_DIIS
-
-    def __init__(self, mol, **kwargs):
-        super().__init__(mol)
-        self.__dict__.update(kwargs)
+    _dynamic_attr = {'mol', '_eri', 'mo_coeff', 'mo_energy'}
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
                omega=None):
@@ -504,7 +501,6 @@ class SCF(pyscf_hf.SCF):
     to_pyscf = util.to_pyscf
 
 
-@util.pytree_node(Traced_Attributes, num_args=1)
 class RHF(SCF, pyscf_hf.RHF):
     @wraps(pyscf_hf.RHF.check_sanity)
     def check_sanity(self):

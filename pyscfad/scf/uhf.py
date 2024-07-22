@@ -4,7 +4,6 @@ from pyscf.lib import module_method
 from pyscf.scf import uhf as pyscf_uhf
 from pyscfad import numpy as np
 from pyscfad import ops
-from pyscfad import util
 from pyscfad.lib import logger
 from pyscfad.scf import hf
 
@@ -101,11 +100,9 @@ def get_grad(mo_coeff, mo_occ, fock_ao):
     return np.hstack((ga.ravel(), gb.ravel()))
 
 
-@util.pytree_node(hf.Traced_Attributes, num_args=1)
 class UHF(hf.SCF, pyscf_uhf.UHF):
-    def __init__(self, mol, **kwargs):
-        super().__init__(mol)
-        self.__dict__.update(kwargs)
+    def __init__(self, mol):
+        pyscf_uhf.UHF.__init__(self, mol)
 
     def eig(self, h, s):
         e_a, c_a = self._eigh(h[0], s)

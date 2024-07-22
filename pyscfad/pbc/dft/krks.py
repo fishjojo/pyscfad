@@ -3,7 +3,6 @@ from pyscf import __config__
 from pyscf.lib import logger
 from pyscf.pbc.dft import krks as pyscf_krks
 from pyscf.pbc.dft import gen_grid, multigrid
-from pyscfad import util
 from pyscfad import numpy as np
 from pyscfad.ops import stop_grad
 from pyscfad.dft.rks import VXC
@@ -77,7 +76,6 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     del log
     return vxc
 
-@util.pytree_node(khf.Traced_Attributes, num_args=1)
 class KRKS(rks.KohnShamDFT, khf.KRHF):
     """Subclass of :class:`pyscf.pbc.dft.krks.KRKS` with traceable attributes.
 
@@ -95,11 +93,9 @@ class KRKS(rks.KohnShamDFT, khf.KRHF):
     Grid response is not considered with AD.
     """
     def __init__(self, cell, kpts=numpy.zeros((1,3)), xc='LDA,VWN',
-                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'),
-                 **kwargs):
-        khf.KRHF.__init__(self, cell, kpts, exxdiv, **kwargs)
+                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')):
+        khf.KRHF.__init__(self, cell, kpts, exxdiv)
         rks.KohnShamDFT.__init__(self, xc)
-        self.__dict__.update(kwargs)
         # NOTE this has to be after __dict__ update,
         # otherwise stop_grad(mol) won't work.
         # Currently, no grid response is considered.

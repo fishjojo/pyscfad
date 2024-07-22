@@ -4,7 +4,7 @@ from pyscf import __config__ as pyscf_config
 from pyscf.lib import split_reshape
 from pyscf.mp import mp2 as pyscf_mp2
 from pyscfad import numpy as np
-from pyscfad import util
+from pyscfad import pytree
 from pyscfad import lib
 from pyscfad.lib import logger
 from pyscfad import ops
@@ -147,12 +147,8 @@ def _gamma1_intermediates(mp, t2=None, eris=None):
     (dm1vir, dm1occ), _ = jax.lax.scan(_fn, (dm1vir, dm1occ), t2)
     return -dm1occ, dm1vir
 
-@util.pytree_node(['_scf', 'mol'], num_args=1)
-class MP2(pyscf_mp2.MP2):
-    def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None, **kwargs):
-        pyscf_mp2.MP2.__init__(self, mf, frozen=frozen,
-                               mo_coeff=mo_coeff, mo_occ=mo_occ)
-        self.__dict__.update(kwargs)
+class MP2(pytree.PytreeNode, pyscf_mp2.MP2):
+    _dynamic_attr = {'_scf', 'mol'}
 
     def ao2mo(self, mo_coeff=None):
         eris = _ChemistsERIs()

@@ -2,7 +2,7 @@ from functools import wraps
 from pyscf.df import df_jk as pyscf_df_jk
 from pyscfad import config
 from pyscfad import numpy as np
-from pyscfad import util
+from pyscfad import pytree
 from .addons import restore
 from ._df_jk_opt import get_jk as get_jk_opt
 
@@ -59,19 +59,8 @@ def density_fit(mf, auxbasis=None, with_df=None, only_dfj=False):
     dfmf = _DFHF(mf, with_df, only_dfj)
     return dfmf
 
-@util.pytree_node(['mol', 'with_df'])
-class _DFHF(pyscf_df_jk._DFHF):
-    def __init__(self, mf=None, with_df=None, only_dfj=None, **kwargs):
-        if mf is not None:
-            self.__dict__.update(mf.__dict__)
-        self._eri = None
-        self.with_df = with_df
-        self.only_dfj = only_dfj
-        # Unless DF is used only for J matrix, disable direct_scf for K build.
-        # It is more efficient to construct K matrix with MO coefficients than
-        # the incremental method in direct_scf.
-        self.direct_scf = only_dfj
-        self.__dict__.update(kwargs)
+class _DFHF(pytree.PytreeNode, pyscf_df_jk._DFHF):
+    _dynamic_attr = {'mol', 'with_df'}
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
                omega=None):

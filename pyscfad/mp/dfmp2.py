@@ -7,7 +7,6 @@ from pyscf.lib import direct_sum, current_memory
 #from pyscf.mp.mp2 import _ChemistsERIs
 from pyscfad import config
 from pyscfad import numpy as np
-from pyscfad import util
 from pyscfad.ops import vmap
 from pyscfad.lib import logger
 from pyscfad.ao2mo import _ao2mo
@@ -150,18 +149,15 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
         emp2, t2 = _contract(Lov, mo_energy, nocc, nvir, with_t2)
     return emp2, t2
 
-@util.pytree_node(['_scf', 'mol', 'with_df'], num_args=1)
 class MP2(mp2.MP2):
-    def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None, **kwargs):
-        super().__init__(mf, frozen=frozen,
-                         mo_coeff=mo_coeff, mo_occ=mo_occ, **kwargs)
+    _dynamic_attr = _keys = {'with_df'}
+
+    def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None):
+        super().__init__(mf, frozen=frozen, mo_coeff=mo_coeff, mo_occ=mo_occ)
         if getattr(mf, 'with_df', None):
             self.with_df = mf.with_df
         else:
             raise KeyError('The mean-field object has no density fitting.')
-
-        self._keys.update(['with_df'])
-        self.__dict__.update(kwargs)
 
     def ao2mo(self, mo_coeff=None):
         eris = mp2._ChemistsERIs()

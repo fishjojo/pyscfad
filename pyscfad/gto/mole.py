@@ -2,8 +2,7 @@ from functools import wraps
 from pyscf.gto import mole as pyscf_mole
 from pyscf.lib import logger, param
 from pyscfad import numpy as np
-from pyscfad.pytree import PytreeNode
-from pyscfad import util
+from pyscfad import pytree
 from pyscfad.gto import moleintor
 from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
@@ -49,8 +48,7 @@ def nao_nr_range(mol, bas_id0, bas_id1):
     nao_id1 = ao_loc[-1]
     return nao_id0, nao_id1
 
-#@util.pytree_node(Traced_Attributes, exclude_aux_name=Exclude_Aux_Names)
-class Mole(PytreeNode, pyscf_mole.Mole):
+class Mole(pytree.PytreeNode, pyscf_mole.Mole):
     """Subclass of :class:`pyscf.gto.Mole` with traceable attributes.
 
     Attributes
@@ -66,7 +64,6 @@ class Mole(PytreeNode, pyscf_mole.Mole):
         not used as the basis functions are atom centered. This
         is a placeholder for floating Gaussian basis sets.
     """
-
     _dynamic_attr = _keys = {'coords', 'exp', 'ctr_coeff', 'r0'}
 
     def __init__(self, **kwargs):

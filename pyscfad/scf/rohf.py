@@ -2,8 +2,8 @@ from functools import reduce, wraps
 import numpy
 from pyscf.scf import rohf as pyscf_rohf
 from pyscfad import numpy as np
+from pyscfad import pytree
 from pyscfad import ops
-from pyscfad import util
 from pyscfad.lib import logger
 from pyscfad.scf import hf, uhf, chkfile
 
@@ -15,8 +15,9 @@ def energy_elec(mf, dm=None, h1e=None, vhf=None):
         dm = np.array((dm*.5, dm*.5))
     return uhf.energy_elec(mf, dm, h1e, vhf)
 
-@util.pytree_node(['fock', 'focka', 'fockb'], num_args=1)
-class _FockMatrix():
+class _FockMatrix(pytree.PytreeNode):
+    _dynamic_attr = {'fock', 'focka', 'fockb'}
+
     def __init__(self, fock, focka=None, fockb=None):
         self.fock = fock
         self.focka = focka
@@ -25,8 +26,9 @@ class _FockMatrix():
     def __repr__(self):
         return self.fock.__repr__()
 
-@util.pytree_node(['mo_energy',], num_args=1)
-class _OrbitalEnergy():
+class _OrbitalEnergy(pytree.PytreeNode):
+    _dynamic_attr = {'mo_energy', 'mo_ea', 'mo_eb'}
+
     def __init__(self, mo_energy, mo_ea=None, mo_eb=None):
         self.mo_energy = mo_energy
         self.mo_ea = mo_ea
@@ -173,11 +175,9 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
             numpy.set_printoptions(threshold=1000)
     return mo_occ
 
-@util.pytree_node(hf.Traced_Attributes, num_args=1)
 class ROHF(hf.SCF, pyscf_rohf.ROHF):
-    def __init__(self, mol, **kwargs):
-        super().__init__(mol)
-        self.__dict__.update(kwargs)
+    def __init__(self, mol):
+        pyscf_rohf.ROHF.__init__(self, mol)
 
     def eig(self, fock, s):
         focka = getattr(fock, 'focka', None)

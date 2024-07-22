@@ -3,21 +3,18 @@ import numpy
 from pyscf.cc import ccsd as pyscf_ccsd
 from pyscf.mp.mp2 import _mo_without_core
 from pyscfad import numpy as np
+from pyscfad import pytree
 from pyscfad import ops
 from pyscfad import lib
 from pyscfad.lib import logger
 #from pyscfad.ops import jit
-#from pyscfad import util
 from pyscfad import config
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.tools.linear_solver import gen_gmres
 
-# assume 'mol', 'mo_coeff', etc. come from '_scf',
-# otherwise they need to be traced
-#CC_Tracers = ['_scf']
-# attributes explicitly appearing in :fun:`update_amps` need to be traced
-#ERI_Tracers = ['fock', 'mo_energy', #'mol', 'mo_coeff', 'e_hf',
-#               'oooo', 'ovoo', 'ovov', 'oovv', 'ovvo', 'ovvv', 'vvvv']
+# attributes explicitly appearing in :fun:`update_amps` are dynamic
+ERI_Tracers = {'fock', 'mo_energy',
+               'oooo', 'ovoo', 'ovov', 'oovv', 'ovvo', 'ovvv', 'vvvv'}
 
 def _converged_iter(amp, mycc, eris):
     t1, t2 = mycc.vector_to_amplitudes(amp)
@@ -347,14 +344,8 @@ def energy(cc, t1=None, t2=None, eris=None):
     #    logger.warn(cc, 'Non-zero imaginary part found in RCCSD energy %s', e)
     return e.real
 
-#@util.pytree_node(CC_Tracers, num_args=1)
-class CCSD(pyscf_ccsd.CCSD):
-    def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None, **kwargs):
-        pyscf_ccsd.CCSD.__init__(self, mf, frozen=frozen,
-                                 mo_coeff=mo_coeff, mo_occ=mo_occ)
-        #if self.diis is True:
-        #    self.diis = lib.diis.DIIS(self, self.diis_file, incore=self.incore_complete)
-        self.__dict__.update(kwargs)
+class CCSD(pytree.PytreeNode, pyscf_ccsd.CCSD):
+    _dynamic_attr = {'_scf'}
 
     def init_amps(self, eris=None):
         log = logger.new_logger(self)
@@ -453,11 +444,8 @@ class CCSD(pyscf_ccsd.CCSD):
     update_amps = update_amps
     _add_vvvv = _add_vvvv
 
-#@util.pytree_node(ERI_Tracers)
-class _ChemistsERIs(pyscf_ccsd._ChemistsERIs):
-    def __init__(self, mol=None, **kwargs):
-        pyscf_ccsd._ChemistsERIs.__init__(self, mol=mol)
-        self.__dict__.update(kwargs)
+class _ChemistsERIs(pytree.PytreeNode, pyscf_ccsd._ChemistsERIs):
+    _dynamic_attr = ERI_Tracers
 
     def _common_init_(self, mycc, mo_coeff=None):
         if mo_coeff is None:
