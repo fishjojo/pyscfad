@@ -1,5 +1,6 @@
 from functools import partial
 from pyscfad import ops
+from pyscfad import pytree
 
 def pytree_node(leaf_names, num_args=0, exclude_aux_name=()):
     """Class decorator that registers the underlying class as a pytree.
@@ -28,7 +29,7 @@ def pytree_node(leaf_names, num_args=0, exclude_aux_name=()):
     than 0, the sequence of positional arguments in ``leaf_names`` must
     follow that in the ``__init__`` method.
     """
-    return partial(ops.class_as_pytree_node,
+    return partial(pytree.class_as_pytree_node,
                    leaf_names=leaf_names,
                    num_args=num_args,
                    exclude_aux_name=exclude_aux_name)

@@ -8,7 +8,6 @@ __all__ = [
     'stop_gradient',
     'stop_grad',
     'stop_trace',
-    'class_as_pytree_node',
     'custom_jvp',
     'jit',
     'vmap',
@@ -44,10 +43,6 @@ def stop_trace(fn):
         kwargs_no_grad = {k : stop_grad(v) for k, v in kwargs.items()}
         return fn(*args_no_grad, **kwargs_no_grad)
     return wrapped_fn
-
-def class_as_pytree_node(cls, leaf_names, num_args=0, exclude_aux_name=()):
-    return get_backend().class_as_pytree_node(cls, leaf_names, num_args=num_args,
-                                              exclude_aux_name=exclude_aux_name)
 
 def jit(obj, **kwargs):
     return get_backend().jit(obj, **kwargs)

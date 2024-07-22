@@ -1,9 +1,6 @@
 def stop_gradient(x):
     return x
 
-def class_as_pytree_node(cls, leaf_names, num_args=0, exclude_aux_name=()):
-    return cls
-
 class custom_jvp:
     """Fake ``custom_jvp`` that does nothing.
     """
