@@ -1,22 +1,17 @@
 from functools import reduce, partial
 import numpy
-import scipy
 import jax
-from pyscf.lib import logger
 from pyscf.lo import pipek as pyscf_pipek
 from pyscfad import numpy as np
-from pyscfad.ops import vmap
+from pyscfad.ops import vmap, jit
 from pyscfad.implicit_diff import make_implicit_diff
-from pyscfad.soscf.ciah import (
-    extract_rotation,
-    pack_uniq_var,
-)
+from pyscfad.soscf.ciah import extract_rotation
 from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.lo import orth, boys
 
 def atomic_pops(mol, mo_coeff, method='mulliken', s=None):
     method = method.lower().replace('_', '-')
-    nmo = mo_coeff.shape[1]
+    nmo = mo_coeff.shape[-1]
     proj = None
 
     if s is None:
@@ -71,6 +66,7 @@ class PipekMezey(pyscf_pipek.PipekMezey):
             method = self.pop_method
         return numpy.asarray(atomic_pops(mol, mo_coeff, method, s=s))
 
+    get_init_guess = boys.Boys.get_init_guess
     kernel = boys.kernel
 
 PM = Pipek = PipekMezey
@@ -79,12 +75,9 @@ def cost_function(x, mol, mo_coeff, pop_method='mulliken', exponent=2):
     u = extract_rotation(x)
     mo_coeff = np.dot(mo_coeff, u)
     pop = atomic_pops(mol, mo_coeff, pop_method)
-    if exponent == 2:
-        return -np.einsum('xii,xii->', pop, pop)
-    else:
-        pop2 = np.einsum('xii->xi', pop)**2
-        return -np.einsum('xi,xi', pop2, pop2)
+    return -(np.einsum('xii->xi', pop)**exponent).sum()
 
+@partial(jit, static_argnames=('pop_method', 'exponent'))
 def _opt_cond(x, mol, mo_coeff, pop_method='mulliken', exponent=2):
     g = jax.grad(cost_function, 0)(x, mol, mo_coeff, pop_method, exponent)
     return g
@@ -111,19 +104,10 @@ def _pm(x, mol, mo_coeff, *,
         u, sorted_idx = loc.kernel(mo_coeff=mo_coeff, return_u=True)
     else:
         u, sorted_idx = loc.kernel(mo_coeff=None, return_u=True)
-    h_diag = loc.gen_g_hop(u)[2]
-    if numpy.any(h_diag < 0):
-        logger.warn(loc, 'Saddle point reached in orbital localization.')
-    if numpy.linalg.det(u) < 0:
-        u[:,0] *= -1
-    mat = scipy.linalg.logm(u)
-    x = pack_uniq_var(mat)
-    if numpy.any(abs(x.imag) > 1e-6):
-        raise RuntimeError('Complex solutions are not supported for '
-                           'differentiating the Boys localiztion.')
-    else:
-        x = x.real
+
+    x = boys._extract_x0(loc, u)
     return x, sorted_idx
+
 
 def pm(mol, mo_coeff, *,
        pop_method='mulliken', exponent=2, init_guess=None,

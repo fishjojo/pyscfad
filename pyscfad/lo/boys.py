@@ -12,7 +12,7 @@ from pyscfad.soscf.ciah import (
 )
 from pyscfad.tools.linear_solver import gen_gmres
 
-# modified from pyscf v2.3
+# modified from pyscf v2.6
 def kernel(localizer, mo_coeff=None, callback=None, verbose=None,
            return_u=False):
     from pyscf.tools import mo_mapping
@@ -90,10 +90,18 @@ def kernel(localizer, mo_coeff=None, callback=None, verbose=None,
 
 
 class Boys(pyscf_boys.Boys):
+    def get_init_guess(self, key='atomic'):
+        if hasattr(key, 'shape'):
+            u0 = numpy.asarray(key)
+        else:
+            u0 = pyscf_boys.Boys.get_init_guess(self, key=key)
+        return u0
+
     kernel = kernel
 
 
 def dipole_integral(mol, mo_coeff):
+    # FIXME do we need charge center response?
     charge_center = numpy.einsum('z,zx->x', mol.atom_charges(),
                                  stop_grad(mol.atom_coords()))
     with mol.with_common_origin(charge_center):
@@ -114,6 +122,25 @@ def _opt_cond(x, mol, mo_coeff):
     g = jax.grad(cost_function, 0)(x, mol, mo_coeff)
     return g
 
+def _extract_x0(loc, u):
+    if numpy.linalg.det(u) < 0:
+        u[:,0] *= -1
+    assert numpy.isclose(numpy.linalg.det(u), 1, atol=1e-8)
+
+    h_diag = loc.gen_g_hop(u)[2]
+    if numpy.any(h_diag < -1e-6):
+        logger.warn(loc,
+                    'Saddle point reached in orbital localization.'
+                    f'\n{h_diag}')
+
+    #TODO ensure real solution of logm
+    mat = scipy.linalg.logm(u)
+    if not numpy.allclose(mat.imag, 0, atol=1e-6):
+        raise RuntimeError('Complex solutions are not supported for '
+                           'differentiating the Boys localiztion.')
+    x = pack_uniq_var(mat.real)
+    return x
+
 def _boys(x, mol, mo_coeff, *,
           init_guess=None,
           conv_tol=None, conv_tol_grad=None, max_cycle=None):
@@ -132,18 +159,8 @@ def _boys(x, mol, mo_coeff, *,
         u, sorted_idx = loc.kernel(mo_coeff=mo_coeff, return_u=True)
     else:
         u, sorted_idx = loc.kernel(mo_coeff=None, return_u=True)
-    h_diag = loc.gen_g_hop(u)[2]
-    if numpy.any(h_diag < 0):
-        logger.warn(loc, 'Saddle point reached in orbital localization.')
-    if numpy.linalg.det(u) < 0:
-        u[:,0] *= -1
-    mat = scipy.linalg.logm(u)
-    x = pack_uniq_var(mat)
-    if numpy.any(abs(x.imag) > 1e-6):
-        raise RuntimeError('Complex solutions are not supported for '
-                           'differentiating the Boys localiztion.')
-    else:
-        x = x.real
+
+    x = _extract_x0(loc, u)
     return x, sorted_idx
 
 def boys(mol, mo_coeff, *,

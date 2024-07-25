@@ -87,7 +87,7 @@ def to_pyscf(obj, nocopy_names=(), out=None):
     return out
 
 def is_tracer(a):
-    """Test if the object is an tracer.
+    """Test if the object is a tracer.
 
     Parameters
     ----------
