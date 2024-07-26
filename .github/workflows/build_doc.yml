@@ -17,5 +17,7 @@ jobs:
           python-version: 3.11
       - name: install pyscf
         run: ./.github/workflows/install_pyscf.sh
+      - name: build pyscfadlib
+        run: ./.github/workflows/build_pyscfadlib.sh
       - name: build doc
         run: ./.github/workflows/build_doc.sh
