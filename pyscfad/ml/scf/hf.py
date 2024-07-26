@@ -23,15 +23,9 @@ class SCF(hf.SCF):
         c = x @ c
         return e, c
 
-    def get_occ(self, mo_energy=None, mo_coeff=None):
-        if mo_energy is None:
-            mo_energy = self.mo_energy
-        mo_energy = ops.to_numpy(mo_energy)
-        return super().get_occ(mo_energy)
-
 if __name__ == '__main__':
     import torch
-    from pyscf import gto
+    from pyscfad import gto
 
     mol = gto.Mole()
     mol.atom = 'H 0 0 0; F 0 0 0.9'

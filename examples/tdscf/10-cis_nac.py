@@ -7,7 +7,7 @@ from pyscfad.tdscf.rhf import CIS, cis_ovlp
 mol = gto.Mole()
 mol.atom = 'H 0 0 0; H 0 0 1.1'
 mol.basis = 'cc-pvdz'
-mol.build()
+mol.build(trace_exp=False, trace_ctr_coeff=False)
 
 # HF and CIS calculations
 mf = scf.RHF(mol)

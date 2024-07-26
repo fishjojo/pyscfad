@@ -66,8 +66,8 @@ def eval_mat(mol, ao, weight, rho, vxc,
         aow = _scale_ao(ao[:4], wv)
         mat = _dot_ao_ao(mol, ao[0], aow, non0tab, shls_slice, ao_loc)
 
-# JCP 138, 244108 (2013); DOI:10.1063/1.4811270
-# JCP 112, 7002 (2000); DOI:10.1063/1.481298
+    # JCP 138, 244108 (2013); DOI:10.1063/1.4811270
+    # JCP 112, 7002 (2000); DOI:10.1063/1.481298
     if xctype == 'MGGA':
         vlapl, vtau = vxc[2:]
 
@@ -216,9 +216,9 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=0,
                 #:aow = numpy.einsum('npi,np->pi', ao[:4], wv, out=aow)
                 aow = _scale_ao(ao[:4], wv, out=None)
                 vmat[idm] += _dot_ao_ao(mol, ao[0], aow, mask, shls_slice, ao_loc)
-# pylint: disable=W0511
-# FIXME: .5 * .5   First 0.5 for v+v.T symmetrization.
-# Second 0.5 is due to the Libxc convention tau = 1/2 \nabla\phi\dot\nabla\phi
+                # pylint: disable=W0511
+                # FIXME: .5 * .5   First 0.5 for v+v.T symmetrization.
+                # Second 0.5 is due to the Libxc convention tau = 1/2 \nabla\phi\dot\nabla\phi
                 wv = (.5 * .5 * weight * vtau).reshape(-1,1)
                 vmat[idm] += _dot_ao_ao(mol, ao[1], wv*ao[1], mask, shls_slice, ao_loc)
                 vmat[idm] += _dot_ao_ao(mol, ao[2], wv*ao[2], mask, shls_slice, ao_loc)

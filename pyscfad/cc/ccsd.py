@@ -440,6 +440,15 @@ class CCSD(pytree.PytreeNode, pyscf_ccsd.CCSD):
     def dcsd(self):
         return False
 
+    def _finalize(self):
+        if self.converged:
+            logger.info(self, '%s converged', self.__class__.__name__)
+        else:
+            logger.note(self, '%s not converged', self.__class__.__name__)
+        logger.note(self, 'E(%s) = %.16g  E_corr = %.16g',
+                    self.__class__.__name__, self.e_tot, self.e_corr)
+        return self
+
     energy = energy
     update_amps = update_amps
     _add_vvvv = _add_vvvv

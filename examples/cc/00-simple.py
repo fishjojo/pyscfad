@@ -30,7 +30,7 @@ def ccsd(mol, dm0=None, t1=None, t2=None):
     return mycc.e_tot
 
 jac = jax.jacrev(ccsd)(mol)
-print(f'Nuclaer gradient:\n{jac.coords}')
+print(f'Nuclear gradient:\n{jac.coords}')
 print(f'Gradient wrt basis exponents:\n{jac.exp}')
 print(f'Gradient wrt basis contraction coefficients:\n{jac.ctr_coeff}')
 

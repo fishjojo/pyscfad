@@ -1,16 +1,47 @@
 # pylint: skip-file
+import re
 import jax
 from pyscf.lib import logger
 from pyscf.lib.logger import *
 from pyscfad import util
 
+def _partial_eval_msg(msg, args):
+    format_specifier = re.compile(r'%(?:\d+\$)?[+-]?(?:\d+)?(?:\.\d+)?[hlL]?[a-zA-Z]')
+    matches = list(format_specifier.finditer(msg))
+    partially_evaluated_msg = ''
+    remaining_args = list(args)
+    tracer_args = []
+    last_end = 0
+
+    for match in matches:
+        start, end = match.span()
+        spec = match.group(0)
+        partially_evaluated_msg += msg[last_end:start]
+
+        if remaining_args:
+            arg = remaining_args.pop(0)
+            if not util.is_tracer(arg):
+                partially_evaluated_msg += spec % arg
+            else:
+                partially_evaluated_msg += spec
+                tracer_args.append(arg)
+        else:
+            partially_evaluated_msg += spec
+
+        last_end = end
+
+    partially_evaluated_msg += msg[last_end:]
+    return partially_evaluated_msg, tracer_args
+
 def flush(rec, msg, *args):
+    msg, args = _partial_eval_msg(msg, args)
+
     def _flush(*args):
         rec.stdout.write(msg % args)
         rec.stdout.write('\n')
         rec.stdout.flush()
 
-    if any(util.is_tracer(arg) for arg in args):
+    if args:
         jax.debug.callback(_flush, *args)
     else:
         _flush(*args)

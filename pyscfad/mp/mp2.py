@@ -194,10 +194,10 @@ class MP2(pytree.PytreeNode, pyscf_mp2.MP2):
 
     def _finalize(self):
         log = logger.new_logger(self)
-        log.note(f'E({self.__class__.__name__}) = %.15g  E_corr = %.15g',
-                 self.e_tot, self.e_corr)
-        log.note(f'E(SCS-{self.__class__.__name__}) = %.15g  E_corr = %.15g',
-                 self.e_tot_scs, self.emp2_scs)
+        log.note('E(%s) = %.15g  E_corr = %.15g',
+                 self.__class__.__name__, self.e_tot, self.e_corr)
+        log.note('E(SCS-%s) = %.15g  E_corr = %.15g',
+                 self.__class__.__name__, self.e_tot_scs, self.emp2_scs)
         log.info('E_corr(same-spin) = %.15g', self.e_corr_ss)
         log.info('E_corr(oppo-spin) = %.15g', self.e_corr_os)
         return self

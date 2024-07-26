@@ -7,6 +7,7 @@ except ImportError as err:
 from .._common import (
     stop_gradient,
     class_as_pytree_node,
+    PytreeNode,
     custom_jvp,
     jit,
     while_loop,
@@ -46,7 +47,6 @@ backend = CupyBackend(cp)
 backend._cache['is_array'] = is_array
 backend._cache['to_numpy'] = to_numpy
 backend._cache['stop_gradient'] = stop_gradient
-backend._cache['class_as_pytree_node'] = class_as_pytree_node
 backend._cache['custom_jvp'] = custom_jvp
 backend._cache['jit'] = jit
 backend._cache['vmap'] = NotImplemented
@@ -56,3 +56,5 @@ backend._cache['index_update'] = index_update
 backend._cache['index_add'] = index_add
 backend._cache['index_mul'] = index_mul
 
+backend._cache['class_as_pytree_node'] = class_as_pytree_node
+backend._cache['PytreeNode'] = PytreeNode
