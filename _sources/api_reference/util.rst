@@ -10,4 +10,4 @@ The :mod:`pyscfad.util` module provides useful utility functions.
 .. autosummary::
    :toctree: api/
 
-   util.pytree_node
+   pyscfad.util

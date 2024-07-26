@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>pyscfad.tools.util &#8212; pyscfad 0.1.6 documentation</title>
+    <title>pyscfad.util &#8212; pyscfad 0.1.6 documentation</title>
   
   
   
@@ -45,13 +45,13 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/design-tabs.js?v=f930bc37"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/pyscfad.tools.util';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/pyscfad.util';</script>
     <script src="../../_static/custom-icon.js?v=40bda21d"></script>
     <link rel="icon" href="../../_static/pyscfad_logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="pyscfad.tools.util.rotate_mo1" href="functions/pyscfad.tools.util.rotate_mo1.html" />
-    <link rel="prev" title="pyscfad.tools.timer.Timer.timer" href="classes/methods/pyscfad.tools.timer.Timer.timer.html" />
+    <link rel="next" title="pyscfad.util.is_tracer" href="functions/pyscfad.util.is_tracer.html" />
+    <link rel="prev" title="Utility functions" href="../util.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
     <meta name="docbuild:last-update" content="Jul 26, 2024"/>
@@ -452,13 +452,13 @@ document.write(`
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../scf.html">Hartree-Fock methods</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tdscf.html">TDSCF methods</a></li>
-<li class="toctree-l1 current active has-children"><a class="reference internal" href="../tools.html">Tools</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2 current active has-children"><a class="reference internal" href="pyscfad.tools.html">pyscfad.tools</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../tools.html">Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.tools.html">pyscfad.tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.tools.timer.html">pyscfad.tools.timer</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="classes/pyscfad.tools.timer.Timer.html">pyscfad.tools.timer.Timer</a></li>
 </ul>
 </details></li>
-<li class="toctree-l3 current active has-children"><a class="current reference internal" href="#">pyscfad.tools.util</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.tools.util.html">pyscfad.tools.util</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.tools.util.rotate_mo1.html">pyscfad.tools.util.rotate_mo1</a></li>
 <li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.tools.util.rotate_mo1_ov.html">pyscfad.tools.util.rotate_mo1_ov</a></li>
 </ul>
@@ -467,8 +467,8 @@ document.write(`
 </details></li>
 </ul>
 </details></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../util.html">Utility functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2 has-children"><a class="reference internal" href="pyscfad.util.html">pyscfad.util</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../util.html">Utility functions</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active has-children"><a class="current reference internal" href="#">pyscfad.util</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="functions/pyscfad.util.is_tracer.html">pyscfad.util.is_tracer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="functions/pyscfad.util.pytree_node.html">pyscfad.util.pytree_node</a></li>
 <li class="toctree-l3"><a class="reference internal" href="functions/pyscfad.util.to_pyscf.html">pyscfad.util.to_pyscf</a></li>
@@ -505,8 +505,6 @@ document.write(`
 
 
 
-
-
 <nav aria-label="Breadcrumb" class="d-print-none">
   <ul class="bd-breadcrumbs">
     
@@ -519,12 +517,9 @@ document.write(`
     <li class="breadcrumb-item"><a href="../index.html" class="nav-link">API reference</a></li>
     
     
-    <li class="breadcrumb-item"><i class="fa-solid fa-ellipsis"></i></li>
+    <li class="breadcrumb-item"><a href="../util.html" class="nav-link">Utility functions</a></li>
     
-    
-    <li class="breadcrumb-item"><a href="pyscfad.tools.html" class="nav-link">pyscfad.tools</a></li>
-    
-    <li class="breadcrumb-item active" aria-current="page">pyscfad.tools.util</li>
+    <li class="breadcrumb-item active" aria-current="page">pyscfad.util</li>
   </ul>
 </nav>
 </div>
@@ -541,16 +536,20 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="module-pyscfad.tools.util">
-<span id="pyscfad-tools-util"></span><h1>pyscfad.tools.util<a class="headerlink" href="#module-pyscfad.tools.util" title="Link to this heading">#</a></h1>
+  <section id="module-pyscfad.util">
+<span id="pyscfad-util"></span><h1>pyscfad.util<a class="headerlink" href="#module-pyscfad.util" title="Link to this heading">#</a></h1>
+<p>Utility functions</p>
 <p class="rubric">Functions</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.tools.util.rotate_mo1.html#pyscfad.tools.util.rotate_mo1" title="pyscfad.tools.util.rotate_mo1"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rotate_mo1</span></code></a>(mo_coeff, x)</p></td>
-<td><p></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.util.is_tracer.html#pyscfad.util.is_tracer" title="pyscfad.util.is_tracer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_tracer</span></code></a>(a)</p></td>
+<td><p>Test if the object is a tracer.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.tools.util.rotate_mo1_ov.html#pyscfad.tools.util.rotate_mo1_ov" title="pyscfad.tools.util.rotate_mo1_ov"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rotate_mo1_ov</span></code></a>(mo_coeff, x, nocc)</p></td>
-<td><p></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.util.pytree_node.html#pyscfad.util.pytree_node" title="pyscfad.util.pytree_node"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pytree_node</span></code></a>(leaf_names[, num_args, ...])</p></td>
+<td><p>Class decorator that registers the underlying class as a pytree.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.util.to_pyscf.html#pyscfad.util.to_pyscf" title="pyscfad.util.to_pyscf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_pyscf</span></code></a>(obj[, nocopy_names, out])</p></td>
+<td><p>Convert the pyscfad object to its pyscf counterpart.</p></td>
 </tr>
 </tbody>
 </table>
@@ -568,20 +567,20 @@ document.write(`
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="classes/methods/pyscfad.tools.timer.Timer.timer.html"
+       href="../util.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">pyscfad.tools.timer.Timer.timer</p>
+        <p class="prev-next-title">Utility functions</p>
       </div>
     </a>
     <a class="right-next"
-       href="functions/pyscfad.tools.util.rotate_mo1.html"
+       href="functions/pyscfad.util.is_tracer.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">pyscfad.tools.util.rotate_mo1</p>
+        <p class="prev-next-title">pyscfad.util.is_tracer</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -599,7 +598,7 @@ document.write(`
 
   
   <div class="tocsection editthispage">
-    <a href="https://github.com/fishjojo/pyscfad/edit/doc/doc/source/api_reference/api/pyscfad.tools.util.rst">
+    <a href="https://github.com/fishjojo/pyscfad/edit/doc/doc/source/api_reference/api/pyscfad.util.rst">
       <i class="fa-solid fa-pencil"></i>
       
       
@@ -614,7 +613,7 @@ document.write(`
   <div class="sidebar-secondary-item">
 
   <div class="tocsection sourcelink">
-    <a href="../../_sources/api_reference/api/pyscfad.tools.util.rst">
+    <a href="../../_sources/api_reference/api/pyscfad.util.rst">
       <i class="fa-solid fa-file-lines"></i> Show Source
     </a>
   </div>
