@@ -1,3 +1,6 @@
+"""
+Utility functions
+"""
 from functools import partial
 from pyscfad import ops
 from pyscfad import pytree
