@@ -29,21 +29,21 @@ pyscfad.pbc
    :recursive:
 
    
-   pyscfad.pbc.df
+   df
    
    
-   pyscfad.pbc.dft
+   dft
    
    
-   pyscfad.pbc.gto
+   gto
    
    
-   pyscfad.pbc.lib
+   lib
    
    
-   pyscfad.pbc.scf
+   scf
    
    
-   pyscfad.pbc.tools
+   tools
    
 

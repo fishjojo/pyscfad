@@ -29,10 +29,10 @@ pyscfad.mp
    :recursive:
 
    
-   pyscfad.mp.dfmp2
+   dfmp2
    
    
-   pyscfad.mp.mp2
+   mp2
    
    
 

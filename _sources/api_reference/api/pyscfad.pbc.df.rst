@@ -29,12 +29,12 @@ pyscfad.pbc.df
    :recursive:
 
    
-   pyscfad.pbc.df.df_jk
+   df_jk
    
    
-   pyscfad.pbc.df.fft
+   fft
    
    
-   pyscfad.pbc.df.fft_jk
+   fft_jk
    
 

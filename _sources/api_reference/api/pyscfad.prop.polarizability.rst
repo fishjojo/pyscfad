@@ -29,6 +29,6 @@ pyscfad.prop.polarizability
    :recursive:
 
    
-   pyscfad.prop.polarizability.rhf
+   rhf
    
 

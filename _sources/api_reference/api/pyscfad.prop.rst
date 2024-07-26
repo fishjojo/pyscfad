@@ -29,9 +29,9 @@ pyscfad.prop
    :recursive:
 
    
-   pyscfad.prop.polarizability
+   polarizability
    
    
-   pyscfad.prop.thermo
+   thermo
    
 

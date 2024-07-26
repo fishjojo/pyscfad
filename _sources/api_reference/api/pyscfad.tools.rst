@@ -29,12 +29,12 @@ pyscfad.tools
    :recursive:
 
    
-   pyscfad.tools.linear_solver
+   linear_solver
    
    
-   pyscfad.tools.timer
+   timer
    
    
-   pyscfad.tools.util
+   util
    
 

@@ -144,6 +144,9 @@ pyscfad.gto.mole.Mole
          
          
          
+           ~Mole.to_pyscf
+         
+         
          
          
          

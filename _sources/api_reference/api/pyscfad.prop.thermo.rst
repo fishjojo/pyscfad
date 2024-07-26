@@ -29,6 +29,6 @@ pyscfad.prop.thermo
    :recursive:
 
    
-   pyscfad.prop.thermo.vib
+   vib
    
 

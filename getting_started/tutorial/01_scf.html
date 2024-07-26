@@ -31,8 +31,8 @@
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=87e54e7c" />
-    <link rel="stylesheet" type="text/css" href="../../_static/nbsphinx-code-cells.css" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
@@ -45,9 +45,6 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/design-tabs.js?v=f930bc37"></script>
-    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
-    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'getting_started/tutorial/01_scf';</script>
     <script src="../../_static/custom-icon.js?v=40bda21d"></script>
     <link rel="icon" href="../../_static/pyscfad_logo.svg"/>
@@ -57,7 +54,7 @@
     <link rel="prev" title="Tutorials" href="index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Jun 28, 2024"/>
+    <meta name="docbuild:last-update" content="Jul 26, 2024"/>
   </head>
   
   
@@ -448,44 +445,35 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="Simple-mean-field-calculations">
-<h1>Simple mean-field calculations<a class="headerlink" href="#Simple-mean-field-calculations" title="Link to this heading">#</a></h1>
+  <section class="tex2jax_ignore mathjax_ignore" id="simple-mean-field-calculations">
+<h1>Simple mean-field calculations<a class="headerlink" href="#simple-mean-field-calculations" title="Link to this heading">#</a></h1>
 <p><a class="reference external" href="https://colab.research.google.com/github/fishjojo/pyscfad/blob/doc/doc/source/getting_started/tutorial/01_scf.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a></p>
-<section id="Energy-derivatives-w.r.t.-molecular-parameters">
-<h2>Energy derivatives w.r.t. molecular parameters<a class="headerlink" href="#Energy-derivatives-w.r.t.-molecular-parameters" title="Link to this heading">#</a></h2>
-<p>The most straightforward application of pyscfad is to compute energy derivatives w.r.t. the parameters of the <code class="docutils literal notranslate"><span class="pre">Mole</span></code> object. Currently, three parameters are supported, including nuclear coordinates <code class="docutils literal notranslate"><span class="pre">Mole.coords</span></code>, and exponentes <code class="docutils literal notranslate"><span class="pre">Mole.exp</span></code> and contraction coefficients <code class="docutils literal notranslate"><span class="pre">Mole.ctr_coeff</span></code> of the basis functions. A typical energy derivative calculation involves the following steps.</p>
-<section id="1.-Define-the-Mole-object">
-<h3>1. Define the Mole object<a class="headerlink" href="#1.-Define-the-Mole-object" title="Link to this heading">#</a></h3>
+<section id="energy-derivatives-w-r-t-molecular-parameters">
+<h2>Energy derivatives w.r.t. molecular parameters<a class="headerlink" href="#energy-derivatives-w-r-t-molecular-parameters" title="Link to this heading">#</a></h2>
+<p>The most straightforward application of pyscfad is to compute energy derivatives w.r.t. the parameters of the <code class="docutils literal notranslate"><span class="pre">Mole</span></code> object.
+Currently, three parameters are supported, including nuclear coordinates <code class="docutils literal notranslate"><span class="pre">Mole.coords</span></code>, and exponentes <code class="docutils literal notranslate"><span class="pre">Mole.exp</span></code> and contraction coefficients <code class="docutils literal notranslate"><span class="pre">Mole.ctr_coeff</span></code> of the basis functions. A typical energy derivative calculation involves the following steps.</p>
+<section id="define-the-mole-object">
+<h3>1. Define the Mole object<a class="headerlink" href="#define-the-mole-object" title="Link to this heading">#</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">Mole</span></code> object constructor follows the same syntax as that of pyscf. In addtion, one can control whether to <em>trace</em> (compute the derivatives w.r.t.) the above mentioned parameters. The default is to trace all of them.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscfad</span> <span class="kn">import</span> <span class="n">gto</span>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscfad</span> <span class="kn">import</span> <span class="n">gto</span>
 <span class="n">mol</span> <span class="o">=</span> <span class="n">gto</span><span class="o">.</span><span class="n">Mole</span><span class="p">()</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">atom</span> <span class="o">=</span> <span class="s2">&quot;H 0 0 0; H 0 0 0.74&quot;</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">basis</span> <span class="o">=</span> <span class="s2">&quot;6-31G*&quot;</span>
+<span class="n">mol</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">trace_coords</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">trace_exp</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">trace_ctr_coeff</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-An NVIDIA GPU may be present on this machine, but a CUDA-enabled jaxlib is not installed. Falling back to cpu.
-</pre></div></div>
 </div>
 </section>
-<section id="2.-Define-the-energy-function">
-<h3>2. Define the energy function<a class="headerlink" href="#2.-Define-the-energy-function" title="Link to this heading">#</a></h3>
+<section id="define-the-energy-function">
+<h3>2. Define the energy function<a class="headerlink" href="#define-the-energy-function" title="Link to this heading">#</a></h3>
 <p>The energy function takes the <code class="docutils literal notranslate"><span class="pre">Mole</span></code> object as the input, and returns the energy, which is a scalar. In this example, we compute the Hartree-Fock energy.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscfad</span> <span class="kn">import</span> <span class="n">scf</span>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscfad</span> <span class="kn">import</span> <span class="n">scf</span>
 <span class="k">def</span> <span class="nf">hf_energy</span><span class="p">(</span><span class="n">mol</span><span class="p">):</span>
     <span class="n">mf</span> <span class="o">=</span> <span class="n">scf</span><span class="o">.</span><span class="n">RHF</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
     <span class="n">ehf</span> <span class="o">=</span> <span class="n">mf</span><span class="o">.</span><span class="n">kernel</span><span class="p">()</span>
@@ -493,106 +481,88 @@ An NVIDIA GPU may be present on this machine, but a CUDA-enabled jaxlib is not i
 </pre></div>
 </div>
 </div>
-</section>
-<section id="3.-Compute-the-gradient">
-<h3>3. Compute the gradient<a class="headerlink" href="#3.-Compute-the-gradient" title="Link to this heading">#</a></h3>
-<p>We use jax as the backend to trace the computational graph and perform the gradient calculation. See e.g., <a class="reference external" href="https://jax.readthedocs.io/en/latest/_autosummary/jax.value_and_grad.html">jax.value_and_grad</a>.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
-</pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
+</section>
+<section id="compute-the-gradient">
+<h3>3. Compute the gradient<a class="headerlink" href="#compute-the-gradient" title="Link to this heading">#</a></h3>
+<p>We use jax as the backend to trace the computational graph and perform the gradient calculation. See e.g., <a class="reference external" href="https://jax.readthedocs.io/en/latest/_autosummary/jax.value_and_grad.html"><code class="docutils literal notranslate"><span class="pre">jax.value_and_grad</span></code></a>.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
 <span class="n">ehf</span><span class="p">,</span> <span class="n">grad</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">hf_energy</span><span class="p">)(</span><span class="n">mol</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;RHF energy (in Eh): </span><span class="si">{</span><span class="n">ehf</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>RHF energy (in Eh): -1.1267553171969316
+</pre></div>
 </div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-RHF energy (in Eh): -1.126755317196931
-</pre></div></div>
+</div>
 </div>
 <p>The gradients w.r.t. each parameter are stored as attributes of <code class="docutils literal notranslate"><span class="pre">grad</span></code>, which is also a <code class="docutils literal notranslate"><span class="pre">Mole</span></code> object.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">grad</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-&lt;pyscfad.gto.mole.Mole object at 0x7f34c3471c50&gt;
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Nuclear gradient:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">coords</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">grad</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;pyscfad.gto.mole.Mole object at 0x7f364c1b7e90&gt;
+</pre></div>
 </div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Nuclear gradient:
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Nuclear gradient:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">coords</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Nuclear gradient:
 [[ 0.          0.         -0.00756136]
  [ 0.          0.          0.00756136]]
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Energy gradient w.r.t. basis function exponents:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">exp</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
 </div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Energy gradient w.r.t. basis function exponents:
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Energy gradient w.r.t. basis function exponents:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">exp</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Energy gradient w.r.t. basis function exponents:
 [-8.02030941e-05  1.27267947e-03  1.29202851e-02 -3.61927384e-02]
-</pre></div></div>
-</div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Energy gradient w.r.t. basis function contraction coefficients:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">ctr_coeff</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
 </div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Energy gradient w.r.t. basis function contraction coefficients:
-[ 2.36262161e-03  4.68735066e-03 -5.34074485e-03  8.42992343e-13]
-</pre></div></div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Energy gradient w.r.t. basis function contraction coefficients:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">ctr_coeff</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Energy gradient w.r.t. basis function contraction coefficients:
+[ 2.36262161e-03  4.68735066e-03 -5.34074485e-03  8.42659276e-13]
+</pre></div>
+</div>
+</div>
 </div>
 </section>
-<section id="4.-Higher-order-derivatives">
-<h3>4. Higher order derivatives<a class="headerlink" href="#4.-Higher-order-derivatives" title="Link to this heading">#</a></h3>
-<p>Higher order derivatives can also be computed, although with much higer memory footprint. Two functions, <a class="reference external" href="https://jax.readthedocs.io/en/latest/_autosummary/jax.jacfwd.html">jax.jacfwd</a> and <a class="reference external" href="https://jax.readthedocs.io/en/latest/_autosummary/jax.jacrev.html">jax.jacrev</a>, compute the Jacobian with forward- and reverse-mode differentiation, respectively.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">hessian</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jacfwd</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">hf_energy</span><span class="p">))(</span><span class="n">mol</span><span class="p">)</span>
+<section id="higher-order-derivatives">
+<h3>4. Higher order derivatives<a class="headerlink" href="#higher-order-derivatives" title="Link to this heading">#</a></h3>
+<p>Higher order derivatives can also be computed, although with much higer memory footprint. Two functions,
+<a class="reference external" href="https://jax.readthedocs.io/en/latest/_autosummary/jax.jacfwd.html"><code class="docutils literal notranslate"><span class="pre">jax.jacfwd</span></code></a> and
+<a class="reference external" href="https://jax.readthedocs.io/en/latest/_autosummary/jax.jacrev.html"><code class="docutils literal notranslate"><span class="pre">jax.jacrev</span></code></a>,
+compute the Jacobian with forward- and reverse-mode differentiation, respectively.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">hessian</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jacfwd</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">hf_energy</span><span class="p">))(</span><span class="n">mol</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Energy Hessians</span><span class="se">\n</span><span class="s1">&#39;</span>
       <span class="sa">f</span><span class="s1">&#39;∂^2E/∂R^2: </span><span class="si">{</span><span class="n">hessian</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span>
       <span class="sa">f</span><span class="s1">&#39;∂^2E/∂R∂ε: </span><span class="si">{</span><span class="n">hessian</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">exp</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span>
@@ -600,39 +570,32 @@ Energy gradient w.r.t. basis function contraction coefficients:
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Energy Hessians
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Energy Hessians
 ∂^2E/∂R^2: (2, 3, 2, 3)
 ∂^2E/∂R∂ε: (2, 3, 4)
 ∂^2E/∂R∂c: (2, 3, 4)
-
-</pre></div></div>
+</pre></div>
+</div>
+</div>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Only first-order derivatives w.r.t. <code class="docutils literal notranslate"><span class="pre">Mole.exp</span></code> and <code class="docutils literal notranslate"><span class="pre">Mole.ctr_coeff</span></code> are available at the moment.</p>
 </div>
 <p>Third-order derivatives w.r.t. nuclear coordinates can be computed similarly.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">third_order_deriv</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jacfwd</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jacfwd</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">hf_energy</span><span class="p">)))(</span><span class="n">mol</span><span class="p">)</span>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">third_order_deriv</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jacfwd</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jacfwd</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">hf_energy</span><span class="p">)))(</span><span class="n">mol</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;∂^3E/∂R^3: </span><span class="si">{</span><span class="n">third_order_deriv</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>∂^3E/∂R^3: (2, 3, 2, 3, 2, 3)
+</pre></div>
 </div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-∂^3E/∂R^3: (2, 3, 2, 3, 2, 3)
-</pre></div></div>
+</div>
 </div>
 </section>
 </section>
@@ -684,11 +647,11 @@ Energy Hessians
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Energy-derivatives-w.r.t.-molecular-parameters">Energy derivatives w.r.t. molecular parameters</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#1.-Define-the-Mole-object">1. Define the Mole object</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#2.-Define-the-energy-function">2. Define the energy function</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#3.-Compute-the-gradient">3. Compute the gradient</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#4.-Higher-order-derivatives">4. Higher order derivatives</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-derivatives-w-r-t-molecular-parameters">Energy derivatives w.r.t. molecular parameters</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#define-the-mole-object">1. Define the Mole object</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#define-the-energy-function">2. Define the energy function</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#compute-the-gradient">3. Compute the gradient</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#higher-order-derivatives">4. Higher order derivatives</a></li>
 </ul>
 </li>
 </ul>
@@ -758,7 +721,7 @@ Energy Hessians
         <div class="footer-item">
 
   <p class="sphinx-version">
-    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.4.7.
     <br/>
   </p>
 </div>

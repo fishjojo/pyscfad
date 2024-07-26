@@ -31,8 +31,8 @@
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=87e54e7c" />
-    <link rel="stylesheet" type="text/css" href="../../_static/nbsphinx-code-cells.css" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
@@ -45,8 +45,7 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/design-tabs.js?v=f930bc37"></script>
-    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
     <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'getting_started/tutorial/03_raman_ccsd';</script>
     <script src="../../_static/custom-icon.js?v=40bda21d"></script>
@@ -57,7 +56,7 @@
     <link rel="prev" title="Orbital optimization" href="02_oorpa.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Jun 28, 2024"/>
+    <meta name="docbuild:last-update" content="Jul 26, 2024"/>
   </head>
   
   
@@ -448,44 +447,41 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="Response-properties">
-<h1>Response properties<a class="headerlink" href="#Response-properties" title="Link to this heading">#</a></h1>
+  <section class="tex2jax_ignore mathjax_ignore" id="response-properties">
+<h1>Response properties<a class="headerlink" href="#response-properties" title="Link to this heading">#</a></h1>
 <p><a class="reference external" href="https://colab.research.google.com/github/fishjojo/pyscfad/blob/doc/doc/source/getting_started/tutorial/03_raman_ccsd.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a></p>
-<p>Most static response properties can be formulated as the derivative of energy/Lagrangian w.r.t the perturbation (e.g., electric or magnetic fields). In order to computed these properties, one usually needs to include both the orbital response and the amplitude response, which can be tedious to implement for complex quantum chemistry methods. On the contrary, automatic differentiation greatly simplifies these calculations, where only the energy function needs to be explicitly implemented. Here,
-we take the Raman activity as an example to showcase the use of pyscfad in property calculations.</p>
-<section id="Raman-activity">
-<h2>Raman activity<a class="headerlink" href="#Raman-activity" title="Link to this heading">#</a></h2>
-<p>As usual, we first build the <code class="docutils literal notranslate"><span class="pre">Mole</span></code> object. And we don’t need derivatives w.r.t the basis function exponents and contraction coefficients, so we turn off the tracing of them.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscfad</span> <span class="kn">import</span> <span class="n">gto</span>
+<p>Most static response properties can be formulated as the derivative of energy/Lagrangian w.r.t the perturbation (e.g., electric or magnetic fields).
+In order to computed these properties, one usually needs to include both the orbital response and the amplitude response,
+which can be tedious to implement for complex quantum chemistry methods.
+On the contrary, automatic differentiation greatly simplifies these calculations,
+where only the energy function needs to be explicitly implemented.
+Here, we take the Raman activity as an example to showcase the use of pyscfad in property calculations.</p>
+<section id="raman-activity">
+<h2>Raman activity<a class="headerlink" href="#raman-activity" title="Link to this heading">#</a></h2>
+<p>As usual, we first build the <code class="docutils literal notranslate"><span class="pre">Mole</span></code> object.
+And we don’t need derivatives w.r.t the basis function exponents and contraction coefficients,
+so we turn off the tracing of them.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscfad</span> <span class="kn">import</span> <span class="n">gto</span>
 
 <span class="n">mol</span> <span class="o">=</span> <span class="n">gto</span><span class="o">.</span><span class="n">Mole</span><span class="p">()</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">atom</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39;B  ,  0.   0.   0.</span>
 <span class="s1">              H  ,  0.   0.   2.36328&#39;&#39;&#39;</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">basis</span> <span class="o">=</span> <span class="s1">&#39;aug-cc-pvdz&#39;</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;B&#39;</span>
+<span class="n">mol</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="c1"># do not trace mol.exp and mol.ctr_coeff</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">trace_exp</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">trace_ctr_coeff</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
 </div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-An NVIDIA GPU may be present on this machine, but a CUDA-enabled jaxlib is not installed. Falling back to cpu.
-</pre></div></div>
-</div>
-<p>Next, we define our energy function. We perform a CCSD calculation with an external electric field applied. pyscfad provides a differentiable implementation of CCSD, which is used here.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">jax</span> <span class="kn">import</span> <span class="n">numpy</span> <span class="k">as</span> <span class="n">np</span>
+<p>Next, we define our energy function. We perform a CCSD calculation with an external electric field applied.
+pyscfad provides a differentiable implementation of CCSD, which is used here.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">jax</span> <span class="kn">import</span> <span class="n">numpy</span> <span class="k">as</span> <span class="n">np</span>
 <span class="kn">from</span> <span class="nn">pyscfad</span> <span class="kn">import</span> <span class="n">scf</span><span class="p">,</span> <span class="n">cc</span>
 
 <span class="c1"># CCSD energy</span>
@@ -509,16 +505,18 @@ An NVIDIA GPU may be present on this machine, but a CUDA-enabled jaxlib is not i
 </pre></div>
 </div>
 </div>
-<p>In order to compute the Raman activity, we need two ingradients, namely, the nuclear Hessian (<span class="math notranslate nohighlight">\(\frac{d^2 e_{tot}}{d\mathbf{R}^2}\)</span>) and the Raman tensor (<span class="math notranslate nohighlight">\(\chi=-\frac{d^3 e_{tot}}{d\mathbf{R} d\mathbf{E}^2}\)</span>).</p>
+</div>
+<p>In order to compute the Raman activity, we need two ingradients,
+namely, the nuclear Hessian (<span class="math notranslate nohighlight">\(\frac{d^2 e_{tot}}{d\mathbf{R}^2}\)</span>) and
+the Raman tensor (<span class="math notranslate nohighlight">\(\chi=-\frac{d^3 e_{tot}}{d\mathbf{R} d\mathbf{E}^2}\)</span>).</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The nuclear Hessian is computed using an energy function without applying the electric field. This is due to the limitation that the 2nd order nuclear derivative of the integral <span class="math notranslate nohighlight">\(\langle a|\mathbf{r}|b \rangle\)</span> is not available.</p>
+<p>The nuclear Hessian is computed using an energy function without applying the electric field.
+This is due to the limitation that the 2nd order nuclear derivative of the integral <span class="math notranslate nohighlight">\(\langle a|\mathbf{r}|b \rangle\)</span> is not available.</p>
 </div>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
 
 <span class="n">E0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">))</span> <span class="c1"># a zero static electric field</span>
 
@@ -527,36 +525,11 @@ An NVIDIA GPU may be present on this machine, but a CUDA-enabled jaxlib is not i
 </pre></div>
 </div>
 </div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-E(RCCSD) = -25.21758949507878  E_corr = -0.09128020542469946
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-Overwritten attributes  get_hcore  of &lt;class &#39;pyscfad.scf.hf.RHF&#39;&gt;
-</pre></div></div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-E(RCCSD) = -25.21758949507878  E_corr = -0.09128020542469946
-</pre></div></div>
 </div>
 <p>Finally, we compute the Raman activity and the depolarization ration with the <code class="docutils literal notranslate"><span class="pre">harmonic_analysis</span></code> function.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscfad.prop.thermo</span> <span class="kn">import</span> <span class="n">vib</span>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscfad.prop.thermo</span> <span class="kn">import</span> <span class="n">vib</span>
 
 <span class="n">vibration</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">raman</span> <span class="o">=</span> <span class="n">vib</span><span class="o">.</span><span class="n">harmonic_analysis</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">hess</span><span class="p">,</span> <span class="n">raman_tensor</span><span class="o">=</span><span class="n">chi</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Vibrational frequency in cm^-1:&quot;</span><span class="p">)</span>
@@ -568,18 +541,16 @@ E(RCCSD) = -25.21758949507878  E_corr = -0.09128020542469946
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Vibrational frequency in cm^-1:
-[2338.85767938]
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Vibrational frequency in cm^-1:
+[2338.85778724]
 Raman activity in A^4/amu:
-[215.95164573]
+[215.95213461]
 Depolarization ration:
-[0.55577724]
-</pre></div></div>
+[0.55576992]
+</pre></div>
+</div>
+</div>
 </div>
 </section>
 </section>
@@ -630,7 +601,7 @@ Depolarization ration:
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#Raman-activity">Raman activity</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#raman-activity">Raman activity</a></li>
 </ul>
   </nav></div>
 
@@ -698,7 +669,7 @@ Depolarization ration:
         <div class="footer-item">
 
   <p class="sphinx-version">
-    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.4.7.
     <br/>
   </p>
 </div>

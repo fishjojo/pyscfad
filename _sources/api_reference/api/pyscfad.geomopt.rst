@@ -39,9 +39,9 @@ pyscfad.geomopt
    :recursive:
 
    
-   pyscfad.geomopt.geometric_solver
+   geometric_solver
    
    
-   pyscfad.geomopt.geometric_solver_mpi
+   geometric_solver_mpi
    
 

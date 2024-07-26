@@ -29,13 +29,13 @@ pyscfad.pbc.gto
    :recursive:
 
    
-   pyscfad.pbc.gto.cell
+   cell
    
    
-   pyscfad.pbc.gto.eval_gto
+   eval_gto
    
    
-   pyscfad.pbc.gto.pseudo
+   pseudo
    
    
 

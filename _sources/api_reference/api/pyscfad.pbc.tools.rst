@@ -29,6 +29,6 @@ pyscfad.pbc.tools
    :recursive:
 
    
-   pyscfad.pbc.tools.pbc
+   pbc
    
 

@@ -29,13 +29,13 @@ pyscfad.gto
    :recursive:
 
    
-   pyscfad.gto.eval_gto
+   eval_gto
    
    
-   pyscfad.gto.mole
+   mole
    
    
-   pyscfad.gto.moleintor
+   moleintor
    
    
 

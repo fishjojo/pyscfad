@@ -29,9 +29,9 @@ pyscfad.pbc.gto.pseudo
    :recursive:
 
    
-   pyscfad.pbc.gto.pseudo.pp
+   pp
    
    
-   pyscfad.pbc.gto.pseudo.pp_int
+   pp_int
    
 

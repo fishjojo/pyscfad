@@ -29,6 +29,6 @@ pyscfad.tdscf
    :recursive:
 
    
-   pyscfad.tdscf.rhf
+   rhf
    
 

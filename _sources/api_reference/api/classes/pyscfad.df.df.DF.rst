@@ -53,6 +53,9 @@ pyscfad.df.df.DF
          
          
          
+           ~DF.to_pyscf
+         
+         
 
    
    

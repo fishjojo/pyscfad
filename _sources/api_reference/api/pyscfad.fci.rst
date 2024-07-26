@@ -38,7 +38,7 @@ pyscfad.fci
    :recursive:
 
    
-   pyscfad.fci.fci_slow
+   fci_slow
    
    
 

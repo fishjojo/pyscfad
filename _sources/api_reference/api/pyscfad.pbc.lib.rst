@@ -29,6 +29,6 @@ pyscfad.pbc.lib
    :recursive:
 
    
-   pyscfad.pbc.lib.kpts_helper
+   kpts_helper
    
 

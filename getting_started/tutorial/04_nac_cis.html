@@ -31,8 +31,8 @@
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=87e54e7c" />
-    <link rel="stylesheet" type="text/css" href="../../_static/nbsphinx-code-cells.css" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
@@ -45,8 +45,7 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/design-tabs.js?v=f930bc37"></script>
-    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
     <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'getting_started/tutorial/04_nac_cis';</script>
     <script src="../../_static/custom-icon.js?v=40bda21d"></script>
@@ -57,7 +56,7 @@
     <link rel="prev" title="Response properties" href="03_raman_ccsd.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Jun 28, 2024"/>
+    <meta name="docbuild:last-update" content="Jul 26, 2024"/>
   </head>
   
   
@@ -448,18 +447,20 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="Derivative-couplings">
-<h1>Derivative couplings<a class="headerlink" href="#Derivative-couplings" title="Link to this heading">#</a></h1>
+  <section class="tex2jax_ignore mathjax_ignore" id="derivative-couplings">
+<h1>Derivative couplings<a class="headerlink" href="#derivative-couplings" title="Link to this heading">#</a></h1>
 <p><a class="reference external" href="https://colab.research.google.com/github/fishjojo/pyscfad/blob/doc/doc/source/getting_started/tutorial/04_nac_cis.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a></p>
-<p>The first-order derivative coupling, defined as <span class="math notranslate nohighlight">\(\langle \Psi_I |\nabla_\mathbf{R} | \Psi_J\rangle\)</span>, is useful for studying excited state nonadiabatic dynamics. With automatic differentiation, this quantity can be easily computed. The major ingradient that needs to be implemented is the overlap between the two wavefunctions <span class="math notranslate nohighlight">\(\langle \Psi_I | \Psi_J\rangle\)</span>. In the following, we give an example of the CIS method.</p>
-<section id="CIS-derivative-couplings">
-<h2>CIS derivative couplings<a class="headerlink" href="#CIS-derivative-couplings" title="Link to this heading">#</a></h2>
+<p>The first-order derivative coupling, defined as <span class="math notranslate nohighlight">\(\langle \Psi_I |\nabla_\mathbf{R} | \Psi_J\rangle\)</span>,
+is useful for studying excited state nonadiabatic dynamics.
+With automatic differentiation, this quantity can be easily computed.
+The major ingradient that needs to be implemented is the overlap between the two wavefunctions <span class="math notranslate nohighlight">\(\langle \Psi_I | \Psi_J\rangle\)</span>.
+In the following, we give an example of the CIS method.</p>
+<section id="cis-derivative-couplings">
+<h2>CIS derivative couplings<a class="headerlink" href="#cis-derivative-couplings" title="Link to this heading">#</a></h2>
 <p>First, we need to compute the unperturbed bra wavefunction <span class="math notranslate nohighlight">\(\langle \Psi_I |\)</span>.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span>
 <span class="kn">import</span> <span class="nn">jax</span>
 <span class="kn">from</span> <span class="nn">pyscfad</span> <span class="kn">import</span> <span class="n">gto</span><span class="p">,</span> <span class="n">scf</span>
 <span class="kn">from</span> <span class="nn">pyscfad.tdscf.rhf</span> <span class="kn">import</span> <span class="n">CIS</span><span class="p">,</span> <span class="n">cis_ovlp</span>
@@ -467,7 +468,8 @@ document.write(`
 <span class="n">mol</span> <span class="o">=</span> <span class="n">gto</span><span class="o">.</span><span class="n">Mole</span><span class="p">()</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">atom</span> <span class="o">=</span> <span class="s1">&#39;H 0 0 0; H 0 0 1.1&#39;</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">basis</span> <span class="o">=</span> <span class="s1">&#39;cc-pvdz&#39;</span>
-<span class="n">mol</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
+<span class="n">mol</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">mol</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">trace_exp</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">trace_ctr_coeff</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
 <span class="c1"># HF and CIS calculations</span>
 <span class="n">mf</span> <span class="o">=</span> <span class="n">scf</span><span class="o">.</span><span class="n">RHF</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
@@ -482,39 +484,23 @@ document.write(`
 </pre></div>
 </div>
 </div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
 </div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-An NVIDIA GPU may be present on this machine, but a CUDA-enabled jaxlib is not installed. Falling back to cpu.
-</pre></div></div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Excited State energies (eV)
-[11.04953234 21.54438084 26.28403199 38.94852638]
-</pre></div></div>
-</div>
-<p>Next, we define the function to compute the overlap. Note that the same CIS calculation is performed to trace the perturbation to the ket wavefunction <span class="math notranslate nohighlight">\(|\Psi_J\rangle\)</span>. In addition, the variables corresponding to the unperturbed state is closed over.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">ovlp</span><span class="p">(</span><span class="n">mol1</span><span class="p">):</span>
+<p>Next, we define the function to compute the overlap.
+Note that the same CIS calculation is performed to trace the perturbation to the ket wavefunction <span class="math notranslate nohighlight">\(|\Psi_J\rangle\)</span>.
+In addition, the variables corresponding to the unperturbed state is closed over.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">ovlp</span><span class="p">(</span><span class="n">mol1</span><span class="p">):</span>
     <span class="n">mf1</span> <span class="o">=</span> <span class="n">scf</span><span class="o">.</span><span class="n">RHF</span><span class="p">(</span><span class="n">mol1</span><span class="p">)</span>
     <span class="n">mf1</span><span class="o">.</span><span class="n">kernel</span><span class="p">()</span>
     <span class="n">mytd1</span> <span class="o">=</span> <span class="n">CIS</span><span class="p">(</span><span class="n">mf1</span><span class="p">)</span>
     <span class="n">mytd1</span><span class="o">.</span><span class="n">nstates</span> <span class="o">=</span> <span class="mi">4</span>
     <span class="n">_</span><span class="p">,</span> <span class="n">x1</span> <span class="o">=</span> <span class="n">mytd1</span><span class="o">.</span><span class="n">kernel</span><span class="p">()</span>
-
+    
     <span class="c1"># CI coefficients of state J</span>
     <span class="n">stateJ</span> <span class="o">=</span> <span class="mi">2</span> <span class="c1"># the third excited state</span>
     <span class="n">xj</span> <span class="o">=</span> <span class="n">x1</span><span class="p">[</span><span class="n">stateJ</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">numpy</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.</span><span class="p">)</span>
-
+    
     <span class="c1"># CIS wavefunction overlap</span>
     <span class="n">nmo</span> <span class="o">=</span> <span class="n">mf1</span><span class="o">.</span><span class="n">mo_coeff</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
     <span class="n">nocc</span> <span class="o">=</span> <span class="n">mol1</span><span class="o">.</span><span class="n">nelectron</span> <span class="o">//</span> <span class="mi">2</span>
@@ -524,29 +510,24 @@ Excited State energies (eV)
 </pre></div>
 </div>
 </div>
-<p>Finally, the derivative coupling is computed by differentiating the overlap function.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
-</pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Only the ket state is differentiated</span>
+<p>Finally, the derivative coupling is computed by differentiating the overlap function.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Only the ket state is differentiated</span>
 <span class="n">mol1</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 <span class="n">nac</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">ovlp</span><span class="p">)(</span><span class="n">mol1</span><span class="p">)</span><span class="o">.</span><span class="n">coords</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CIS derivative coupling:</span><span class="se">\n</span><span class="si">{</span><span class="n">nac</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>CIS derivative coupling:
+[[ 9.04113360e-18 -1.83652136e-16 -7.95967357e-02]
+ [-2.67656789e-17  5.55903294e-17  7.95967357e-02]]
+</pre></div>
 </div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Excited State energies (eV)
-[11.04953234 21.54438084 26.28403199 38.94852638]
-CIS derivative coupling:
-[[-2.31547823e-16 -2.25742762e-16 -7.95967356e-02]
- [ 2.32174204e-17  1.47750972e-16  7.95967356e-02]]
-</pre></div></div>
+</div>
 </div>
 </section>
 </section>
@@ -597,7 +578,7 @@ CIS derivative coupling:
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#CIS-derivative-couplings">CIS derivative couplings</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cis-derivative-couplings">CIS derivative couplings</a></li>
 </ul>
   </nav></div>
 
@@ -665,7 +646,7 @@ CIS derivative coupling:
         <div class="footer-item">
 
   <p class="sphinx-version">
-    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.4.7.
     <br/>
   </p>
 </div>

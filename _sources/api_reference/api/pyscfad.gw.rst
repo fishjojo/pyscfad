@@ -29,6 +29,6 @@ pyscfad.gw
    :recursive:
 
    
-   pyscfad.gw.rpa
+   rpa
    
 

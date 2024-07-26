@@ -38,9 +38,9 @@ pyscfad.ao2mo
    :recursive:
 
    
-   pyscfad.ao2mo.addons
+   addons
    
    
-   pyscfad.ao2mo.incore
+   incore
    
 

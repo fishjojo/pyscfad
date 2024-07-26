@@ -31,8 +31,8 @@
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="../../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=87e54e7c" />
-    <link rel="stylesheet" type="text/css" href="../../_static/nbsphinx-code-cells.css" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
@@ -45,9 +45,6 @@
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../_static/design-tabs.js?v=f930bc37"></script>
-    <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
-    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'getting_started/tutorial/02_oorpa';</script>
     <script src="../../_static/custom-icon.js?v=40bda21d"></script>
     <link rel="icon" href="../../_static/pyscfad_logo.svg"/>
@@ -57,7 +54,7 @@
     <link rel="prev" title="Simple mean-field calculations" href="01_scf.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Jun 28, 2024"/>
+    <meta name="docbuild:last-update" content="Jul 26, 2024"/>
   </head>
   
   
@@ -448,23 +445,23 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="Orbital-optimization">
-<h1>Orbital optimization<a class="headerlink" href="#Orbital-optimization" title="Link to this heading">#</a></h1>
+  <section class="tex2jax_ignore mathjax_ignore" id="orbital-optimization">
+<h1>Orbital optimization<a class="headerlink" href="#orbital-optimization" title="Link to this heading">#</a></h1>
 <p><a class="reference external" href="https://colab.research.google.com/github/fishjojo/pyscfad/blob/doc/doc/source/getting_started/tutorial/02_oorpa.ipynb"><img alt="Open in Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a></p>
-<p>Another example of using pyscfad is to apply orbital optimization for complex quantum chemistry methods. Here, we present an implementation of the orbital optimized random phase approximation (OO-RPA) method.</p>
-<section id="OO-RPA">
-<h2>OO-RPA<a class="headerlink" href="#OO-RPA" title="Link to this heading">#</a></h2>
+<p>Another example of using pyscfad is to apply orbital optimization for complex quantum chemistry methods.
+Here, we present an implementation of the orbital optimized random phase approximation (OO-RPA) method.</p>
+<section id="oo-rpa">
+<h2>OO-RPA<a class="headerlink" href="#oo-rpa" title="Link to this heading">#</a></h2>
 <p>First, a reference Kohn-Sham DFT calculation is performed.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscfad</span> <span class="kn">import</span> <span class="n">gto</span><span class="p">,</span> <span class="n">dft</span>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscfad</span> <span class="kn">import</span> <span class="n">gto</span><span class="p">,</span> <span class="n">dft</span>
 
 <span class="n">mol</span> <span class="o">=</span> <span class="n">gto</span><span class="o">.</span><span class="n">Mole</span><span class="p">()</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">atom</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;He&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">)],</span>
             <span class="p">[</span><span class="s1">&#39;He&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">2.6</span><span class="p">)]]</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">basis</span> <span class="o">=</span> <span class="s1">&#39;def2-svp&#39;</span>
+<span class="n">mol</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
 
 <span class="n">mf</span> <span class="o">=</span> <span class="n">dft</span><span class="o">.</span><span class="n">RKS</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">xc</span><span class="o">=</span><span class="s1">&#39;PBE&#39;</span><span class="p">)</span>
@@ -473,28 +470,16 @@ document.write(`
 </pre></div>
 </div>
 </div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-An NVIDIA GPU may be present on this machine, but a CUDA-enabled jaxlib is not installed. Falling back to cpu.
-</pre></div></div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-PBE energy (in Eh): -5.769065306827853
-</pre></div></div>
-</div>
-<p>Then, one needs to define the energy function for the RPA method, with the orbital rotation matrix as the variable.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>PBE energy (in Eh): -5.769065306827845
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscf.df.addons</span> <span class="kn">import</span> <span class="n">make_auxbasis</span>
+</div>
+</div>
+<p>Then, one needs to define the energy function for the RPA method, with the orbital rotation matrix as the variable.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pyscf.df.addons</span> <span class="kn">import</span> <span class="n">make_auxbasis</span>
 <span class="kn">from</span> <span class="nn">pyscfad</span> <span class="kn">import</span> <span class="n">df</span>
 <span class="kn">from</span> <span class="nn">pyscfad.gw</span> <span class="kn">import</span> <span class="n">rpa</span>
 <span class="kn">from</span> <span class="nn">pyscfad.tools</span> <span class="kn">import</span> <span class="n">rotate_mo1</span>
@@ -515,13 +500,16 @@ PBE energy (in Eh): -5.769065306827853
 </pre></div>
 </div>
 </div>
-<p>Here, we use the differentiable <a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/main/pyscfad/gw/rpa.py">RPA method</a> implemented in pyscfad. And <a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/main/pyscfad/df/df.py">density fitting</a> is enabled as well. The function <code class="docutils literal notranslate"><span class="pre">rotate_mo1</span></code> applies the unitary orbital rotation to the MOs. Note that the DFT object and the density fitting object are kept fixed when computing the energy, and thus can be constructed outside of the energy function.</p>
-<p>The analytoc Jacobian and Hessian of the energy are conveniently defined using the jax built-in functions.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
-</pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
+<p>Here, we use the differentiable <a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/main/pyscfad/gw/rpa.py">RPA method</a> implemented in pyscfad.
+And <a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/main/pyscfad/df/df.py">density fitting</a> is enabled as well.
+The function <code class="docutils literal notranslate"><span class="pre">rotate_mo1</span></code> applies the unitary orbital rotation to the MOs.
+Note that the DFT object and the density fitting object are kept fixed when computing the energy,
+and thus can be constructed outside of the energy function.</p>
+<p>The analytoc Jacobian and Hessian of the energy are conveniently defined using the jax built-in functions.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">jax</span>
 
 <span class="c1"># jacobian</span>
 <span class="n">jac</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">jacrev</span><span class="p">(</span><span class="n">rpa_energy</span><span class="p">)(</span><span class="n">x</span><span class="p">)</span>
@@ -530,12 +518,11 @@ PBE energy (in Eh): -5.769065306827853
 </pre></div>
 </div>
 </div>
-<p>Finally, the energy can be minimized by conventional optimizers, e.g., those provided by scipy.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
-</pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span>
+<p>Finally, the energy can be minimized by conventional optimizers, e.g., those provided by scipy.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span>
 <span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">minimize</span>
 
 <span class="n">x0</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">zeros</span><span class="p">([</span><span class="n">mol</span><span class="o">.</span><span class="n">nao</span><span class="o">*</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">nao</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">//</span><span class="mi">2</span><span class="p">,])</span>
@@ -545,31 +532,11 @@ PBE energy (in Eh): -5.769065306827853
 </pre></div>
 </div>
 </div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>OO-RPA/PBE energy: -5.8243335369820315
+</pre></div>
 </div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-
-WARN: int3c2e symmetry turned off
-
-</pre></div></div>
 </div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-&lt;class &#39;pyscfad.df.df.DF&#39;&gt; does not have attributes  incore
-</pre></div></div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-OO-RPA/PBE energy: -5.824333537127008
-</pre></div></div>
 </div>
 </section>
 </section>
@@ -620,7 +587,7 @@ OO-RPA/PBE energy: -5.824333537127008
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#OO-RPA">OO-RPA</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#oo-rpa">OO-RPA</a></li>
 </ul>
   </nav></div>
 
@@ -688,7 +655,7 @@ OO-RPA/PBE energy: -5.824333537127008
         <div class="footer-item">
 
   <p class="sphinx-version">
-    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.3.7.
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.4.7.
     <br/>
   </p>
 </div>

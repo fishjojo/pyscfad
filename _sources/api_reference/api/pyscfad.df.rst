@@ -13,15 +13,6 @@ pyscfad.df
 
    
    
-   .. rubric:: Functions
-
-   .. autosummary::
-      :toctree: functions/
-
-   
-      density_fit
-
-   
    
 
 
@@ -38,15 +29,15 @@ pyscfad.df
    :recursive:
 
    
-   pyscfad.df.addons
+   addons
    
    
-   pyscfad.df.df
+   df
    
    
-   pyscfad.df.df_jk
+   df_jk
    
    
-   pyscfad.df.incore
+   incore
    
 
