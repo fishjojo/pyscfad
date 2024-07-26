@@ -5,17 +5,11 @@ pip install pandoc
 pip install geometric
 pip install pyscf-properties
 
-cd pyscfadlib
-python setup.py install
-cd ..
-
-pip install -r requirements.txt
-export PYTHONPATH=$(pwd):$PYTHONPATH
+export PYTHONPATH=$(pwd):$(pwd)/pyscfadlib:$PYTHONPATH
 
 cd doc
-
 pip install -r requirements.txt
 
-python make.py html
+python make.py --python-path $(pwd)/..:$(pwd)/../pyscfadlib html
 
 touch build/html/.nojekyll

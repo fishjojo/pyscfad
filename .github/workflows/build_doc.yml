@@ -1,12 +1,9 @@
-name: Deploy Doc
+name: Build Doc
 
 on:
   push:
     branches:
-      - main
-
-permissions:
-  contents: write
+      - doc
 
 jobs:
   build-and-deploy:
@@ -24,8 +21,3 @@ jobs:
         run: ./.github/workflows/build_pyscfadlib.sh
       - name: build doc
         run: ./.github/workflows/build_doc.sh
-      - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          branch: gh-pages
-          folder: doc/build/html
