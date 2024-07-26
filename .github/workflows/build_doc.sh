@@ -5,6 +5,8 @@ pip install pandoc
 pip install geometric
 pip install pyscf-properties
 
+pip install nanobind
+
 cd pyscfadlib
 python setup.py install
 cd ..
