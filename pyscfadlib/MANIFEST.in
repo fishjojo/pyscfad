@@ -9,7 +9,7 @@ include pyscfadlib/*.dylib
 include pyscfadlib/thirdparty/lib*/*.dylib
 
 # source code
-recursive-include pyscfadlib *.c *.h CMakeLists.txt
+recursive-include pyscfadlib *.c *.cc *.h CMakeLists.txt
 
 global-exclude *.py[cod]
 prune pyscfadlib/build

@@ -11,7 +11,6 @@ from pyscf.pbc.gto import cell as pyscf_cell
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.ops import stop_grad
-from pyscfad import util
 from pyscfad.lib import logger
 from pyscfad.gto import mole
 from pyscfad.gto._mole_helper import setup_exp, setup_ctr_coeff
@@ -260,7 +259,6 @@ def ewald(cell, ew_eta=None, ew_cut=None):
 
 energy_nuc = ewald
 
-@util.pytree_node(mole.Traced_Attributes+['abc'])
 class Cell(mole.Mole, pyscf_cell.Cell):
     """Subclass of :class:`pyscf.pbc.gto.Cell` with traceable attributes.
 
@@ -279,7 +277,7 @@ class Cell(mole.Mole, pyscf_cell.Cell):
     abc : array
         Lattice vectors.
     """
-    _keys = {'abc'}
+    _dynamic_attr = _keys = {'abc'}
 
     def __init__(self, **kwargs):
         self.coords = None

@@ -1,26 +1,19 @@
 from pyscf.lib import square_mat_in_trilu_indices
 from pyscfad import numpy as np
-from pyscfad import util
 from pyscfad import lib
 from pyscfad.ao2mo import _ao2mo
 from pyscfad.cc import ccsd
 
-CC_Tracers = ['_scf', 'mol', 'with_df']
-ERI_Tracers = ['fock', 'mo_energy',
-               'oooo', 'ovoo', 'ovov', 'oovv', 'ovvo', 'ovvv', 'Lvv']
-
-@util.pytree_node(CC_Tracers, num_args=1)
 class RCCSD(ccsd.CCSD):
-    def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None, **kwargs):
-        super().__init__(mf, frozen=frozen, mo_coeff=mo_coeff, mo_occ=mo_occ,
-                       **kwargs)
+    _dynamic_attr = _keys = {'with_df'}
+
+    def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None):
+        super().__init__(mf, frozen=frozen, mo_coeff=mo_coeff, mo_occ=mo_occ)
+
         if getattr(mf, 'with_df', None):
             self.with_df = mf.with_df
         else:
             raise KeyError('The mean-field object has no density fitting.')
-
-        self._keys.update(['with_df'])
-        self.__dict__.update(kwargs)
 
     def ao2mo(self, mo_coeff=None):
         return _make_df_eris_incore(self, mo_coeff)
@@ -39,13 +32,13 @@ def _contract_vvvv_t2(mycc, mol, Lvv, t2, out=None, verbose=None):
     tril2sq = None
     return Ht2tril.reshape(t2.shape)
 
-@util.pytree_node(ERI_Tracers)
 class _ChemistsERIs(ccsd._ChemistsERIs):
-    def __init__(self, mol=None, **kwargs):
-        super().__init__(mol=mol, **kwargs)
+    _dynamic_attr = {'Lvv'}
+
+    def __init__(self, mol=None):
+        super().__init__(mol=mol)
         self.naux = None
         self.Lvv = None
-        self.__dict__.update(kwargs)
 
     def _contract_vvvv_t2(self, mycc, t2, direct=False, out=None, verbose=None):
         assert not direct

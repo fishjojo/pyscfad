@@ -3,32 +3,25 @@ import numpy
 import jax
 from scipy.optimize import minimize
 from pyscfad import numpy as np
-from pyscfad import util
 from pyscfad.tools import rotate_mo1
 from pyscfad import gto, scf, mp
-from pyscfad import config
 
 @pytest.fixture
 def get_mol():
-    config.update('pyscfad_scf_implicit_diff', True)
-    #config.update('pyscfad_moleintor_opt', True)
-
     mol = gto.Mole()
     mol.atom ='H 0 0 0; F 0 0 1.1'
     mol.basis = '631g'
     mol.max_memory = 8000
     mol.incore_anyway = True
     mol.build()
-    yield mol
+    return mol
 
-    config.reset()
-
-@util.pytree_node(['_scf', 'x'], num_args=1)
 class OOMP2(mp.MP2):
-    def __init__(self, mf, x=None, **kwargs):
+    _dynamic_attr = {'x'}
+
+    def __init__(self, mf, x=None):
         mp.MP2.__init__(self, mf)
         self.x = x
-        self.__dict__.update(kwargs)
         if self.x is None:
             nao = self.mol.nao
             assert nao == self.nmo

@@ -1,11 +1,11 @@
 import pytest
 import jax
-from jax import numpy as np
 from pyscf.data.nist import BOHR
+from pyscfad import numpy as np
 from pyscfad import gto, scf
 from pyscfad.lo import boys
 from pyscfad.lo.boys import dipole_integral
-from pyscfad import config
+from pyscfad import config_update
 
 def cost_function(mol):
     mf = scf.RHF(mol)
@@ -21,17 +21,15 @@ def cost_function(mol):
 
 @pytest.fixture
 def get_mol():
-    config.update('pyscfad_scf_implicit_diff', True)
-    #config.update('pyscfad_moleintor_opt', True)
-    mol = gto.Mole()
-    mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
-    mol.basis = '631G'
-    mol.verbose = 0
-    mol.build(trace_exp=False, trace_ctr_coeff=False)
-    yield mol
-    config.reset()
+    with config_update('pyscfad_scf_implicit_diff', True):
+        mol = gto.Mole()
+        mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
+        mol.basis = '631G'
+        mol.verbose = 0
+        mol.build(trace_exp=False, trace_ctr_coeff=False)
+        yield mol
 
-def test_boys(get_mol):
+def test_boys_cost_nuc_grad(get_mol):
     mol = get_mol
     g0 = jax.grad(cost_function)(mol).coords
 

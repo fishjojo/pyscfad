@@ -1,9 +1,6 @@
 def stop_gradient(x):
     return x
 
-def class_as_pytree_node(cls, leaf_names, num_args=0):
-    return cls
-
 class custom_jvp:
     """Fake ``custom_jvp`` that does nothing.
     """
@@ -20,6 +17,12 @@ class custom_jvp:
 
 def jit(fun, **kwargs):
     return fun
+
+def while_loop(cond_fun, body_fun, init_val):
+    val = init_val
+    while cond_fun(val):
+        val = body_fun(val)
+    return val
 
 # TODO deprecate these
 class _Indexable(object):

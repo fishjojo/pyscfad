@@ -11,9 +11,13 @@ from pyscfad._src._config import (
 
 # export backend.numpy to pyscfad namespace
 # pylint: disable=useless-import-alias
-from pyscfad.backend import numpy as numpy
-from pyscfad.backend import ops as ops
+from pyscfad.backend import (
+    numpy as numpy,
+    ops as ops,
+    pytree as pytree,
+)
 sys.modules['pyscfad.numpy'] = numpy
 sys.modules['pyscfad.ops'] = ops
+sys.modules['pyscfad.pytree'] = pytree
 
 del sys

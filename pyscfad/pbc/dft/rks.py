@@ -6,7 +6,6 @@ from pyscf.pbc.dft import gen_grid, multigrid
 from pyscf.pbc.dft.rks import prune_small_rho_grids_
 from pyscf.pbc.lib.kpts import KPoints
 
-from pyscfad import util
 from pyscfad import numpy as np
 from pyscfad.ops import stop_grad
 from pyscfad.dft import rks as mol_ks
@@ -108,7 +107,6 @@ class KohnShamDFT(mol_ks.KohnShamDFT, pyscf_rks.KohnShamDFT):
 
     dump_flags = pyscf_rks.KohnShamDFT.dump_flags
 
-@util.pytree_node(pbchf.Traced_Attributes, num_args=1)
 class RKS(KohnShamDFT, pbchf.RHF):
     """Subclass of :class:`pyscf.pbc.dft.rks.RKS` with traceable attributes.
 
@@ -126,11 +124,9 @@ class RKS(KohnShamDFT, pbchf.RHF):
     Grid response is not considered with AD.
     """
     def __init__(self, cell, xc='LDA,VWN', kpt=numpy.zeros(3),
-                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'),
-                 **kwargs):
-        pbchf.RHF.__init__(self, cell, kpt, exxdiv, **kwargs)
+                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')):
+        pbchf.RHF.__init__(self, cell, kpt, exxdiv)
         KohnShamDFT.__init__(self, xc)
-        self.__dict__.update(kwargs)
         # NOTE this has to be after __dict__ update,
         # otherwise stop_grad(mol) won't work.
         # Currently, no grid response is considered.

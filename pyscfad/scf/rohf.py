@@ -2,8 +2,8 @@ from functools import reduce, wraps
 import numpy
 from pyscf.scf import rohf as pyscf_rohf
 from pyscfad import numpy as np
-from pyscfad import util
-from pyscfad.ops import stop_grad
+from pyscfad import pytree
+from pyscfad import ops
 from pyscfad.lib import logger
 from pyscfad.scf import hf, uhf, chkfile
 
@@ -15,8 +15,9 @@ def energy_elec(mf, dm=None, h1e=None, vhf=None):
         dm = np.array((dm*.5, dm*.5))
     return uhf.energy_elec(mf, dm, h1e, vhf)
 
-@util.pytree_node(['fock', 'focka', 'fockb'], num_args=1)
-class _FockMatrix():
+class _FockMatrix(pytree.PytreeNode):
+    _dynamic_attr = {'fock', 'focka', 'fockb'}
+
     def __init__(self, fock, focka=None, fockb=None):
         self.fock = fock
         self.focka = focka
@@ -25,8 +26,9 @@ class _FockMatrix():
     def __repr__(self):
         return self.fock.__repr__()
 
-@util.pytree_node(['mo_energy',], num_args=1)
-class _OrbitalEnergy():
+class _OrbitalEnergy(pytree.PytreeNode):
+    _dynamic_attr = {'mo_energy', 'mo_ea', 'mo_eb'}
+
     def __init__(self, mo_energy, mo_ea=None, mo_eb=None):
         self.mo_energy = mo_energy
         self.mo_ea = mo_ea
@@ -36,7 +38,8 @@ class _OrbitalEnergy():
         return self.mo_energy.__repr__()
 
 def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
-             diis_start_cycle=None, level_shift_factor=None, damp_factor=None):
+             diis_start_cycle=None, level_shift_factor=None, damp_factor=None,
+             fock_last=None):
     if h1e is None: h1e = mf.get_hcore()
     if s1e is None: s1e = mf.get_ovlp()
     if vhf is None: vhf = mf.get_veff(mf.mol, dm)
@@ -60,10 +63,10 @@ def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
         damp_factor = mf.damp
 
     dm_tot = dm[0] + dm[1]
-    if 0 <= cycle < diis_start_cycle-1 and abs(damp_factor) > 1e-4:
+    if 0 <= cycle < diis_start_cycle-1 and abs(damp_factor) > 1e-4 and fock_last is not None:
         raise NotImplementedError('ROHF Fock-damping')
     if diis and cycle >= diis_start_cycle:
-        f = diis.update(s1e, dm_tot, f, mf, h1e, vhf)
+        f = diis.update(s1e, dm_tot, f, mf, h1e, vhf, f_prev=fock_last)
     if abs(level_shift_factor) > 1e-4:
         f = hf.level_shift(s1e, dm_tot*.5, f, level_shift_factor)
     return _FockMatrix(f, focka, fockb)
@@ -86,6 +89,7 @@ def get_roothaan_fock(focka_fockb, dma_dmb, s):
     fock = fock + fock.conj().T
     return fock
 
+@wraps(pyscf_rohf.get_grad)
 def get_grad(mo_coeff, mo_occ, fock):
     occidxa = mo_occ > 0
     occidxb = mo_occ == 2
@@ -101,13 +105,13 @@ def get_grad(mo_coeff, mo_occ, fock):
         focka, fockb = fock
     else:
         focka = fockb = fock
-    focka = reduce(numpy.dot, (mo_coeff.conj().T, focka, mo_coeff))
-    fockb = reduce(numpy.dot, (mo_coeff.conj().T, fockb, mo_coeff))
+    focka = ops.to_numpy(mo_coeff.conj().T.dot(focka).dot(mo_coeff))
+    fockb = ops.to_numpy(mo_coeff.conj().T.dot(fockb).dot(mo_coeff))
 
     g = numpy.zeros_like(focka)
     g[uniq_var_a]  = focka[uniq_var_a]
     g[uniq_var_b] += fockb[uniq_var_b]
-    return g[uniq_var_a | uniq_var_b].ravel()
+    return g[uniq_var_a | uniq_var_b]
 
 def make_rdm1(mo_coeff, mo_occ, **kwargs):
     if getattr(mo_occ, 'ndim', None) == 1:
@@ -123,11 +127,11 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
     from pyscf.scf.rohf import _fill_rohf_occ
     if mo_energy is None: mo_energy = mf.mo_energy
     if getattr(mo_energy, 'mo_ea', None) is not None:
-        mo_ea = numpy.asarray(mo_energy.mo_ea)
-        mo_eb = numpy.asarray(mo_energy.mo_eb)
-        mo_eab = numpy.asarray(mo_energy.mo_energy)
+        mo_ea = ops.to_numpy(mo_energy.mo_ea)
+        mo_eb = ops.to_numpy(mo_energy.mo_eb)
+        mo_eab = ops.to_numpy(mo_energy.mo_energy)
     else:
-        mo_ea = mo_eb = mo_eab = numpy.asarray(mo_energy)
+        mo_ea = mo_eb = mo_eab = ops.to_numpy(mo_energy)
     nmo = mo_ea.size
     mo_occ = numpy.zeros(nmo)
     if getattr(mf, 'nelec', None) is None:
@@ -171,11 +175,9 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
             numpy.set_printoptions(threshold=1000)
     return mo_occ
 
-@util.pytree_node(hf.Traced_Attributes, num_args=1)
 class ROHF(hf.SCF, pyscf_rohf.ROHF):
-    def __init__(self, mol, **kwargs):
-        super().__init__(mol)
-        self.__dict__.update(kwargs)
+    def __init__(self, mol):
+        pyscf_rohf.ROHF.__init__(self, mol)
 
     def eig(self, fock, s):
         focka = getattr(fock, 'focka', None)
@@ -183,9 +185,9 @@ class ROHF(hf.SCF, pyscf_rohf.ROHF):
         fockab = getattr(fock, 'fock', fock)
         e, c = self._eigh(fockab, s)
         if focka is not None:
-            c_copy = numpy.asarray(stop_grad(c))
-            focka_copy = numpy.asarray(stop_grad(focka))
-            fockb_copy = numpy.asarray(stop_grad(fockb))
+            c_copy = ops.to_numpy(c)
+            focka_copy = ops.to_numpy(focka)
+            fockb_copy = ops.to_numpy(fockb)
             mo_ea = numpy.einsum('pi,pi->i', c_copy.conj(), focka_copy.dot(c_copy)).real
             mo_eb = numpy.einsum('pi,pi->i', c_copy.conj(), fockb_copy.dot(c_copy)).real
             e = _OrbitalEnergy(e, mo_ea, mo_eb)
@@ -195,7 +197,7 @@ class ROHF(hf.SCF, pyscf_rohf.ROHF):
         if fock is None:
             dm1 = self.make_rdm1(mo_coeff, mo_occ)
             fock = self.get_hcore(self.mol) + self.get_veff(self.mol, dm1)
-        return get_grad(stop_grad(mo_coeff), stop_grad(mo_occ), stop_grad(fock))
+        return get_grad(mo_coeff, mo_occ, fock)
 
     def make_rdm1(self, mo_coeff=None, mo_occ=None, **kwargs):
         if mo_coeff is None: mo_coeff = self.mo_coeff

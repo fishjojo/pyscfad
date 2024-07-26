@@ -1,9 +1,9 @@
 import numpy
 from pyscf.lib import logger, current_memory
-from pyscf import df as pyscf_df
+from pyscf.df import make_auxbasis
 from pyscf.gw import rpa as pyscf_rpa
 from pyscfad import numpy as np
-from pyscfad import util
+from pyscfad import pytree
 from pyscfad.ops import vmap, jit
 from pyscfad import scf, dft, df
 from pyscfad.df.addons import restore
@@ -83,19 +83,28 @@ def get_rpa_ecorr(rpa, Lpq, freqs, wts):
     e_corr = np.sum(e_corr_i)
     return e_corr
 
-@util.pytree_node(['_scf','mol','with_df','mo_energy','mo_coeff'], num_args=1)
-class RPA(pyscf_rpa.RPA):
-    def __init__(self, mf, frozen=None, auxbasis=None, **kwargs):
+class RPA(pytree.PytreeNode, pyscf_rpa.RPA):
+    _dynamic_attr = {'_scf', 'mol', 'with_df'}
+
+    def __init__(self, mf, frozen=None, auxbasis=None):
         self.mol = mf.mol
         self._scf = mf
         self.verbose = self.mol.verbose
         self.stdout = self.mol.stdout
         self.max_memory = mf.max_memory
         self.frozen = frozen
-        self.with_df = None
 
-##################################################
-# don't modify the following attributes, they are not input options
+        if getattr(mf, 'with_df', None):
+            self.with_df = self._scf.with_df
+        else:
+            self.with_df = df.DF(mf.mol)
+            if auxbasis:
+                self.with_df.auxbasis = auxbasis
+            else:
+                self.with_df.auxbasis = make_auxbasis(mf.mol, mp2fit=True)
+
+        ##################################################
+        # don't modify the following attributes, they are not input options
         self._nocc = None
         self._nmo = None
         self.mo_energy = mf.mo_energy
@@ -104,16 +113,6 @@ class RPA(pyscf_rpa.RPA):
         self.e_corr = None
         self.e_hf = None
         self.e_tot = None
-
-        self.__dict__.update(kwargs)
-        if self.with_df is None:
-            if getattr(self._scf, 'with_df', None):
-                self.with_df = self._scf.with_df
-            else:
-                if auxbasis is None:
-                    auxbasis = pyscf_df.addons.make_auxbasis(self.mol, mp2fit=True)
-                auxmol = df.addons.make_auxmol(self.mol, auxbasis)
-                self.with_df = df.DF(self.mol, auxmol=auxmol)
 
     def kernel(self, mo_energy=None, mo_coeff=None, Lpq=None, nw=40):
         '''

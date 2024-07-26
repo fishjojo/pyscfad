@@ -5,7 +5,7 @@ from pyscfad import numpy as np
 from pyscfad.ops import jit
 
 def pack_uniq_var(mat):
-    nmo = mat.shape[0]
+    nmo = mat.shape[-1]
     idx = np.tril_indices(nmo, -1)
     return mat[idx]
 
@@ -20,3 +20,4 @@ def unpack_uniq_var(v):
 def extract_rotation(dr, u0=1):
     dr = unpack_uniq_var(dr)
     return np.dot(u0, expm(dr))
+

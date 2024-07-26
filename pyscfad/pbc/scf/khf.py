@@ -3,16 +3,12 @@ import h5py
 import numpy
 from pyscf import __config__
 from pyscf.pbc.scf import khf as pyscf_khf
-from pyscfad import util
 from pyscfad import numpy as np
 from pyscfad.ops import stop_grad, stop_trace
 from pyscfad.lib import logger
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
 from pyscfad.pbc.scf import hf as pbchf
-
-# TODO add mo_coeff, which requires AD wrt complex numbers
-Traced_Attributes = ['cell', 'mo_energy',]# 'with_df']
 
 def get_ovlp(mf, cell=None, kpts=None):
     if cell is None:
@@ -56,7 +52,8 @@ def energy_elec(mf, dm_kpts=None, h1e_kpts=None, vhf_kpts=None):
     return (e1+e_coul).real, e_coul.real
 
 def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
-             diis_start_cycle=None, level_shift_factor=None, damp_factor=None):
+             diis_start_cycle=None, level_shift_factor=None, damp_factor=None,
+             fock_last=None):
     h1e_kpts, s_kpts, vhf_kpts, dm_kpts = h1e, s1e, vhf, dm
     if h1e_kpts is None:
         h1e_kpts = mf.get_hcore()
@@ -78,11 +75,10 @@ def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
     if dm_kpts is None:
         dm_kpts = mf.make_rdm1()
 
-    if 0 <= cycle < diis_start_cycle-1 and abs(damp_factor) > 1e-4:
-        f_kpts = [mol_hf.damping(s1e, dm_kpts[k] * 0.5, f_kpts[k], damp_factor)
-                  for k, s1e in enumerate(s_kpts)]
+    if 0 <= cycle < diis_start_cycle-1 and abs(damp_factor) > 1e-4  and fock_last is not None:
+        f_kpts = [mol_hf.damping(f, f_prev, damp_factor) for f,f_prev in zip(f_kpts,fock_last)]
     if diis and cycle >= diis_start_cycle:
-        f_kpts = diis.update(s_kpts, dm_kpts, f_kpts, mf, h1e_kpts, vhf_kpts)
+        f_kpts = diis.update(s_kpts, dm_kpts, f_kpts, mf, h1e_kpts, vhf_kpts, f_prev=fock_last)
     if abs(level_shift_factor) > 1e-4:
         f_kpts = [mol_hf.level_shift(s, dm_kpts[k], f_kpts[k], level_shift_factor)
                   for k, s in enumerate(s_kpts)]
@@ -93,7 +89,6 @@ def make_rdm1(mo_coeff_kpts, mo_occ_kpts, **kwargs):
     dm = [mol_hf.make_rdm1(mo_coeff_kpts[k], mo_occ_kpts[k]) for k in range(nkpts)]
     return np.asarray(dm)
 
-@util.pytree_node(Traced_Attributes, num_args=1)
 class KSCF(pbchf.SCF, pyscf_khf.KSCF):
     """Subclass of :class:`pyscf.pbc.scf.khf.KSCF` with traceable attributes.
 
@@ -105,8 +100,7 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         MO energies.
     """
     def __init__(self, cell, kpts=numpy.zeros((1,3)),
-                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald'),
-                 **kwargs):
+                 exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')):
         if not cell._built:
             sys.stderr.write('Warning: cell.build() is not called in input\n')
             cell.build()
@@ -120,7 +114,6 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         self.conv_tol = max(cell.precision * 10, 1e-8)
 
         self.exx_built = False
-        self.__dict__.update(kwargs)
 
     def get_jk(self, cell=None, dm_kpts=None, hermi=1, kpts=None, kpts_band=None,
                with_j=True, with_k=True, omega=None, **kwargs):
@@ -168,16 +161,15 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
     get_hcore = get_hcore
     get_ovlp = get_ovlp
     get_fock = get_fock
-    get_occ = pyscf_khf.KSCF.get_occ
+    get_occ = stop_trace(pyscf_khf.KSCF.get_occ)
     energy_elec = energy_elec
     get_fermi = pyscf_khf.KSCF.get_fermi
 
     get_veff = pyscf_khf.KSCF.get_veff
     get_j = pyscf_khf.KSCF.get_j
     get_k = pyscf_khf.KSCF.get_k
-    get_grad = pyscf_khf.KSCF.get_grad
+    get_grad = stop_trace(pyscf_khf.KSCF.get_grad)
 
-@util.pytree_node(Traced_Attributes, num_args=1)
 class KRHF(KSCF, pyscf_khf.KRHF):
     def get_init_guess(self, cell=None, key='minao', s1e=None):
         from pyscf import lib

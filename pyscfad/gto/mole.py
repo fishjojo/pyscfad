@@ -2,12 +2,14 @@ from functools import wraps
 from pyscf.gto import mole as pyscf_mole
 from pyscf.lib import logger, param
 from pyscfad import numpy as np
-from pyscfad import util
+from pyscfad import pytree
 from pyscfad.gto import moleintor
 from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
 
 Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
+Exclude_Aux_Names = ('verbose',)
+
 
 @wraps(pyscf_mole.inter_distance)
 def inter_distance(mol, coords=None):
@@ -46,8 +48,7 @@ def nao_nr_range(mol, bas_id0, bas_id1):
     nao_id1 = ao_loc[-1]
     return nao_id0, nao_id1
 
-@util.pytree_node(Traced_Attributes)
-class Mole(pyscf_mole.Mole):
+class Mole(pytree.PytreeNode, pyscf_mole.Mole):
     """Subclass of :class:`pyscf.gto.Mole` with traceable attributes.
 
     Attributes
@@ -63,8 +64,7 @@ class Mole(pyscf_mole.Mole):
         not used as the basis functions are atom centered. This
         is a placeholder for floating Gaussian basis sets.
     """
-
-    _keys = {'coords', 'exp', 'ctr_coeff', 'r0'}
+    _dynamic_attr = _keys = {'coords', 'exp', 'ctr_coeff', 'r0'}
 
     def __init__(self, **kwargs):
         self.coords = None
@@ -75,7 +75,7 @@ class Mole(pyscf_mole.Mole):
 
     def atom_coords(self, unit='Bohr'):
         if self.coords is None:
-            return super().atom_coords(unit)
+            return np.asarray(super().atom_coords(unit))
         else:
             if unit[:3].upper() == 'ANG':
                 return self.coords * param.BOHR
@@ -111,3 +111,12 @@ class Mole(pyscf_mole.Mole):
         return moleintor.intor(self, intor, comp=comp, hermi=hermi,
                                aosym=aosym, out=out, shls_slice=shls_slice,
                                grids=grids)
+
+    def to_pyscf(self):
+        mol = self.view(pyscf_mole.Mole)
+        del mol.coords
+        del mol.exp
+        del mol.ctr_coeff
+        del mol.r0
+        return mol
+

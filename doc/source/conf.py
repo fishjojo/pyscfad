@@ -24,8 +24,8 @@ language = "en"
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    "IPython.sphinxext.ipython_directive",
-    "IPython.sphinxext.ipython_console_highlighting",
+#    "IPython.sphinxext.ipython_directive",
+#    "IPython.sphinxext.ipython_console_highlighting",
     "matplotlib.sphinxext.plot_directive",
     "numpydoc",
     "sphinx_copybutton",
@@ -40,15 +40,20 @@ extensions = [
     "sphinx.ext.linkcode",
     "sphinx.ext.mathjax",
     "sphinx.ext.todo",
-    "nbsphinx",
+#    "nbsphinx",
     "sphinxemoji.sphinxemoji", # emoji
+    "myst_nb",
 ]
 
 templates_path = ["_templates"]
-source_suffix = [".rst"]
+source_suffix = ['.rst', '.ipynb', '.md']
 source_encoding = "utf-8"
 master_doc = "index"
-exclude_patterns = []
+exclude_patterns = [
+    'build/html',
+    'build/jupyter_execute',
+    '*/tutorial/*.md',
+]
 
 autosummary_generate = True
 autodoc_typehints = "none"
@@ -58,6 +63,19 @@ numpydoc_show_inherited_class_members = False
 numpydoc_attributes_as_param_list = False
 
 pygments_style = "sphinx"
+
+#nb_execution_timeout = 60
+myst_enable_extensions = [
+    "amsmath",
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "html_image",
+]
+nb_execution_excludepatterns = [
+    "*/tutorial/*.ipynb",
+]
+
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

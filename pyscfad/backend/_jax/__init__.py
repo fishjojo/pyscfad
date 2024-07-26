@@ -16,15 +16,22 @@ from jax import (
     custom_jvp,
     jit,
 )
-from jax.lax import stop_gradient
+from jax.lax import (
+    stop_gradient,
+    while_loop,
+)
 from .core import (
     is_array,
     to_numpy,
     vmap,
-    class_as_pytree_node,
     index_update,
     index_add,
     index_mul,
+)
+
+from .pytree import (
+    PytreeNode,
+    class_as_pytree_node,
 )
 
 class JaxBackend:
@@ -50,16 +57,18 @@ class JaxBackend:
 
 backend = JaxBackend(jax.numpy)
 
-# FIXME maybe separate ops from numpy
 backend._cache['is_array'] = is_array
 backend._cache['to_numpy'] = to_numpy
 backend._cache['stop_gradient'] = stop_gradient
-backend._cache['class_as_pytree_node'] = class_as_pytree_node
 backend._cache['custom_jvp'] = custom_jvp
 backend._cache['jit'] = jit
 backend._cache['vmap'] = vmap
+backend._cache['while_loop'] = while_loop
 backend._cache['index'] = index
 backend._cache['index_update'] = index_update
 backend._cache['index_add'] = index_add
 backend._cache['index_mul'] = index_mul
+
+backend._cache['class_as_pytree_node'] = class_as_pytree_node
+backend._cache['PytreeNode'] = PytreeNode
 

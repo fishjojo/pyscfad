@@ -4,7 +4,13 @@ pip install pandoc
 
 pip install geometric
 pip install pyscf-properties
-pip install pyscfad
+
+cd pyscfadlib
+python setup.py install
+cd ..
+
+pip install -r requirements.txt
+export PYTHONPATH=$(pwd):$PYTHONPATH
 
 cd doc
 

@@ -8,3 +8,5 @@ sphinx_design
 nbsphinx
 sphinxemoji
 pydata-sphinx-theme
+jupytext
+myst-nb

@@ -8,7 +8,7 @@ Installation
 Python version support
 ----------------------
 
-Officially Python 3.8, 3.9, 3.10, 3.11 and 3.12.
+Officially Python 3.9, 3.10, 3.11 and 3.12.
 
 Installing from PyPI
 --------------------
@@ -82,8 +82,8 @@ Package                                                supported versions
 `numpy <https://numpy.org>`_                           >=1.17
 `scipy <https://scipy.org>`_                           >=1.7
 `h5py <https://www.h5py.org/>`_                        >=2.7
-`jax <https://jax.readthedocs.io/en/latest/>`_         >=0.3.25
-`jaxlib <https://pypi.org/project/jaxlib/>`_           >=0.3.25
+`jax <https://jax.readthedocs.io/en/latest/>`_         >=0.4.14
+`jaxlib <https://pypi.org/project/jaxlib/>`_           >=0.4.14
 `pyscf <https://pyscf.org/>`_                          >=2.3.0
 `pyscfadlib <https://pypi.org/project/pyscfadlib/>`_   >=0.1.4
 =====================================================  ==================

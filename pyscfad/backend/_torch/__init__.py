@@ -14,6 +14,7 @@ from torch import (
 
 from .._common import (
     class_as_pytree_node,
+    PytreeNode,
     custom_jvp,
 )
 from .numpy import (
@@ -53,8 +54,9 @@ backend._cache['iscomplexobj'] = iscomplexobj
 backend._cache['is_array'] = is_array
 backend._cache['to_numpy'] = to_numpy
 backend._cache['stop_gradient'] = stop_gradient
-backend._cache['class_as_pytree_node'] = class_as_pytree_node
 backend._cache['custom_jvp'] = custom_jvp
 backend._cache['jit'] = jit
 backend._cache['vmap'] = vmap
 
+backend._cache['class_as_pytree_node'] = class_as_pytree_node
+backend._cache['PytreeNode'] = PytreeNode

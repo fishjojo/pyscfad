@@ -5,7 +5,7 @@ from pyscf import lib as pyscf_lib
 from pyscf.lib import logger
 from pyscf.df import df as pyscf_df
 from pyscfad import util
-from pyscfad.ops import isarray
+from pyscfad.ops import is_array
 from pyscfad.df import addons, incore, df_jk
 
 @util.pytree_node(['mol', 'auxmol', '_cderi'], num_args=1)
@@ -51,8 +51,9 @@ class DF(pyscf_df.DF):
         '''Reset mol and clean up relevant attributes for scanner mode'''
         if mol is not None:
             self.mol = mol
-        # NOTE resetting auxmol will lose its tracing
-        #self.auxmol = None
+        # NOTE resetting auxmol will lose its tracing,
+        # but its contribution should be included in mol
+        self.auxmol = None
         self._cderi = None
         if not isinstance(self._cderi_to_save, str) and not self.incore:
             # pylint: disable=consider-using-with
@@ -77,8 +78,8 @@ class DF(pyscf_df.DF):
         else:
             raise NotImplementedError
 
-    def loop(self, blksize=None, convert_to_ndarray=True):
-        # NOTE By default (convert_to_ndarray=True)
+    def loop(self, blksize=None, to_numpy=True):
+        # NOTE By default (to_numpy=True)
         # we do not trace this function so that it can be used by pyscf
         if self._cderi is None:
             self.build()
@@ -86,13 +87,16 @@ class DF(pyscf_df.DF):
             blksize = self.blockdim
 
         with addons.load(self._cderi, 'j3c') as feri:
-            if isarray(feri):
+            if is_array(feri):
                 naoaux = feri.shape[0]
                 for b0, b1 in self.prange(0, naoaux, blksize):
-                    if convert_to_ndarray:
+                    if to_numpy:
                         out = numpy.asarray(feri[b0:b1], order='C')
                     else:
                         out = feri[b0:b1]
                     yield out
             else:
                 raise NotImplementedError
+
+    to_pyscf = util.to_pyscf
+
