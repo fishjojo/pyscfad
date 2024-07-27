@@ -1,9 +1,13 @@
+[build-system]
+requires = ["setuptools >= 61.0", "wheel", "cmake>=3.18", "nanobind"]
+build-backend = "setuptools.build_meta"
+
 [tool.cibuildwheel]
 build-verbosity = 1
 
 test-requires = ["pytest", "pyscf>=2.3"]
 test-command = "pytest {package}/test"
-test-skip = "cp38-macosx_arm64 cp311-macosx_arm64"
+test-skip = "cp311-macosx_arm64"
 
 container-engine = "docker"
 manylinux-x86_64-image = "manylinux2014"
