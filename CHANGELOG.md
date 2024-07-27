@@ -1,5 +1,21 @@
 # Change log
 
+## pyscfad 0.1.7 (July 26, 2024)
+
+* Changes
+  * Drop support to Python 3.8.
+  * Add `pytree.PytreeNode`.
+  * Adapt class definition using `PytreeNode`.
+  * Add `util.to_pyscf`.
+  * Update `gto.mole._moleintor_jvp` for shell slicing.
+  * Add `scipy.linalg.eigh` JAX primitive for CPU.
+  * Improve `lo.orth.lowdin` gradient stability.
+
+* Bug fixes
+  * Fix example `dft/01-DFT+U.py`.
+  * Fix `scf.addons.canonical_orth_`.
+  * Fix GMRES solver for scipy versions before 1.12.
+
 ## pyscfad 0.1.6 (June 27, 2024)
 * Changes
   * Update GMRES solver according to scipy updates.
