@@ -28,9 +28,9 @@ endif()
 set(CMAKE_C_FLAGS "-Wall ${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "-Wall ${CMAKE_CXX_FLAGS}")
 
-if (APPLE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -faligned-allocation")
-endif()
+#if (APPLE)
+#  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -faligned-allocation")
+#endif()
 
 option(BUILD_MARCH_NATIVE "gcc flag -march=native" off)
 if (BUILD_MARCH_NATIVE)
