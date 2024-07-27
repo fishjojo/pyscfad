@@ -23,7 +23,7 @@ def pytree_node(leaf_names, num_args=0, exclude_aux_name=()):
     exclude_aux_name : tuple, default=()
         A set of static attribute names that are not used for comparing
         the pytrees. Note that ``jax.jit`` recompiles the function for input
-        pytrees with differen static attribute values.
+        pytrees with different static attribute values.
 
     Notes
     -----

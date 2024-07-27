@@ -23,12 +23,15 @@ pip install pyscfad
 ```
 pip install git+https://github.com/fishjojo/pyscfad.git
 ```
+The dependent C library `pyscfadlib` can be compiled from source following the instruction
+[here](https://fishjojo.github.io/pyscfad/getting_started/install.html#installing-pyscfadlib).
 
-`pyscfad` depends on `pyscf>=2.3.0`.
-Other dependencies include
-`numpy>=1.17`, `scipy`, `h5py`,
-`pyscfadlib`,
-`jax>=0.3.25` and `jaxlib>=0.3.25`.
+
+`pyscfad` depends on
+`numpy`, `scipy`,
+`pyscf>=2.3.0`,
+`pyscfadlib>=0.1.4`,
+`jax>=0.4.14`, and `jaxlib>=0.4.14`.
 
 Citing PySCFAD
 --------------

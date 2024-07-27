@@ -3,7 +3,7 @@ import numpy
 import jax
 from pyscf.lo import pipek as pyscf_pipek
 from pyscfad import numpy as np
-from pyscfad.ops import vmap, jit
+from pyscfad.ops import vmap
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.soscf.ciah import extract_rotation
 from pyscfad.tools.linear_solver import gen_gmres
@@ -77,7 +77,6 @@ def cost_function(x, mol, mo_coeff, pop_method='mulliken', exponent=2):
     pop = atomic_pops(mol, mo_coeff, pop_method)
     return -(np.einsum('xii->xi', pop)**exponent).sum()
 
-@partial(jit, static_argnames=('pop_method', 'exponent'))
 def _opt_cond(x, mol, mo_coeff, pop_method='mulliken', exponent=2):
     g = jax.grad(cost_function, 0)(x, mol, mo_coeff, pop_method, exponent)
     return g
