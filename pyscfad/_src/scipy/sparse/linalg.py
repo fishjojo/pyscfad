@@ -1,5 +1,6 @@
 from functools import reduce
 import numpy
+import scipy
 from scipy.sparse.linalg import LinearOperator, eigsh
 from scipy.sparse.linalg import gmres as scipy_gmres
 from pyscfad import ops
@@ -24,9 +25,14 @@ def gmres(A_or_matvec, b, x0=None, *,
     else:
         A = numpy.array(ops.to_numpy(A_or_matvec))
 
-    u, info = scipy_gmres(A, b.ravel(), x0=x0, rtol=tol, atol=atol,
-                          restart=restart, maxiter=maxiter, M=M,
-                          callback=callback, callback_type=callback_type)
+    if scipy.__version__ < '1.12':
+        u, info = scipy_gmres(A, b.ravel(), x0=x0, tol=tol, atol=atol,
+                              restart=restart, maxiter=maxiter, M=M,
+                              callback=callback, callback_type=callback_type)
+    else:
+        u, info = scipy_gmres(A, b.ravel(), x0=x0, rtol=tol, atol=atol,
+                              restart=restart, maxiter=maxiter, M=M,
+                              callback=callback, callback_type=callback_type)
     if info > 0:
         raise RuntimeError(f'scipy gmres failed to converge in {info} iterations.')
     elif info < 0:
