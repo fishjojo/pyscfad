@@ -33,28 +33,28 @@ jobs:
         with:
           packages-dir: pyscfadlib/wheelhouse
 
-  build_wheel_macos_x86:
-    name: Build macos_x86 wheels
-    runs-on: macos-12
+  #build_wheel_macos_x86:
+  #  name: Build macos_x86 wheels
+  #  runs-on: macos-12
 
-    steps:
-      - uses: actions/checkout@v4
+  #  steps:
+  #    - uses: actions/checkout@v4
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.19.2
-        env:
-          CMAKE_CONFIGURE_ARGS: "-DWITH_F12=OFF"
-        with:
-          package-dir: pyscfadlib
-          output-dir: pyscfadlib/wheelhouse
-          config-file: "{package}/pyproject.toml"
+  #    - name: Build wheels
+  #      uses: pypa/cibuildwheel@v2.19.2
+  #      env:
+  #        CMAKE_CONFIGURE_ARGS: "-DWITH_F12=OFF"
+  #      with:
+  #        package-dir: pyscfadlib
+  #        output-dir: pyscfadlib/wheelhouse
+  #        config-file: "{package}/pyproject.toml"
 
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: cibw_wheels_macos_x86
-          path: pyscfadlib/wheelhouse/*.whl
-          overwrite: true
+  #    - name: Upload wheels
+  #      uses: actions/upload-artifact@v4
+  #      with:
+  #        name: cibw_wheels_macos_x86
+  #        path: pyscfadlib/wheelhouse/*.whl
+  #        overwrite: true
 
   build_wheel_macos_arm64:
     name: Build macos_arm64 wheels
@@ -80,26 +80,26 @@ jobs:
           path: pyscfadlib/wheelhouse/*.whl
           overwrite: true
 
-  publish_pypi_macos_x86:
-    name: publish macos_x86 wheels to pypi
-    needs: build_wheel_macos_x86
-    runs-on: ubuntu-latest
+  #publish_pypi_macos_x86:
+  #  name: publish macos_x86 wheels to pypi
+  #  needs: build_wheel_macos_x86
+  #  runs-on: ubuntu-latest
 
-    environment: release
-    permissions:
-      id-token: write
+  #  environment: release
+  #  permissions:
+  #    id-token: write
 
-    steps:
-      - name: Download wheels
-        uses: actions/download-artifact@v4
-        with:
-          name: cibw_wheels_macos_x86
-          path: dist
+  #  steps:
+  #    - name: Download wheels
+  #      uses: actions/download-artifact@v4
+  #      with:
+  #        name: cibw_wheels_macos_x86
+  #        path: dist
 
-      - run: ls -R dist
+  #    - run: ls -R dist
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+  #    - name: Publish to PyPI
+  #      uses: pypa/gh-action-pypi-publish@release/v1
 
   publish_pypi_macos_arm64:
     name: publish macos_arm64 wheels to pypi
