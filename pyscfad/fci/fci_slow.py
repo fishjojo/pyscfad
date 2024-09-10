@@ -2,7 +2,7 @@ import numpy
 from pyscf.fci import cistring
 from pyscfad import numpy as np
 from pyscfad import ops
-from pyscfad.ops import vmap, stop_grad
+from pyscfad.ops import vmap, to_numpy
 from pyscfad.lib.linalg_helper import davidson
 from pyscfad.gto import mole
 from pyscfad import ao2mo
@@ -82,16 +82,12 @@ def fci_ovlp(mol1, mol2, fcivec1, fcivec2, norb1, norb2, nelec1, nelec2, mo1, mo
         val = np.linalg.det(sij_a) * np.linalg.det(sij_b)
         return val
 
-    res = 0.
+    res = 0
     for ia in range(na1):
         mo_ia = mo_a1[:,locs_a1[ia]]
         for ib in range(nb1):
             mo_ib = mo_b1[:,locs_b1[ib]]
             val = vmap(body, (None,None,0,0), signature='(i),(j)->()')(mo_ia, mo_ib, idxa, idxb)
-            #val = []
-            #for i in range(len(idxa)):
-            #    val.append(body(mo_ia, mo_ib, idxa[i], idxb[i]))
-            #val = np.asarray(val)
             res += ci1[ia,ib] * (val * ci2.ravel()).sum()
     return res
 
@@ -126,16 +122,19 @@ def contract_2e(eri, fcivec, norb, nelec, opt=None):
             fcinew = ops.index_add(fcinew, ops.index[:,str1], sign * t1[a,i,:,str0])
     return fcinew.reshape(fcivec.shape)
 
-
 def absorb_h1e(h1e, eri, norb, nelec, fac=1):
     if not isinstance(nelec, (int, np.integer)):
-        nelec = sum(nelec)
+        nelec = np.sum(nelec)
+    assert nelec > 0
+
     if eri.size != norb**4:
-        h2e = ao2mo.restore(1, eri.copy(), norb)
+        h2e = ao2mo.restore(1, eri, norb)
     else:
-        h2e = eri.copy().reshape(norb,norb,norb,norb)
-    f1e = h1e - np.einsum('jiik->jk', h2e) * .5
-    f1e = f1e * (1./(nelec+1e-100))
+        h2e = eri.reshape([norb,]*4)
+
+    f1e  = h1e - np.einsum('jiik->jk', h2e) * .5
+    f1e *= 1. / nelec
+
     for k in range(norb):
         h2e = ops.index_add(h2e, ops.index[k,k,:,:], f1e)
         h2e = ops.index_add(h2e, ops.index[:,:,k,k], f1e)
@@ -153,7 +152,7 @@ def make_hdiag(h1e, eri, norb, nelec, opt=None):
     if eri.size != norb**4:
         eri = ao2mo.restore(1, eri, norb)
     else:
-        eri = eri.reshape(norb,norb,norb,norb)
+        eri = eri.reshape([norb,]*4)
     diagj = np.einsum('iijj->ij', eri)
     diagk = np.einsum('ijji->ij', eri)
     hdiag = []
@@ -173,10 +172,10 @@ def kernel(h1e, eri, norb, nelec, ecore=0, nroots=1):
     hdiag = make_hdiag(h1e, eri, norb, nelec)
     try:
         from pyscf.fci.direct_spin1 import pspace
-        addrs, h0 = pspace(stop_grad(h1e), stop_grad(eri),
-                           norb, nelec, stop_grad(hdiag), nroots)
-    # pylint: disable=bare-except
-    except:
+        addrs, _ = pspace(to_numpy(h1e), to_numpy(eri),
+                           norb, nelec, to_numpy(hdiag), nroots)
+    # pylint: disable=broad-exception-caught
+    except Exception:
         addrs = numpy.argsort(hdiag)[:nroots]
     ci0 = []
     for addr in addrs:
@@ -187,7 +186,9 @@ def kernel(h1e, eri, norb, nelec, ecore=0, nroots=1):
     def hop(c):
         hc = contract_2e(h2e, c, norb, nelec)
         return hc.ravel()
-    # pylint: disable=unnecessary-lambda-assignment
+
     precond = lambda x, e, *args: x/(hdiag-e+1e-4)
+
     e, c = davidson(hop, ci0, precond, nroots=nroots)
     return e+ecore, c
+

@@ -162,6 +162,7 @@ disable=abstract-method,
         arguments-out-of-order,
         consider-using-in,
         invalid-unary-operand-type,
+        unnecessary-lambda-assignment,
 
 
 [REPORTS]
