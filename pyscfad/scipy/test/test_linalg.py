@@ -1,8 +1,10 @@
 from functools import partial
+import numpy as np
+import scipy
 import jax
 from jax import numpy as jnp
 from jax import scipy as jsp
-from pyscfad.scipy.linalg import eigh, svd
+from pyscfad.scipy.linalg import eigh, svd, logm
 
 def test_eigh():
     a = jnp.ones((2,2))
@@ -40,4 +42,16 @@ def test_svd():
     assert abs(jac0[0] - jac1[0]).max() < 1e-7
     assert abs(jac0[1] - jac1[1]).max() < 1e-7
     assert abs(jac0[2] - jac1[2]).max() < 1e-7
+
+def test_logm():
+    theta = 2 * np.pi / 3
+    a = np.array([[np.cos(theta), -np.sin(theta)],
+                  [np.sin(theta),  np.cos(theta)]])
+    A = scipy.linalg.block_diag(np.diag(np.array([-1, -1, 1])), a)
+
+    X = logm(A, real=True)
+    assert np.isreal(X).all()
+    assert scipy.linalg.norm(scipy.linalg.expm(X) - A, 1) < 1e-12
+
+    assert np.allclose(logm(A), scipy.linalg.logm(A))
 
