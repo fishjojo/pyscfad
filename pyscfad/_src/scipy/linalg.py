@@ -1,45 +1,53 @@
 import numpy
 import scipy
 
+def logm(A, disp=True, real=False):
+    """Compute matrix logarithm.
 
-def logm(A, real=False, **kwargs):
-    '''
-    Calculates the matrix logarithm ensuring that it is real when the matrix is normal.
-    For a normal matrix, the Schur-decomposed matrix t is block-diagonal with blocks of 
-    size 1 and 2, the blocks of size 1 are either positive numbers or they come in 
-    pairs when they are negative while the blocks of size 2 always have the same value 
-    along the diagonal and values with different signs but the same magnitude on the 
-    off-diagonals. Since the block-diagonal matrix is similar to the original matrix, 
-    the real logarithm can be calculated by determining the real logarithm of the 
-    individual blocks and backtransforming with the Schur vectors
-    '''
-    if real:
+    Compute the matrix logarithm ensuring that it is real
+    when `A` is nonsingular and each Jordan block of `A` belonging
+    to negative eigenvalue occurs an even number of times.
+
+    Parameters
+    ----------
+    A : (N, N) array_like
+        Matrix whose logarithm to evaluate
+    real : bool, default=False
+        If `True`, compute a real logarithm of a real matrix if it exists.
+        Otherwise, call `scipy.linalg.logm`.
+
+    See Also
+    --------
+    scipy.linalg.logm
+    """
+    if real and numpy.isreal(A).all():
+        A = numpy.real(A)
         # perform the real Schur decomposition
         t, q = scipy.linalg.schur(A)
 
-        norb = A.shape[0]
+        n = A.shape[0]
         idx = 0
-        normalmatrix = True
-        while idx < norb:
+        real_output = True
+        while idx < n:
             # final block reached for an odd number of orbitals
-            if (idx == norb - 1):
+            if idx == n - 1:
                 # single positive block
-                if t[idx,idx] > 0.:
+                if t[idx,idx] > 0:
                     t[idx,idx] = numpy.log(t[idx,idx])
-                # single negative block (should not happen for normal matrix)
+                # single negative block
                 else:
-                    normalmatrix = False
+                    real_output = False
                     break
             else:
-                diag = numpy.isclose(t[idx,idx+1], 0.0) and numpy.isclose(t[idx+1,idx], 0.0)
+                diag = numpy.isclose(t[idx,idx+1], 0) and numpy.isclose(t[idx+1,idx], 0)
                 # single positive block
-                if t[idx,idx] > 0. and diag:
+                if t[idx,idx] > 0 and diag:
                     t[idx,idx] = numpy.log(t[idx,idx])
                 # pair of two negative blocks
                 elif (
-                    t[idx,idx] < 0.
+                    t[idx,idx] < 0
                     and diag
-                    and numpy.isclose(t[idx,idx],t[idx + 1,idx + 1])
+                    and numpy.isclose(t[idx,idx], t[idx + 1,idx + 1])
                 ):
                     log_lambda = numpy.log(-t[idx,idx])
                     t[idx:idx+2,idx:idx+2] = numpy.array(
@@ -48,27 +56,38 @@ def logm(A, real=False, **kwargs):
                     idx += 1
                 # antisymmetric 2x2 block
                 elif (
-                    numpy.isclose(t[idx,idx], t[idx + 1,idx + 1]) 
-                    and numpy.isclose(t[idx + 1,idx],-t[idx,idx + 1])
+                    numpy.isclose(t[idx,idx], t[idx + 1,idx + 1])
+                    and numpy.isclose(t[idx + 1,idx], -t[idx,idx + 1])
                 ):
                     log_comp = numpy.log(complex(t[idx,idx], t[idx,idx + 1]))
                     t[idx:idx+2,idx:idx+2] = numpy.array(
                         [
-                            [numpy.real(log_comp), numpy.imag(log_comp)], 
+                            [numpy.real(log_comp), numpy.imag(log_comp)],
                             [-numpy.imag(log_comp), numpy.real(log_comp)],
                         ],
                     )
                     idx += 1
-                # should not happen for normal matrix
                 else:
-                    normalmatrix = False
+                    real_output = False
+                    break
             idx += 1
 
-        if not normalmatrix:
-            raise ValueError(
-                'Real matrix logarithm can only be ensured for normal matrix'
-            )
+        if not real_output:
+            return scipy.linalg.logm(A, disp=disp)
 
-        return q @ t @ q.T
+        F = q @ t @ q.T
+
+        # NOTE copied from scipy
+        errtol = 1000 * numpy.finfo("d").eps
+        # TODO use a better error approximation
+        errest = scipy.linalg.norm(scipy.linalg.expm(F) - A, 1) / scipy.linalg.norm(A, 1)
+        if disp:
+            if not numpy.isfinite(errest) or errest >= errtol:
+                print("logm result may be inaccurate, approximate err =", errest)
+            return F
+        else:
+            return F, errest
+
     else:
-        return scipy.linalg.logm(A, **kwargs)
+        return scipy.linalg.logm(A, disp=disp)
+
