@@ -11,6 +11,7 @@ from pyscfad.soscf.ciah import (
     pack_uniq_var,
 )
 from pyscfad.tools.linear_solver import gen_gmres
+from pyscfad._src.scipy.linalg import logm
 
 # modified from pyscf v2.6
 def kernel(localizer, mo_coeff=None, callback=None, verbose=None,
@@ -132,13 +133,8 @@ def _extract_x0(loc, u):
         logger.warn(loc,
                     'Saddle point reached in orbital localization.'
                     f'\n{h_diag}')
-
-    #TODO ensure real solution of logm
-    mat = scipy.linalg.logm(u)
-    if not numpy.allclose(mat.imag, 0, atol=1e-6):
-        raise RuntimeError('Complex solutions are not supported for '
-                           'differentiating the Boys localiztion.')
-    x = pack_uniq_var(mat.real)
+    
+    x = pack_uniq_var(logm(u, real=True))
     return x
 
 def _boys(x, mol, mo_coeff, *,
