@@ -1,4 +1,4 @@
-nanobind_add_module(lapack_ad lapack.cc lapack_kernels.cc)
+nanobind_add_module(lapack_ad lapack.cc lapack_kernels.cc STABLE_ABI)
 set_target_properties(lapack_ad PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
 )

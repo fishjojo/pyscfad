@@ -1,8 +1,10 @@
 cmake_minimum_required (VERSION 3.18)
 project (pyscfadlib)
 
-set(DEV_MODULE Development.Module)
-find_package(Python 3.8 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
+find_package(Python
+  REQUIRED COMPONENTS Interpreter Development.Module
+  OPTIONAL_COMPONENTS Development.SABIModule
+)
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
