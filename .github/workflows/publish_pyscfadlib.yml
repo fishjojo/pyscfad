@@ -22,7 +22,6 @@ jobs:
         uses: pypa/cibuildwheel@v2.19.2
         env:
           CIBW_ARCHS_LINUX: "x86_64"
-          CMAKE_CONFIGURE_ARGS: "-DWITH_F12=OFF"
         with:
           package-dir: pyscfadlib
           output-dir: pyscfadlib/wheelhouse
@@ -44,7 +43,6 @@ jobs:
         uses: pypa/cibuildwheel@v2.19.2
         env:
           MACOSX_DEPLOYMENT_TARGET: "10.14"
-          CMAKE_CONFIGURE_ARGS: "-DWITH_F12=OFF"
         with:
           package-dir: pyscfadlib
           output-dir: pyscfadlib/wheelhouse
@@ -67,7 +65,6 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.19.2
         env:
-          CMAKE_CONFIGURE_ARGS: "-DWITH_F12=OFF"
           CMAKE_OSX_ARCHITECTURES: arm64;x86_64
         with:
           package-dir: pyscfadlib
