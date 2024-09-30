@@ -6,7 +6,7 @@ from pyscf.lib.logger import *
 from pyscfad import util
 
 def _partial_eval_msg(msg, args):
-    format_specifier = re.compile(r'%(?:\d+\$)?[+-]?(?:\d+)?(?:\.\d+)?[hlL]?[a-zA-Z]')
+    format_specifier = re.compile(r'%(?:\d+\$)?[#0\-+ ]?(?:\d+)?(?:\.\d+)?[hlL]?[a-zA-Z]')
     matches = list(format_specifier.finditer(msg))
     partially_evaluated_msg = ''
     remaining_args = list(args)
