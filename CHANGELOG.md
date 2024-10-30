@@ -1,5 +1,14 @@
 # Change log
 
+## pyscfad 0.1.8 (October 30, 2024)
+
+* Changes
+  * Add support to Python 3.13.
+  * Add `scipy.logm` ensuring real results when possible.
+
+* Bug fixes
+  * Fix `logger.flush` not catching certain formats.
+
 ## pyscfad 0.1.7 (July 26, 2024)
 
 * Changes
