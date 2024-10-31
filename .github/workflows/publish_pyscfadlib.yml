@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  publish_pypi_linux_x86:
+  publish_pypi_linux_x86_aarch64:
     name: publish linux_x86 wheels to pypi
     runs-on: ubuntu-latest
 
@@ -18,10 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.19.2
+        uses: pypa/cibuildwheel@v2.21.3
         env:
-          CIBW_ARCHS_LINUX: "x86_64"
+          CIBW_ARCHS_LINUX: x86_64 aarch64
         with:
           package-dir: pyscfadlib
           output-dir: pyscfadlib/wheelhouse
@@ -40,7 +45,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.19.2
+        uses: pypa/cibuildwheel@v2.21.3
         env:
           MACOSX_DEPLOYMENT_TARGET: "10.14"
         with:
@@ -63,7 +68,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.19.2
+        uses: pypa/cibuildwheel@v2.21.3
         env:
           CMAKE_OSX_ARCHITECTURES: arm64;x86_64
         with:
