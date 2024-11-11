@@ -21,7 +21,7 @@ def _partial_eval_msg(msg, args):
         if remaining_args:
             arg = remaining_args.pop(0)
             if not util.is_tracer(arg):
-                partially_evaluated_msg += spec % arg
+                partially_evaluated_msg += spec % (arg,)
             else:
                 partially_evaluated_msg += spec
                 tracer_args.append(arg)
