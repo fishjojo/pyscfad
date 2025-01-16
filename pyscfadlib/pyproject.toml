@@ -25,7 +25,7 @@ classifiers = [
 dependencies = [
     "numpy>=1.17",
     "nanobind",
-    "jaxlib>=0.4.14",
+    "jaxlib>=0.4.14,<=0.4.35",
 ]
 
 [project.urls]

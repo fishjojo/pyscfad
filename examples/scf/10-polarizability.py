@@ -1,4 +1,3 @@
-import numpy
 import jax
 from pyscfad import numpy as np
 from pyscfad import gto, scf
@@ -19,7 +18,7 @@ def apply_E(E):
     mf.kernel()
     return mf.dip_moment(mol, mf.make_rdm1(), unit='AU', verbose=0)
 
-E0 = numpy.zeros((3))
+E0 = np.zeros((3))
 polar = jax.jacfwd(apply_E)(E0)
 print(polar)
 
