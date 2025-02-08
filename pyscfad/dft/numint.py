@@ -254,13 +254,11 @@ def _scale_ao(ao, wv):
 def _dot_ao_ao(ao1, ao2, wv=None):
     '''(ao1*wv).T.dot(ao2)
     '''
-    assert ao1.dtype == ao2.dtype == np.double
     if wv is None:
-        return np.dot(ao1.T, ao2)
+        return np.dot(ao1.conj().T, ao2)
     else:
-        assert wv.dtype == np.double
         ao1 = _scale_ao(ao1, wv)
-        return np.dot(ao1.T, ao2)
+        return np.dot(ao1.conj().T, ao2)
 
 @jit
 def _contract_rho(bra, ket, factor=1.0):
