@@ -29,75 +29,75 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
         mol = ks.mol
     if dm is None:
         dm = ks.make_rdm1()
+
+    ks.initialize_grids(mol, dm)
+
     log = logger.new_logger(ks)
-
     ground_state = getattr(dm, 'ndim', None) == 2
-
-    if ks.grids.coords is None:
-        ks.grids.build(with_non0tab=True)
-        if ks.small_rho_cutoff > 1e-20 and ground_state:
-            # Filter grids the first time setup grids
-            ks.grids = prune_small_rho_grids_(ks, mol, dm, ks.grids)
-        log.timer('setting up grids')
-    if ks.nlc != '':
-        if ks.nlcgrids.coords is None:
-            ks.nlcgrids.build(with_non0tab=True)
-            if ks.small_rho_cutoff > 1e-20 and ground_state:
-                # Filter grids the first time setup grids
-                ks.nlcgrids = prune_small_rho_grids_(ks, mol, dm, ks.nlcgrids)
-            log.timer('setting up nlc grids')
 
     ni = ks._numint
     vxc = VXC()
     if hermi == 2:  # because rho = 0
-        n, vxc.exc, vxc.vxc = 0, 0., 0.
+        n, vxc.exc, vxc.vxc = 0, 0, 0
     else:
         max_memory = ks.max_memory - current_memory()[0]
         n, vxc.exc, vxc.vxc = ni.nr_rks(mol, ks.grids, ks.xc, dm, max_memory=max_memory)
-        if ks.nlc != '':
-            assert 'VV10' in ks.nlc.upper()
-            _, enlc, vnlc = ni.nr_rks(mol, ks.nlcgrids, ks.xc+'__'+ks.nlc, dm,
-                                      max_memory=max_memory)
+        log.debug('nelec by numeric integration = %s', n)
+        if ks.do_nlc():
+            if ni.libxc.is_nlc(ks.xc):
+                xc = ks.xc
+            else:
+                assert ni.libxc.is_nlc(ks.nlc)
+                xc = ks.nlc
+            n, enlc, vnlc = ni.nr_nlc_vxc(mol, ks.nlcgrids, xc, dm,
+                                          max_memory=max_memory)
+
             vxc.exc += enlc
             vxc.vxc += vnlc
-        log.debug('nelec by numeric integration = %s', n)
+            log.debug('nelec with nlc grids = %s', n)
         log.timer('vxc')
 
-    #enabling range-separated hybrids
-    omega, alpha, hyb = ni.rsh_and_hybrid_coeff(ks.xc, spin=mol.spin)
-    if abs(hyb) < 1e-10 and abs(alpha) < 1e-10:
+    incremental_jk = (ks._eri is None and ks.direct_scf and
+                      getattr(vhf_last, 'vj', None) is not None)
+
+    if incremental_jk:
+        _dm = np.asarray(dm) - np.asarray(dm_last)
+    else:
+        _dm = dm
+
+    if not ni.libxc.is_hybrid_xc(ks.xc):
         vk = None
-        if (ks._eri is None and ks.direct_scf and
-            getattr(vhf_last, 'vj', None) is not None):
-            ddm = np.asarray(dm) - np.asarray(dm_last)
-            vj = ks.get_j(mol, ddm, hermi)
+        vj = ks.get_j(mol, _dm, hermi)
+        if incremental_jk:
             vj += vhf_last.vj
-        else:
-            vj = ks.get_j(mol, dm, hermi)
         vxc.vxc += vj
     else:
-        if (ks._eri is None and ks.direct_scf and
-            getattr(vhf_last, 'vk', None) is not None):
-            ddm = np.asarray(dm) - np.asarray(dm_last)
-            vj, vk = ks.get_jk(mol, ddm, hermi)
+        omega, alpha, hyb = ni.rsh_and_hybrid_coeff(ks.xc, spin=mol.spin)
+        if omega == 0:
+            vj, vk = ks.get_jk(mol, _dm, hermi)
             vk *= hyb
-            if abs(omega) > 1e-10:  # For range separated Coulomb operator
-                vklr = ks.get_k(mol, ddm, hermi, omega=omega)
-                vklr *= (alpha - hyb)
-                vk += vklr
+        elif alpha == 0: # LR=0, only SR exchange
+            vj = ks.get_j(mol, _dm, hermi)
+            vk = ks.get_k(mol, _dm, hermi, omega=-omega)
+            vk *= hyb
+        elif hyb == 0: # SR=0, only LR exchange
+            vj = ks.get_j(mol, _dm, hermi)
+            vk = ks.get_k(mol, _dm, hermi, omega=omega)
+            vk *= alpha
+        else: # SR and LR exchange with different ratios
+            vj, vk = ks.get_jk(mol, _dm, hermi)
+            vk *= hyb
+            vklr = ks.get_k(mol, _dm, hermi, omega=omega)
+            vklr *= (alpha - hyb)
+            vk += vklr
+        if incremental_jk:
             vj += vhf_last.vj
             vk += vhf_last.vk
-        else:
-            vj, vk = ks.get_jk(mol, dm, hermi)
-            vk *= hyb
-            if abs(omega) > 1e-10:
-                vklr = ks.get_k(mol, dm, hermi, omega=omega)
-                vklr *= (alpha - hyb)
-                vk += vklr
         vxc.vxc += vj - vk * .5
 
         if ground_state:
             vxc.exc -= np.einsum('ij,ji', dm, vk).real * .5 * .5
+
     if ground_state:
         vxc.ecoul = np.einsum('ij,ji', dm, vj).real * .5
     else:
@@ -122,9 +122,10 @@ def energy_elec(ks, dm=None, h1e=None, vhf=None):
     return (e1+e2).real, e2
 
 def prune_small_rho_grids_(ks, mol, dm, grids):
-    mol = stop_grad(mol)
-    dm = stop_grad(dm)
-    rho = ks._numint.get_rho(mol, dm, grids, ks.max_memory)
+    rho = ks._numint.get_rho(stop_grad(mol),
+                             stop_grad(dm),
+                             grids,
+                             ks.max_memory)
     return grids.prune_by_density_(rho, ks.small_rho_cutoff)
 
 def _dft_common_init_(mf, xc='LDA,VWN'):
@@ -133,9 +134,6 @@ def _dft_common_init_(mf, xc='LDA,VWN'):
     mf.disp = None
     mf.grids = None
     mf.nlcgrids = None
-    # Use rho to filter grids
-    mf.small_rho_cutoff = getattr(
-        __config__, 'dft_rks_RKS_small_rho_cutoff', 1e-7)
     mf._numint = numint.NumInt()
 
 def _dft_common_post_init_(mf):
@@ -149,6 +147,10 @@ def _dft_common_post_init_(mf):
             __config__, 'dft_rks_RKS_nlcgrids_level', mf.nlcgrids.level)
 
 class KohnShamDFT(pyscf_rks.KohnShamDFT):
+    small_rho_cutoff = getattr(__config__, 'dft_rks_RKS_small_rho_cutoff', 1e-7)
+
+    # NOTE __init__ is divided into two functions to not trace grid build
+    # TODO consider grid response
     __init__ = _dft_common_init_
     __post_init__ = _dft_common_post_init_
 
@@ -158,6 +160,30 @@ class KohnShamDFT(pyscf_rks.KohnShamDFT):
             self.grids.reset(mol)
         if getattr(self, 'nlcgrids', None) is not None:
             self.nlcgrids.reset(mol)
+        return self
+
+    def initialize_grids(self, mol=None, dm=None):
+        if mol is None:
+            mol = self.mol
+
+        log = logger.new_logger(self)
+        ground_state = getattr(dm, 'ndim', None) == 2
+        if self.grids.coords is None:
+            self.grids.build(with_non0tab=True)
+            if self.small_rho_cutoff > 1e-20 and ground_state:
+                # Filter grids the first time setup grids
+                self.grids = prune_small_rho_grids_(self, mol, dm,
+                                                    self.grids)
+            t0 = log.timer('setting up grids')
+        is_nlc = self.do_nlc()
+        if is_nlc and self.nlcgrids.coords is None:
+            self.nlcgrids.build(with_non0tab=True)
+            if self.small_rho_cutoff > 1e-20 and ground_state:
+                # Filter grids the first time setup grids
+                self.nlcgrids = prune_small_rho_grids_(self, mol, dm,
+                                                       self.nlcgrids)
+            t0 = log.timer('setting up nlc grids')
+        del log
         return self
 
 class RKS(KohnShamDFT, hf.RHF):

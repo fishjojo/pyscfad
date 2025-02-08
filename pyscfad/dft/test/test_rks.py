@@ -76,15 +76,14 @@ def test_rks_nuc_grad_lrc(get_mol):
     assert abs(g1-g0).max() < 1e-6
     assert abs(g2-g0).max() < 1e-6
 
-#FIXME MGGA is broken since pyscf v2.1
-def test_rks_nuc_grad_mgga_skip(get_mol, get_mol_p, get_mol_m):
+def test_rks_nuc_grad_mgga(get_mol, get_mol_p, get_mol_m):
     mol = get_mol
     mf = dft.RKS(mol)
     mf.xc = 'm062x'
     g1 = mf.energy_grad(mode="rev").coords
     mf.kernel()
     g2 = mf.energy_grad(mode="rev").coords
-    assert abs(g1 - g2).max() < 2e-6
+    assert abs(g1 - g2).max() < 1e-5
 
     molp = get_mol_p
     mfp = dft.RKS(molp)
@@ -97,10 +96,9 @@ def test_rks_nuc_grad_mgga_skip(get_mol, get_mol_p, get_mol_m):
     em = mfm.kernel()
 
     g_fd = (ep-em) / disp * BOHR
-    assert abs(g2[1,2] - g_fd) < 3e-6
+    assert abs(g2[1,2] - g_fd) < 1e-5
 
-#FIXME NLC gradient may have bugs, need check
-def test_rks_nuc_grad_nlc_skip(get_mol, get_mol_p, get_mol_m):
+def test_rks_nuc_grad_nlc(get_mol, get_mol_p, get_mol_m):
     mol = get_mol
     mf = dft.RKS(mol)
     mf.xc = 'B97M_V'
@@ -120,7 +118,7 @@ def test_rks_nuc_grad_nlc_skip(get_mol, get_mol_p, get_mol_m):
     em = mfm.kernel()
 
     g_fd = (ep-em) / disp * BOHR
-    assert abs(g[1,2] - g_fd) < 2e-4
+    assert abs(g[1,2] - g_fd) < 1e-5
 
 def test_df_rks_nuc_grad(get_mol):
     with config_update('pyscfad_scf_implicit_diff', True):

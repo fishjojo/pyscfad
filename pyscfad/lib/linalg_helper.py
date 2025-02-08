@@ -247,6 +247,7 @@ def davidson1(aop, x0, precond, tol=1e-12, max_cycle=50, max_space=12,
             e = w[:nroots]
             v = v[:,:nroots]
             conv = numpy.zeros(nroots, dtype=bool)
+            # pylint: disable=E1121
             elast, conv_last = _sort_elast(elast, conv_last,
                                            stop_grad(vlast),
                                            stop_grad(v),

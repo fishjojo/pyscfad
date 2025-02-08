@@ -59,10 +59,13 @@ def _eval_xc_comp_jvp(xc_code, spin, relativity, deriv, omega, verbose,
             vrho1, vsigma1, vlapl1, vtau1 = _vxc_partial_deriv(rho, val, val1, 'MGGA')
             vrho_jvp = np.einsum('np,np->p', vrho1, rho_t)
             vsigma_jvp = np.einsum('np,np->p', vsigma1, rho_t)
-            vlapl_jvp = np.einsum('np,np->p', vlapl1, rho_t)
+            if vlapl1 is None:
+                vlapl_jvp = None
+            else:
+                vlapl_jvp = np.einsum('np,np->p', vlapl1, rho_t)
             vtau_jvp = np.einsum('np,np->p', vtau1, rho_t)
             vrho1 = vsigma1 = vlapl1 = vtau1 = None
-            jvp = np.vstack((vrho_jvp, vsigma_jvp, vlapl_jvp, vtau_jvp))
+            jvp = (vrho_jvp, vsigma_jvp, vlapl_jvp, vtau_jvp)
         else:
             raise NotImplementedError
     else:
@@ -92,7 +95,10 @@ def _exc_partial_deriv(rho, exc, vxc, xctype='LDA'):
         dsigma = vxc[1] / rho[0] * 2. * rho[1:4]
         exc1 = np.vstack((drho, dsigma))
         if xctype == 'MGGA':
-            dlap = vxc[2] / rho[0]
+            if vxc[2] is None:
+                dlap = np.zeros_like(rho[0])
+            else:
+                dlap = vxc[2] / rho[0]
             dtau = vxc[3] / rho[0]
             exc1 = np.vstack((exc1, dlap, dtau))
     else:
@@ -108,10 +114,21 @@ def _vxc_partial_deriv(rho, vxc, fxc, xctype='LDA'):
         vrho1 = np.vstack((fxc[0], fxc[1] * 2. * rho[1:4]))
         vsigma1 = np.vstack((fxc[1], fxc[2] * 2. * rho[1:4]))
         if xctype == 'MGGA':
-            vrho1 = np.vstack((vrho1, fxc[5], fxc[6]))
-            vsigma1 = np.vstack((vsigma1, fxc[8], fxc[9]))
-            vlapl1 = np.vstack((fxc[5], fxc[8] * 2. * rho[1:4], fxc[3], fxc[7]))
-            vtau1 = np.vstack((fxc[6], fxc[9] * 2. * rho[1:4], fxc[7], fxc[4]))
+            ZERO = np.zeros_like(rho[0])
+            if vxc[2] is None:
+                fxc3 = fxc5 = fxc7 = fxc8 = ZERO
+            else:
+                fxc3 = fxc[3]
+                fxc5 = fxc[5]
+                fxc7 = fxc[7]
+                fxc8 = fxc[8]
+            vrho1 = np.vstack((vrho1, fxc5, fxc[6]))
+            vsigma1 = np.vstack((vsigma1, fxc8, fxc[9]))
+            if vxc[2] is None:
+                vlapl1 = None
+            else:
+                vlapl1 = np.vstack((fxc5, fxc8 * 2. * rho[1:4], fxc3, fxc7))
+            vtau1 = np.vstack((fxc[6], fxc[9] * 2. * rho[1:4], fxc7, fxc[4]))
     else:
         raise KeyError
     return vrho1, vsigma1, vlapl1, vtau1
