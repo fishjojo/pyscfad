@@ -6,10 +6,10 @@ from pyscf import __config__
 from pyscf.lib.linalg_helper import (
     LinearDependenceError,
     _sort_by_similarity,
-    _sort_elast,
 )
 from pyscfad import numpy as np
 from pyscfad.lib import logger
+from pyscfad import ops
 from pyscfad.ops import stop_grad, jit
 
 DAVIDSON_LINDEP = getattr(__config__, 'lib_linalg_helper_davidson_lindep', 1e-14)
@@ -17,6 +17,26 @@ MAX_MEMORY = getattr(__config__, 'lib_linalg_helper_davidson_max_memory', 2000)
 SORT_EIG_BY_SIMILARITY = \
     getattr(__config__, 'lib_linalg_helper_davidson_sort_eig_by_similiarity', False)
 FOLLOW_STATE = getattr(__config__, 'lib_linalg_helper_davidson_follow_state', False)
+
+
+def _sort_elast(elast, conv_last, vlast, v, log):
+    head, nroots = vlast.shape
+    ovlp = abs(numpy.dot(v[:head].conj().T, vlast))
+    mapping = numpy.argmax(ovlp, axis=1)
+    found = numpy.any(ovlp > .5, axis=1)
+
+    if log.verbose >= logger.DEBUG:
+        ordering_diff = (mapping != numpy.arange(len(mapping)))
+        if any(ordering_diff & found):
+            log.debug('Old state -> New state')
+            for i in numpy.where(ordering_diff)[0]:
+                log.debug('  %3d     ->   %3d ', mapping[i], i)
+
+    conv = conv_last[mapping]
+    e = elast[mapping]
+    conv[~found] = False
+    e = ops.index_update(e, ops.index[~found], 0.)
+    return e, conv
 
 # modified from pyscf v2.3
 
@@ -247,11 +267,11 @@ def davidson1(aop, x0, precond, tol=1e-12, max_cycle=50, max_space=12,
             e = w[:nroots]
             v = v[:,:nroots]
             conv = numpy.zeros(nroots, dtype=bool)
-            # pylint: disable=E1121
-            elast, conv_last = _sort_elast(elast, conv_last,
-                                           stop_grad(vlast),
-                                           stop_grad(v),
-                                           fresh_start, log)
+            if not fresh_start:
+                elast, conv_last = _sort_elast(elast, conv_last,
+                                               stop_grad(vlast),
+                                               stop_grad(v),
+                                               log)
 
         if elast is None:
             de = e
