@@ -50,6 +50,7 @@ pyscfad.pbc.dft.numint.NumInt
          
          
          
+         
            ~NumInt.nr_rks
          
          

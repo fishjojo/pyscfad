@@ -26,6 +26,8 @@ pyscfad.dft.rks.KohnShamDFT
          
          
          
+           ~KohnShamDFT.initialize_grids
+         
          
            ~KohnShamDFT.reset
          

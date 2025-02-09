@@ -93,7 +93,9 @@ pyscfad.scf.uhf.UHF
          
          
          
+         
            ~UHF.make_rdm1
+         
          
          
          

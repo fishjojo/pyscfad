@@ -52,6 +52,7 @@ pyscfad.pbc.dft.numint.KNumInt
          
          
          
+         
            ~KNumInt.nr_rks
          
          

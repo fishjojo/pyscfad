@@ -91,7 +91,9 @@ pyscfad.scf.rohf.ROHF
          
          
          
+         
            ~ROHF.make_rdm1
+         
          
          
          

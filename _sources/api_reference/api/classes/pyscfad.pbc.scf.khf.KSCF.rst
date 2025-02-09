@@ -95,7 +95,9 @@ pyscfad.pbc.scf.khf.KSCF
          
          
          
+         
            ~KSCF.make_rdm1
+         
          
          
          

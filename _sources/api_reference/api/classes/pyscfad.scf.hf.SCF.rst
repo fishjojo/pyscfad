@@ -90,10 +90,12 @@ pyscfad.scf.hf.SCF
          
          
          
+         
            ~SCF.kernel
          
          
            ~SCF.make_rdm1
+         
          
          
          

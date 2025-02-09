@@ -22,6 +22,16 @@ pyscfad.prop.polarizability.rhf
 
    
    
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree: functions/
+
+   
+      cphf_with_freq
+      polarizability_with_freq
+
+   
    
 
 

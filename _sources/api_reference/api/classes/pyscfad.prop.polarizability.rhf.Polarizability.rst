@@ -25,9 +25,13 @@ pyscfad.prop.polarizability.rhf.Polarizability
          
          
          
+           ~Polarizability.gen_vind
          
          
          
+         
+         
+           ~Polarizability.polarizability_with_freq
          
          
          

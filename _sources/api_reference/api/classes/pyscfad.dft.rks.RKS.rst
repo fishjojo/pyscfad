@@ -95,7 +95,9 @@ pyscfad.dft.rks.RKS
          
          
          
+         
            ~RKS.nuc_grad_method
+         
          
          
          
