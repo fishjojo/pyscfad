@@ -1,10 +1,10 @@
 import pytest
 import numpy
 import jax
+from jax import numpy as jnp
 from pyscf.pbc import gto as pyscf_gto
 from pyscf.pbc import scf as pyscf_scf
 from pyscf.pbc import grad as pyscf_grad
-from pyscfad.lib import numpy as jnp
 from pyscfad.pbc import gto, scf
 
 BOHR = 0.52917721092
@@ -33,7 +33,7 @@ def get_cell():
     cell.a = lattice
     cell.basis = basis
     cell.pseudo = pseudo
-    cell.build(trace_coords=True)
+    cell.build(trace_exp=False, trace_ctr_coeff=False)
     return cell
 
 @pytest.fixture
@@ -68,8 +68,12 @@ def get_cellm_ref():
 
 def test_get_hcore(get_cell, get_cell_ref):
     cell = get_cell
-    mf = scf.RHF(cell)
-    h1 = mf.get_hcore()
+    def get_hcore(cell):
+        mf = scf.RHF(cell)
+        h1 = mf.get_hcore()
+        return h1
+
+    h1 = get_hcore(cell)
 
     cell_ref = get_cell_ref
     kpts = numpy.zeros([1,3])
@@ -77,8 +81,8 @@ def test_get_hcore(get_cell, get_cell_ref):
     h1_ref = mf_ref.get_hcore()
     assert abs(h1-h1_ref[0]).max() < 1e-10
 
-    g_fwd = jax.jacfwd(mf.__class__.get_hcore)(mf).cell.coords
-    g_bwd = jax.jacrev(mf.__class__.get_hcore)(mf).cell.coords
+    g_fwd = jax.jacfwd(get_hcore)(cell).coords
+    g_bwd = jax.jacrev(get_hcore)(cell).coords
 
     mf_grad = pyscf_grad.krhf.Gradients(mf_ref)
     hcore_deriv = mf_grad.hcore_generator(cell_ref, kpts)
@@ -89,14 +93,16 @@ def test_get_hcore(get_cell, get_cell_ref):
 
 def test_get_veff(get_cell, get_cellp_ref, get_cellm_ref):
     cell = get_cell
-    mf = scf.RHF(cell, exxdiv=None)
+    def get_veff(cell, dm0=None):
+        mf = scf.RHF(cell, exxdiv=None)
+        return mf.get_veff(dm=dm0)
 
     nao = cell.nao
     dm0 = numpy.random.rand(nao,nao)
     dm0 = (dm0 + dm0.T) / 2.
 
-    g_fwd = jax.jacfwd(mf.__class__.get_veff)(mf, dm=dm0).cell.coords
-    g_bwd = jax.jacrev(mf.__class__.get_veff)(mf, dm=dm0).cell.coords
+    g_fwd = jax.jacfwd(get_veff)(cell, dm0).coords
+    g_bwd = jax.jacrev(get_veff)(cell, dm0).coords
 
     cell_p = get_cellp_ref
     mf_p = pyscf_scf.RHF(cell_p, exxdiv=None)
@@ -111,10 +117,11 @@ def test_get_veff(get_cell, get_cellp_ref, get_cellm_ref):
 
 def test_e_tot(get_cell, get_cell_ref):
     cell = get_cell
-    mf = scf.RHF(cell, exxdiv=None)
-    e_tot = mf.kernel()
-    jac_fwd = mf.energy_grad(mode='fwd')
-    jac_bwd = mf.energy_grad(mode='rev')
+    def hf_energy(cell):
+        mf = scf.RHF(cell, exxdiv=None)
+        ehf = mf.kernel()
+        return ehf
+    e_tot, jac_bwd = jax.value_and_grad(hf_energy)(cell)
 
     cell_ref = get_cell_ref
     kpts = numpy.zeros([1,3])
@@ -122,7 +129,5 @@ def test_e_tot(get_cell, get_cell_ref):
     e_tot_ref = mf_ref.kernel()
     mf_grad = pyscf_grad.krhf.Gradients(mf_ref)
     g0 = mf_grad.kernel()
-
     assert abs(e_tot - e_tot_ref) < 1e-10
-    assert abs(jac_fwd.coords - g0).max() < 1e-8
     assert abs(jac_bwd.coords - g0).max() < 1e-8

@@ -1,0 +1,31 @@
+name: Deploy Doc
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - name: install pyscf
+        run: ./.github/workflows/install_pyscf.sh
+      - name: build pyscfadlib
+        run: ./.github/workflows/build_pyscfadlib.sh
+      - name: build doc
+        run: ./.github/workflows/build_doc.sh
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: doc/build/html

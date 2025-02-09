@@ -4,6 +4,7 @@ import jax
 import pyscf
 from pyscfad import gto
 
+TOL_NUC = 1e-8
 TOL_NUC2 = 5e-8
 
 TEST_SET = ["int1e_ovlp", "int1e_kin", "int1e_nuc",
@@ -121,10 +122,10 @@ def hess_analyt_nuc(mol):
             h[:,:,iatm,:,jatm] = hcore.transpose(2,3,0,1)
     return h
 
-def _test_int1e_deriv2_nuc(intor, mol0, mol1, funanal, args, tol=TOL_NUC2):
+def _test_int1e_deriv2_nuc(intor, mol0, mol1, funanal, args, hermi=0, tol=TOL_NUC):
     hess0 = funanal(*args)
-    hess_fwd = jax.jacfwd(jax.jacfwd(mol1.__class__.intor))(mol1, intor)
-    hess_rev = jax.jacrev(jax.jacrev(mol1.__class__.intor))(mol1, intor)
+    hess_fwd = jax.jacfwd(jax.jacfwd(mol1.__class__.intor))(mol1, intor, hermi=hermi)
+    hess_rev = jax.jacrev(jax.jacrev(mol1.__class__.intor))(mol1, intor, hermi=hermi)
     assert abs(hess_fwd.coords.coords - hess0).max() < tol
     assert abs(hess_rev.coords.coords - hess0).max() < tol
 
@@ -133,7 +134,7 @@ def test_int1e_deriv2(get_mol0, get_mol):
     mol0 = get_mol0
     mol1 = get_mol
     for intor in set(TEST_SET) - set(TEST_SET_NUC):
-        _test_int1e_deriv2_nuc(intor, mol0, mol1, hess_analyt, (mol0, intor))
+        _test_int1e_deriv2_nuc(intor, mol0, mol1, hess_analyt, (mol0, intor), hermi=1)
 
     for intor in set(TEST_SET_NUC):
-        _test_int1e_deriv2_nuc(intor, mol0, mol1, hess_analyt_nuc, (mol0,))
+        _test_int1e_deriv2_nuc(intor, mol0, mol1, hess_analyt_nuc, (mol0,), hermi=1, tol=TOL_NUC2)

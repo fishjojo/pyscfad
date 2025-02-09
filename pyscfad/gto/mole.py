@@ -1,117 +1,81 @@
-import sys
-from typing import Optional, Union, Any
-import numpy
-import jax
-
-from pyscf import __config__
-from pyscf import gto
+from functools import wraps
+from pyscf.gto import mole as pyscf_mole
 from pyscf.lib import logger, param
-from pyscf.gto.mole import PTR_ENV_START
-from pyscfad import lib
-from pyscfad.lib import numpy as jnp
-from pyscfad.lib import ops
+from pyscfad import numpy as np
+from pyscfad import pytree
 from pyscfad.gto import moleintor
 from pyscfad.gto.eval_gto import eval_gto
 from ._mole_helper import setup_exp, setup_ctr_coeff
 
-def energy_nuc(mol, charges=None, coords=None):
-    if charges is None:
-        charges = mol.atom_charges()
-    if len(charges) <= 1:
-        return 0
-    rr = inter_distance(mol, coords)
-    e = jnp.einsum('i,ij,j->', charges, 1./rr, charges) * .5
-    return e
+Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
+Exclude_Aux_Names = ('verbose',)
 
+
+@wraps(pyscf_mole.inter_distance)
 def inter_distance(mol, coords=None):
-    coords = mol.atom_coords()
-    return _rr(coords)
-
-@jax.custom_jvp
-def _rr(coords):
-    coords = numpy.asarray(coords)
-    rr = numpy.linalg.norm(coords.reshape(-1,1,3) - coords, axis=2)
-    rr[numpy.diag_indices_from(rr)] = 1e200
+    if coords is None:
+        coords = mol.atom_coords()
+    r = coords[:,None,:] - coords[None,:,:]
+    rr = np.sum(r*r, axis=2)
+    rr = np.sqrt(np.where(rr>1e-10, rr, 0))
     return rr
 
-@_rr.defjvp
-def _rr_jvp(primals, tangents):
-    coords, = primals
-    coords_t, = tangents
+@wraps(pyscf_mole.classical_coulomb_energy)
+def classical_coulomb_energy(mol, charges=None, coords=None):
+    if charges is None:
+        charges = np.asarray(mol.atom_charges(), dtype=float)
+    if len(charges) <= 1:
+        return 0.0
+    rr = inter_distance(mol, coords)
+    rr = np.where(rr>1e-5, rr, 1e200)
+    enuc = np.einsum('i,ij,j->', charges, 1./rr, charges) * .5
+    return enuc
 
-    rnorm = primal_out = _rr(coords)
+energy_nuc = classical_coulomb_energy
 
-    r = coords.reshape(-1,1,3) - coords
-    natm = coords.shape[0]
-    #tangent_out = jnp.zeros_like(primal_out)
-    grad = jnp.zeros((natm,natm,3), dtype=numpy.double)
-    for i in range(natm):
-        #tangent_out = ops.index_add(tangent_out, ops.index[i],
-        #                            jnp.dot(r[i] / rnorm[i,:,None], coords_t[i]))
-        #grad[i] += r[i] / rnorm[i,:,None]
-        grad = ops.index_add(grad, ops.index[i], r[i] / rnorm[i,:,None])
-    tangent_out = jnp.einsum("ijx,ix->ij", grad, coords_t)
-    tangent_out += tangent_out.T
-    return primal_out, tangent_out
+@wraps(pyscf_mole.intor_cross)
+def intor_cross(intor, mol1, mol2, comp=None, grids=None):
+    return moleintor.intor_cross(intor, mol1, mol2, comp=comp, grids=grids)
 
-@lib.dataclass
-class Mole(gto.Mole):
-    # traced attributes
-    # NOTE jax requires that at least one variable needs to be traced for AD
-    coords: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-    exp: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-    ctr_coeff: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
-    r0: Optional[jnp.array] = lib.field(pytree_node=True, default=None)
+def nao_nr_range(mol, bas_id0, bas_id1):
+    from pyscf.gto.moleintor import make_loc
+    if mol.cart:
+        key = 'cart'
+    else:
+        key = 'sph'
+    ao_loc = make_loc(mol._bas[:bas_id1], key)
+    nao_id0 = ao_loc[bas_id0]
+    nao_id1 = ao_loc[-1]
+    return nao_id0, nao_id1
 
-    # attributes of the base class
-    verbose: int = getattr(__config__, 'VERBOSE', logger.NOTE)
-    unit: str = getattr(__config__, 'UNIT', 'angstrom')
-    incore_anyway: bool = getattr(__config__, 'INCORE_ANYWAY', False)
-    cart: bool = getattr(__config__, 'gto_mole_Mole_cart', False)
+class Mole(pytree.PytreeNode, pyscf_mole.Mole):
+    """Subclass of :class:`pyscf.gto.Mole` with traceable attributes.
 
-    # attributes of the base class object
-    output: Optional[str] = None
-    max_memory: int = param.MAX_MEMORY
-    charge: int = 0
-    spin: int = 0
-    symmetry: bool = False
-    symmetry_subgroup: Optional[str] = None
-    cart: bool = False
-    atom: Union[list,str] = lib.field(default_factory = list)
-    basis: Union[dict,str] = 'sto-3g'
-    nucmod: Union[dict,str] = lib.field(default_factory = dict)
-    ecp: Union[dict,str] = lib.field(default_factory = dict)
-    nucprop: dict = lib.field(default_factory = dict)
+    Attributes
+    ----------
+    coords : array
+        Atomic coordinates.
+    exp : array
+        Exponents of Gaussian basis functions.
+    ctr_coeff : array
+        Contraction coefficients of Gaussian basis functions.
+    r0 : array
+        Centers of Gaussian basis functions. Currently this is
+        not used as the basis functions are atom centered. This
+        is a placeholder for floating Gaussian basis sets.
+    """
+    _dynamic_attr = _keys = {'coords', 'exp', 'ctr_coeff', 'r0'}
 
-    # private attributes
-    _atm: numpy.ndarray = numpy.zeros((0,6), dtype=numpy.int32)
-    _bas: numpy.ndarray = numpy.zeros((0,8), dtype=numpy.int32)
-    _env: numpy.ndarray = numpy.zeros(PTR_ENV_START)
-    _ecpbas: numpy.ndarray = numpy.zeros((0,8), dtype=numpy.int32)
-
-    stdout: Any = sys.stdout
-    groupname: str = 'C1'
-    topgroup: str = 'C1'
-    symm_orb: Optional[list] = None
-    irrep_id: Optional[list] = None
-    irrep_name: Optional[list] = None
-    _symm_orig: Optional[numpy.ndarray] = None
-    _symm_axes: Optional[numpy.ndarray] = None
-    _nelectron: Optional[int] = None
-    _nao: Optional[int] = None
-    _enuc: Optional[float] = None
-    _atom: list = lib.field(default_factory = list)
-    _basis: dict = lib.field(default_factory = dict)
-    _ecp: dict = lib.field(default_factory = dict)
-    _built: bool = False
-    _pseudo: dict = lib.field(default_factory = dict)
-
-    def __post_init__(self):
-        self._keys = set(self.__dict__.keys())
+    def __init__(self, **kwargs):
+        self.coords = None
+        self.exp = None
+        self.ctr_coeff = None
+        self.r0 = None
+        super().__init__(**kwargs)
 
     def atom_coords(self, unit='Bohr'):
         if self.coords is None:
-            return gto.Mole.atom_coords(self, unit)
+            return np.asarray(super().atom_coords(unit))
         else:
             if unit[:3].upper() == 'ANG':
                 return self.coords * param.BOHR
@@ -119,31 +83,40 @@ class Mole(gto.Mole):
                 return self.coords
 
     def build(self, *args, **kwargs):
-        trace_coords = kwargs.pop("trace_coords", True)
-        trace_exp = kwargs.pop("trace_exp", True)
-        trace_ctr_coeff = kwargs.pop("trace_ctr_coeff", True)
-        trace_r0 = kwargs.pop("trace_r0", False)
+        trace_coords = kwargs.pop('trace_coords', True)
+        trace_exp = kwargs.pop('trace_exp', True)
+        trace_ctr_coeff = kwargs.pop('trace_ctr_coeff', True)
+        trace_r0 = kwargs.pop('trace_r0', False)
 
-        gto.Mole.build(self, *args, **kwargs)
+        super().build(*args, **kwargs)
 
         if trace_coords:
-            self.coords = jnp.asarray(self.atom_coords())
+            self.coords = np.asarray(self.atom_coords())
         if trace_exp:
-            self.exp, _, _ = setup_exp(self)
+            self.exp = np.asarray(setup_exp(self)[0])
         if trace_ctr_coeff:
-            self.ctr_coeff, _, _ = setup_ctr_coeff(self)
+            self.ctr_coeff = np.asarray(setup_ctr_coeff(self)[0])
         if trace_r0:
-            pass
+            raise NotImplementedError
 
     energy_nuc = energy_nuc
     eval_ao = eval_gto = eval_gto
 
+    @wraps(pyscf_mole.Mole.intor)
     def intor(self, intor, comp=None, hermi=0, aosym='s1', out=None,
               shls_slice=None, grids=None):
-        if (self.coords is None and self.exp is None
-                and self.ctr_coeff is None and self.r0 is None):
-            return gto.Mole.intor(self, intor, comp=comp, hermi=hermi,
-                                  aosym=aosym, out=out, shls_slice=shls_slice)
-        else:
-            return moleintor.getints(self, intor, shls_slice,
-                                     comp, hermi, aosym, out=None)
+        if not self._built:
+            logger.warn(self, 'intor envs of %s not initialized.', self)
+        intor = self._add_suffix(intor)
+        return moleintor.intor(self, intor, comp=comp, hermi=hermi,
+                               aosym=aosym, out=out, shls_slice=shls_slice,
+                               grids=grids)
+
+    def to_pyscf(self):
+        mol = self.view(pyscf_mole.Mole)
+        del mol.coords
+        del mol.exp
+        del mol.ctr_coeff
+        del mol.r0
+        return mol
+

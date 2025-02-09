@@ -1,13 +1,13 @@
 from functools import partial
 import numpy
+from jax import numpy as jnp
 from jax import custom_jvp, custom_vjp
-from pyscf.pbc.gto import cell
-from pyscfad.lib import numpy as jnp
+from pyscf.pbc.gto import Cell
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
 def _pbc_intor(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
                shls_slice=None):
-    return cell.Cell.pbc_intor(mol, intor, comp, hermi, kpts, kpt, shls_slice)
+    return Cell.pbc_intor(mol.view(Cell), intor, comp, hermi, kpts, kpt, shls_slice)
 
 @_pbc_intor.defjvp
 def _pbc_intor_jvp(intor, comp, hermi, kpts, kpt, shls_slice,
@@ -35,8 +35,8 @@ def _int1e_jvp_r0(mol, mol_t, intor, kpts, kpt, shls_slice):
     coords_t = mol_t.coords
     aoslices = mol.aoslice_by_atom()
     nao = mol.nao
-    s1 = cell.Cell.pbc_intor(mol, intor, comp=3, hermi=0, 
-                             kpts=kpts, kpt=kpt, shls_slice=shls_slice)
+    s1 = Cell.pbc_intor(mol.view(Cell), intor, comp=3, hermi=0,
+                        kpts=kpts, kpt=kpt, shls_slice=shls_slice)
 
     gamma = False
     if isinstance(s1, numpy.ndarray):
@@ -63,7 +63,7 @@ def _int1e_jvp_r0(mol, mol_t, intor, kpts, kpt, shls_slice):
 @partial(custom_vjp, nondiff_argnums=tuple(range(1,7)))
 def _pbc_intor_rev(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
                    shls_slice=None):
-    return cell.Cell.pbc_intor(mol, intor, comp, hermi, kpts, kpt, shls_slice)
+    return Cell.pbc_intor(mol.view(Cell), intor, comp, hermi, kpts, kpt, shls_slice)
 
 def _pbc_intor_fwd(mol, intor, comp, hermi, kpts, kpt, shls_slice):
     primal_out = _pbc_intor_rev(mol, intor, comp, hermi, kpts, kpt, shls_slice)
@@ -92,7 +92,7 @@ def _pbc_intor_bwd(intor, comp, hermi, kpts, kpt, shls_slice, res, y_bar):
 
     exp_bar=None
     if mol.exp is not None:
-       pass
+        pass
 
     mol.coords = r0_bar
     return (mol,)
@@ -100,14 +100,14 @@ def _pbc_intor_bwd(intor, comp, hermi, kpts, kpt, shls_slice, res, y_bar):
 def _int1e_partial_r0(mol, intor, kpts, kpt, shls_slice):
     aoslices = mol.aoslice_by_atom()
     nao = mol.nao
-    s1 = cell.Cell.pbc_intor(mol, intor, comp=3, hermi=0,
-                             kpts=kpts, kpt=kpt, shls_slice=shls_slice)
+    s1 = Cell.pbc_intor(mol.view(Cell), intor, comp=3, hermi=0,
+                        kpts=kpts, kpt=kpt, shls_slice=shls_slice)
 
     if isinstance(s1, numpy.ndarray):
         s1 = [s1,]
     nkpts = len(s1)
 
-    partial = []
+    partial_r0 = []
     for k in range(nkpts):
         s1_k = s1[k]
         grad = numpy.zeros((mol.natm,3,nao,nao), dtype=s1_k.dtype)
@@ -116,9 +116,9 @@ def _int1e_partial_r0(mol, intor, kpts, kpt, shls_slice):
             grad[ia,:,p0:p1] += -s1_k[:,p0:p1]
             grad[ia,:,:,p0:p1] += -s1_k[:,p0:p1].transpose(0,2,1).conj()
         #grad += grad.transpose(0,1,3,2)
-        partial.append(grad)
+        partial_r0.append(grad)
     if nkpts == 1:
-        partial = partial[0]
-    return partial
+        partial_r0 = partial_r0[0]
+    return partial_r0
 
 _pbc_intor_rev.defvjp(_pbc_intor_fwd, _pbc_intor_bwd)

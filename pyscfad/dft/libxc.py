@@ -1,90 +1,33 @@
-from os import error
-import warnings
-import math
-import ctypes
 from functools import partial
-import numpy
-from jax import custom_jvp
 from pyscf.dft import libxc
 from pyscf.dft.libxc import parse_xc, is_lda, is_meta_gga
-from pyscfad.lib import numpy as jnp
+from pyscfad import numpy as np
+from pyscfad.ops import jit, custom_jvp
 
 def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
-    r''' 
-    Args:
-        xc_code : str
-            A string to describe the linear combination of different XC functionals.
-            The X and C functional are separated by comma like '.8*LDA+.2*B86,VWN'.
-            If "HF" (exact exchange) is appeared in the string, the HF part will
-            be skipped.  If an empty string "" is given, the returns exc, vxc,...
-            will be vectors of zeros.
-        rho : ndarray
-            Shape of ((*, ngrid)) for electron density (and derivatives) if spin = 0;
-            Shape of ((*,ngrid), (*,ngrid)) for alpha/beta electron density (and derivatives) if spin > 0;
+    # NOTE only consider exc and vxc
+    if deriv > 1:
+        raise NotImplementedError
 
-            rho (*,ngrid) are ordered as (den, grad_x, grad_y, grad_z, laplacian, tau)
-            where grad_x = d/dx den, laplacian = \nabla^2 den, tau = 1/2(\nabla f)^2
-            In spin unrestricted case,
-            rho is ((den_u,grad_xu,grad_yu,grad_zu,laplacian_u,tau_u)
-                    (den_d,grad_xd,grad_yd,grad_zd,laplacian_d,tau_d))
-
-    Returns:
-        epsilonxc, vxc, fxc, kxc
-
-        where
-
-        * epsilonxc = exc / den for restricted case
-
-        * epsilonxc = exc / (den_u + den_d) for unrestricted case
-
-        E_xc = \int dr exc(rho) = \int dr den_tot epsilonxc(rho)
-
-        * vxc = (vrho, vsigma, vlapl, vtau) for restricted case
-
-        vrho   = exc1_rho1 = \frac{\partial exc}{\partial rho}
-
-        vsigma = exc1_sigma1 = \frac{\partial exc}{\partial sigma} in which sigma = \sum_{i = x, y, z}grad_i * grad_i
-
-        vlapl  = exc1_lapl1 = \frac{\partial exc}{\partial laplacian}
-
-        vtau   = exc1_tau1 = \frac{\partial exc}{\partial tau}
-
-        * vxc for unrestricted case
-          | exc1_rho1[:,2]   = (u, d)
-          | exc1_sigma1[:,3] = (uu, ud, dd)
-          | exc1_lapl1[:,2]  = (u, d)
-          | exc1_tau1[:,2]   = (u, d)
-
-        * fxc for restricted case:
-          (exc2_rho2, exc2_rhosigma, exc2_sigma2, exc2_lapl2, 
-           exc2_tau2, exc2_rholapl,  exc2_rhotau, exc2_lapltau,
-           exc2_sigmalapl, exc2_sigmatau)
-
-        * fxc for unrestricted case:
-          | exc2_rho2[:,3]     = (u_u, u_d, d_d)
-          | exc2_rhosigma[:,6] = (u_uu, u_ud, u_dd, d_uu, d_ud, d_dd)
-          | exc2_sigma2[:,6]   = (uu_uu, uu_ud, uu_dd, ud_ud, ud_dd, dd_dd)
-          | exc2_lapl2[:,3]
-          | exct_au2[:,3]
-          | exc2_rholapl[:,4]
-          | exc2_rhotau[:,4]
-          | exc2_lapltau[:,4]
-          | exc2_sigmalapl[:,6]
-          | exc2_sigmatau[:,6]
-
-        * kxc ...
-
-        see also libxc_itrf.c
-    '''
-
-    hyb, fn_facs = parse_xc(xc_code)
-    if omega is not None:
-        hyb[2] = float(omega)
-    return _eval_xc(rho, hyb, fn_facs, spin, relativity, deriv, verbose)
+    exc = _eval_xc_comp(rho, xc_code, spin, relativity, deriv=0, omega=omega, verbose=verbose)
+    if deriv == 0:
+        vxc = (None,) * 4
+    elif deriv == 1:
+        vxc = _eval_xc_comp(rho, xc_code, spin, relativity, deriv=1, omega=omega, verbose=verbose)
+    return exc, vxc, None, None
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
-def _eval_xc(rho, hyb, fn_facs, spin=0, relativity=0, deriv=1, verbose=None):
-    return libxc._eval_xc(hyb, fn_facs, rho, spin, relativity, deriv, verbose)
+def _eval_xc_comp(rho, xc_code, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
+    out = libxc.eval_xc(xc_code, rho, spin, relativity, deriv, omega, verbose)[deriv]
+    if deriv == 1:
+        out = tuple(out)
+        if len(out) < 4:
+            out = out + (None,) * (4-len(out))
+    elif deriv == 2:
+        out = tuple(out)
+        if len(out) < 10:
+            out = out + (None,) * (10-len(out))
+    return out
 
 @_eval_xc.defjvp
 def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
@@ -95,10 +38,13 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
     if deriv >= 2:
         raise NotImplementedError
 
+    hyb, fn_facs = parse_xc(xc_code)
+    fn_ids = [x[0] for x in fn_facs]
+
     epsilonxc, vxc, fxc, kxc = _eval_xc(rho, hyb, fn_facs, spin, relativity, deriv+1, verbose)
     exc_jvp = vxc_jvp = fxc_jvp = kxc_jvp = None
 
-    fn_ids = [x[0] for x in fn_facs]
+
     n      = len(fn_ids)
 
     fn_is_lda      = (n == 0) or all((is_lda(x) for x in fn_ids))
@@ -278,7 +224,7 @@ def _eval_xc_jvp(hyb, fn_facs, spin, relativity, deriv, verbose,
 
     return (epsilonxc, vxc, fxc, kxc), (exc_jvp, vxc_jvp, fxc_jvp, kxc_jvp)
 
-def _exc_partial_deriv(rho, epsilonxc, vxc, spin, xctype="LDA"):
+def _exc_partial_deriv_uks(rho, epsilonxc, vxc, spin, xctype="LDA"):
 
     assert spin == 0 or spin == 1
     if xctype == "LDA":
@@ -364,7 +310,85 @@ def _exc_partial_deriv(rho, epsilonxc, vxc, spin, xctype="LDA"):
 
     return exc1
 
-def _vxc_partial_deriv(rho, epsilonxc, vxc, fxc, spin, xctype="LDA"):
+
+@_eval_xc_comp.defjvp
+def _eval_xc_comp_jvp(xc_code, spin, relativity, deriv, omega, verbose,
+                      primals, tangents):
+    rho, = primals
+    rho_t, = tangents
+    if deriv > 2:
+        raise NotImplementedError
+
+    val  = _eval_xc_comp(rho, xc_code, spin, relativity, deriv, omega, verbose)
+    val1 = _eval_xc_comp(rho, xc_code, spin, relativity, deriv+1, omega, verbose)
+
+    hyb, fn_facs = parse_xc(xc_code)
+    fn_ids = [x[0] for x in fn_facs]
+    n = len(fn_ids)
+    if (n == 0 or
+        all((is_lda(x) for x in fn_ids))):
+        if deriv == 0:
+            jvp = (val1[0] - val) / rho * rho_t
+        elif deriv == 1:
+            jvp = (val1[0] * rho_t,) + (None,) * 3
+        else:
+            jvp = (val1[0] * rho_t,) + (None,) * 9
+    elif any((is_meta_gga(x) for x in fn_ids)):
+        if deriv == 0:
+            exc1 = _exc_partial_deriv(rho, val, val1, 'MGGA')
+            jvp = np.einsum('np,np->p', exc1, rho_t)
+        elif deriv == 1:
+            vrho1, vsigma1, vlapl1, vtau1 = _vxc_partial_deriv(rho, val, val1, 'MGGA')
+            vrho_jvp = np.einsum('np,np->p', vrho1, rho_t)
+            vsigma_jvp = np.einsum('np,np->p', vsigma1, rho_t)
+            if vlapl1 is None:
+                vlapl_jvp = None
+            else:
+                vlapl_jvp = np.einsum('np,np->p', vlapl1, rho_t)
+            vtau_jvp = np.einsum('np,np->p', vtau1, rho_t)
+            vrho1 = vsigma1 = vlapl1 = vtau1 = None
+            jvp = (vrho_jvp, vsigma_jvp, vlapl_jvp, vtau_jvp)
+        else:
+            raise NotImplementedError
+    else:
+        if deriv == 0:
+            exc1 = _exc_partial_deriv(rho, val, val1, 'GGA')
+            jvp = np.einsum('np,np->p', exc1, rho_t)
+        elif deriv == 1:
+            vrho1, vsigma1 = _vxc_partial_deriv(rho, val, val1, 'GGA')[:2]
+            vrho_jvp = np.einsum('np,np->p', vrho1, rho_t)
+            vsigma_jvp = np.einsum('np,np->p', vsigma1, rho_t)
+            vrho1 = vsigma1 = None
+            jvp = (vrho_jvp, vsigma_jvp, None, None)
+        else:
+            v2rho2, v2rhosigma, v2sigma2 = _fxc_partial_deriv(rho, val, val1, 'GGA')[:3]
+            v2rho2_jvp = np.einsum('np,np->p', v2rho2, rho_t)
+            v2rhosigma_jvp = np.einsum('np,np->p', v2rhosigma, rho_t)
+            v2sigma2_jvp = np.einsum('np,np->p', v2sigma2, rho_t)
+            jvp = (v2rho2_jvp, v2rhosigma_jvp, v2sigma2_jvp) + (None,)*7
+    return val, jvp
+
+@partial(jit, static_argnames=['xctype'])
+def _exc_partial_deriv(rho, exc, vxc, xctype='LDA'):
+    if xctype == 'LDA':
+        exc1 = (vxc[0] - exc) / rho
+    elif xctype in ['GGA', 'MGGA']:
+        drho = (vxc[0] - exc) / rho[0]
+        dsigma = vxc[1] / rho[0] * 2. * rho[1:4]
+        exc1 = np.vstack((drho, dsigma))
+        if xctype == 'MGGA':
+            if vxc[2] is None:
+                dlap = np.zeros_like(rho[0])
+            else:
+                dlap = vxc[2] / rho[0]
+            dtau = vxc[3] / rho[0]
+            exc1 = np.vstack((exc1, dlap, dtau))
+    else:
+        raise RuntimeError(f"xctype = {xctype}")
+
+    return exc1
+
+def _vxc_partial_deriv_uks(rho, epsilonxc, vxc, fxc, spin, xctype="LDA"):
     vrho1 = vsigma1 = vlapl1 = vtau1 = None
     assert spin == 0 or spin == 1
 
@@ -625,3 +649,47 @@ def _vxc_partial_deriv(rho, epsilonxc, vxc, fxc, spin, xctype="LDA"):
         raise KeyError
 
     return vrho1, vsigma1, vlapl1, vtau1
+
+@partial(jit, static_argnames=['xctype'])
+def _vxc_partial_deriv(rho, vxc, fxc, xctype='LDA'):
+    vrho1 = vsigma1 = vlapl1 = vtau1 = None
+    if xctype == 'LDA':
+        vrho1 = fxc[0]
+    elif xctype in ['GGA', 'MGGA']:
+        vrho1 = np.vstack((fxc[0], fxc[1] * 2. * rho[1:4]))
+        vsigma1 = np.vstack((fxc[1], fxc[2] * 2. * rho[1:4]))
+        if xctype == 'MGGA':
+            ZERO = np.zeros_like(rho[0])
+            if vxc[2] is None:
+                fxc3 = fxc5 = fxc7 = fxc8 = ZERO
+            else:
+                fxc3 = fxc[3]
+                fxc5 = fxc[5]
+                fxc7 = fxc[7]
+                fxc8 = fxc[8]
+            vrho1 = np.vstack((vrho1, fxc5, fxc[6]))
+            vsigma1 = np.vstack((vsigma1, fxc8, fxc[9]))
+            if vxc[2] is None:
+                vlapl1 = None
+            else:
+                vlapl1 = np.vstack((fxc5, fxc8 * 2. * rho[1:4], fxc3, fxc7))
+            vtau1 = np.vstack((fxc[6], fxc[9] * 2. * rho[1:4], fxc7, fxc[4]))
+    else:
+        raise KeyError
+
+    return vrho1, vsigma1, vlapl1, vtau1
+
+@partial(jit, static_argnames=['xctype'])
+def _fxc_partial_deriv(rho, fxc, kxc, xctype='LDA'):
+    v2rho2_1 = v2rhosigma_1 = v2sigma2_1 = None
+    if xctype == 'LDA':
+        v2rho2_1 = kxc[0]
+    elif xctype in ['GGA', 'MGGA']:
+        v2rho2_1 = np.vstack((kxc[0], kxc[1] * 2. * rho[1:4]))
+        v2rhosigma_1 = np.vstack((kxc[1], kxc[2] * 2. * rho[1:4]))
+        v2sigma2_1 = np.vstack((kxc[2], kxc[3] * 2. * rho[1:4]))
+        if xctype == 'MGGA':
+            raise NotImplementedError
+    else:
+        raise KeyError
+    return (v2rho2_1, v2rhosigma_1, v2sigma2_1) + (None,) * 7

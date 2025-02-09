@@ -1,0 +1,30 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index fe28485..b1aee39 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -163,22 +163,22 @@ if(ENABLE_STATIC)
+   set(BUILD_SHARED_LIBS 0)
+ endif()
+
+-add_library(cint ${cintSrc})
+-set_target_properties(cint PROPERTIES
++add_library(cintad ${cintSrc})
++set_target_properties(cintad PROPERTIES
+   VERSION ${cint_VERSION}
+   SOVERSION ${cint_SOVERSION}
+   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
+ if(QUADMATH_FOUND)
+-  target_link_libraries(cint quadmath)
++  target_link_libraries(cintad quadmath)
+ endif()
+-target_link_libraries(cint "-lm")
++target_link_libraries(cintad "-lm")
+
+
+ set(CintHeaders
+   ${PROJECT_SOURCE_DIR}/include/cint_funcs.h
+   ${PROJECT_BINARY_DIR}/include/cint.h)
+
+-install(TARGETS cint DESTINATION "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}" COMPONENT "lib")
++install(TARGETS cintad DESTINATION "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}" COMPONENT "lib")
+ install(FILES ${CintHeaders} DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR} COMPONENT "dev")

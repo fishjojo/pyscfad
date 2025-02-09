@@ -1,26 +1,20 @@
-import jax
-jax.config.update("jax_enable_x64", True)
-import numpy
-import jax.scipy as scipy
-from pyscfad import lib
-from pyscfad.lib import numpy as jnp
-from pyscfad.lib import ops
-from pyscfad.lib.numpy_helper import unpack_triu
+from scipy.optimize import minimize
+from jax import value_and_grad
+from jax import numpy as np
 from pyscfad.tools import rotate_mo1
-from pyscfad import gto, scf
-from pyscfad import mp
+from pyscfad import gto, scf, mp
 
-@lib.dataclass
 class OOMP2(mp.MP2):
-    x: jnp.array = lib.field(pytree_node=True, default=None)
+    _dynamic_attr = {'x'}
 
-    def __post_init__(self):
-        mp.MP2.__post_init__(self)
+    def __init__(self, mf, x=None):
+        mp.MP2.__init__(self, mf)
+        self.x = x
         if self.x is None:
             nao = self.mol.nao
             assert nao == self.nmo
-            size = nao*(nao+1)//2
-            self.x = jnp.zeros([size,])
+            size = nao*(nao-1)//2
+            self.x = np.zeros((size,))
         self.mo_coeff = rotate_mo1(self._scf.mo_coeff, self.x) 
         self._scf.converged = False
 
@@ -33,22 +27,21 @@ mf.kernel()
 
 def func(x0, mf):
     def energy(x0, mf):
-        mymp = OOMP2(mf, x=jnp.asarray(x0))
+        mymp = OOMP2(mf, x=np.asarray(x0))
         mymp.kernel()
         return mymp.e_tot
 
     def grad(x0, mf):
-        f, g = jax.value_and_grad(energy)(x0, mf)
+        f, g = value_and_grad(energy)(x0, mf)
         return f, g
 
     f, g = grad(x0, mf)
-    return (numpy.array(f), numpy.array(g))
+    return (np.array(f), np.array(g))
 
-from scipy.optimize import minimize
 nao = mol.nao
-size = nao*(nao+1)//2
-x0 = numpy.zeros([size,])
-options = {"gtol":1e-6}
+size = nao*(nao-1)//2
+x0 = np.zeros((size,))
+options = {"gtol":1e-5}
 res = minimize(func, x0, args=(mf,), jac=True, method="BFGS", options = options)
 e = func(res.x, mf)[0]
 print(e)

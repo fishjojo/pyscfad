@@ -1,9 +1,11 @@
 import pytest
 import numpy as np
 import jax
+from jax import numpy as jnp
+
 import pyscf
+from pyscf.gto import ATOM_OF
 from pyscfad import gto
-from pyscfad.lib import numpy as jnp
 
 TOL_VAL = 1e-12
 TOL_NUC = 1e-10
@@ -88,19 +90,27 @@ def nuc_grad_analyt(mol):
         g[:,:,k] = vrinv.transpose(1,2,0) + vrinv.transpose(2,1,0)
     return g
 
-
 def ECPscalar_grad_analyt(mol):
     atmlst = range(mol.natm)
     aoslices = mol.aoslice_by_atom()
     nao = mol.nao
     g = np.zeros((nao,nao,mol.natm,3))
     h1 = -mol.intor("ECPscalar_ipnuc", comp=3)
+
+    with_ecp = mol.has_ecp()
+    if with_ecp:
+        ecp_atoms = set(mol._ecpbas[:,ATOM_OF])
+    else:
+        ecp_atoms = ()
+
     for k, ia in enumerate(atmlst):
-        p0, p1 = aoslices [ia,2:]
+        p0, p1 = aoslices[ia, 2:]
         with mol.with_rinv_at_nucleus(ia):
-            vrinv = mol.intor('ECPscalar_iprinv', comp=3)
-        vrinv[:,p0:p1] += h1[:,p0:p1]
-        g[:,:,k] = vrinv.transpose(1,2,0) + vrinv.transpose(2,1,0)
+            vrinv = np.zeros((3,nao,nao))
+            if with_ecp and ia in ecp_atoms:
+                vrinv = mol.intor('ECPscalar_iprinv', comp=3)
+            vrinv[:,p0:p1] += h1[:,p0:p1]
+            g[:,:,k] = vrinv.transpose(1,2,0) + vrinv.transpose(2,1,0)
     return g
 
 def four_point_fd(mol, intor, _env_of, disp=1e-4):
@@ -132,11 +142,11 @@ def exp_grad_fd(mol, intor):
     g = four_point_fd(mol, intor, _env_of, disp)
     return g
 
-def func(mol, intor):
-    return mol.intor(intor)
+def func(mol, intor, hermi=0):
+    return mol.intor(intor, hermi=hermi)
 
-def func1(mol, intor):
-    return jnp.linalg.norm(mol.intor(intor))
+def func1(mol, intor, hermi=0):
+    return jnp.linalg.norm(mol.intor(intor, hermi=hermi))
 
 def _test_int1e_value(intor, mol0, mol1, tol=TOL_VAL):
     v0 = mol0.intor(intor)
@@ -165,19 +175,20 @@ def _test_int1e_deriv_exp(intor, mol0, mol1, tol=TOL_EXP):
     _test_int1e_deriv_fd(intor, mol0, mol1,
                          exp_grad_fd, "exp", tol)
 
-def _test_int1e_deriv_nuc(intor, mol0, mol1, funanal, args, tol=TOL_NUC):
+def _test_int1e_deriv_nuc(intor, mol0, mol1, funanal, args, hermi=0, tol=TOL_NUC):
     v0 = mol0.intor(intor)
     jac0 = funanal(*args)
-    jac_fwd = jax.jacfwd(func)(mol1, intor)
-    jac_rev = jax.jacrev(func)(mol1, intor)
+    jac_fwd = jax.jacfwd(func)(mol1, intor, hermi=hermi)
+    jac_rev = jax.jacrev(func)(mol1, intor, hermi=hermi)
     assert abs(jac_fwd.coords - jac0).max() < tol
     assert abs(jac_rev.coords - jac0).max() < tol
 
     g0 = np.einsum("ij,ijnx->nx", v0, jac0) / np.linalg.norm(v0)
-    jac_fwd = jax.jacfwd(func1)(mol1, intor)
-    jac_rev = jax.jacrev(func1)(mol1, intor)
+    jac_fwd = jax.jacfwd(func1)(mol1, intor, hermi=hermi)
+    jac_rev = jax.jacrev(func1)(mol1, intor, hermi=hermi)
     assert abs(jac_fwd.coords - g0).max() < tol
     assert abs(jac_rev.coords - g0).max() < tol
+
 
 # pylint: disable=redefined-outer-name
 def test_int1e_deriv1(get_mol0, get_mol, get_mol_ecp0, get_mol_ecp):
@@ -189,11 +200,13 @@ def test_int1e_deriv1(get_mol0, get_mol, get_mol_ecp0, get_mol_ecp):
         _test_int1e_deriv_exp(intor, mol0, mol1)
 
     for intor in set(TEST_SET) - set(TEST_SET_NUC):
-        _test_int1e_deriv_nuc(intor, mol0, mol1, grad_analyt,
-                              (mol0, intor.replace("int1e_", "int1e_ip")))
+        for hermi in [0, 1]:
+            _test_int1e_deriv_nuc(intor, mol0, mol1, grad_analyt,
+                                  (mol0, intor.replace("int1e_", "int1e_ip")), hermi=hermi)
 
     for intor in TEST_SET_NUC:
-        _test_int1e_deriv_nuc(intor, mol0, mol1, nuc_grad_analyt, (mol0,))
+        for hermi in [0, 1]:
+            _test_int1e_deriv_nuc(intor, mol0, mol1, nuc_grad_analyt, (mol0,), hermi=hermi)
 
     molecp0 = get_mol_ecp0
     molecp1 = get_mol_ecp
@@ -207,5 +220,6 @@ def test_int1e_deriv1(get_mol0, get_mol, get_mol_ecp0, get_mol_ecp):
         _test_int1e_value(intor, mol0, mol1)
         _test_int1e_deriv_cs(intor, mol0, mol1)
         _test_int1e_deriv_exp(intor, mol0, mol1, tol=5e-8)
-        _test_int1e_deriv_nuc(intor, mol0, mol1, grad_analyt,
-                              (mol0, intor.replace("int2c2e", "int2c2e_ip1")))
+        for hermi in [0, 1]:
+            _test_int1e_deriv_nuc(intor, mol0, mol1, grad_analyt,
+                                  (mol0, intor.replace("int2c2e", "int2c2e_ip1")), hermi=hermi)
