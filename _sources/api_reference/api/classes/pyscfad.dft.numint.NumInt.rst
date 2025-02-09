@@ -57,6 +57,8 @@ pyscfad.dft.numint.NumInt
          
          
          
+           ~NumInt.nr_uks
+         
          
          
          

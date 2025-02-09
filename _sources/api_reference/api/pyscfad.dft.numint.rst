@@ -32,6 +32,7 @@ pyscfad.dft.numint
       eval_rho
       nr_nlc_vxc
       nr_rks
+      nr_uks
 
    
    

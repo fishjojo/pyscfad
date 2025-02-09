@@ -487,6 +487,7 @@
 <li class="toctree-l4 current active"><a class="current reference internal" href="#">pyscfad.dft.numint.eval_rho</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.numint.nr_nlc_vxc.html">pyscfad.dft.numint.nr_nlc_vxc</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.numint.nr_rks.html">pyscfad.dft.numint.nr_rks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.numint.nr_uks.html">pyscfad.dft.numint.nr_uks</a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.dft.rks.html">pyscfad.dft.rks</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -496,6 +497,12 @@
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.rks.energy_elec.html">pyscfad.dft.rks.energy_elec</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.rks.get_veff.html">pyscfad.dft.rks.get_veff</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.rks.prune_small_rho_grids_.html">pyscfad.dft.rks.prune_small_rho_grids_</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.dft.uks.html">pyscfad.dft.uks</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.dft.uks.UKS.html">pyscfad.dft.uks.UKS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.uks.energy_elec.html">pyscfad.dft.uks.energy_elec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.uks.get_veff.html">pyscfad.dft.uks.get_veff</a></li>
 </ul>
 </details></li>
 </ul>
@@ -804,7 +811,7 @@
 <h1>pyscfad.dft.numint.eval_rho<a class="headerlink" href="#pyscfad-dft-numint-eval-rho" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="pyscfad.dft.numint.eval_rho">
-<span class="sig-prename descclassname"><span class="pre">pyscfad.dft.numint.</span></span><span class="sig-name descname"><span class="pre">eval_rho</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ao</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non0tab</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xctype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LDA'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_lapl</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/dft/numint.py#L170-L181"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.dft.numint.eval_rho" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyscfad.dft.numint.</span></span><span class="sig-name descname"><span class="pre">eval_rho</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ao</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non0tab</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xctype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LDA'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_lapl</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/dft/numint.py#L306-L317"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.dft.numint.eval_rho" title="Link to this definition">#</a></dt>
 <dd></dd></dl>
 
 </section>

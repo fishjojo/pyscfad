@@ -487,6 +487,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.dft.numint.eval_rho.html">pyscfad.dft.numint.eval_rho</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.dft.numint.nr_nlc_vxc.html">pyscfad.dft.numint.nr_nlc_vxc</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.dft.numint.nr_rks.html">pyscfad.dft.numint.nr_rks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.dft.numint.nr_uks.html">pyscfad.dft.numint.nr_uks</a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.dft.rks.html">pyscfad.dft.rks</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -496,6 +497,12 @@
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.dft.rks.energy_elec.html">pyscfad.dft.rks.energy_elec</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.dft.rks.get_veff.html">pyscfad.dft.rks.get_veff</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.dft.rks.prune_small_rho_grids_.html">pyscfad.dft.rks.prune_small_rho_grids_</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.dft.uks.html">pyscfad.dft.uks</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.uks.UKS.html">pyscfad.dft.uks.UKS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.dft.uks.energy_elec.html">pyscfad.dft.uks.energy_elec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.dft.uks.get_veff.html">pyscfad.dft.uks.get_veff</a></li>
 </ul>
 </details></li>
 </ul>
@@ -804,7 +811,7 @@
 <h1>pyscfad.dft.numint.NumInt<a class="headerlink" href="#pyscfad-dft-numint-numint" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyscfad.dft.numint.NumInt">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.dft.numint.</span></span><span class="sig-name descname"><span class="pre">NumInt</span></span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/dft/numint.py#L336-L367"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.dft.numint.NumInt" title="Link to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.dft.numint.</span></span><span class="sig-name descname"><span class="pre">NumInt</span></span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/dft/numint.py#L486-L518"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.dft.numint.NumInt" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">NumInt</span></code></p>
 <p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
@@ -820,6 +827,9 @@
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.dft.numint.NumInt.nr_rks.html#pyscfad.dft.numint.NumInt.nr_rks" title="pyscfad.dft.numint.NumInt.nr_rks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">nr_rks</span></code></a>(mol, grids, xc_code, dms[, ...])</p></td>
 <td><p>Calculate RKS XC functional and potential matrix on given meshgrids for a set of density matrices</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.dft.numint.NumInt.nr_uks.html#pyscfad.dft.numint.NumInt.nr_uks" title="pyscfad.dft.numint.NumInt.nr_uks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">nr_uks</span></code></a>(mol, grids, xc_code, dms[, ...])</p></td>
+<td><p>Calculate UKS XC functional and potential matrix on given meshgrids for a set of density matrices</p></td>
 </tr>
 </tbody>
 </table>
