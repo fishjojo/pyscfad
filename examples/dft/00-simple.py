@@ -10,11 +10,9 @@ mol.basis = '631g'
 mol.verbose=5
 mol.build()
 
-# LDA
-mf    = dft.RKS(mol)
-mf.xc = "LDA"
+mf = dft.RKS(mol)
+mf.xc = 'b3lyp'
 mf.kernel()
-
 jac = mf.energy_grad()
 print(f'Nuclaer gradient:\n{jac.coords}')
 print(f'Gradient wrt basis exponents:\n{jac.exp}')
