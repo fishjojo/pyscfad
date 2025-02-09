@@ -15,7 +15,7 @@ def get_veff(ks, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
 
     dm = np.asarray(dm)
     if dm.ndim == 2:  # RHF DM
-        logger.warn('Incompatible dm dimension. Treat dm as RHF density matrix.')
+        log.warn('Incompatible dm dimension. Treat dm as RHF density matrix.')
         dm = np.repeat(dm[None]*.5, 2, axis=0)
 
     ks.initialize_grids(mol, dm)

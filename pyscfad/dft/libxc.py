@@ -113,56 +113,59 @@ def _eval_xc_comp_jvp(xc_code, spin, relativity, deriv, omega, verbose,
                 jvp = (np.einsum('np,np->p', exc1_u, rho_t_u) +
                        np.einsum('np,np->p', exc1_d, rho_t_d))
             elif deriv == 1:
-                vxc1 = _vxc_partial_deriv_polarized(rho, val, val1, 'MGGA')
-                vrho1, vsigma1, vlapl1, vtau1 = vxc1
-
-                vrho1_u_u = vrho1[0]
-                vrho1_u_d = vrho1[1]
-                vrho1_d_u = vrho1[2]
-                vrho1_d_d = vrho1[3]
-
-                vrho_jvp_u  = np.einsum('np,np->p', vrho1_u_u, rho_t_u) 
-                vrho_jvp_u += np.einsum('np,np->p', vrho1_u_d, rho_t_d)
-                vrho_jvp_d  = np.einsum('np,np->p', vrho1_d_u, rho_t_u) 
-                vrho_jvp_d += np.einsum('np,np->p', vrho1_d_d, rho_t_d)
-                vrho_jvp    = np.vstack((vrho_jvp_u, vrho_jvp_d)).T  
-
-                vsigma1_uu_u = vsigma1[0]
-                vsigma1_uu_d = vsigma1[1]
-                vsigma1_ud_u = vsigma1[2]
-                vsigma1_ud_d = vsigma1[3]
-                vsigma1_dd_u = vsigma1[4]
-                vsigma1_dd_d = vsigma1[5]
-
-                vsigma_jvp_uu  = np.einsum('np,np->p', vsigma1_uu_u, rho_t_u) 
-                vsigma_jvp_uu += np.einsum('np,np->p', vsigma1_uu_d, rho_t_d)
-                vsigma_jvp_ud  = np.einsum('np,np->p', vsigma1_ud_u, rho_t_u) 
-                vsigma_jvp_ud += np.einsum('np,np->p', vsigma1_ud_d, rho_t_d)
-                vsigma_jvp_dd  = np.einsum('np,np->p', vsigma1_dd_u, rho_t_u) 
-                vsigma_jvp_dd += np.einsum('np,np->p', vsigma1_dd_d, rho_t_d)
-                vsigma_jvp = np.vstack((vsigma_jvp_uu, vsigma_jvp_ud, vsigma_jvp_dd)).T  
-
-                vlapl1_u_u = vlapl1[0]
-                vlapl1_u_d = vlapl1[1]
-                vlapl1_d_u = vlapl1[2]
-                vlapl1_d_d = vlapl1[3]
-
-                vlapl_jvp_u  = np.einsum('np,np->p', vlapl1_u_u, rho_t_u)
-                vlapl_jvp_u += np.einsum('np,np->p', vlapl1_u_d, rho_t_d)
-                vlapl_jvp_d  = np.einsum('np,np->p', vlapl1_d_d, rho_t_d) 
-                vlapl_jvp_d += np.einsum('np,np->p', vlapl1_d_u, rho_t_u)
-                vlapl_jvp    = np.vstack((vlapl_jvp_u, vlapl_jvp_d)).T 
-
-                vtau1_u_u = vtau1[0]
-                vtau1_u_d = vtau1[1]
-                vtau1_d_u = vtau1[2]
-                vtau1_d_d = vtau1[3]
-
-                vtau_jvp_u = np.einsum('np,np->p', vtau1_u_u, rho_t_u) + jnp.einsum('np,np->p', vtau1_u_d, rho_t_d)
-                vtau_jvp_d = np.einsum('np,np->p', vtau1_d_d, rho_t_d) + jnp.einsum('np,np->p', vtau1_d_u, rho_t_u)
-                vtau_jvp   = np.vstack((vtau_jvp_u, vtau_jvp_d)).T 
-
-                jvp = (vrho_jvp, vsigma_jvp, vlapl_jvp, vtau_jvp) + (None,) * 5
+                raise NotImplementedError
+#                vxc1 = _vxc_partial_deriv_polarized(rho, val, val1, 'MGGA')
+#                vrho1, vsigma1, vlapl1, vtau1 = vxc1
+#
+#                vrho1_u_u = vrho1[0]
+#                vrho1_u_d = vrho1[1]
+#                vrho1_d_u = vrho1[2]
+#                vrho1_d_d = vrho1[3]
+#
+#                vrho_jvp_u  = np.einsum('np,np->p', vrho1_u_u, rho_t_u)
+#                vrho_jvp_u += np.einsum('np,np->p', vrho1_u_d, rho_t_d)
+#                vrho_jvp_d  = np.einsum('np,np->p', vrho1_d_u, rho_t_u)
+#                vrho_jvp_d += np.einsum('np,np->p', vrho1_d_d, rho_t_d)
+#                vrho_jvp    = np.vstack((vrho_jvp_u, vrho_jvp_d)).T
+#
+#                vsigma1_uu_u = vsigma1[0]
+#                vsigma1_uu_d = vsigma1[1]
+#                vsigma1_ud_u = vsigma1[2]
+#                vsigma1_ud_d = vsigma1[3]
+#                vsigma1_dd_u = vsigma1[4]
+#                vsigma1_dd_d = vsigma1[5]
+#
+#                vsigma_jvp_uu  = np.einsum('np,np->p', vsigma1_uu_u, rho_t_u)
+#                vsigma_jvp_uu += np.einsum('np,np->p', vsigma1_uu_d, rho_t_d)
+#                vsigma_jvp_ud  = np.einsum('np,np->p', vsigma1_ud_u, rho_t_u)
+#                vsigma_jvp_ud += np.einsum('np,np->p', vsigma1_ud_d, rho_t_d)
+#                vsigma_jvp_dd  = np.einsum('np,np->p', vsigma1_dd_u, rho_t_u)
+#                vsigma_jvp_dd += np.einsum('np,np->p', vsigma1_dd_d, rho_t_d)
+#                vsigma_jvp = np.vstack((vsigma_jvp_uu, vsigma_jvp_ud, vsigma_jvp_dd)).T
+#
+#                vlapl1_u_u = vlapl1[0]
+#                vlapl1_u_d = vlapl1[1]
+#                vlapl1_d_u = vlapl1[2]
+#                vlapl1_d_d = vlapl1[3]
+#
+#                vlapl_jvp_u  = np.einsum('np,np->p', vlapl1_u_u, rho_t_u)
+#                vlapl_jvp_u += np.einsum('np,np->p', vlapl1_u_d, rho_t_d)
+#                vlapl_jvp_d  = np.einsum('np,np->p', vlapl1_d_d, rho_t_d)
+#                vlapl_jvp_d += np.einsum('np,np->p', vlapl1_d_u, rho_t_u)
+#                vlapl_jvp    = np.vstack((vlapl_jvp_u, vlapl_jvp_d)).T
+#
+#                vtau1_u_u = vtau1[0]
+#                vtau1_u_d = vtau1[1]
+#                vtau1_d_u = vtau1[2]
+#                vtau1_d_d = vtau1[3]
+#
+#                vtau_jvp_u = (np.einsum('np,np->p', vtau1_u_u, rho_t_u) +
+#                              np.einsum('np,np->p', vtau1_u_d, rho_t_d))
+#                vtau_jvp_d = (np.einsum('np,np->p', vtau1_d_d, rho_t_d) +
+#                              np.einsum('np,np->p', vtau1_d_u, rho_t_u))
+#                vtau_jvp   = np.vstack((vtau_jvp_u, vtau_jvp_d)).T
+#
+#                jvp = (vrho_jvp, vsigma_jvp, vlapl_jvp, vtau_jvp) + (None,) * 5
             else:
                 raise NotImplementedError
     else:
@@ -217,7 +220,7 @@ def _eval_xc_comp_jvp(xc_code, spin, relativity, deriv, omega, verbose,
                                  np.einsum('np,np->p', vsigma1_ud_d, rho_t_d))
                 vsigma_jvp_dd = (np.einsum('np,np->p', vsigma1_dd_u, rho_t_u) +
                                  np.einsum('np,np->p', vsigma1_dd_d, rho_t_d))
-                vsigma_jvp = np.vstack([vsigma_jvp_uu, vsigma_jvp_ud, vsigma_jvp_dd]).T  
+                vsigma_jvp = np.vstack([vsigma_jvp_uu, vsigma_jvp_ud, vsigma_jvp_dd]).T
 
                 jvp = (vrho_jvp, vsigma_jvp) + (None,) * 7
 
@@ -433,7 +436,7 @@ def _vxc_partial_deriv_polarized(rho, vxc, fxc, xctype='LDA'):
 
         if xctype == 'MGGA':
             #FIXME: UKS-MGGA Gradient
-            raise NotImplemented
+            raise NotImplementedError
 
 #            exc2_lapl2     = fxc[3]
 #            exc2_tau2      = fxc[4]
@@ -549,10 +552,10 @@ def _vxc_partial_deriv_polarized(rho, vxc, fxc, xctype='LDA'):
 #            vtau1_d_d[5]       = exc2_tau2_d_d
 #
 #            vtau1 = (vtau1_u_u, vtau1_u_d, vtau1_d_u, vtau1_d_d)
-        
+
         vrho1 = (vrho1_u_u, vrho1_u_d, vrho1_d_u, vrho1_d_d)
 
-        vsigma1 = (vsigma1_uu_u, vsigma1_uu_d, 
+        vsigma1 = (vsigma1_uu_u, vsigma1_uu_d,
                    vsigma1_ud_u, vsigma1_ud_d,
                    vsigma1_dd_u, vsigma1_dd_d)
 

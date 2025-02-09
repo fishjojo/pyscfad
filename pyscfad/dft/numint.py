@@ -187,8 +187,8 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
         for ao, mask, weight, coords \
                 in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
             for idm in range(nset):
-                rho_a = make_rhoa(idm, ao, mask, "LDA")
-                rho_b = make_rhob(idm, ao, mask, "LDA")
+                rho_a = make_rhoa(idm, ao, mask, 'LDA')
+                rho_b = make_rhob(idm, ao, mask, 'LDA')
 
                 exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
                                       relativity=relativity, deriv=1,
@@ -215,8 +215,8 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
         for ao, mask, weight, coords \
                 in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
             for idm in range(nset):
-                rho_a = make_rhoa(idm, ao, mask, "GGA")
-                rho_b = make_rhob(idm, ao, mask, "GGA")
+                rho_a = make_rhoa(idm, ao, mask, 'GGA')
+                rho_b = make_rhob(idm, ao, mask, 'GGA')
 
                 exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
                                       relativity=relativity, deriv=1,
@@ -245,8 +245,8 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
         for ao, mask, weight, coords \
                 in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
             for idm in range(nset):
-                rho_a = make_rhoa(idm, ao, mask, "MGGA")
-                rho_b = make_rhob(idm, ao, mask, "MGGA")
+                rho_a = make_rhoa(idm, ao, mask, 'MGGA')
+                rho_b = make_rhob(idm, ao, mask, 'MGGA')
 
                 exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
                                       relativity=relativity, deriv=1,
@@ -286,8 +286,8 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
         raise NotImplementedError(f'numint.nr_uks for functional {xc_code}')
 
     for i in range(nset):
-        vmat[0][i] = (vmat[0][i] + vmat[0][i].conj().T)
-        vmat[1][i] = (vmat[1][i] + vmat[1][i].conj().T)
+        vmat[0][i] = vmat[0][i] + vmat[0][i].conj().T
+        vmat[1][i] = vmat[1][i] + vmat[1][i].conj().T
 
     if getattr(dma, 'ndim', None) == 2:
         excsum = excsum[0]
