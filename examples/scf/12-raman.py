@@ -10,7 +10,7 @@ Depolarization ration:
 '''
 import jax
 from pyscfad import gto, scf
-from pyscfad.lib import numpy as np
+from pyscfad import numpy as np
 from pyscfad.prop.polarizability.rhf import Polarizability
 from pyscfad.prop.thermo import vib
 

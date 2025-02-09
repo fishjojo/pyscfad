@@ -7,6 +7,6 @@ pip install pytest-cov
 pip install numpy
 pip install scipy
 pip install h5py
-pip install jaxlib
-pip install jax
-pip install 'pyscf>=2.3,<2.7'
+pip install 'jaxlib<=0.4.35'
+pip install 'jax<=0.4.35'
+pip install 'pyscf>=2.3'

@@ -6,7 +6,7 @@ from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.ops import stop_grad
 from pyscfad.dft import numint
-from pyscfad.dft.numint import eval_mat, _contract_rho, _dot_ao_dm
+from pyscfad.dft.numint import eval_mat, _contract_rho
 
 def nr_rks(ni, cell, grids, xc_code, dms, spin=0, relativity=0, hermi=0,
            kpts=None, kpts_band=None, max_memory=2000, verbose=None):
@@ -133,11 +133,11 @@ def eval_rho(cell, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
             return _contract_rho(bra, aodm)
 
         if xctype in ('LDA', 'HF'):
-            c0 = _dot_ao_dm(cell, ao, dm, non0tab, shls_slice, ao_loc)
+            c0 = np.dot(ao, dm)
             rho = dot_bra(ao, c0)
         elif xctype == 'GGA':
             rho = np.empty((4,ngrids))
-            c0 = _dot_ao_dm(cell, ao[0], dm, non0tab, shls_slice, ao_loc)
+            c0 = np.dot(ao[0], dm)
             #rho[0] = dot_bra(ao[0], c0)
             rho = ops.index_update(rho, ops.index[0], dot_bra(ao[0], c0))
             for i in range(1, 4):
@@ -146,7 +146,7 @@ def eval_rho(cell, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
         else:
             # rho[4] = \nabla^2 rho, rho[5] = 1/2 |nabla f|^2
             rho = np.empty((6,ngrids))
-            c0 = _dot_ao_dm(cell, ao[0], dm, non0tab, shls_slice, ao_loc)
+            c0 = np.dot(ao[0], dm)
             #rho[0] = dot_bra(ao[0], c0)
             rho = ops.index_update(rho, ops.index[0], dot_bra(ao[0], c0))
             #rho[5] = 0
@@ -154,7 +154,7 @@ def eval_rho(cell, ao, dm, non0tab=None, xctype='LDA', hermi=0, verbose=None):
             for i in range(1, 4):
                 #rho[i] = dot_bra(ao[i], c0) * 2  # *2 for +c.c.
                 rho = ops.index_update(rho, ops.index[i], dot_bra(ao[i], c0) * 2)
-                c1 = _dot_ao_dm(cell, ao[i], dm, non0tab, shls_slice, ao_loc)
+                c1 = np.dot(ao[i], dm)
                 #rho[5] += dot_bra(ao[i], c1)
                 rho = ops.index_add(rho, ops.index[5], dot_bra(ao[i], c1))
             XX, YY, ZZ = 4, 7, 9

@@ -82,9 +82,15 @@ Package                                                supported versions
 `numpy <https://numpy.org>`_                           >=1.17
 `scipy <https://scipy.org>`_                           >=1.7
 `h5py <https://www.h5py.org/>`_                        >=2.7
-`jax <https://jax.readthedocs.io/en/latest/>`_         >=0.4.14
-`jaxlib <https://pypi.org/project/jaxlib/>`_           >=0.4.14
+`jax <https://jax.readthedocs.io/en/latest/>`_         >=0.4.14,<=0.4.35
+`jaxlib <https://pypi.org/project/jaxlib/>`_           >=0.4.14,<=0.4.35
 `pyscf <https://pyscf.org/>`_                          >=2.3.0
 `pyscfadlib <https://pypi.org/project/pyscfadlib/>`_   >=0.1.4
 =====================================================  ==================
 
+.. note::
+
+    Since jax version 0.4.36, the tracing machinery has been modified
+    to eliminate data-dependent tracing, which conflicts with pyscfad's flexibility.
+    A comprehensive update to ensure compatibility with later jax versions may be
+    introduced in the future pyscfad 0.2 release.

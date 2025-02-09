@@ -170,6 +170,8 @@ class TDBase(pyscf_tdrhf.TDBase):
 
 @util.pytree_node(Traced_Attributes, num_args=1)
 class TDA(TDBase, pyscf_tdrhf.TDA):
+    max_space = 50
+
     def gen_vind(self, mf=None):
         if mf is None:
             mf = self._scf
