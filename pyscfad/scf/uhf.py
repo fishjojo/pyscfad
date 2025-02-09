@@ -16,6 +16,8 @@ def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
         h1e = mf.get_hcore()
     if vhf is None:
         vhf = mf.get_veff(mf.mol, dm)
+
+    vhf = getattr(vhf, 'vxc', vhf)
     f = np.asarray(h1e) + vhf
     if f.ndim == 2:
         f = (f, f)
@@ -141,7 +143,19 @@ class UHF(hf.SCF, pyscf_uhf.UHF):
             fock = self.get_hcore(self.mol) + self.get_veff(self.mol, dm1)
         return get_grad(mo_coeff, mo_occ, fock)
 
-    spin_square = ops.stop_trace(pyscf_uhf.UHF.spin_square)
+    def spin_square(self, mo_coeff=None, s=None):
+        if mo_coeff is None:
+            mo_coeff = (self.mo_coeff[0][:,self.mo_occ[0]>0],
+                        self.mo_coeff[1][:,self.mo_occ[1]>0])
+        mo_coeff = (ops.to_numpy(mo_coeff[0]),
+                    ops.to_numpy(mo_coeff[1]))
+
+        if s is None:
+            s = self.get_ovlp()
+        s = ops.to_numpy(s)
+
+        return pyscf_uhf.spin_square(mo_coeff, s)
+
     get_fock = get_fock
     make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
     energy_elec = energy_elec

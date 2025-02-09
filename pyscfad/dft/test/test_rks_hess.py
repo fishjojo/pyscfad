@@ -4,14 +4,6 @@ import jax
 from pyscf.dft import rks as pyscf_rks
 from pyscfad import gto, dft
 
-@pytest.fixture
-def get_mol():
-    mol = gto.Mole()
-    mol.atom = 'H 0 0 0; H 0 0 0.74'  # in Angstrom
-    mol.basis = '631g'
-    mol.build(trace_exp=False, trace_ctr_coeff=False)
-    return mol
-
 def energy(mol, xc):
     mf = dft.RKS(mol)
     mf.xc = xc

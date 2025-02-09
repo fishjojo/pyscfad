@@ -167,6 +167,142 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
         vmat = vmat[0]
     return nelec, excsum, vmat
 
+def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
+           max_memory=2000, verbose=None):
+
+    xctype = ni._xc_type(xc_code)
+
+    dma, dmb = _format_uks_dm(dms)
+    nao      = dma.shape[-1]
+    make_rhoa, nset = ni._gen_rho_evaluator(mol, dma, hermi, False, grids)[:2]
+    make_rhob       = ni._gen_rho_evaluator(mol, dmb, hermi, False, grids)[0]
+
+    nelec = numpy.zeros((2,nset))
+    excsum = [0] * nset
+    vmat = [[0]*nset for _ in range(2)]
+    aow    = None
+
+    if xctype == 'LDA':
+        ao_deriv = 0
+        for ao, mask, weight, coords \
+                in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
+            for idm in range(nset):
+                rho_a = make_rhoa(idm, ao, mask, 'LDA')
+                rho_b = make_rhob(idm, ao, mask, 'LDA')
+
+                exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
+                                      relativity=relativity, deriv=1,
+                                      verbose=verbose)[:2]
+
+                vrho = vxc[0]
+
+                den            = rho_a * weight
+                nelec[0][idm] += stop_grad(den).sum()
+                excsum[idm]   += np.dot(den, exc)
+
+                den            = rho_b * weight
+                nelec[1][idm] += stop_grad(den).sum()
+                excsum[idm]   += np.dot(den, exc)
+
+                aow           = _scale_ao(ao, .5*weight*vrho[:,0])
+                vmat[0][idm] += _dot_ao_ao(ao, aow)
+
+                aow           = _scale_ao(ao, .5*weight*vrho[:,1])
+                vmat[1][idm] += _dot_ao_ao(ao, aow)
+
+    elif xctype == 'GGA':
+        ao_deriv = 1
+        for ao, mask, weight, coords \
+                in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
+            for idm in range(nset):
+                rho_a = make_rhoa(idm, ao, mask, 'GGA')
+                rho_b = make_rhob(idm, ao, mask, 'GGA')
+
+                exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
+                                      relativity=relativity, deriv=1,
+                                      verbose=verbose)[:2]
+
+                den            = rho_a[0] * weight
+                nelec[0][idm] += stop_grad(den).sum()
+                excsum[idm]   += np.dot(den, exc)
+
+                den            = rho_b[0] * weight
+                nelec[1][idm] += stop_grad(den).sum()
+                excsum[idm]   += np.dot(den, exc)
+
+                wva, wvb      = _uks_gga_wv0((rho_a,rho_b), vxc, weight)
+
+                aow           = _scale_ao(ao, wva)
+                vmat[0][idm] += _dot_ao_ao(ao[0], aow)
+
+                aow           = _scale_ao(ao, wvb)
+                vmat[1][idm] += _dot_ao_ao(ao[0], aow)
+
+    elif xctype == 'MGGA':
+        if any(x in xc_code.upper() for x in ('CC06', 'CS', 'BR89', 'MK00')):
+            raise NotImplementedError('laplacian in meta-GGA method')
+        ao_deriv = 2
+        for ao, mask, weight, coords \
+                in ni.block_loop(mol, grids, nao, ao_deriv, max_memory):
+            for idm in range(nset):
+                rho_a = make_rhoa(idm, ao, mask, 'MGGA')
+                rho_b = make_rhob(idm, ao, mask, 'MGGA')
+
+                exc, vxc = ni.eval_xc(xc_code, (rho_a, rho_b), spin=1,
+                                      relativity=relativity, deriv=1,
+                                      verbose=verbose)[:2]
+
+                vrho, vsigma, vlapl, vtau = vxc[:4]
+
+                den            = rho_a[0]*weight
+                nelec[0][idm] += stop_grad(den).sum()
+                excsum[idm]   += np.dot(den, exc)
+
+                den            = rho_b[0]*weight
+                nelec[1][idm] += stop_grad(den).sum()
+                excsum[idm]   += np.dot(den, exc)
+
+                wva, wvb      = _uks_gga_wv0((rho_a,rho_b), vxc, weight)
+
+                aow           = _scale_ao(ao[:4], wva)
+                vmat[0][idm] += _dot_ao_ao(ao[0], aow)
+
+                aow           = _scale_ao(ao[:4], wvb)
+                vmat[1][idm] += _dot_ao_ao(ao[0], aow)
+
+                wv = (.25 * weight * vtau[:,0]).reshape(-1,1)
+                vmat[0][idm] += _dot_ao_ao(ao[1], wv*ao[1])
+                vmat[0][idm] += _dot_ao_ao(ao[2], wv*ao[2])
+                vmat[0][idm] += _dot_ao_ao(ao[3], wv*ao[3])
+
+                wv = (.25 * weight * vtau[:,1]).reshape(-1,1)
+                vmat[1][idm] += _dot_ao_ao(ao[1], wv*ao[1])
+                vmat[1][idm] += _dot_ao_ao(ao[2], wv*ao[2])
+                vmat[1][idm] += _dot_ao_ao(ao[3], wv*ao[3])
+
+    elif xctype == 'HF':
+        pass
+    else:
+        raise NotImplementedError(f'numint.nr_uks for functional {xc_code}')
+
+    for i in range(nset):
+        vmat[0][i] = vmat[0][i] + vmat[0][i].conj().T
+        vmat[1][i] = vmat[1][i] + vmat[1][i].conj().T
+
+    if getattr(dma, 'ndim', None) == 2:
+        excsum = excsum[0]
+        nelec  = numpy.asarray([nelec[0], nelec[1]])
+        vmat   = np.asarray([vmat[0][0], vmat[1][0]])
+
+    return nelec, excsum, vmat
+
+def _format_uks_dm(dms):
+    if getattr(dms, 'ndim', None) == 2:  # RHF DM
+        dma = dmb = dms * .5
+    else:
+        dma, dmb = dms
+    return dma, dmb
+
 def eval_rho(mol, ao, dm, non0tab=None, xctype='LDA', hermi=0,
              with_lapl=True, verbose=None):
     xctype = xctype.upper()
@@ -277,6 +413,20 @@ def _rks_gga_wv0(rho, vxc, weight):
     wv = np.concatenate((wv_rho.reshape(1,-1), wv_sigma))
     return wv
 
+@jit
+def _uks_gga_wv0(rho, vxc, weight):
+    rhoa, rhob   = rho
+    vrho, vsigma = vxc[:2]
+
+    wv_rho_a = weight * vrho[:,0] * .5
+    wv_sigma_a = (weight * vsigma[:,0] * 2) * rhoa[1:4] + (weight * vsigma[:,1]) * rhob[1:4]
+    wva = np.concatenate((wv_rho_a.reshape(1,-1), wv_sigma_a))
+
+    wv_rho_b = weight * vrho[:,1] * .5
+    wv_sigma_b = (weight * vsigma[:,2] * 2) * rhob[1:4] + (weight * vsigma[:,1]) * rhoa[1:4]
+    wvb = np.concatenate((wv_rho_b.reshape(1,-1), wv_sigma_b))
+    return wva, wvb
+
 def nr_nlc_vxc(ni, mol, grids, xc_code, dm, relativity=0, hermi=1,
                max_memory=2000, verbose=None):
     make_rho, nset, nao = ni._gen_rho_evaluator(mol, dm, hermi, False, grids)
@@ -364,4 +514,5 @@ class NumInt(numint.NumInt):
 
     eval_rho = staticmethod(eval_rho)
     nr_rks = nr_rks
+    nr_uks = nr_uks
     nr_nlc_vxc = nr_nlc_vxc
