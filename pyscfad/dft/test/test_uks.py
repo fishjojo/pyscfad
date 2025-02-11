@@ -2,9 +2,6 @@ import jax
 from pyscfad import gto, dft
 from pyscfad import config_update
 
-BOHR = 0.52917721092
-disp = 1e-4
-
 def test_uks_nuc_grad_lda(get_mol):
     mol = get_mol
     mf = dft.UKS(mol)

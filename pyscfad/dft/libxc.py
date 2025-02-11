@@ -64,8 +64,8 @@ def _eval_xc_comp_jvp(xc_code, spin, relativity, deriv, omega, verbose,
                 vrho1 = _vxc_partial_deriv(rho, val, val1, 'LDA')[0]
                 jvp = (vrho1 * rho_t,) + (None,) * 3
             else:
-                v2rho2 = _fxc_partial_deriv(rho, val, val1, 'LDA')[0]
-                jvp = (v2rho2 * rho_t,) + (None,) * 9
+                vrho2 = _fxc_partial_deriv(rho, val, val1, 'LDA')[0]
+                jvp = (vrho2 * rho_t,) + (None,) * 9
         elif spin == 1:
             rho_t_u = rho_t[0]
             rho_t_d = rho_t[1]
@@ -76,16 +76,27 @@ def _eval_xc_comp_jvp(xc_code, spin, relativity, deriv, omega, verbose,
                 jvp = exc1_u * rho_t_u + exc1_d * rho_t_d
             elif deriv == 1:
                 vrho1 = _vxc_partial_deriv_polarized(rho, val, val1, 'LDA')[0]
-                vrho1_u_u = vrho1[0]
-                vrho1_u_d = vrho1[1]
-                vrho1_d_d = vrho1[2]
+                vrho1_uu = vrho1[0]
+                vrho1_ud = vrho1[1]
+                vrho1_dd = vrho1[2]
 
-                vrho_jvp_u = vrho1_u_u * rho_t_u + vrho1_u_d * rho_t_d
-                vrho_jvp_d = vrho1_d_d * rho_t_d + vrho1_u_d * rho_t_u
+                vrho_jvp_u = vrho1_uu * rho_t_u + vrho1_ud * rho_t_d
+                vrho_jvp_d = vrho1_dd * rho_t_d + vrho1_ud * rho_t_u
                 vrho_jvp   = np.vstack((vrho_jvp_u, vrho_jvp_d)).T
                 jvp = (vrho_jvp,) + (None,) * 8
             else:
-                raise NotImplementedError
+                frho1 = _fxc_partial_deriv_polarized(rho, val, val1, 'LDA')[0]
+                #pylint: disable=E1136
+                frho1_uuu = frho1[0]
+                frho1_uud = frho1[1]
+                frho1_udd = frho1[2]
+                frho1_ddd = frho1[3]
+
+                frho_jvp_uu = frho1_uuu * rho_t_u + frho1_uud * rho_t_d
+                frho_jvp_ud = frho1_uud * rho_t_u + frho1_udd * rho_t_d
+                frho_jvp_dd = frho1_udd * rho_t_u + frho1_ddd * rho_t_d
+                frho_jvp = np.vstack((frho_jvp_uu, frho_jvp_ud, frho_jvp_dd)).T
+                jvp = (frho_jvp,) + (None,) * 44
     elif any((is_meta_gga(x) for x in fn_ids)):
         if spin == 0:
             if deriv == 0:
@@ -225,7 +236,94 @@ def _eval_xc_comp_jvp(xc_code, spin, relativity, deriv, omega, verbose,
                 jvp = (vrho_jvp, vsigma_jvp) + (None,) * 7
 
             else:
-                raise NotImplementedError
+                v2rho2_1, v2rhosigma_1, v2sigma2_1 = (
+                    _fxc_partial_deriv_polarized(rho, val, val1, xctype='GGA')[:3])
+
+                #pylint: disable=E1136
+                v2rho2_1_uu_u = v2rho2_1[0]
+                v2rho2_1_uu_d = v2rho2_1[1]
+                v2rho2_1_ud_u = v2rho2_1[2]
+                v2rho2_1_ud_d = v2rho2_1[3]
+                v2rho2_1_dd_u = v2rho2_1[4]
+                v2rho2_1_dd_d = v2rho2_1[5]
+
+                frho_jvp_uu = (np.einsum('np,np->p', v2rho2_1_uu_u, rho_t_u) +
+                               np.einsum('np,np->p', v2rho2_1_uu_d, rho_t_d))
+                frho_jvp_ud = (np.einsum('np,np->p', v2rho2_1_ud_u, rho_t_u) +
+                               np.einsum('np,np->p', v2rho2_1_ud_d, rho_t_d))
+                frho_jvp_dd = (np.einsum('np,np->p', v2rho2_1_dd_u, rho_t_u) +
+                               np.einsum('np,np->p', v2rho2_1_dd_d, rho_t_d))
+                frho_jvp = np.vstack([frho_jvp_uu, frho_jvp_ud, frho_jvp_dd]).T
+
+                #pylint: disable=W0632
+                (v2rhosigma_1_u_uu_u, v2rhosigma_1_u_uu_d,
+                 v2rhosigma_1_u_ud_u, v2rhosigma_1_u_ud_d,
+                 v2rhosigma_1_u_dd_u, v2rhosigma_1_u_dd_d,
+                 v2rhosigma_1_d_uu_u, v2rhosigma_1_d_uu_d,
+                 v2rhosigma_1_d_ud_u, v2rhosigma_1_d_ud_d,
+                 v2rhosigma_1_d_dd_u, v2rhosigma_1_d_dd_d,) = v2rhosigma_1
+
+                frhosig_jvp_u_uu = (np.einsum('np,np->p', v2rhosigma_1_u_uu_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2rhosigma_1_u_uu_d, rho_t_d))
+
+                frhosig_jvp_u_ud = (np.einsum('np,np->p', v2rhosigma_1_u_ud_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2rhosigma_1_u_ud_d, rho_t_d))
+
+                frhosig_jvp_u_dd = (np.einsum('np,np->p', v2rhosigma_1_u_dd_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2rhosigma_1_u_dd_d, rho_t_d))
+
+                frhosig_jvp_d_uu = (np.einsum('np,np->p', v2rhosigma_1_d_uu_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2rhosigma_1_d_uu_d, rho_t_d))
+
+                frhosig_jvp_d_ud = (np.einsum('np,np->p', v2rhosigma_1_d_ud_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2rhosigma_1_d_ud_d, rho_t_d))
+
+                frhosig_jvp_d_dd = (np.einsum('np,np->p', v2rhosigma_1_d_dd_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2rhosigma_1_d_dd_d, rho_t_d))
+
+                frhosig_jvp = np.vstack(
+                    [frhosig_jvp_u_uu, frhosig_jvp_u_ud, frhosig_jvp_u_dd,
+                     frhosig_jvp_d_uu, frhosig_jvp_d_ud, frhosig_jvp_d_dd]
+                ).T
+
+                #pylint: disable=W0632
+                (v2sigma2_1_uu_uu_u,
+                 v2sigma2_1_uu_uu_d,
+                 v2sigma2_1_uu_ud_u,
+                 v2sigma2_1_uu_ud_d,
+                 v2sigma2_1_uu_dd_u,
+                 v2sigma2_1_uu_dd_d,
+                 v2sigma2_1_ud_ud_u,
+                 v2sigma2_1_ud_ud_d,
+                 v2sigma2_1_ud_dd_u,
+                 v2sigma2_1_ud_dd_d,
+                 v2sigma2_1_dd_dd_u,
+                 v2sigma2_1_dd_dd_d,) = v2sigma2_1
+
+                fsigma_jvp_uu_uu = (np.einsum('np,np->p', v2sigma2_1_uu_uu_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2sigma2_1_uu_uu_d, rho_t_d))
+
+                fsigma_jvp_uu_ud = (np.einsum('np,np->p', v2sigma2_1_uu_ud_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2sigma2_1_uu_ud_d, rho_t_d))
+
+                fsigma_jvp_uu_dd = (np.einsum('np,np->p', v2sigma2_1_uu_dd_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2sigma2_1_uu_dd_d, rho_t_d))
+
+                fsigma_jvp_ud_ud = (np.einsum('np,np->p', v2sigma2_1_ud_ud_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2sigma2_1_ud_ud_d, rho_t_d))
+
+                fsigma_jvp_ud_dd = (np.einsum('np,np->p', v2sigma2_1_ud_dd_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2sigma2_1_ud_dd_d, rho_t_d))
+
+                fsigma_jvp_dd_dd = (np.einsum('np,np->p', v2sigma2_1_dd_dd_u, rho_t_u) +
+                                    np.einsum('np,np->p', v2sigma2_1_dd_dd_d, rho_t_d))
+
+                fsigma_jvp = np.vstack(
+                    [fsigma_jvp_uu_uu, fsigma_jvp_uu_ud, fsigma_jvp_uu_dd,
+                     fsigma_jvp_ud_ud, fsigma_jvp_ud_dd, fsigma_jvp_ud_dd]
+                ).T
+
+                jvp = (frho_jvp, frhosig_jvp, fsigma_jvp) + (None,) * 42
 
     return val, jvp
 
@@ -573,6 +671,260 @@ def _fxc_partial_deriv(rho, fxc, kxc, xctype='LDA'):
         v2rho2_1 = np.vstack((kxc[0], kxc[1] * 2. * rho[1:4]))
         v2rhosigma_1 = np.vstack((kxc[1], kxc[2] * 2. * rho[1:4]))
         v2sigma2_1 = np.vstack((kxc[2], kxc[3] * 2. * rho[1:4]))
+        if xctype == 'MGGA':
+            raise NotImplementedError
+    else:
+        raise KeyError
+    return (v2rho2_1, v2rhosigma_1, v2sigma2_1) + (None,) * 7
+
+@partial(jit, static_argnames=['xctype'])
+def _fxc_partial_deriv_polarized(rho, fxc, kxc, xctype='LDA'):
+    v2rho2_1 = v2rhosigma_1 = v2sigma2_1 = None
+
+    v3rho3 = kxc[0]
+    v3rho3_uuu = kxc[0][:,0]
+    v3rho3_uud = kxc[0][:,1]
+    v3rho3_udd = kxc[0][:,2]
+    v3rho3_ddd = kxc[0][:,3]
+
+    if xctype == 'LDA':
+        v2rho2_1 = (v3rho3_uuu,
+                    v3rho3_uud,
+                    v3rho3_udd,
+                    v3rho3_ddd)
+    elif xctype in ['GGA', 'MGGA']:
+        rho_u = rho[0]
+        rho_d = rho[1]
+
+        v3rho2sigma = kxc[1]
+        v3rho2sigma_uu_uu = v3rho2sigma[:,0]
+        v3rho2sigma_uu_ud = v3rho2sigma[:,1]
+        v3rho2sigma_uu_dd = v3rho2sigma[:,2]
+        v3rho2sigma_ud_uu = v3rho2sigma[:,3]
+        v3rho2sigma_ud_ud = v3rho2sigma[:,4]
+        v3rho2sigma_ud_dd = v3rho2sigma[:,5]
+        v3rho2sigma_dd_uu = v3rho2sigma[:,6]
+        v3rho2sigma_dd_ud = v3rho2sigma[:,7]
+        v3rho2sigma_dd_dd = v3rho2sigma[:,8]
+
+        v2rho2_1_uu_u = np.vstack(
+            [v3rho3_uuu,
+             (v3rho2sigma_uu_uu * rho_u[1:4] * 2 +
+              v3rho2sigma_uu_ud * rho_d[1:4])]
+        )
+
+        v2rho2_1_uu_d = np.vstack(
+            [v3rho3_uud,
+             (v3rho2sigma_uu_dd * rho_d[1:4] * 2 +
+              v3rho2sigma_uu_ud * rho_u[1:4])]
+        )
+
+        v2rho2_1_ud_u = np.vstack(
+            [v3rho3_uud,
+             (v3rho2sigma_ud_uu * rho_u[1:4] * 2 +
+              v3rho2sigma_ud_ud * rho_d[1:4])]
+        )
+
+        v2rho2_1_ud_d = np.vstack(
+            [v3rho3_udd,
+             (v3rho2sigma_ud_dd * rho_d[1:4] * 2 +
+              v3rho2sigma_ud_ud * rho_u[1:4])]
+        )
+
+        v2rho2_1_dd_u = np.vstack(
+            [v3rho3_udd,
+             (v3rho2sigma_dd_uu * rho_u[1:4] * 2 +
+              v3rho2sigma_dd_ud * rho_d[1:4])]
+        )
+
+        v2rho2_1_dd_d = np.vstack(
+            [v3rho3_ddd,
+             (v3rho2sigma_dd_dd * rho_d[1:4] * 2 +
+              v3rho2sigma_dd_ud * rho_u[1:4])]
+        )
+
+        v2rho2_1 = (v2rho2_1_uu_u, v2rho2_1_uu_d,
+                    v2rho2_1_ud_u, v2rho2_1_ud_d,
+                    v2rho2_1_dd_u, v2rho2_1_dd_d)
+
+        v3rhosigma2 = kxc[2]
+        v3rhosigma2_u_uu_uu = v3rhosigma2[:,0]
+        v3rhosigma2_u_uu_ud = v3rhosigma2[:,1]
+        v3rhosigma2_u_uu_dd = v3rhosigma2[:,2]
+        v3rhosigma2_u_ud_ud = v3rhosigma2[:,3]
+        v3rhosigma2_u_ud_dd = v3rhosigma2[:,4]
+        v3rhosigma2_u_dd_dd = v3rhosigma2[:,5]
+        v3rhosigma2_d_uu_uu = v3rhosigma2[:,6]
+        v3rhosigma2_d_uu_ud = v3rhosigma2[:,7]
+        v3rhosigma2_d_uu_dd = v3rhosigma2[:,8]
+        v3rhosigma2_d_ud_ud = v3rhosigma2[:,9]
+        v3rhosigma2_d_ud_dd = v3rhosigma2[:,10]
+        v3rhosigma2_d_dd_dd = v3rhosigma2[:,11]
+
+        v2rhosigma_1_u_uu_u = np.vstack(
+            [v3rho2sigma_uu_uu,
+             (v3rhosigma2_u_uu_uu * rho_u[1:4] * 2 +
+              v3rhosigma2_u_uu_ud * rho_d[1:4])]
+        )
+        v2rhosigma_1_u_uu_d = np.vstack(
+            [v3rho2sigma_ud_uu,
+             (v3rhosigma2_u_uu_dd * rho_d[1:4] * 2 +
+              v3rhosigma2_u_uu_ud * rho_u[1:4])]
+        )
+        v2rhosigma_1_u_ud_u = np.vstack(
+            [v3rho2sigma_uu_ud,
+             (v3rhosigma2_u_uu_ud * rho_u[1:4] * 2 +
+              v3rhosigma2_u_ud_ud * rho_d[1:4])]
+        )
+        v2rhosigma_1_u_ud_d = np.vstack(
+            [v3rho2sigma_ud_ud,
+             (v3rhosigma2_u_ud_dd * rho_d[1:4] * 2 +
+              v3rhosigma2_u_ud_ud * rho_u[1:4])]
+        )
+        v2rhosigma_1_u_dd_u = np.vstack(
+            [v3rho2sigma_uu_dd,
+             (v3rhosigma2_u_uu_dd * rho_u[1:4] * 2 +
+              v3rhosigma2_u_ud_dd * rho_d[1:4])]
+        )
+        v2rhosigma_1_u_dd_d = np.vstack(
+            [v3rho2sigma_ud_dd,
+             (v3rhosigma2_u_dd_dd * rho_d[1:4] * 2 +
+              v3rhosigma2_u_ud_dd * rho_u[1:4])]
+        )
+
+        v2rhosigma_1_d_uu_u = np.vstack(
+            [v3rho2sigma_ud_uu,
+             (v3rhosigma2_d_uu_uu * rho_u[1:4] * 2 +
+              v3rhosigma2_d_uu_ud * rho_d[1:4])]
+        )
+        v2rhosigma_1_d_uu_d = np.vstack(
+            [v3rho2sigma_dd_uu,
+             (v3rhosigma2_d_uu_dd * rho_d[1:4] * 2 +
+              v3rhosigma2_d_uu_ud * rho_u[1:4])]
+        )
+        v2rhosigma_1_d_ud_u = np.vstack(
+            [v3rho2sigma_ud_ud,
+             (v3rhosigma2_d_uu_ud * rho_u[1:4] * 2 +
+              v3rhosigma2_d_ud_ud * rho_d[1:4])]
+        )
+        v2rhosigma_1_d_ud_d = np.vstack(
+            [v3rho2sigma_dd_ud,
+             (v3rhosigma2_d_ud_dd * rho_d[1:4] * 2 +
+              v3rhosigma2_d_ud_ud * rho_u[1:4])]
+        )
+        v2rhosigma_1_d_dd_u = np.vstack(
+            [v3rho2sigma_ud_dd,
+             (v3rhosigma2_d_uu_dd * rho_u[1:4] * 2 +
+              v3rhosigma2_d_ud_dd * rho_d[1:4])]
+        )
+        v2rhosigma_1_d_dd_d = np.vstack(
+            [v3rho2sigma_dd_dd,
+             (v3rhosigma2_d_dd_dd * rho_d[1:4] * 2 +
+              v3rhosigma2_d_ud_dd * rho_u[1:4])]
+        )
+
+        v2rhosigma_1 = (
+            v2rhosigma_1_u_uu_u, v2rhosigma_1_u_uu_d,
+            v2rhosigma_1_u_ud_u, v2rhosigma_1_u_ud_d,
+            v2rhosigma_1_u_dd_u, v2rhosigma_1_u_dd_d,
+            v2rhosigma_1_d_uu_u, v2rhosigma_1_d_uu_d,
+            v2rhosigma_1_d_ud_u, v2rhosigma_1_d_ud_d,
+            v2rhosigma_1_d_dd_u, v2rhosigma_1_d_dd_d,
+        )
+
+        v3sigma3 = kxc[3]
+        v3sigma3_uu_uu_uu = v3sigma3[:,0]
+        v3sigma3_uu_uu_ud = v3sigma3[:,1]
+        v3sigma3_uu_uu_dd = v3sigma3[:,2]
+        v3sigma3_uu_ud_ud = v3sigma3[:,3]
+        v3sigma3_uu_ud_dd = v3sigma3[:,4]
+        v3sigma3_uu_dd_dd = v3sigma3[:,5]
+        v3sigma3_ud_ud_ud = v3sigma3[:,6]
+        v3sigma3_ud_ud_dd = v3sigma3[:,7]
+        v3sigma3_ud_dd_dd = v3sigma3[:,8]
+        v3sigma3_dd_dd_dd = v3sigma3[:,9]
+
+        v2sigma2_1_uu_uu_u = np.vstack(
+            [v3rhosigma2_u_uu_uu,
+             (v3sigma3_uu_uu_uu * rho_u[1:4] * 2 +
+              v3sigma3_uu_uu_ud * rho_d[1:4])]
+        )
+        v2sigma2_1_uu_uu_d = np.vstack(
+            [v3rhosigma2_d_uu_uu,
+             (v3sigma3_uu_uu_dd * rho_d[1:4] * 2 +
+              v3sigma3_uu_uu_ud * rho_u[1:4])]
+        )
+
+        v2sigma2_1_uu_ud_u = np.vstack(
+            [v3rhosigma2_u_uu_ud,
+             (v3sigma3_uu_uu_ud * rho_u[1:4] * 2 +
+              v3sigma3_uu_ud_ud * rho_d[1:4])]
+        )
+        v2sigma2_1_uu_ud_d = np.vstack(
+            [v3rhosigma2_d_uu_ud,
+             (v3sigma3_uu_ud_dd * rho_d[1:4] * 2 +
+              v3sigma3_uu_ud_ud * rho_u[1:4])]
+        )
+
+        v2sigma2_1_uu_dd_u = np.vstack(
+            [v3rhosigma2_u_uu_dd,
+             (v3sigma3_uu_uu_dd * rho_u[1:4] * 2 +
+              v3sigma3_uu_ud_dd * rho_d[1:4])]
+        )
+        v2sigma2_1_uu_dd_d = np.vstack(
+            [v3rhosigma2_d_uu_dd,
+             (v3sigma3_uu_dd_dd * rho_d[1:4] * 2 +
+              v3sigma3_uu_ud_dd * rho_u[1:4])]
+        )
+
+        v2sigma2_1_ud_ud_u = np.vstack(
+            [v3rhosigma2_u_ud_ud,
+             (v3sigma3_uu_ud_ud * rho_u[1:4] * 2 +
+              v3sigma3_ud_ud_ud * rho_d[1:4])]
+        )
+        v2sigma2_1_ud_ud_d = np.vstack(
+            [v3rhosigma2_d_ud_ud,
+             (v3sigma3_ud_ud_dd * rho_d[1:4] * 2 +
+              v3sigma3_ud_ud_ud * rho_u[1:4])]
+        )
+
+        v2sigma2_1_ud_dd_u = np.vstack(
+            [v3rhosigma2_u_ud_dd,
+             (v3sigma3_uu_ud_dd * rho_u[1:4] * 2 +
+              v3sigma3_ud_ud_dd * rho_d[1:4])]
+        )
+        v2sigma2_1_ud_dd_d = np.vstack(
+            [v3rhosigma2_d_ud_dd,
+             (v3sigma3_ud_dd_dd * rho_d[1:4] * 2 +
+              v3sigma3_ud_ud_dd * rho_u[1:4])]
+        )
+
+        v2sigma2_1_dd_dd_u = np.vstack(
+            [v3rhosigma2_u_dd_dd,
+             (v3sigma3_uu_dd_dd * rho_u[1:4] * 2 +
+              v3sigma3_ud_dd_dd * rho_d[1:4])]
+        )
+        v2sigma2_1_dd_dd_d = np.vstack(
+            [v3rhosigma2_d_dd_dd,
+             (v3sigma3_dd_dd_dd * rho_d[1:4] * 2 +
+              v3sigma3_ud_dd_dd * rho_u[1:4])]
+        )
+
+        v2sigma2_1 = (
+            v2sigma2_1_uu_uu_u,
+            v2sigma2_1_uu_uu_d,
+            v2sigma2_1_uu_ud_u,
+            v2sigma2_1_uu_ud_d,
+            v2sigma2_1_uu_dd_u,
+            v2sigma2_1_uu_dd_d,
+            v2sigma2_1_ud_ud_u,
+            v2sigma2_1_ud_ud_d,
+            v2sigma2_1_ud_dd_u,
+            v2sigma2_1_ud_dd_d,
+            v2sigma2_1_dd_dd_u,
+            v2sigma2_1_dd_dd_d,
+        )
+
         if xctype == 'MGGA':
             raise NotImplementedError
     else:
