@@ -7,7 +7,7 @@ namespace pyscfad {
 
 template <typename T>
 nanobind::capsule EncapsulateFunction(T* fn) {
-    return nanobind::capsule((void*) fn,
+    return nanobind::capsule(reinterpret_cast<void*>(fn),
                              "xla._CUSTOM_CALL_TARGET");
 }
 
