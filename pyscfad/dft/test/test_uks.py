@@ -1,12 +1,13 @@
 from numpy.testing import assert_almost_equal
 import jax
-from pyscfad import gto, dft
+from pyscfad import dft
 from pyscfad import config_update
 
 def _mf(mol, xc):
     mf = dft.UKS(mol)
     mf.xc = xc
     mf.verbose = 4
+    mf.max_cycle=5
     return mf
 
 def _test_uks_nuc_grad(mol, xc):
