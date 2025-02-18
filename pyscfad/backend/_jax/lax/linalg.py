@@ -3,15 +3,20 @@ Custom jax.lax.linalg functions
 """
 from functools import partial
 import numpy as np
-import jax
+
+try:
+    from jax import ffi
+except ImportError:
+    from jax.extend import ffi
 from jax import lax
 from jax._src import ad_util
 from jax._src import api
 from jax._src import dispatch
+from jax._src import dtypes
 from jax._src.core import (
     Primitive,
     ShapedArray,
-    is_constant_shape,
+#    is_constant_shape,
 )
 from jax._src.interpreters import ad
 from jax._src.interpreters import batching
@@ -111,41 +116,62 @@ def _eigh_gen_jvp_rule(primals, tangents, *, lower, itype, deg_thresh):
     dv = dot(v, F_vt_at_v)
     return (w_real, v), (dw, dv)
 
-def _eigh_gen_cpu_lowering(ctx, a, b, *, lower, itype, deg_thresh):
+def _eigh_gen_cpu_gpu_lowering(
+    ctx, a, b, *, lower, itype, deg_thresh,
+    target_name_prefix
+):
     del deg_thresh
     a_aval, b_aval = ctx.avals_in
     w_aval, v_aval = ctx.avals_out
-    n = a_aval.shape[-1]
     batch_dims = a_aval.shape[:-2]
 
-    if not is_constant_shape(a_aval.shape[-2:]):
-        raise NotImplementedError(
-            "Shape polymorphism for native lowering for eigh is implemented "
-            f"only for the batch dimensions: {a_aval.shape}")
+    if target_name_prefix == "cpu":
+        dtype = a_aval.dtype
+        prefix = "he" if dtypes.issubdtype(dtype, np.complexfloating) else "sy"
+        target_name = lp.prepare_lapack_call(f"{prefix}gvd_ffi", dtype)
 
-    a_shape_vals = mlir.eval_dynamic_shape_as_ivals(ctx, a_aval.shape)
-    b_shape_vals = mlir.eval_dynamic_shape_as_ivals(ctx, b_aval.shape)
-    v, w, info = lp.sygvd_hlo(a_aval.dtype, a, b,
-                              a_shape_vals=a_shape_vals,
-                              b_shape_vals=b_shape_vals,
-                              lower=lower, itype=itype)
+        kwargs = {
+            "itype": np.int32(itype),
+            "jobz": np.uint8(ord("V")),
+            "uplo": np.uint8(ord("L" if lower else "U")),
+        }
+    else:
+        raise NotImplementedError
 
-    zeros = mlir.full_like_aval(ctx, 0, ShapedArray(batch_dims, np.dtype(np.int32)))
+    info_aval = ShapedArray(batch_dims, np.int32)
+
+    layout = _column_major_matrix_layout(len(a_aval.shape))
+
+    nb = len(batch_dims)
+    operand_layouts=[
+        layout, # a
+        layout, # b
+    ]
+    result_layouts = [
+        layout, # v
+        layout, # b_out
+        tuple(range(nb, -1, -1)), # w
+        tuple(range(nb - 1, -1, -1)), # info
+    ]
+
+    rule = ffi.ffi_lowering(
+        target_name,
+        operand_layouts=operand_layouts,
+        result_layouts=result_layouts,
+        operand_output_aliases={0:0, 1:1}
+    )
+
+    sub_ctx = ctx.replace(
+        avals_in=ctx.avals_in,
+        avals_out=[v_aval, v_aval,  w_aval, info_aval]
+    )
+
+    v, _, w, info = rule(sub_ctx, a, b, **kwargs)
+
+    zeros = mlir.full_like_aval(ctx, 0, info_aval)
     ok = mlir.compare_hlo(info, zeros, "EQ", "SIGNED")
-    select_v_aval = ShapedArray(batch_dims + (1, 1), np.dtype(np.bool_))
-    v = _broadcasting_select_hlo(
-            ctx,
-            mlir.broadcast_in_dim(ctx, ok, select_v_aval,
-                                  broadcast_dimensions=range(len(batch_dims))),
-            select_v_aval,
-            v, v_aval, _nan_like_hlo(ctx, v_aval), v_aval)
-    select_w_aval = ShapedArray(batch_dims + (1,), np.dtype(np.bool_))
-    w = _broadcasting_select_hlo(
-        ctx,
-        mlir.broadcast_in_dim(ctx, ok, select_w_aval,
-                              broadcast_dimensions=range(len(batch_dims))),
-        select_w_aval,
-        w, w_aval, _nan_like_hlo(ctx, w_aval), w_aval)
+    w = _replace_not_ok_with_nan(ctx, batch_dims, ok, w, w_aval)
+    v = _replace_not_ok_with_nan(ctx, batch_dims, ok, v, v_aval)
     return [w, v]
 
 def _eigh_gen_batching_rule(batched_args, batch_dims, *,
@@ -161,15 +187,32 @@ def _eigh_gen_batching_rule(batched_args, batch_dims, *,
                            itype=itype,
                            deg_thresh=deg_thresh), (0, 0)
 
-def _eigh_gen_lowering(*args, **kwargs):
-    raise NotImplementedError("Generalized eigh is only implemented for CPU.")
-
 eigh_gen_p = Primitive('eigh_gen')
 eigh_gen_p.multiple_results = True
 eigh_gen_p.def_impl(_eigh_gen_impl)
 eigh_gen_p.def_abstract_eval(_eigh_gen_abstract_eval)
 ad.primitive_jvps[eigh_gen_p] = _eigh_gen_jvp_rule
 batching.primitive_batchers[eigh_gen_p] = _eigh_gen_batching_rule
-mlir.register_lowering(eigh_gen_p, _eigh_gen_lowering)
-mlir.register_lowering(eigh_gen_p, _eigh_gen_cpu_lowering, platform='cpu')
+mlir.register_lowering(
+    eigh_gen_p,
+    partial(_eigh_gen_cpu_gpu_lowering, target_name_prefix="cpu"),
+    platform="cpu"
+)
+mlir.register_lowering(
+    eigh_gen_p,
+    partial(_eigh_gen_cpu_gpu_lowering, target_name_prefix="cu"),
+    platform="cuda"
+)
 
+def _replace_not_ok_with_nan(ctx, batch_dims, ok, x, x_aval):
+  num_bcast_dims = len(x_aval.shape) - len(batch_dims)
+  select_aval = ShapedArray(batch_dims + (1,) * num_bcast_dims, np.bool_)
+  return _broadcasting_select_hlo(
+      ctx,
+      mlir.broadcast_in_dim(ctx, ok, select_aval,
+                            broadcast_dimensions=range(len(batch_dims))),
+      select_aval,
+      x, x_aval, _nan_like_hlo(ctx, x_aval), x_aval)
+
+def _column_major_matrix_layout(dim):
+  return (dim - 2, dim - 1) + tuple(range(dim - 3, -1, -1))

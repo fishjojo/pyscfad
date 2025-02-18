@@ -1,57 +1,42 @@
+from numpy.testing import assert_almost_equal
 import jax
-from pyscfad import gto, dft
+from pyscfad import dft
 from pyscfad import config_update
 
-def test_uks_nuc_grad_lda(get_mol):
-    mol = get_mol
+def _mf(mol, xc):
     mf = dft.UKS(mol)
-    mf.xc = 'lda,vwn'
-    g1 = mf.energy_grad(mode="rev").coords
+    mf.xc = xc
+    return mf
+
+def _test_uks_nuc_grad(mol, xc):
+    def _eks(mol):
+        return _mf(mol, xc).kernel()
+
+    g1 = jax.grad(_eks)(mol).coords
+
+    mf = _mf(mol, xc)
     mf.kernel()
-    g2 = mf.energy_grad(mode="rev").coords
     g0 = mf.nuc_grad_method().kernel()
-    assert abs(g1-g0).max() < 1e-6
-    assert abs(g2-g0).max() < 1e-6
+
+    assert_almost_equal(g0, g1, decimal=6)
+
+def test_uks_nuc_grad_lda(get_mol):
+    _test_uks_nuc_grad(get_mol, "lda,vwn")
 
 def test_uks_nuc_grad_gga(get_mol):
-    mol = get_mol()
-    mf = dft.UKS(mol)
-    mf.xc = 'pbe,pbe'
-    g1 = mf.energy_grad(mode="rev").coords
-    mf.kernel()
-    g2 = mf.energy_grad(mode="rev").coords
-    g0 = mf.nuc_grad_method().kernel()
-    assert abs(g1-g0).max() < 1e-6
-    assert abs(g2-g0).max() < 1e-6
+    _test_uks_nuc_grad(get_mol, "pbe,pbe")
 
 def test_uks_nuc_grad_hybrid(get_mol):
-    mol = get_mol()
-    mf = dft.UKS(mol)
-    mf.xc = 'b3lyp'
-    g1 = mf.energy_grad(mode="rev").coords
-    mf.kernel()
-    g2 = mf.energy_grad(mode="rev").coords
-    g0 = mf.nuc_grad_method().kernel()
-    assert abs(g1-g0).max() < 1e-6
-    assert abs(g2-g0).max() < 1e-6
+    _test_uks_nuc_grad(get_mol, "b3lyp")
 
 def test_uks_nuc_grad_lrc(get_mol):
-    mol = get_mol()
-    mf = dft.UKS(mol)
-    mf.xc = 'HYB_GGA_XC_LRC_WPBE'
-    g1 = mf.energy_grad(mode="rev").coords
-    mf.kernel()
-    g2 = mf.energy_grad(mode="rev").coords
-    g0 = mf.nuc_grad_method().kernel()
-    assert abs(g1-g0).max() < 1e-6
-    assert abs(g2-g0).max() < 1e-6
+    _test_uks_nuc_grad(get_mol, "HYB_GGA_XC_LRC_WPBE")
 
 def test_df_uks_nuc_grad(get_mol):
-    with config_update('pyscfad_scf_implicit_diff', True):
-        mol = get_mol
-        def energy(mol):
-            mf = dft.UKS(mol, xc='PBE,PBE').density_fit()
-            return mf.kernel()
-        g = jax.grad(energy)(mol).coords
+    def _eks(mol):
+        return _mf(mol, "pbe,pbe").density_fit().kernel()
+
+    with config_update("pyscfad_scf_implicit_diff", True):
+        g = jax.grad(_eks)(get_mol).coords
         # finite difference reference
         assert abs(g[1,2] - -0.007387325326884536) < 1e-6

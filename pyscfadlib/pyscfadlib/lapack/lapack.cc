@@ -1,3 +1,4 @@
+#include <mutex>
 #include "lapack/kernel_nanobind_helpers.h"
 #include "lapack/lapack_kernels.h"
 
@@ -5,18 +6,26 @@ namespace pyscfad {
 
 namespace nb = nanobind;
 
+using ::xla::ffi::DataType;
+
 void GetLapackKernelsFromBLAS() {
-    static bool initialized = false;  // Protected by GIL
-    if (initialized) return;
+    static std::once_flag initialized;
 
-    AssignKernelFn<RealSygvd<float>>(ssygvd_);
-    AssignKernelFn<RealSygvd<double>>(dsygvd_);
-    AssignKernelFn<ComplexHegvd<std::complex<float>>>(
-        reinterpret_cast<ComplexHegvd<std::complex<float>>::FnType*>(chegvd_));
-    AssignKernelFn<ComplexHegvd<std::complex<double>>>(
-        reinterpret_cast<ComplexHegvd<std::complex<double>>::FnType*>(zhegvd_));
+    std::call_once(initialized, [&](){
+        AssignKernelFn<RealSygvd<float>>(ssygvd_);
+        AssignKernelFn<RealSygvd<double>>(dsygvd_);
+        AssignKernelFn<ComplexHegvd<std::complex<float>>>(
+            reinterpret_cast<ComplexHegvd<std::complex<float>>::FnType*>(chegvd_));
+        AssignKernelFn<ComplexHegvd<std::complex<double>>>(
+            reinterpret_cast<ComplexHegvd<std::complex<double>>::FnType*>(zhegvd_));
 
-    initialized = true;
+        AssignKernelFn<EighReal<DataType::F32>>(ssygvd_);
+        AssignKernelFn<EighReal<DataType::F64>>(dsygvd_);
+        AssignKernelFn<EighComplex<DataType::C64>>(
+            reinterpret_cast<EighComplex<DataType::C64>::FnType*>(chegvd_));
+        AssignKernelFn<EighComplex<DataType::C128>>(
+            reinterpret_cast<EighComplex<DataType::C128>::FnType*>(zhegvd_));
+    });
 }
 
 nb::dict Registrations() {
@@ -29,10 +38,14 @@ nb::dict Registrations() {
     dict["lapack_zhegvd"] =
         EncapsulateFunction(ComplexHegvd<std::complex<double>>::Kernel);
 
+    dict["lapack_ssygvd_ffi"] = EncapsulateFunction(lapack_ssygvd_ffi);
+    dict["lapack_dsygvd_ffi"] = EncapsulateFunction(lapack_dsygvd_ffi);
+    dict["lapack_chegvd_ffi"] = EncapsulateFunction(lapack_chegvd_ffi);
+    dict["lapack_zhegvd_ffi"] = EncapsulateFunction(lapack_zhegvd_ffi);
     return dict;
 }
 
-NB_MODULE(lapack_ad, m) {
+NB_MODULE(_lapack, m) {
     m.def("initialize", GetLapackKernelsFromBLAS);
     m.def("registrations", &Registrations);
 

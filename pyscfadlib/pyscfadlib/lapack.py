@@ -1,8 +1,12 @@
 import numpy as np
 
+try:
+    from jax import ffi
+except ImportError:
+    from jax.extend import ffi
+
 import jaxlib.mlir.ir as ir
 import jaxlib.mlir.dialects.stablehlo as hlo
-from jaxlib import xla_client
 from jaxlib.hlo_helpers import (
     custom_call,
     hlo_s32,
@@ -10,10 +14,31 @@ from jaxlib.hlo_helpers import (
     mk_result_types_and_shapes,
 )
 
-from pyscfadlib import lapack_ad as lp
+from pyscfadlib import _lapack as lp
 
 for _name, _value in lp.registrations().items():
-    xla_client.register_custom_call_target(_name, _value, platform="cpu")
+    ffi.register_ffi_target(
+        _name,
+        _value,
+        platform="cpu",
+        api_version=(1 if _name.endswith("_ffi") else 0),
+    )
+
+LAPACK_DTYPE_PREFIX = {
+    np.float32: "s",
+    np.float64: "d",
+    np.complex64: "c",
+    np.complex128: "z",
+}
+
+def prepare_lapack_call(fn_base, dtype):
+    lp.initialize()
+    try:
+        prefix = (LAPACK_DTYPE_PREFIX.get(dtype, None) or 
+                  LAPACK_DTYPE_PREFIX[dtype.type])
+        return f"lapack_{prefix}{fn_base}"
+    except KeyError:
+        raise NotImplementedError(f"Unsupported dtype {dtype}")
 
 def sygvd_hlo(dtype, a, b, a_shape_vals, b_shape_vals,
               lower=False, itype=1):
