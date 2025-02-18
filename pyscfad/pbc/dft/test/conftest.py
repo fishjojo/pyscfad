@@ -1,7 +1,7 @@
 import pytest
 from pyscfad.pbc import gto
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def get_Si2():
     a = 5.431020511
     basis = 'gth-szv'
@@ -18,5 +18,6 @@ def get_Si2():
     cell.a = lattice
     cell.basis = basis
     cell.pseudo = pseudo
+    cell.max_memory = 7000
     cell.build()
     return cell
