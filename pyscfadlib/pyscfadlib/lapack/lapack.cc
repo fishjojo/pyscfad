@@ -1,5 +1,5 @@
 #include <mutex>
-#include "lapack/kernel_nanobind_helpers.h"
+#include "kernel_nanobind_helpers.h"
 #include "lapack/lapack_kernels.h"
 
 namespace pyscfad {
@@ -45,7 +45,7 @@ nb::dict Registrations() {
     return dict;
 }
 
-NB_MODULE(_lapack, m) {
+NB_MODULE(pyscfad_lapack, m) {
     m.def("initialize", GetLapackKernelsFromBLAS);
     m.def("registrations", &Registrations);
 

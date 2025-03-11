@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 3.18)
 project (pyscfadlib)
 
+option(ENABLE_CUDA "Enable CUDA support" ON)
+
 find_package(Python
   REQUIRED COMPONENTS Interpreter Development.Module
   OPTIONAL_COMPONENTS Development.SABIModule
@@ -160,4 +162,15 @@ if(BUILD_LIBCINT)
         -DBUILD_MARCH_NATIVE:STRING=${BUILD_MARCH_NATIVE}
   )
   add_dependencies(cgto_ad libcint)
+endif()
+
+
+if(ENABLE_CUDA)
+  enable_language(CUDA)
+  find_package(CUDAToolkit REQUIRED)
+
+  set(CMAKE_CUDA_STANDARD 17)
+  set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+  add_subdirectory(cuda)
 endif()

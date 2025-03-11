@@ -14,7 +14,7 @@ from jaxlib.hlo_helpers import (
     mk_result_types_and_shapes,
 )
 
-from pyscfadlib import _lapack as lp
+from pyscfadlib import pyscfad_lapack as lp
 
 for _name, _value in lp.registrations().items():
     ffi.register_ffi_target(
