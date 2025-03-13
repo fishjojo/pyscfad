@@ -73,6 +73,8 @@ repair-wheel-command = "auditwheel -v repair -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.linux.config-settings]
 "cmake.define.ENABLE_CUDA" = "ON"
+"cmake.define.CMAKE_CUDA_COMPILER" = "/usr/local/cuda/bin/nvcc"
+"cmake.define.CMAKE_VERBOSE_MAKEFILE" = "ON"
 
 [tool.cibuildwheel.macos]
 archs = ["auto64"]
