@@ -67,13 +67,15 @@ before-all = [
     "yum install -y epel-release",
     "yum-config-manager --enable epel",
     "yum install -y openblas-devel",
-    "{package}/tools/prepare_build_environment_linux.sh",
+#    "{package}/tools/prepare_build_environment_linux.sh",
+    "yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo",
+    "yum install -y cuda-toolkit",
 ]
+environment = { PATH="$PATH:/usr/local/cuda/bin", LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda/lib64" }
 repair-wheel-command = "auditwheel -v repair -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.linux.config-settings]
 "cmake.define.ENABLE_CUDA" = "ON"
-"cmake.define.CMAKE_CUDA_COMPILER" = "/usr/local/cuda/bin/nvcc"
 "cmake.define.CMAKE_VERBOSE_MAKEFILE" = "ON"
 
 [tool.cibuildwheel.macos]
