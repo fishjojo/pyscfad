@@ -1,8 +1,8 @@
-#! /bin/bash
+#!/bin/bash
 
 set -ex
 
-if [ $CIBW_ARCHS_LINUX == "x86_64" ]; then
+if [ "$CIBW_ARCHS_LINUX" == "x86_64" ]; then
     # Install CUDA Toolkit
     yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo
     yum install -y cuda-toolkit-12-5-12.5.1-1

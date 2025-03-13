@@ -30,6 +30,10 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE XLA_DIR)
 message(STATUS "XLA include directory: ${XLA_DIR}")
 
+if(NOT XLA_DIR)
+  message(FATAL_ERROR "Failed to find XLA include directory. Ensure JAX is installed and accessible.")
+endif()
+
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

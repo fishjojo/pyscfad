@@ -1,5 +1,9 @@
 [build-system]
-requires = ["scikit-build-core", "nanobind"]
+requires = [
+    "scikit-build-core",
+    "nanobind",
+    "jax>=0.4.31,<=0.4.35",
+]
 build-backend = "scikit_build_core.build"
 
 [project]
