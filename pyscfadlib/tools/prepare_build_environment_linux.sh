@@ -2,8 +2,8 @@
 
 set -ex
 
-echo "$CIBW_ARCHS"
-echo "$CIBW_ARCHS_LINUX"
+echo $CIBW_ARCHS
+echo $CIBW_ARCHS_LINUX
 
 if [ "$CIBW_ARCHS_LINUX" == "x86_64" ]; then
     # Install CUDA Toolkit
