@@ -67,10 +67,8 @@ before-all = [
     "yum install -y epel-release",
     "yum-config-manager --enable epel",
     "yum install -y openblas-devel",
-    "echo $CIBW_ARCHS",
-    "echo $CIBW_ARCHS_LINUX",
-    "{package}/tools/prepare_build_environment_linux.sh",
 ]
+before-build = "{package}/tools/prepare_build_environment_linux.sh"
 repair-wheel-command = "auditwheel -v repair -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.macos]
