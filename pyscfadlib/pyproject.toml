@@ -68,7 +68,7 @@ skip = ["pp*", "*musllinux*"]
 #    "yum-config-manager --enable epel",
 #    "yum install -y openblas-devel",
 #]
-repair-wheel-command = "auditwheel -v repair -w {dest_dir} {wheel}"
+repair-wheel-command = "auditwheel -v repair --exclude libcudart.so.12 --exclude libcusolver.so.12 --exclude libcublas.so.12 --exclude libcublasLt.so.12 --exclude libcusparse.so.12 --exclude libnvJitLink.so.12 -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.macos]
 archs = ["auto64"]
