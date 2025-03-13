@@ -64,6 +64,7 @@ skip = ["pp*", "*musllinux*"]
 before-all = [
     "ulimit -n 1024",
 #    "ln -s libquadmath.so.0 /usr/lib64/libquadmath.so",
+    "yum install -y yum-utils",
     "yum install -y epel-release",
     "yum-config-manager --enable epel",
     "yum install -y openblas-devel",
