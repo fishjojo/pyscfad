@@ -21,9 +21,9 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.10",
-#    "Programming Language :: Python :: 3.11",
-#    "Programming Language :: Python :: 3.12",
-#    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
     "numpy>=1.17",
@@ -56,27 +56,19 @@ manylinux-x86_64-image = "manylinux_2_28"
 skip = ["pp*", "*musllinux*"]
 
 [tool.cibuildwheel.config-settings]
-"cmake.define.WITH_F12" = "OFF"
 "build-dir" = "build/{wheel_tag}"
 
 [tool.cibuildwheel.linux]
 #archs = ["x86_64", "aarch64"]
-before-all = [
-    "ulimit -n 1024",
+#before-all = [
+#    "ulimit -n 1024",
 #    "ln -s libquadmath.so.0 /usr/lib64/libquadmath.so",
-    "yum install -y yum-utils",
-    "yum install -y epel-release",
-    "yum-config-manager --enable epel",
-    "yum install -y openblas-devel",
-#    "{package}/tools/prepare_build_environment_linux.sh",
-    "yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo",
-    "yum install -y cuda-toolkit",
-]
-environment = { PATH="$PATH:/usr/local/cuda/bin", LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda/lib64" }
+#    "yum install -y yum-utils",
+#    "yum install -y epel-release",
+#    "yum-config-manager --enable epel",
+#    "yum install -y openblas-devel",
+#]
 repair-wheel-command = "auditwheel -v repair -w {dest_dir} {wheel}"
-
-[tool.cibuildwheel.linux.config-settings]
-"cmake.define.ENABLE_CUDA" = "ON"
 
 [tool.cibuildwheel.macos]
 archs = ["auto64"]

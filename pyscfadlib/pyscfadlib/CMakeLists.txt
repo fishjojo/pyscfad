@@ -142,7 +142,7 @@ set(C_LINK_TEMPLATE "<CMAKE_C_COMPILER> <CMAKE_SHARED_LIBRARY_C_FLAGS> <LANGUAGE
 include(ExternalProject)
 
 option(BUILD_LIBCINT "Using libcint for analytical gaussian integral" ON)
-option(WITH_F12 "Compling F12 integrals" ON)
+option(WITH_F12 "Compling F12 integrals" OFF)
 
 #FIXME here I have to rename libcint otherwise it conflicts with the one used by pyscf
 set(patch_libcint ${PROJECT_SOURCE_DIR}/apply_patch.sh libcint.patch)
@@ -178,6 +178,8 @@ if(ENABLE_CUDA)
 
   set(CMAKE_CUDA_STANDARD 17)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:${CUDAToolkit_LIBRARY_DIR}")
 
   add_subdirectory(cuda)
 endif()

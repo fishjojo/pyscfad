@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  publish_pypi_linux_x86_aarch64:
+  publish_pypi_linux_x86:
     name: publish linux_x86 wheels to pypi
     runs-on: ubuntu-latest
 
@@ -18,21 +18,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.0
-        env:
-          CIBW_ARCHS_LINUX: x86_64
-          # aarch64
-          #CIBW_ENVIRONMENT_PASS_LINUX: CIBW_ARCHS_LINUX
         with:
           package-dir: pyscfadlib
           output-dir: pyscfadlib/wheelhouse
           config-file: "{package}/pyproject.toml"
+        env:
+          CIBW_BUILD: cp311-*
+          CIBW_ARCHS_LINUX: x86_64
+          CIBW_ENVIRONMENT_LINUX: PATH="$PATH:/usr/local/cuda/bin"
+          CIBW_ENVIRONMENT_LINUX: LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda/lib64"
+          CIBW_ENVIRONMENT_LINUX: CMAKE_CONFIGURE_ARGS="-DENABLE_CUDA=ON"
+          CIBW_BEFORE_ALL_LINUX: "{package}/tools/prepare_build_environment_linux.sh"
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -41,6 +39,31 @@ jobs:
           path: pyscfadlib/wheelhouse/*.whl
           overwrite: true
 
+#  publish_pypi_linux_aarch64:
+#    name: publish linux_aarch64 wheels to pypi
+#    runs-on: ubuntu-latest
+#
+#    environment: release
+#    permissions:
+#      id-token: write
+#
+#    steps:
+#      - uses: actions/checkout@v4
+#
+#      - name: Set up QEMU
+#        uses: docker/setup-qemu-action@v3
+#        with:
+#          platforms: all
+#
+#      - name: Build wheels
+#        uses: pypa/cibuildwheel@v2.23.0
+#        env:
+#          CIBW_ARCHS_LINUX: aarch64
+#        with:
+#          package-dir: pyscfadlib
+#          output-dir: pyscfadlib/wheelhouse
+#          config-file: "{package}/pyproject.toml"
+#
 #      - name: Publish to PyPI
 #        uses: pypa/gh-action-pypi-publish@release/v1
 #        with:
