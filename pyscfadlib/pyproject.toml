@@ -47,12 +47,12 @@ cmake.source-dir = "pyscfadlib"
 [tool.cibuildwheel]
 build-verbosity = 1
 
-test-requires = ["pytest", "pyscf>=2.3"]
+test-requires = ["pytest", "pyscf>=2.3", "jax>=0.4.31,<=0.4.35"]
 test-command = "pytest {package}/test"
 #test-skip = "cp311-macosx_arm64"
 
 container-engine = "docker"
-manylinux-x86_64-image = "manylinux2014"
+manylinux-x86_64-image = "manylinux_2_28"
 skip = ["pp*", "*musllinux*"]
 
 [tool.cibuildwheel.config-settings]
@@ -68,7 +68,7 @@ before-all = [
     "yum-config-manager --enable epel",
     "yum install -y openblas-devel",
 #    "{package}/tools/prepare_build_environment_linux.sh",
-    "yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo",
+    "yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo",
     "yum install -y cuda-toolkit",
 ]
 environment = { PATH="$PATH:/usr/local/cuda/bin", LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda/lib64" }
@@ -76,7 +76,6 @@ repair-wheel-command = "auditwheel -v repair -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.linux.config-settings]
 "cmake.define.ENABLE_CUDA" = "ON"
-"cmake.define.CMAKE_VERBOSE_MAKEFILE" = "ON"
 
 [tool.cibuildwheel.macos]
 archs = ["auto64"]

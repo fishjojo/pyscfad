@@ -24,10 +24,10 @@ jobs:
           platforms: all
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.3
+        uses: pypa/cibuildwheel@v2.23.0
         env:
           CIBW_ARCHS_LINUX: x86_64 aarch64
-          CIBW_ENVIRONMENT_PASS_LINUX: CIBW_ARCHS_LINUX
+          #CIBW_ENVIRONMENT_PASS_LINUX: CIBW_ARCHS_LINUX
         with:
           package-dir: pyscfadlib
           output-dir: pyscfadlib/wheelhouse
