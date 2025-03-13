@@ -109,6 +109,7 @@ ffi::Error SygvdImpl(
         ++info_data;
     }
 
+    cusolverDnDestroy(handle);
     return ffi::Error::Success();
 }
 

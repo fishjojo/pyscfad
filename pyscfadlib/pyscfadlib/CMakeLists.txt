@@ -1,7 +1,10 @@
 cmake_minimum_required (VERSION 3.18)
 project (pyscfadlib)
 
-option(ENABLE_CUDA "Enable CUDA support" ON)
+option(ENABLE_CUDA "Enable CUDA support" OFF)
+if(DEFINED ENV{PYSCFADLIB_ENABLE_CUDA})
+    set(ENABLE_CUDA $ENV{PYSCFADLIB_ENABLE_CUDA} CACHE BOOL "Enable CUDA support" FORCE)
+endif()
 
 find_package(Python
   REQUIRED COMPONENTS Interpreter Development.Module
