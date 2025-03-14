@@ -10,4 +10,7 @@ yum-config-manager --enable epel
 yum install -y openblas-devel
 yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo
 #yum install -y cuda-toolkit
-yum install -y cuda-nvcc-12-8-12.8.93-1
+yum install -y cuda-nvcc-12-5-12.5.82-1
+yum install -y cuda-cudart-devel-12-5-12.5.82-1
+
+export PATH=$PATH:/usr/local/cuda/bin

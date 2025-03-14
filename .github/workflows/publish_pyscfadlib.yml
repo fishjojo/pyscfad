@@ -27,7 +27,7 @@ jobs:
         env:
           CIBW_BUILD: cp311-*
           CIBW_ARCHS_LINUX: x86_64
-          CIBW_ENVIRONMENT_LINUX: PATH=$PATH:/usr/local/cuda/bin
+          #CIBW_ENVIRONMENT_LINUX: PATH=$PATH:/usr/local/cuda/bin
           #                        LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
           CIBW_BEFORE_ALL_LINUX: "{package}/tools/prepare_build_environment_linux.sh"
           CIBW_CONFIG_SETTINGS_LINUX: "cmake.define.ENABLE_CUDA=ON"
