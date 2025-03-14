@@ -12,6 +12,3 @@ yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda
 #yum install -y cuda-toolkit
 yum install -y cuda-nvcc-12-8-12.8.93-1
 yum install -y cuda-cudart-devel-12-8-12.8.90-1
-
-export PATH=$PATH:/usr/local/cuda/bin
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
