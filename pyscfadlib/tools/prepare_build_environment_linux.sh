@@ -14,3 +14,4 @@ yum install -y cuda-nvcc-12-5-12.5.82-1
 yum install -y cuda-cudart-devel-12-5-12.5.82-1
 
 export PATH=$PATH:/usr/local/cuda/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
