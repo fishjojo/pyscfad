@@ -15,4 +15,5 @@ yum install -y \
     cuda-cudart-devel-12-8-12.8.90-1 \
     libcublas-devel-12-8-12.8.4.1-1 \
     libcusolver-devel-12-8-11.7.3.90-1 \
+    libcusparse-devel-12-8-12.5.8.93-1 \
     libnvjitlink-devel-12-8-12.8.93-1
