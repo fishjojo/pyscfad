@@ -1,5 +1,5 @@
-#include "kernel_nanobind_helpers.h"
-#include "cuda/solver_kernels.h"
+#include "pyscfadlib/kernel_nanobind_helpers.h"
+#include "pyscfadlib/cuda/solver_kernels.h"
 
 namespace pyscfad {
 namespace cuda {
@@ -13,7 +13,7 @@ nb::dict Registrations() {
     return dict;
 }
 
-NB_MODULE(pyscfad_cusolver, m) {
+NB_MODULE(_solver, m) {
     m.def("registrations", &Registrations);
 }
 

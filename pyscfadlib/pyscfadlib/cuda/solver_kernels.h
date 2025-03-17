@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <string>
 #include "xla/ffi/api/ffi.h"
-#include "cuda/vendor.h"
+#include "pyscfadlib/cuda/vendor.h"
 
 namespace pyscfad {
 namespace cuda {

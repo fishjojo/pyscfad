@@ -7,7 +7,7 @@ except ImportError:
 
 try:
     _cusolver = importlib.import_module(
-        ".pyscfad_cusolver", package="pyscfadlib",
+        "._solver", package="pyscfad_cuda12_plugin",
     )
 except ImportError:
     _cusolver = None

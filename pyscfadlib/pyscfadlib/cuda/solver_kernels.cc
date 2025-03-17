@@ -1,7 +1,7 @@
 #include "xla/ffi/api/ffi.h"
-#include "ffi_helpers.h"
-#include "cuda/vendor.h"
-#include "cuda/solver_kernels.h"
+#include "pyscfadlib/ffi_helpers.h"
+#include "pyscfadlib/cuda/vendor.h"
+#include "pyscfadlib/cuda/solver_kernels.h"
 
 namespace pyscfad {
 namespace cuda {

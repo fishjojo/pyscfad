@@ -41,7 +41,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 if (CMAKE_COMPILER_IS_GNUCC)
   if(UNIX AND NOT APPLE AND NOT DEFINED ENV{LDFLAGS})
-    set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--no-as-needed")
+    set(CMAKE_SHARED_LINKER_FLAGS "-Wl,--no-as-needed,--no-undefined")
   endif()
 endif()
 set(CMAKE_C_FLAGS "-Wall ${CMAKE_C_FLAGS}")
@@ -178,8 +178,6 @@ if(ENABLE_CUDA)
 
   set(CMAKE_CUDA_STANDARD 17)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-
-  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH}:${CUDAToolkit_LIBRARY_DIR}")
 
   add_subdirectory(cuda)
 endif()
