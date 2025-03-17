@@ -24,8 +24,14 @@ setup(
         'jaxlib>=0.4.31,<=0.4.35',
         'pyscf>=2.3',
         'pyscfadlib>=0.1.4',
-        #'pyscf-properties',
+        'pyscf-properties',
     ],
+    extras_require={
+        'cuda12': [
+            'jax[cuda12]>=0.4.31,<=0.4.35',
+            f'pyscfad-cuda12-plugin[with_cuda]=={__version__}',
+        ],
+    },
     url='https://github.com/fishjojo/pyscfad',
     license='MIT',
     classifiers=[

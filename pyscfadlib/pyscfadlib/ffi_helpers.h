@@ -7,6 +7,7 @@
 #include <memory>
 #include <numeric>
 #include <stdexcept>
+#include <string>
 #include <tuple>
 #include "xla/ffi/api/c_api.h"
 #include "xla/ffi/api/ffi.h"
@@ -34,6 +35,18 @@ auto AllocateScratchMemory(std::size_t size)
 {
     using ValueType = std::remove_extent_t<::xla::ffi::NativeType<dtype>>;
     return std::unique_ptr<ValueType[]>(new ValueType[size]);
+}
+
+template <typename T>
+inline auto AllocateWorkspace(::xla::ffi::ScratchAllocator& scratch,
+                              int64_t size, std::string_view name)
+{
+    auto maybe_workspace = scratch.Allocate(sizeof(T) * size);
+    if (!maybe_workspace.has_value()) {
+        throw std::runtime_error("Unable to allocate workspace for " +
+                                 std::string(name));
+    }
+    return static_cast<T*>(maybe_workspace.value());
 }
 
 inline int64_t GetBatchSize(::xla::ffi::Span<const int64_t> dims) {

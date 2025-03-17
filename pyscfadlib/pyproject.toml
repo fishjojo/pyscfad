@@ -1,5 +1,9 @@
 [build-system]
-requires = ["scikit-build-core", "nanobind"]
+requires = [
+    "scikit-build-core",
+    "nanobind",
+    "jax>=0.4.31,<=0.4.35",
+]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -16,7 +20,6 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -25,7 +28,7 @@ classifiers = [
 dependencies = [
     "numpy>=1.17",
     "nanobind",
-    "jaxlib>=0.4.31,<=0.4.35",
+    "jax>=0.4.31,<=0.4.35",
 ]
 
 [project.urls]
@@ -43,7 +46,7 @@ cmake.source-dir = "pyscfadlib"
 [tool.cibuildwheel]
 build-verbosity = 1
 
-test-requires = ["pytest", "pyscf>=2.3"]
+test-requires = ["pytest", "pyscf>=2.3", "jax>=0.4.31,<=0.4.35"]
 test-command = "pytest {package}/test"
 #test-skip = "cp311-macosx_arm64"
 

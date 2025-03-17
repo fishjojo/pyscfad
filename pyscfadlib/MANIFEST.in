@@ -1,5 +1,5 @@
 include MANIFEST.in
-include README.md setup.py LICENSE
+include README.md LICENSE pyproject.toml
 
 recursive-include pyscfadlib/thirdparty *.so
 include pyscfadlib/*.so pyscfadlib/config.h.in

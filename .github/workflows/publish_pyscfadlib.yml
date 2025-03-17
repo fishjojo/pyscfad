@@ -8,7 +8,7 @@ on:
 
 jobs:
   publish_pypi_linux_x86_aarch64:
-    name: publish linux_x86 wheels to pypi
+    name: publish linux_x86 linux_aarch64 wheels to pypi
     runs-on: ubuntu-latest
 
     environment: release
@@ -124,4 +124,3 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-

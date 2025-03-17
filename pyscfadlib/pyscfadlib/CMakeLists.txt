@@ -1,6 +1,11 @@
 cmake_minimum_required (VERSION 3.18)
 project (pyscfadlib)
 
+option(ENABLE_CUDA "Enable CUDA support" OFF)
+if(DEFINED ENV{PYSCFADLIB_ENABLE_CUDA})
+    set(ENABLE_CUDA $ENV{PYSCFADLIB_ENABLE_CUDA} CACHE BOOL "Enable CUDA support" FORCE)
+endif()
+
 find_package(Python
   REQUIRED COMPONENTS Interpreter Development.Module
   OPTIONAL_COMPONENTS Development.SABIModule
@@ -24,6 +29,10 @@ execute_process(
           "-c" "from jax.extend import ffi; print(ffi.include_dir())"
   OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE XLA_DIR)
 message(STATUS "XLA include directory: ${XLA_DIR}")
+
+if(NOT XLA_DIR)
+  message(FATAL_ERROR "Failed to find XLA include directory. Ensure JAX is installed and accessible.")
+endif()
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 17)
@@ -133,7 +142,7 @@ set(C_LINK_TEMPLATE "<CMAKE_C_COMPILER> <CMAKE_SHARED_LIBRARY_C_FLAGS> <LANGUAGE
 include(ExternalProject)
 
 option(BUILD_LIBCINT "Using libcint for analytical gaussian integral" ON)
-option(WITH_F12 "Compling F12 integrals" ON)
+option(WITH_F12 "Compling F12 integrals" OFF)
 
 #FIXME here I have to rename libcint otherwise it conflicts with the one used by pyscf
 set(patch_libcint ${PROJECT_SOURCE_DIR}/apply_patch.sh libcint.patch)
@@ -160,4 +169,15 @@ if(BUILD_LIBCINT)
         -DBUILD_MARCH_NATIVE:STRING=${BUILD_MARCH_NATIVE}
   )
   add_dependencies(cgto_ad libcint)
+endif()
+
+
+if(ENABLE_CUDA)
+  enable_language(CUDA)
+  find_package(CUDAToolkit REQUIRED)
+
+  set(CMAKE_CUDA_STANDARD 17)
+  set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
+  add_subdirectory(cuda)
 endif()

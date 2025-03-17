@@ -135,8 +135,14 @@ def _eigh_gen_cpu_gpu_lowering(
             "jobz": np.uint8(ord("V")),
             "uplo": np.uint8(ord("L" if lower else "U")),
         }
+    elif target_name_prefix == "cuda":
+        target_name = "cusolver_sygvd_ffi"
+        kwargs = {
+            "itype": np.int32(itype),
+            "lower": lower,
+        }
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f"Platform {target_name_prefix} is not supported.")
 
     info_aval = ShapedArray(batch_dims, np.int32)
 
@@ -200,7 +206,7 @@ mlir.register_lowering(
 )
 mlir.register_lowering(
     eigh_gen_p,
-    partial(_eigh_gen_cpu_gpu_lowering, target_name_prefix="cu"),
+    partial(_eigh_gen_cpu_gpu_lowering, target_name_prefix="cuda"),
     platform="cuda"
 )
 
