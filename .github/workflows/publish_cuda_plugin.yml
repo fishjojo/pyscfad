@@ -1,0 +1,44 @@
+name: Publish pyscfad-cuda-plugin
+
+on:
+  release:
+    types:
+      - released
+  workflow_dispatch:
+
+jobs:
+  build_wheel_linux_x86:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Bazel
+        run: |
+            sudo apt install apt-transport-https curl gnupg -y
+            curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor >bazel-archive-keyring.gpg
+            sudo mv bazel-archive-keyring.gpg /usr/share/keyrings
+            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/bazel-archive-keyring.gpg] https://storage.googleapis.com/bazel-apt stable jdk1.8" | sudo tee /etc/apt/sources.list.d/bazel.list
+            sudo apt update && sudo apt install bazel-7.4.1
+
+      - name: Build wheels
+        run: |
+            cd pyscfadlib
+            python build/build.py build
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: cuda_plugin_wheels
+          path: pyscfadlib/dist/*.whl
+          overwrite: true
