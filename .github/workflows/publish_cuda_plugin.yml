@@ -42,7 +42,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cuda_plugin_wheels_x86_64
-          path: wheelhouse_x86_64/*.whl
+          path: pyscfadlib/wheelhouse_x86_64/*.whl
           overwrite: true
 
       - name: Build wheel for aarch64
@@ -65,5 +65,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cuda_plugin_wheels_aarch64
-          path: wheelhouse_aarch64/*.whl
+          path: pyscfadlib/wheelhouse_aarch64/*.whl
           overwrite: true
