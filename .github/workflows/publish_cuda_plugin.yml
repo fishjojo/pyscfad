@@ -67,3 +67,24 @@ jobs:
           name: cuda_plugin_wheels_aarch64
           path: pyscfadlib/wheelhouse_aarch64/*.whl
           overwrite: true
+
+  publish_pypi_linux:
+    name: publish linux wheels to pypi
+    needs: build_wheel_linux
+    runs-on: ubuntu-latest
+
+    environment: release
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download wheels
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - run: ls -R dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
