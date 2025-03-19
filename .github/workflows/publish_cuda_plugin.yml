@@ -7,38 +7,84 @@ on:
   workflow_dispatch:
 
 jobs:
-  build_wheel_linux_x86:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-22.04]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+  build_wheel_linux:
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
         with:
-          python-version: ${{ matrix.python-version }}
+          platforms: all
 
-      - name: Install Bazel
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build wheel for x86_64
         run: |
-            sudo apt install apt-transport-https curl gnupg -y
-            curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor >bazel-archive-keyring.gpg
-            sudo mv bazel-archive-keyring.gpg /usr/share/keyrings
-            echo "deb [arch=amd64 signed-by=/usr/share/keyrings/bazel-archive-keyring.gpg] https://storage.googleapis.com/bazel-apt stable jdk1.8" | sudo tee /etc/apt/sources.list.d/bazel.list
-            sudo apt update && sudo apt install bazel-7.4.1
+          docker run --rm -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux2014_x86_64 bash -c "
+            yum install -y curl && \
+            curl -Lo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 && \
+            chmod +x /usr/local/bin/bazel && \
+            /opt/python/cp311-cp311/bin/pip install --upgrade pip setuptools wheel auditwheel && \
+            ln -s /opt/python/cp311-cp311/bin/python3 /usr/local/bin/python3 && \
+            cd pyscfadlib && \
+            python3 build/build.py build --python_version=3.10 && \
+            python3 build/build.py build --python_version=3.11 && \
+            python3 build/build.py build --python_version=3.12 && \
+            python3 build/build.py build --python_version=3.13 && \
+            auditwheel repair dist/*.whl -w wheelhouse_x86_64/ && \
+            rm -rf dist/
+          "
 
-      - name: Build wheels
-        run: |
-            cd pyscfadlib
-            python build/build.py build
-
-      - name: Upload wheels
+      - name: Upload x86_64 wheel
         uses: actions/upload-artifact@v4
         with:
-          name: cuda_plugin_wheels
-          path: pyscfadlib/dist/*.whl
+          name: cuda_plugin_wheels_x86_64
+          path: pyscfadlib/wheelhouse_x86_64/*.whl
           overwrite: true
+
+      - name: Build wheel for aarch64
+        run: |
+          docker run --rm --platform linux/arm64 -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux2014_aarch64 bash -c "
+            yum install -y curl && \
+            curl -Lo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 && \
+            chmod +x /usr/local/bin/bazel && \
+            /opt/python/cp311-cp311/bin/pip install --upgrade pip setuptools wheel auditwheel && \
+            ln -s /opt/python/cp311-cp311/bin/python3 /usr/local/bin/python3 && \
+            cd pyscfadlib && \
+            python3 build/build.py build --python_version=3.10 --target_cpu=aarch64 && \
+            python3 build/build.py build --python_version=3.11 --target_cpu=aarch64 && \
+            python3 build/build.py build --python_version=3.12 --target_cpu=aarch64 && \
+            python3 build/build.py build --python_version=3.13 --target_cpu=aarch64 && \
+            auditwheel repair dist/*.whl -w wheelhouse_aarch64/
+          "
+
+      - name: Upload aarch64 wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: cuda_plugin_wheels_aarch64
+          path: pyscfadlib/wheelhouse_aarch64/*.whl
+          overwrite: true
+
+  publish_pypi_linux:
+    name: publish linux wheels to pypi
+    needs: build_wheel_linux
+    runs-on: ubuntu-latest
+
+    environment: release
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download wheels
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - run: ls -R dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
