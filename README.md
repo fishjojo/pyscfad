@@ -19,6 +19,11 @@ Installation
 pip install pyscfad
 ```
 
+* To install the CUDA compatible version, run:
+```
+pip install pyscfad[cuda12]
+```
+
 * To install the development version, run:
 ```
 pip install git+https://github.com/fishjojo/pyscfad.git
@@ -31,7 +36,7 @@ The dependent C library `pyscfadlib` can be compiled from source following the i
 `numpy`, `scipy`,
 `pyscf>=2.3.0`,
 `pyscfadlib>=0.1.4`,
-`jax>=0.4.14,<=0.4.35`, and `jaxlib>=0.4.14,<=0.4.35`.
+`jax==0.4.35`, and `jaxlib==0.4.35`.
 
 Citing PySCFAD
 --------------

@@ -3,8 +3,6 @@ load(
     "nanobind_extension",
 )
 
-licenses(["notice"])
-
 package(
     default_applicable_licenses = [],
     default_visibility = ["//pyscfadlib:internal"],

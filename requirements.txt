@@ -1,8 +1,8 @@
 numpy>=1.17
 scipy
 h5py
-jax>=0.4.14,<=0.4.35
-jaxlib>=0.4.14,<=0.4.35
+jax==0.4.35
+jaxlib==0.4.35
 pyscf>=2.3
 pyscfadlib>=0.1.4
-pyscf-properties @ git+https://github.com/pyscf/properties
+pyscf-properties

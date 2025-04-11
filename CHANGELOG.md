@@ -1,5 +1,17 @@
 # Change log
 
+## pyscfad 0.1.9 (April 11, 2025)
+
+* Changes
+  * Drop support to Python 3.9.
+  * Refactor code for dynamic polarizability.
+  * Update for compatibility with pyscf 2.7, and 2.8.
+  * Add unrestricted KS-DFT.
+  * Add CUDA support.
+
+* Bug fixes
+  * Fix 1e integral high-order derivatives
+
 ## pyscfad 0.1.8 (October 30, 2024)
 
 * Changes
