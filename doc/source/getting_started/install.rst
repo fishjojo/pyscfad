@@ -8,7 +8,7 @@ Installation
 Python version support
 ----------------------
 
-Officially Python 3.9, 3.10, 3.11, 3.12, and 3.13.
+Officially Python 3.10, 3.11, 3.12, and 3.13.
 
 Installing from PyPI
 --------------------
@@ -18,6 +18,13 @@ pyscfad can be installed via pip from `PyPI <https://pypi.org/project/pyscfad/>`
 .. code::
 
    pip install pyscfad
+
+
+To install the CUDA compatible version, run
+
+.. code::
+
+    pip install pyscfad[cuda12]
 
 Installing from source
 ----------------------
@@ -82,8 +89,8 @@ Package                                                supported versions
 `numpy <https://numpy.org>`_                           >=1.17
 `scipy <https://scipy.org>`_                           >=1.7
 `h5py <https://www.h5py.org/>`_                        >=2.7
-`jax <https://jax.readthedocs.io/en/latest/>`_         >=0.4.14,<=0.4.35
-`jaxlib <https://pypi.org/project/jaxlib/>`_           >=0.4.14,<=0.4.35
+`jax <https://jax.readthedocs.io/en/latest/>`_         ==0.4.35
+`jaxlib <https://pypi.org/project/jaxlib/>`_           ==0.4.35
 `pyscf <https://pyscf.org/>`_                          >=2.3.0
 `pyscfadlib <https://pypi.org/project/pyscfadlib/>`_   >=0.1.4
 =====================================================  ==================
@@ -92,5 +99,5 @@ Package                                                supported versions
 
     Since jax version 0.4.36, the tracing machinery has been modified
     to eliminate data-dependent tracing, which conflicts with pyscfad's flexibility.
-    A comprehensive update to ensure compatibility with later jax versions may be
+    A comprehensive update to ensure compatibility with later jax versions will be
     introduced in the future pyscfad 0.2 release.
