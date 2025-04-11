@@ -104,7 +104,7 @@ def _getints2c_rc_jvp(intor, shls_slice, comp, hermi, out, rc_deriv,
 
     mol, = primals
     mol_t, = tangents
-    primal_out = _getints2c_rc(mol, intor, shls_slice, comp, hermi, out)
+    primal_out = _getints2c_rc(mol, intor, shls_slice, comp, hermi, out, rc_deriv)
     tangent_out = np.zeros_like(primal_out)
 
     if mol.coords is not None:
