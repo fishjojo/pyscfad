@@ -77,7 +77,7 @@ class Mole(pytree.PytreeNode, pyscf_mole.Mole):
         if self.coords is None:
             return np.asarray(super().atom_coords(unit))
         else:
-            if unit[:3].upper() == 'ANG':
+            if not pyscf_mole.is_au(unit):
                 return self.coords * param.BOHR
             else:
                 return self.coords
