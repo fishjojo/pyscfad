@@ -1,5 +1,10 @@
 # Change log
 
+## pyscfad 0.1.10 (April 12, 2025)
+
+* Changes
+  * Fix 0.1.9 wheel
+
 ## pyscfad 0.1.9 (April 11, 2025)
 
 * Changes

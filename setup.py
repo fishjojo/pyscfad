@@ -21,7 +21,6 @@ setup(
         'scipy',
         'h5py',
         'jax==0.4.35',
-        'jaxlib==0.4.35',
         'pyscf>=2.3',
         f'pyscfadlib>=0.1.4,<={__version__}',
         'pyscf-properties',

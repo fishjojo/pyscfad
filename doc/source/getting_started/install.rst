@@ -90,7 +90,6 @@ Package                                                supported versions
 `scipy <https://scipy.org>`_                           >=1.7
 `h5py <https://www.h5py.org/>`_                        >=2.7
 `jax <https://jax.readthedocs.io/en/latest/>`_         ==0.4.35
-`jaxlib <https://pypi.org/project/jaxlib/>`_           ==0.4.35
 `pyscf <https://pyscf.org/>`_                          >=2.3.0
 `pyscfadlib <https://pypi.org/project/pyscfadlib/>`_   >=0.1.4
 =====================================================  ==================
