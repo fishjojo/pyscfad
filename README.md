@@ -35,8 +35,8 @@ The dependent C library `pyscfadlib` can be compiled from source following the i
 `pyscfad` depends on
 `numpy`, `scipy`,
 `pyscf>=2.3.0`,
-`pyscfadlib>=0.1.4`,
-`jax==0.4.35`, and `jaxlib==0.4.35`.
+`pyscfadlib>=0.1.4`, and
+`jax==0.4.35`.
 
 Citing PySCFAD
 --------------

@@ -2,7 +2,6 @@ numpy>=1.17
 scipy
 h5py
 jax==0.4.35
-jaxlib==0.4.35
 pyscf>=2.3
 pyscfadlib>=0.1.4
 pyscf-properties
