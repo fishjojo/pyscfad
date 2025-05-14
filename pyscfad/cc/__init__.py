@@ -1,3 +1,6 @@
+"""
+Coupled cluster
+"""
 from . import rccsd
 from . import dfccsd
 

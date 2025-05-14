@@ -1,3 +1,6 @@
+"""
+Hartree-Fock theory
+"""
 from pyscfad.scf import hf
 from pyscfad.scf import uhf
 from pyscfad.scf import rohf

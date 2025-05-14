@@ -1,12 +1,14 @@
 import numpy
 from pyscf.lib import logger, current_memory
 from pyscf.df import make_auxbasis
+from pyscf.mp.mp2 import _mo_without_core, _mo_energy_without_core
 from pyscf.gw import rpa as pyscf_rpa
 from pyscfad import numpy as np
 from pyscfad import pytree
 from pyscfad.ops import vmap, jit
 from pyscfad import scf, dft, df
 from pyscfad.df.addons import restore
+from pyscfad.mp import dfmp2
 
 def kernel(rpa, mo_energy, mo_coeff, Lpq=None, nw=None, verbose=logger.NOTE):
     mf = rpa._scf
@@ -29,14 +31,8 @@ def kernel(rpa, mo_energy, mo_coeff, Lpq=None, nw=None, verbose=logger.NOTE):
 
     # Compute RPA correlation energy
     e_corr = get_rpa_ecorr(rpa, Lpq, freqs, wts)
-
-    # Compute totol energy
-    e_tot = e_hf + e_corr
-
-    logger.debug(rpa, '  RPA total energy = %s', e_tot)
     logger.debug(rpa, '  EXX energy = %s, RPA corr energy = %s', e_hf, e_corr)
-
-    return e_tot, e_hf, e_corr
+    return e_hf, e_corr
 
 @jit
 def get_rho_response(omega, mo_energy, Lpq):
@@ -65,8 +61,7 @@ def get_rpa_ecorr(rpa, Lpq, freqs, wts):
     fock = rks.get_fock(h1e, s1e, veff, dm)
     mo_energy, _ = rks.eig(fock, s1e)
 
-    #mo_energy = _mo_energy_without_core(rpa, rpa._scf.mo_energy)
-    mo_energy = pyscf_rpa._mo_energy_without_core(rpa, mo_energy)
+    mo_energy = _mo_energy_without_core(rpa, mo_energy)
     nocc = rpa.nocc
     naux = Lpq.shape[0]
 
@@ -86,34 +81,6 @@ def get_rpa_ecorr(rpa, Lpq, freqs, wts):
 class RPA(pytree.PytreeNode, pyscf_rpa.RPA):
     _dynamic_attr = {'_scf', 'mol', 'with_df'}
 
-    def __init__(self, mf, frozen=None, auxbasis=None):
-        self.mol = mf.mol
-        self._scf = mf
-        self.verbose = self.mol.verbose
-        self.stdout = self.mol.stdout
-        self.max_memory = mf.max_memory
-        self.frozen = frozen
-
-        if getattr(mf, 'with_df', None):
-            self.with_df = self._scf.with_df
-        else:
-            self.with_df = df.DF(mf.mol)
-            if auxbasis:
-                self.with_df.auxbasis = auxbasis
-            else:
-                self.with_df.auxbasis = make_auxbasis(mf.mol, mp2fit=True)
-
-        ##################################################
-        # don't modify the following attributes, they are not input options
-        self._nocc = None
-        self._nmo = None
-        self.mo_energy = mf.mo_energy
-        self.mo_coeff = mf.mo_coeff
-        self.mo_occ = mf.mo_occ
-        self.e_corr = None
-        self.e_hf = None
-        self.e_tot = None
-
     def kernel(self, mo_energy=None, mo_coeff=None, Lpq=None, nw=40):
         '''
         Args:
@@ -127,14 +94,14 @@ class RPA(pytree.PytreeNode, pyscf_rpa.RPA):
             self.e_corr : RPA correlation energy
         '''
         if mo_coeff is None:
-            mo_coeff = pyscf_rpa._mo_without_core(self, self._scf.mo_coeff)
+            mo_coeff = _mo_without_core(self, self._scf.mo_coeff)
         if mo_energy is None:
-            mo_energy = pyscf_rpa._mo_energy_without_core(self, self._scf.mo_energy)
+            mo_energy = _mo_energy_without_core(self, self._scf.mo_energy)
 
         log = logger.new_logger(self)
         self.dump_flags()
-        self.e_tot, self.e_hf, self.e_corr = \
-                        kernel(self, mo_energy, mo_coeff, Lpq=Lpq, nw=nw, verbose=self.verbose)
+        self.e_hf, self.e_corr = \
+            kernel(self, mo_energy, mo_coeff, Lpq=Lpq, nw=nw, verbose=self.verbose)
 
         log.timer('RPA')
         del log
