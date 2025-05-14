@@ -1,3 +1,6 @@
+"""
+Geometry optimization
+"""
 
 def optimize(*args, **kwargs):
     try:
