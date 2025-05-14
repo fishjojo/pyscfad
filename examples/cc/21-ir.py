@@ -6,7 +6,7 @@ IR intensity (km/mol): [56.40777805  4.46776132 22.64275908]
 '''
 import jax
 from pyscfad import gto, scf, cc
-from pyscfad.lib import numpy as np
+from pyscfad import numpy as np
 from pyscfad.prop.thermo import vib
 
 mol = gto.Mole()
