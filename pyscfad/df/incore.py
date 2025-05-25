@@ -98,6 +98,7 @@ def int3c_cross_jvp(intor, comp, aosym, shls_slice, out,
     return primal_out, tangent_out
 
 def _int3c_jvp_aux_cs(mol, auxmol, auxmol_t, intor, comp, aosym):
+    assert mol.cart == auxmol.cart
     ctr_coeff_len = len(auxmol.ctr_coeff)
     ctr_coeff_t = auxmol_t.ctr_coeff
     auxmol1 = get_fakemol_cs(auxmol)
@@ -154,12 +155,24 @@ def _int3c_jvp_aux_exp(mol, auxmol, auxmol_t, intor, comp, aosym):
     es, es_of, _env_of = setup_exp(auxmol)
 
     def _fill_grad_aux():
-        s = aux_e2(mol, auxmol1, intor, aosym=aosym, comp=comp)
         if aosym == 's2':
             nao_pair = nao*(nao+1)//2
         else:
             nao_pair = nao**2
-        s = s.reshape(comp, nao_pair, nauxao1)
+        if mol.cart:
+            s = aux_e2(mol, auxmol1, intor, aosym=aosym, comp=comp)
+            s = s.reshape(comp, nao_pair, nauxao1)
+        else:
+            from pyscf.lib import einsum
+            s = aux_e2(mol, auxmol1, intor, aosym='s1', comp=comp)
+            c = mol.cart2sph_coeff()
+            nao_c = c.shape[0]
+            s = s.reshape(comp, nao_c, nao_c, nauxao1).transpose(1,2,0,3)
+            s = einsum('pqxl,pi,qj->ijxl', s, c, c)
+            if aosym == 's2':
+                s = s[numpy.tril_indices(nao)]
+            s = s.reshape(nao_pair, comp, nauxao1).transpose(1,0,2)
+
         grad = numpy.zeros((comp,nao_pair,len(es),nauxao), dtype=s.dtype)
 
         p0 = p1 = 0
@@ -189,6 +202,7 @@ def _int3c_jvp_aux_exp(mol, auxmol, auxmol_t, intor, comp, aosym):
     if not auxmol.cart:
         c2s = np.asarray(auxmol.cart2sph_coeff())
         tangent_out = np.einsum('cip,pj->cij', tangent_out, c2s)
+        nauxao = auxmol.nao
 
     if aosym != 's2':
         tangent_out = tangent_out.reshape(comp, nao, nao, nauxao)
