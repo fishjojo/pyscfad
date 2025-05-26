@@ -5,6 +5,7 @@ auxiliary basis orbitals, or the alpha and beta parameters for even-tempered
 Gaussian functions, are optimized to minimize the overall difference between the
 density-fitting approximate integrals and the two-electron integrals in a
 least-squares sense.
+min \sum_{ij} |\sum_{PQ} (ij|P) (P|Q)^{-1} (ij|Q) - (ij|ij)|^2
 
 For more theoretical background, please refer to:
     Enhancing the Productivity of Quantum Chemistry Simulations in PySCF, arXiv:xxxx.xxxx
@@ -18,12 +19,13 @@ from jax import config
 config.update('jax_enable_x64', True)
 import jax.numpy as jnp
 from pyscfad import gto
-from pyscf.df.incore import aux_e2
 from pyscfad.gto.mole import setup_exp
 from pyscfad.df.incore import int3c_cross
+# int3c_cross is the AD version of aux_e2
+from pyscf.df.incore import aux_e2
 
 def setup_auxbasis(mol, auxbasis):
-    ref = mol.to_pyscf().intor('int2e', aosym='s4')
+    ref = mol.to_pyscf().intor('int2e', aosym='s4').diagonal()
     tril_idx = jnp.tril_indices(mol.nao)
 
     auxmol = gto.Mole()
@@ -33,32 +35,44 @@ def setup_auxbasis(mol, auxbasis):
     x0 = auxmol.exp
     _, _, env_ptr, unflatten_exp = setup_exp(auxmol, return_unravel_fn=True)
 
-    def f_residual_for_jacobian(x):
-        auxmol.exp = jnp.array(x)
+    def rebuild_auxbasis(inp):
+        return {
+            element: [[l, [float(e), 1.]] for l, e in _basis]
+            for element, _basis in unflatten_exp(inp).items()
+        }
+
+    def f_residual_for_jax(auxmol):
         int3c2e = int3c_cross(mol, auxmol, aosym='s1')[tril_idx]
         int2c2e = auxmol.intor('int2c2e')
-        return (int3c2e.dot(jnp.linalg.solve(int2c2e, int3c2e.T)) - ref).ravel()
+        return jnp.einsum('ip,pi->i', int3c2e, jnp.linalg.solve(int2c2e, int3c2e.T)) - ref
 
     # The jacobian is typically a very tall matrix
-    _jac = jax.jacfwd(f_residual_for_jacobian)
+    jax_jac = jax.jacfwd(f_residual_for_jax)
     def jac(x):
-        # Before calling jac, update the exponents for the current x.
-        # This assignment cannot be performed within f_residual_for_jacobian.
-        # The side-effect operation will cause TracerArrayConversionError
+        # Update the exponents in auxmol._env to the current x vector. The new
+        # _env is utilized by the underlying integral engine in PySCF.
+        # This assignment cannot be performed within f_residual_for_jax function.
+        # This side-effect operation will cause TracerArrayConversionError.
         auxmol._env[env_ptr] = x
-        return _jac(x)
+        # Also update the .exp attribute. This attribute is utilized by PySCFAD
+        # functions.
+        auxmol.exp = jnp.array(x)
+        return jax_jac(auxmol).exp
 
     def f_residual(x):
+        auxmol._env[env_ptr] = x
+        # f_residual can be computed using the f_residual_for_jax(auxmol).
+        # To utilize aosym='s2' (not supported by the int3c_cross function), the
+        # PySCF API is called to improve performance.
         _auxmol = auxmol.to_pyscf()
-        _auxmol._env[env_ptr] = x
         int3c2e = aux_e2(mol.to_pyscf(), _auxmol, aosym='s2')
         int2c2e = _auxmol.intor('int2c2e')
-        return (int3c2e.dot(np.linalg.solve(int2c2e, int3c2e.T)) - ref).ravel()
+        return np.einsum('ip,pi->i', int3c2e, np.linalg.solve(int2c2e, int3c2e.T)) - ref
 
-    return f_residual, jac, x0, unflatten_exp
+    return f_residual, jac, x0, rebuild_auxbasis
 
 def setup_etbs(mol, etbs):
-    ref = mol.to_pyscf().intor('int2e', aosym='s4')
+    ref = mol.to_pyscf().intor('int2e', aosym='s4').diagonal()
     tril_idx = jnp.tril_indices(mol.nao)
 
     auxbasis = {}
@@ -103,23 +117,23 @@ def setup_etbs(mol, etbs):
                 k += 1
         return jnp.hstack(exps)
 
-    def f_residual_for_jacobian(x):
+    def f_residual_for_jax(x):
         auxmol.exp = to_exp(x)
         int3c2e = int3c_cross(mol, auxmol, aosym='s1')[tril_idx]
         int2c2e = auxmol.intor('int2c2e')
-        return (int3c2e.dot(jnp.linalg.solve(int2c2e, int3c2e.T)) - ref).ravel()
+        return jnp.einsum('ip,pi->i', int3c2e, jnp.linalg.solve(int2c2e, int3c2e.T)) - ref
 
-    _jac = jax.jacfwd(f_residual_for_jacobian)
+    jax_jac = jax.jacfwd(f_residual_for_jax)
     def jac(x):
         auxmol._env[env_ptr] = to_exp(x)
-        return _jac(x)
+        return jax_jac(x)
 
     def f_residual(x):
         _auxmol = auxmol.to_pyscf()
         _auxmol._env[env_ptr] = to_exp(x)
         int3c2e = aux_e2(mol.to_pyscf(), _auxmol, aosym='s2')
         int2c2e = _auxmol.intor('int2c2e')
-        return (int3c2e.dot(np.linalg.solve(int2c2e, int3c2e.T)) - ref).ravel()
+        return np.einsum('ip,pi->i', int3c2e, np.linalg.solve(int2c2e, int3c2e.T)) - ref
 
     return f_residual, jac, x0, rebuild_etbs
 
@@ -129,7 +143,7 @@ if __name__ == '__main__':
 
     mol = gto.Mole()
     mol.atom = 'C 0. 0. 0.0; O 0. 0. 1.1'
-    mol.basis = 'cc-pvdz'
+    mol.basis = 'cc-pvtz'
     mol.build(trace_ctr_coeff=False, trace_exp=False)
 
     # Optimize auxbasis exponents
