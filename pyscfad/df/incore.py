@@ -22,7 +22,7 @@ from pyscfad.gto._mole_helper import (
     get_fakemol_exp,
     get_fakemol_cs,
 )
-from pyscfad.gto._moleintor_helper import get_bas_label, index_prompt_xyz
+from pyscfad.gto._moleintor_helper import index_prompt_xyz
 from . import addons, _int3c_cross_opt
 
 MAX_MEMORY = getattr(__config__, 'df_outcore_max_memory', 2000)
