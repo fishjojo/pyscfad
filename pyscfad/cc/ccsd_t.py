@@ -1,16 +1,14 @@
 import ctypes
 import numpy
 from jax import custom_vjp
-from jax.tree_util import tree_flatten, tree_unflatten
+from jax.tree_util import tree_flatten_with_path, tree_unflatten
 from pyscf.lib import (
     prange_tril,
     num_threads,
     current_memory,
-#    load_library
 )
 from pyscf.cc import ccsd_t as pyscf_ccsd_t
 from pyscfad.lib import logger
-#libcc = load_library('libcc')
 from pyscfadlib import libcc_vjp as libcc
 
 def kernel(mycc, eris, t1=None, t2=None, verbose=logger.NOTE):
@@ -36,24 +34,32 @@ def kernel(mycc, eris, t1=None, t2=None, verbose=logger.NOTE):
     def _ccsd_t_kernel_bwd(res, ybar):
         eris, t1, t2 = res
 
-        leaves, tree = tree_flatten(eris)
-        assert len(leaves) == 9
-        shapes = [leaf.shape for leaf in leaves]
-        del leaves
+        # TODO clean up tree unflatten
+        path_vals, treedef = tree_flatten_with_path(eris)
+        keys = [item[0][0].name for item in path_vals]
+        shapes = [item[1].shape for item in path_vals]
+        path_vals = None
 
         t1_bar, t2_bar, fock_bar, mo_energy_bar,\
             ovoo_bar, ovov_bar, ovvv_bar = _ccsd_t_energy_vjp(eris, t1, t2, ybar, max_memory)
 
-        leaves = [fock_bar,
-                  mo_energy_bar,
-                  numpy.zeros(shapes[2]),
-                  ovoo_bar,
-                  ovov_bar,
-                  numpy.zeros(shapes[5]),
-                  numpy.zeros(shapes[6]),
-                  ovvv_bar,
-                  numpy.zeros(shapes[8])]
-        eris_bar = tree_unflatten(tree, leaves)
+        leaves = [None] * len(keys)
+        key_to_bar = {
+            'fock': fock_bar,
+            'mo_energy': mo_energy_bar,
+            'ovoo': ovoo_bar,
+            'ovov': ovov_bar,
+            'ovvv': ovvv_bar,
+        }
+
+        for k, val in key_to_bar.items():
+            leaves[keys.index(k)] = val
+
+        for i, leaf in enumerate(leaves):
+            if leaf is None:
+                leaves[i] = numpy.zeros(shapes[i])
+
+        eris_bar = tree_unflatten(treedef, leaves)
         return eris_bar, t1_bar, t2_bar
 
     _ccsd_t_kernel.defvjp(_ccsd_t_kernel_fwd, _ccsd_t_kernel_bwd)

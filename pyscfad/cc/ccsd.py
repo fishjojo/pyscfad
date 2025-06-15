@@ -13,8 +13,8 @@ from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.tools.linear_solver import gen_gmres
 
 # attributes explicitly appearing in :fun:`update_amps` are dynamic
-ERI_Tracers = {'fock', 'mo_energy',
-               'oooo', 'ovoo', 'ovov', 'oovv', 'ovvo', 'ovvv', 'vvvv'}
+ERI_Tracers = ('fock', 'mo_energy',
+               'oooo', 'ovoo', 'ovov', 'oovv', 'ovvo', 'ovvv', 'vvvv')
 
 def _converged_iter(amp, mycc, eris):
     t1, t2 = mycc.vector_to_amplitudes(amp)
