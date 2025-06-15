@@ -110,11 +110,12 @@ class PytreeNodeMeta(type):
     def __new__(mcls, name, bases, dct, **kwargs):
         cls = super().__new__(mcls, name, bases, dct, **kwargs)
 
-        _dynamic_attr = set()
-        for base in cls.__mro__:
+        # preserve the order of the attributes
+        _dynamic_attr = []
+        for base in reversed(cls.__mro__):
             if hasattr(base, '_dynamic_attr'):
-                _dynamic_attr |= set(base._dynamic_attr)
-        _dynamic_attr = tuple(_dynamic_attr)
+                _dynamic_attr.extend(base._dynamic_attr)
+        _dynamic_attr = tuple(dict.fromkeys(_dynamic_attr))
 
         def _flatten(obj, keys=(), with_keys=False):
             if keys:
