@@ -45,11 +45,11 @@ def kernel(mycc, eris, t1=None, t2=None, verbose=logger.NOTE):
 
         leaves = [None] * len(keys)
         key_to_bar = {
-            "fock": fock_bar,
-            "mo_energy": mo_energy_bar,
-            "ovoo": ovoo_bar,
-            "ovov": ovov_bar,
-            "ovvv": ovvv_bar,
+            'fock': fock_bar,
+            'mo_energy': mo_energy_bar,
+            'ovoo': ovoo_bar,
+            'ovov': ovov_bar,
+            'ovvv': ovvv_bar,
         }
 
         for k, val in key_to_bar.items():
