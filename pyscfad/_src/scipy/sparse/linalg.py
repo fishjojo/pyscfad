@@ -11,7 +11,7 @@ def _matvec_to_scipy(matvec, b):
         # NOTE result may not be writable
         # (required by scipy>=1.12), so make a copy
         return numpy.array(ops.to_numpy(Ax))
-    A = LinearOperator((b.size, b.size), matvec=_matvec)
+    A = LinearOperator((b.size, b.size), matvec=_matvec, dtype=b.dtype)
     return A
 
 def gmres(A_or_matvec, b, x0=None, *,
