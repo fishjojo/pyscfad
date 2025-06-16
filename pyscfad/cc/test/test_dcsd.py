@@ -1,4 +1,3 @@
-import pytest
 import numpy
 import jax
 from pyscfad import scf
@@ -12,8 +11,7 @@ def test_df_nuc_grad(get_mol):
         mycc = dfdcsd.RDCSD(mf)
         mycc.kernel()
         return mycc.e_tot
-    with jax.disable_jit():
-        g1 = jax.grad(energy)(mol).coords
+    g1 = jax.grad(energy)(mol).coords
     # finite difference
     g0 = numpy.array([[0., 0., -0.08500490828],
                       [0., 0.,  0.08500490828]])
