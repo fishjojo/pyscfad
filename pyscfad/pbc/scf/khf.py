@@ -28,7 +28,7 @@ def get_hcore(mf, cell=None, kpts=None):
         raise NotImplementedError
     if len(cell._ecpbas) > 0:
         raise NotImplementedError
-    t = np.asarray(cell.pbc_intor('int1e_kin', comp=1, hermi=1, kpts=kpts))
+    t = np.asarray(cell.pbc_intor('int1e_kin', hermi=1, kpts=kpts))
     return nuc + t
 
 def energy_elec(mf, dm_kpts=None, h1e_kpts=None, vhf_kpts=None):

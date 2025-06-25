@@ -260,7 +260,7 @@ def _int1e_fill_jvp_r0_s2(ints, coords_t, aoslices, aoidx):
         grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
         return np.einsum('xij,x->ij', grad, coord_t)
     jvp = np.sum(vmap(_fill)(aoslices, coords_t), axis=0)
-    jvp += jvp.T
+    jvp += jvp.T.conj()
     return jvp
 
 def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b,

@@ -1,6 +1,7 @@
 from functools import wraps
 import warnings
 import copy
+import numpy
 import numpy as np
 from pyscf import lib
 from pyscf.pbc import tools as pyscf_pbctools
@@ -44,6 +45,20 @@ def fftk(f, mesh, expmikr):
 @wraps(pyscf_pbctools.ifftk)
 def ifftk(g, mesh, expikr):
     return ifft(g, mesh) * expikr
+
+def cutoff_to_mesh(a, cutoff):
+    """Batched version of :func:`pyscf.pbc.tools.cutoff_to_mesh`
+    """
+    a = numpy.asarray(a)
+    cutoff = numpy.asarray(cutoff)
+
+    b = 2 * numpy.pi * numpy.linalg.inv(a.T)
+    B = numpy.dot(b, b.T)
+    w, v = numpy.linalg.eigh(B)
+    Gmax = numpy.einsum("xy,...y->...x", v, numpy.sqrt(2 * cutoff[...,None] / w))
+
+    mesh = numpy.ceil(Gmax).astype(int) * 2 + 1
+    return mesh
 
 # modified from pyscf v2.6
 @wraps(pyscf_pbctools.get_lattice_Ls)
@@ -219,7 +234,6 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
     return coulG
 
 get_monkhorst_pack_size = stop_trace(pyscf_pbctools.get_monkhorst_pack_size)
-cutoff_to_mesh = stop_trace(pyscf_pbctools.cutoff_to_mesh)
 
 def madelung(cell, kpts):
     Nk = get_monkhorst_pack_size(cell, kpts)

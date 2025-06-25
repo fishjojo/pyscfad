@@ -1,9 +1,8 @@
-from functools import wraps
 import warnings
 import numpy
 from jax.scipy.special import erf, erfc
 from pyscf import __config__
-from pyscf.lib import cartesian_prod
+from pyscf.lib import with_doc
 from pyscf.gto.mole import PTR_COORD
 from pyscf.gto.moleintor import _get_intor_and_comp
 from pyscf.pbc.gto import cell as pyscf_cell
@@ -12,29 +11,26 @@ from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.ops import stop_grad
 from pyscfad.lib import logger
+from pyscfad.lib import cartesian_prod
 from pyscfad.gto import mole
 from pyscfad.gto._mole_helper import setup_exp, setup_ctr_coeff
 from pyscfad.pbc.gto import _pbcintor
 from pyscfad.pbc.gto.eval_gto import eval_gto as pbc_eval_gto
 from pyscfad.pbc import tools as pbctools
 
-@wraps(pyscf_cell.get_Gv)
-def get_Gv(cell, mesh=None, **kwargs):
-    return get_Gv_weights(cell, mesh, **kwargs)[0]
+@with_doc(pyscf_cell.get_Gv.__doc__)
+def get_Gv(cell, mesh=None):
+    return get_Gv_weights(cell, mesh)[0]
 
-@wraps(pyscf_cell.get_Gv_weights)
-def get_Gv_weights(cell, mesh=None, **kwargs):
+@with_doc(pyscf_cell.get_Gv_weights.__doc__)
+def get_Gv_weights(cell, mesh=None):
     if mesh is None:
         mesh = cell.mesh
-    if 'gs' in kwargs:
-        warnings.warn('cell.gs is deprecated.  It is replaced by cell.mesh,'
-                      'the number of PWs (=2*gs+1) along each direction.')
-        mesh = [2*n+1 for n in kwargs['gs']]
 
     # Default, the 3D uniform grids
-    rx = numpy.fft.fftfreq(mesh[0], 1./mesh[0])
-    ry = numpy.fft.fftfreq(mesh[1], 1./mesh[1])
-    rz = numpy.fft.fftfreq(mesh[2], 1./mesh[2])
+    rx = np.fft.fftfreq(mesh[0], 1./mesh[0])
+    ry = np.fft.fftfreq(mesh[1], 1./mesh[1])
+    rz = np.fft.fftfreq(mesh[2], 1./mesh[2])
     b = cell.reciprocal_vectors()
     weights = abs(np.linalg.det(b))
 
@@ -47,10 +43,10 @@ def get_Gv_weights(cell, mesh=None, **kwargs):
     Gv = Gv.reshape(-1, 3)
 
     # 1/cell.vol == det(b)/(2pi)^3
-    weights *= 1/(2*numpy.pi)**3
+    weights *= 1/(2*np.pi)**3
     return Gv, Gvbase, weights
 
-@wraps(pyscf_cell.get_SI)
+@with_doc(pyscf_cell.get_SI.__doc__)
 def get_SI(cell, Gv=None, mesh=None, atmlst=None):
     coords = cell.atom_coords()
     if atmlst is not None:
@@ -71,21 +67,22 @@ def get_SI(cell, Gv=None, mesh=None, atmlst=None):
         SI = np.exp(-1j * (coords @ Gv.T))
     return SI
 
-@wraps(pyscf_cell.get_uniform_grids)
+@with_doc(pyscf_cell.get_uniform_grids.__doc__)
 def get_uniform_grids(cell, mesh=None, wrap_around=True):
     if mesh is None:
         mesh = cell.mesh
 
     a = cell.lattice_vectors()
     if wrap_around:
-        qv = cartesian_prod([numpy.fft.fftfreq(x) for x in mesh])
+        qv = cartesian_prod([np.fft.fftfreq(x) for x in mesh])
         coords = qv @ a
     else:
-        mesh = numpy.asarray(mesh, float)
-        qv = cartesian_prod([numpy.arange(x) for x in mesh])
+        mesh = np.asarray(mesh, float)
+        qv = cartesian_prod([np.arange(x) for x in mesh])
         a_frac = (1./mesh)[:,None] * a
         coords = qv @ a_frac
     return coords
+
 gen_uniform_grids = get_uniform_grids
 
 def shift_bas_center(cell0, r):
@@ -141,7 +138,7 @@ def pbc_intor(cell, intor, comp=None, hermi=0, kpts=None, kpt=None,
                           kpt=kpt, shls_slice=shls_slice, **kwargs)
     return res
 
-@wraps(pyscf_cell.get_ewald_params)
+@with_doc(pyscf_cell.get_ewald_params.__doc__)
 def get_ewald_params(cell, precision=None, mesh=None):
     if cell.natm == 0:
         return 0, 0
@@ -165,7 +162,7 @@ def get_ewald_params(cell, precision=None, mesh=None):
     return ew_eta, ew_cut
 
 # modified from pyscf v2.3
-@wraps(pyscf_cell.ewald)
+@with_doc(pyscf_cell.ewald.__doc__)
 def ewald(cell, ew_eta=None, ew_cut=None):
     if cell.a is None:
         return mole.energy_nuc(cell)
@@ -199,7 +196,7 @@ def ewald(cell, ew_eta=None, ew_cut=None):
 
     Gv, Gvbase, weights = cell.get_Gv_weights(mesh)
     absG2 = np.einsum('gi,gi->g', Gv, Gv)
-    absG2 = np.where(absG2!=0, absG2, 1e200)
+    absG2 = np.where(absG2==0, np.inf, absG2)
 
     if cell.dimension != 2 or cell.low_dim_ft_type == 'inf_vacuum':
         # TODO: truncated Coulomb for 0D. The non-uniform grids for inf-vacuum
@@ -317,13 +314,13 @@ class Cell(mole.Mole, pyscf_cell.Cell):
         else:
             return self.abc
 
-    @wraps(pyscf_cell.Cell.get_scaled_atom_coords)
+    @with_doc(pyscf_cell.Cell.get_scaled_atom_coords.__doc__)
     def get_scaled_atom_coords(self, a=None):
         if a is None:
             a = self.lattice_vectors()
         return np.dot(self.atom_coords(), np.linalg.inv(a))
 
-    @wraps(pyscf_cell.Cell.reciprocal_vectors)
+    @with_doc(pyscf_cell.Cell.reciprocal_vectors.__doc__)
     def reciprocal_vectors(self, norm_to=2*numpy.pi):
         a = self.lattice_vectors()
         if self.dimension == 1:
@@ -336,11 +333,11 @@ class Cell(mole.Mole, pyscf_cell.Cell):
         b = np.linalg.inv(a.T)
         return norm_to * b
 
-    @wraps(pyscf_cell.Cell.get_abs_kpts)
+    @with_doc(pyscf_cell.Cell.get_abs_kpts.__doc__)
     def get_abs_kpts(self, scaled_kpts):
         return np.dot(scaled_kpts, self.reciprocal_vectors())
 
-    @wraps(pyscf_cell.Cell.cutoff_to_mesh)
+    @with_doc(pyscf_cell.Cell.cutoff_to_mesh.__doc__)
     def cutoff_to_mesh(self, ke_cutoff):
         a = self.lattice_vectors()
         dim = self.dimension

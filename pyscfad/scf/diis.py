@@ -11,10 +11,12 @@ class CDIIS(lib.diis.DIIS, pyscf_cdiis.CDIIS):
         self.incore = True
 
     def update(self, s, d, f, *args, **kwargs):
+        log = logger.new_logger(self)
+        cput0 = log.get_t0()
         errvec = get_err_vec(s, d, f, self.Corth)
         # no need to trace error vectors
         errvec = ops.to_numpy(errvec)
-        logger.debug1(self, 'diis-norm(errvec)=%g', numpy.linalg.norm(errvec))
+        log.debug1('diis-norm(errvec)=%g', numpy.linalg.norm(errvec))
         f_prev = kwargs.get('f_prev', None)
         if abs(self.damp) < 1e-6 or f_prev is None:
             xnew = lib.diis.DIIS.update(self, f, xerr=errvec)
@@ -23,6 +25,8 @@ class CDIIS(lib.diis.DIIS, pyscf_cdiis.CDIIS):
             xnew = lib.diis.DIIS.update(self, f, xerr=errvec)
         if self.rollback > 0 and len(self._bookkeep) == self.space:
             self._bookkeep = self._bookkeep[-self.rollback:]
+        log.timer('CDIIS.update', *cput0)
+        del log
         return xnew
 
 @ops.jit

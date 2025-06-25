@@ -16,12 +16,12 @@ def get_cell():
              2.6935121974  2.6935121974    0.    '''
     cell.basis = 'gth-szv'
     cell.pseudo = 'gth-pade'
-    cell.build(trace_coords=True)
+    cell.build(trace_exp=False, trace_ctr_coeff=False)
     return cell
 
 def func_norm(cell, intor, kpts=None):
-    s1 = cell.pbc_intor(intor, kpts=kpts)
-    if isinstance(s1, numpy.ndarray):
+    s1 = cell.pbc_intor(intor, hermi=1, kpts=kpts)
+    if getattr(s1, "ndim", None) == 2:
         s1 = [s1,]
     res = [jnp.sqrt(jnp.sum(s*s.conj()).real) for s in s1]
     return res
@@ -29,7 +29,7 @@ def func_norm(cell, intor, kpts=None):
 def int1e_deriv1_r0(cell, intor, kpts=None):
     intor_ip = intor.replace("int1e_", "int1e_ip")
     s1 = cell.pbc_intor(intor_ip, kpts=kpts)
-    if isinstance(s1, numpy.ndarray):
+    if getattr(s1, "ndim", None) == 2:
         s1 = [s1,]
 
     aoslices = cell.aoslice_by_atom()
@@ -49,7 +49,7 @@ def int1e_deriv1_r0(cell, intor, kpts=None):
 
 def test_int1e_r0(get_cell):
     cell = get_cell
-    kpts = cell.make_kpts([2,1,1])
+    kpts = cell.make_kpts([2,2,2])
 
     for intor in TEST_SET:
         jac_fwd = jax.jacfwd(func_norm)(cell, intor, kpts)

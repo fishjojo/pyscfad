@@ -12,12 +12,12 @@ Exclude_Aux_Names = ('verbose',)
 
 
 @wraps(pyscf_mole.inter_distance)
-def inter_distance(mol, coords=None):
+def inter_distance(mol, coords=None, shift=np.zeros(3)):
     if coords is None:
         coords = mol.atom_coords()
-    r = coords[:,None,:] - coords[None,:,:]
+    r = coords[:,None,:] - coords[None,:,:] - shift[None,None,:]
     rr = np.sum(r*r, axis=2)
-    rr = np.sqrt(np.where(rr>1e-10, rr, 0))
+    rr = np.sqrt(np.where(rr>1e-12, rr, 0))
     return rr
 
 @wraps(pyscf_mole.classical_coulomb_energy)
@@ -27,7 +27,7 @@ def classical_coulomb_energy(mol, charges=None, coords=None):
     if len(charges) <= 1:
         return 0.0
     rr = inter_distance(mol, coords)
-    rr = np.where(rr>1e-5, rr, 1e200)
+    rr = np.where(rr>1e-6, rr, np.inf)
     enuc = np.einsum('i,ij,j->', charges, 1./rr, charges) * .5
     return enuc
 

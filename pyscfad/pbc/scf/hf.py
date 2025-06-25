@@ -13,7 +13,7 @@ from pyscfad.pbc import df
 
 @wraps(pyscf_pbc_hf.get_ovlp)
 def get_ovlp(cell, kpt=np.zeros(3)):
-    s = cell.pbc_intor('int1e_ovlp', hermi=0, kpts=kpt)
+    s = cell.pbc_intor('int1e_ovlp', hermi=1, kpts=kpt)
     return np.asarray(s)
 
 class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
@@ -60,7 +60,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
             raise NotImplementedError
         if len(cell._ecpbas) > 0:
             raise NotImplementedError
-        h1 = cell.pbc_intor('int1e_kin', comp=1, hermi=1, kpts=kpt)
+        h1 = cell.pbc_intor('int1e_kin', hermi=1, kpts=kpt)
         return nuc + h1
 
     @wraps(pyscf_pbc_hf.SCF.get_jk)
@@ -114,7 +114,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
         return self
 
     def energy_nuc(self):
-        # recompute nuclear energy to trace it
+        # NOTE always compute nuclear energy to trace it
         return self.cell.energy_nuc()
 
     check_sanity = stop_trace(pyscf_pbc_hf.SCF.check_sanity)
@@ -128,5 +128,7 @@ class RHF(SCF, pyscf_pbc_hf.RHF):
 
 @wraps(pyscf_pbc_hf.normalize_dm_)
 def normalize_dm_(mf, dm, s1e=None):
+    # NOTE not tracing this function as it is mainly used
+    # to generate the initial density matrix
     return stop_trace(pyscf_pbc_hf.normalize_dm_)(mf, dm, s1e=s1e)
 

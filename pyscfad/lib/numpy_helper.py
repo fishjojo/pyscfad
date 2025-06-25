@@ -18,7 +18,8 @@ __all__ = [
     'SYMMETRIC',
     'unpack_triu',
     'unpack_tril',
-    'pack_tril'
+    'pack_tril',
+    'cartesian_prod',
 ]
 
 @partial(jit, static_argnums=1)
@@ -117,3 +118,11 @@ def pack_tril(a, axis=-1, out=None):
     else:
         raise NotImplementedError
     return tril
+
+@jit
+def cartesian_prod(arrays):
+    '''Cartesian product of a list of 1D arrays
+    '''
+    grids = np.meshgrid(*arrays, indexing='ij')
+    stacked = np.stack(grids, axis=-1)
+    return stacked.reshape(-1, len(arrays))
