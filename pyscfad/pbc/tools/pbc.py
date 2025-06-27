@@ -49,21 +49,24 @@ def ifftk(g, mesh, expikr):
 def cutoff_to_mesh(a, cutoff):
     """Batched version of :func:`pyscf.pbc.tools.cutoff_to_mesh`
     """
-    a = numpy.asarray(a)
-    cutoff = numpy.asarray(cutoff)
+    a = np.asarray(a)
+    cutoff = np.asarray(cutoff)
 
-    b = 2 * numpy.pi * numpy.linalg.inv(a.T)
-    B = numpy.dot(b, b.T)
-    w, v = numpy.linalg.eigh(B)
-    Gmax = numpy.einsum("xy,...y->...x", v, numpy.sqrt(2 * cutoff[...,None] / w))
+    b = 2 * np.pi * np.linalg.inv(a.T)
+    B = np.dot(b, b.T)
+    w, v = np.linalg.eigh(B)
+    Gmax = np.einsum("xy,...y->...x", v, np.sqrt(2 * cutoff[...,None] / w))
 
-    mesh = numpy.ceil(Gmax).astype(int) * 2 + 1
+    mesh = np.ceil(Gmax).astype(int) * 2 + 1
     return mesh
 
-# modified from pyscf v2.6
-@wraps(pyscf_pbctools.get_lattice_Ls)
 def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
+    """Same as :func:`pyscf.pbc.tools.get_lattice_Ls`,
+    but gives fewer periodic images for lattice summations.
+    """
     if dimension is None:
+        # For atoms near the boundary of the cell, it is necessary (even in low-
+        # dimensional systems) to include lattice translations in all 3 dimensions.
         if cell.dimension < 2 or cell.low_dim_ft_type == 'inf_vacuum':
             dimension = cell.dimension
         else:
@@ -71,22 +74,18 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
     if rcut is None:
         rcut = cell.rcut
 
-    if dimension == 0 or rcut <= 0:
+    if dimension == 0 or rcut <= 0 or cell.natm == 0:
         return np.zeros((1, 3))
 
-    a1 = cell.lattice_vectors()
-    a = ops.to_numpy(a1)
+    # need concrete `a` to compute `Ts`
+    a = ops.to_numpy(cell.lattice_vectors())
 
-    scaled_atom_coords = ops.to_numpy(cell.get_scaled_atom_coords())
+    scaled_atom_coords = ops.to_numpy(cell.get_scaled_atom_coords(a))
     atom_boundary_max = scaled_atom_coords[:,:dimension].max(axis=0)
     atom_boundary_min = scaled_atom_coords[:,:dimension].min(axis=0)
-    if (np.any(atom_boundary_max > 1) or np.any(atom_boundary_min < -1)):
-        atom_boundary_max[atom_boundary_max > 1] = 1
-        atom_boundary_min[atom_boundary_min <-1] = -1
-    ovlp_penalty = atom_boundary_max - atom_boundary_min
-    dR = ovlp_penalty.dot(a[:dimension])
-    dR_basis = np.diag(dR)
+    ovlp_penalty = np.maximum(abs(atom_boundary_max), abs(atom_boundary_min))
 
+    dR_basis = np.zeros((3,3))
     def find_boundary(a):
         aR = np.vstack([a, dR_basis])
         r = np.linalg.qr(aR.T)[1]
@@ -102,19 +101,18 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
         zb = find_boundary(a)
     else:
         zb = 0
-    bounds = np.ceil([xb, yb, zb]).astype(int)
+    bounds = np.asarray([xb, yb, zb]) + ovlp_penalty
+    bounds = np.ceil(bounds).astype(int)
     Ts = lib.cartesian_prod((np.arange(-bounds[0], bounds[0]+1),
                              np.arange(-bounds[1], bounds[1]+1),
                              np.arange(-bounds[2], bounds[2]+1)))
-    Ls = jnp.dot(Ts[:,:dimension], a1[:dimension])
 
+    Ls = jnp.dot(Ts[:,:dimension], cell.lattice_vectors()[:dimension])
     if discard:
-        ovlp_penalty += 1e-200  # avoid /0
-        Ts_scaled = (Ts[:,:dimension] + 1e-200) / ovlp_penalty
-        ovlp_penalty_fac = 1. / abs(Ts_scaled).min(axis=1)
-        Ls_mask = np.linalg.norm(stop_grad(Ls), axis=1) * (1-ovlp_penalty_fac) < rcut
+        rcut_penalty = np.linalg.norm(np.dot(atom_boundary_max - atom_boundary_min, a))
+        Ls_mask = jnp.where(jnp.linalg.norm(Ls, axis=1) < rcut + rcut_penalty)[0]
         Ls = Ls[Ls_mask]
-    return jnp.asarray(Ls)
+    return Ls
 
 
 @wraps(pyscf_pbctools.get_coulG)
