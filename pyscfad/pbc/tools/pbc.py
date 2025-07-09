@@ -1,6 +1,5 @@
 from functools import wraps
 import warnings
-import copy
 import numpy
 import numpy as np
 from pyscf import lib
@@ -46,20 +45,6 @@ def fftk(f, mesh, expmikr):
 def ifftk(g, mesh, expikr):
     return ifft(g, mesh) * expikr
 
-def cutoff_to_mesh(a, cutoff):
-    """Batched version of :func:`pyscf.pbc.tools.cutoff_to_mesh`
-    """
-    a = np.asarray(a)
-    cutoff = np.asarray(cutoff)
-
-    b = 2 * np.pi * np.linalg.inv(a.T)
-    B = np.dot(b, b.T)
-    w, v = np.linalg.eigh(B)
-    Gmax = np.einsum("xy,...y->...x", v, np.sqrt(2 * cutoff[...,None] / w))
-
-    mesh = np.ceil(Gmax).astype(int) * 2 + 1
-    return mesh
-
 def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
     """Same as :func:`pyscf.pbc.tools.get_lattice_Ls`,
     but gives fewer periodic images for lattice summations.
@@ -75,7 +60,7 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
         rcut = cell.rcut
 
     if dimension == 0 or rcut <= 0 or cell.natm == 0:
-        return np.zeros((1, 3))
+        return numpy.zeros((1, 3))
 
     # need concrete `a` to compute `Ts`
     a = ops.to_numpy(cell.lattice_vectors())
@@ -83,12 +68,11 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
     scaled_atom_coords = ops.to_numpy(cell.get_scaled_atom_coords(a))
     atom_boundary_max = scaled_atom_coords[:,:dimension].max(axis=0)
     atom_boundary_min = scaled_atom_coords[:,:dimension].min(axis=0)
-    ovlp_penalty = np.maximum(abs(atom_boundary_max), abs(atom_boundary_min))
-
-    dR_basis = np.zeros((3,3))
+    ovlp_penalty = numpy.maximum(abs(atom_boundary_max), abs(atom_boundary_min))
+    dR_basis = numpy.zeros((3,3))
     def find_boundary(a):
-        aR = np.vstack([a, dR_basis])
-        r = np.linalg.qr(aR.T)[1]
+        aR = numpy.vstack([a, dR_basis])
+        r = numpy.linalg.qr(aR.T)[1]
         ub = (rcut + abs(r[2,3:]).sum()) / abs(r[2,2])
         return ub
 
@@ -101,15 +85,15 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
         zb = find_boundary(a)
     else:
         zb = 0
-    bounds = np.asarray([xb, yb, zb]) + ovlp_penalty
-    bounds = np.ceil(bounds).astype(int)
-    Ts = lib.cartesian_prod((np.arange(-bounds[0], bounds[0]+1),
-                             np.arange(-bounds[1], bounds[1]+1),
-                             np.arange(-bounds[2], bounds[2]+1)))
+    bounds = numpy.asarray([xb, yb, zb]) + ovlp_penalty
+    bounds = numpy.ceil(bounds).astype(int)
+    Ts = lib.cartesian_prod((numpy.arange(-bounds[0], bounds[0]+1),
+                             numpy.arange(-bounds[1], bounds[1]+1),
+                             numpy.arange(-bounds[2], bounds[2]+1)))
 
     Ls = jnp.dot(Ts[:,:dimension], cell.lattice_vectors()[:dimension])
     if discard:
-        rcut_penalty = np.linalg.norm(np.dot(atom_boundary_max - atom_boundary_min, a))
+        rcut_penalty = numpy.linalg.norm(numpy.dot(atom_boundary_max - atom_boundary_min, a))
         Ls_mask = jnp.where(jnp.linalg.norm(Ls, axis=1) < rcut + rcut_penalty)[0]
         Ls = Ls[Ls_mask]
     return Ls
@@ -232,10 +216,12 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
     return coulG
 
 get_monkhorst_pack_size = stop_trace(pyscf_pbctools.get_monkhorst_pack_size)
+cutoff_to_mesh = stop_trace(pyscf_pbctools.cutoff_to_mesh)
 
-def madelung(cell, kpts):
+def madelung(cell, kpts, omega=None):
     Nk = get_monkhorst_pack_size(cell, kpts)
-    ecell = copy.copy(cell)
+    ecell = cell.copy()
+    ecell.coords = np.array([[0., 0., 0.],])
     ecell._atm = np.array([[1, cell._env.size, 0, 0, 0, 0]])
     ecell._env = np.append(cell._env, [0., 0., 0.])
     ecell.unit = 'B'
@@ -245,13 +231,18 @@ def madelung(cell, kpts):
         return -2*ecell.ewald()
     else:
         precision = cell.precision
-        omega = cell.omega
         Ecut = 10.
         Ecut = np.log(16*np.pi**2/(2*omega**2*(2*Ecut)**.5) / precision + 1.) * 2*omega**2
         Ecut = np.log(16*np.pi**2/(2*omega**2*(2*Ecut)**.5) / precision + 1.) * 2*omega**2
         mesh = cutoff_to_mesh(a, Ecut)
         Gv, Gvbase, weights = ecell.get_Gv_weights(mesh)
-        wcoulG = get_coulG(ecell, Gv=Gv) * weights
+        wcoulG = get_coulG(ecell, Gv=Gv, omega=abs(omega), exxdiv=None) * weights
         SI = ecell.get_SI(mesh=mesh)
         ZSI = SI[0]
-        return 2*omega/np.pi**0.5-jnp.einsum('i,i,i->', ZSI.conj(), ZSI, wcoulG).real
+        e_lr = (2*abs(omega)/np.pi**0.5 -
+                np.einsum('i,i,i->', ZSI.conj(), ZSI, wcoulG).real)
+        if omega > 0:
+            return e_lr
+        else:
+            e_fr = -2*ecell.ewald() # The full-range Coulomb
+            return e_fr - e_lr

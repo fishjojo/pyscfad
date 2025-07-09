@@ -1,8 +1,8 @@
 import sys
-from functools import wraps
 import h5py
 import numpy
 from pyscf import __config__
+from pyscf.lib import with_doc
 from pyscf.pbc.scf import hf as pyscf_pbc_hf
 from pyscf.pbc.scf.hf import _format_jks
 from pyscfad import numpy as np
@@ -11,7 +11,7 @@ from pyscfad.lib import logger
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
 
-@wraps(pyscf_pbc_hf.get_ovlp)
+@with_doc(pyscf_pbc_hf.get_ovlp.__doc__)
 def get_ovlp(cell, kpt=np.zeros(3)):
     s = cell.pbc_intor('int1e_ovlp', hermi=1, kpts=kpt)
     return np.asarray(s)
@@ -28,6 +28,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
     mo_energy : array
         MO energies.
     """
+    _dynamic_attr = ["cell",]
     def __init__(self, cell, kpt=numpy.zeros(3),
                  exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')):
         if not cell._built:
@@ -63,7 +64,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
         h1 = cell.pbc_intor('int1e_kin', hermi=1, kpts=kpt)
         return nuc + h1
 
-    @wraps(pyscf_pbc_hf.SCF.get_jk)
+    @with_doc(pyscf_pbc_hf.SCF.get_jk.__doc__)
     def get_jk(self, cell=None, dm=None, hermi=1, kpt=None, kpts_band=None,
                with_j=True, with_k=True, omega=None, **kwargs):
         if cell is None:
@@ -117,7 +118,23 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
         # NOTE always compute nuclear energy to trace it
         return self.cell.energy_nuc()
 
-    check_sanity = stop_trace(pyscf_pbc_hf.SCF.check_sanity)
+    def check_sanity(self):
+        # TODO need better way to adapt pyscf's check_sanity
+        return self
+
+    def dump_flags(self, verbose=None):
+        mol_hf.SCF.dump_flags(self, verbose)
+        logger.info(self, '******** PBC SCF flags ********')
+        if hasattr(self, 'kpts'):
+            logger.info(self, 'kpts = %s', self.kpts)
+        elif hasattr(self, 'kpt'):
+            logger.info(self, 'kpt = %s', self.kpt)
+        logger.info(self, 'Exchange divergence treatment (exxdiv) = %s', self.exxdiv)
+        if getattr(self, 'smearing_method', None) is not None:
+            logger.info(self, 'Smearing method = %s', self.smearing_method)
+        logger.info(self, 'DF object = %s', self.with_df)
+        return self
+
     get_veff = pyscf_pbc_hf.SCF.get_veff
     energy_grad = NotImplemented
 
@@ -126,7 +143,7 @@ class RHF(SCF, pyscf_pbc_hf.RHF):
     pass
 
 
-@wraps(pyscf_pbc_hf.normalize_dm_)
+@with_doc(pyscf_pbc_hf.normalize_dm_.__doc__)
 def normalize_dm_(mf, dm, s1e=None):
     # NOTE not tracing this function as it is mainly used
     # to generate the initial density matrix

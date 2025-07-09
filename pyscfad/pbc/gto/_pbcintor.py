@@ -33,9 +33,9 @@ def _pbc_intor_jvp(intor, comp, hermi, kpts, kpt, shls_slice,
         tangent_out = _int1e_jvp_r0(mol, mol_t, intor_ip, hermi, kpts, kpt, shls_slice)
 
     if mol.ctr_coeff is not None:
-        pass
+        raise NotImplementedError
     if mol.exp is not None:
-        pass
+        raise NotImplementedError
 
     return primal_out, tangent_out
 
@@ -48,7 +48,7 @@ def _int1e_jvp_r0(mol, mol_t, intor, hermi, kpts, kpt, shls_slice):
                     kpts=kpts, kpt=kpt, shls_slice=shls_slice)
 
     gamma = False
-    if getattr(s1, "ndim", None) == 2:
+    if getattr(s1, "ndim", None) == 3:
         s1 = [s1,]
         gamma = True
 

@@ -16,7 +16,7 @@ def get_cell():
     cell.basis = 'gth-szv'
     cell.pseudo = 'gth-pade'
     cell.mesh = [5,5,5]
-    cell.build(trace_coords=True)
+    cell.build()
     return cell
 
 def test_SI(get_cell):

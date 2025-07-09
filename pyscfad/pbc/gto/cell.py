@@ -412,6 +412,15 @@ class Cell(mole.Mole, pyscf_cell.Cell):
             return mole.eval_gto(self, eval_name, coords, comp,
                                  shls_slice, non0tab, ao_loc, out)
 
+    def to_pyscf(self):
+        cell = self.view(pyscf_cell.Cell)
+        del cell.coords
+        del cell.exp
+        del cell.ctr_coeff
+        del cell.r0
+        del cell.abc
+        return cell
+
     bas_rcut = bas_rcut
     eval_ao = eval_gto
     pbc_intor = pbc_intor

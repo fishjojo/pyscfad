@@ -89,20 +89,21 @@ def get_pp(mydf, kpts=None):
                     #:tmp = numpy.einsum('ij,jmp->imp', hl, SPG_lm_aoG)
                     #:vppnl += numpy.einsum('imp,imq->pq', SPG_lm_aoG.conj(), tmp)
 
-            buf = np.vstack(buf)
-            if p1 > 0:
-                #SPG_lmi = buf #buf[:p1]
-                SPG_lmi = buf * SI[ia].conj()
-                SPG_lm_aoGs = np.dot(SPG_lmi, aokG)
-                p1 = 0
-                for l, proj in enumerate(pp[5:]):
-                    rl, nl, hl = proj
-                    if nl > 0:
-                        p0, p1 = p1, p1+nl*(l*2+1)
-                        hl = numpy.asarray(hl)
-                        SPG_lm_aoG = SPG_lm_aoGs[p0:p1].reshape(nl,l*2+1,-1)
-                        tmp = np.einsum('ij,jmp->imp', hl, SPG_lm_aoG)
-                        vppnl += np.einsum('imp,imq->pq', SPG_lm_aoG.conj(), tmp)
+            if len(buf) > 0:
+                buf = np.vstack(buf)
+                if p1 > 0:
+                    #SPG_lmi = buf #buf[:p1]
+                    SPG_lmi = buf * SI[ia].conj()
+                    SPG_lm_aoGs = np.dot(SPG_lmi, aokG)
+                    p1 = 0
+                    for l, proj in enumerate(pp[5:]):
+                        rl, nl, hl = proj
+                        if nl > 0:
+                            p0, p1 = p1, p1+nl*(l*2+1)
+                            hl = numpy.asarray(hl)
+                            SPG_lm_aoG = SPG_lm_aoGs[p0:p1].reshape(nl,l*2+1,-1)
+                            tmp = np.einsum('ij,jmp->imp', hl, SPG_lm_aoG)
+                            vppnl += np.einsum('imp,imq->pq', SPG_lm_aoG.conj(), tmp)
         #return vppnl * (1./cell.vol)
         return vppnl * (1./ngrids**2)
 

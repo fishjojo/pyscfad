@@ -9,9 +9,16 @@ coverage erase
 
 MODULES=("scipy" "gto" "scf" "dft" "cc" "fci" "gw" "mp" "tdscf" "lo" "pbc")
 
+FAILED=0
+
 for mod in "${MODULES[@]}"; do
-    pytest "./pyscfad/$mod" --cov=pyscfad --cov-report=xml --verbosity=1 --durations=5 --cov-append
+    pytest "./pyscfad/$mod" --cov=pyscfad --cov-report=xml --verbosity=1 --durations=5 --cov-append || FAILED=1
 done
 
 #coverage report -m
 coverage xml
+
+if [ "$FAILED" -ne 0 ]; then
+    echo "One or more test modules failed."
+    exit 1
+fi

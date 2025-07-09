@@ -195,5 +195,3 @@ class KRHF(KSCF, pyscf_khf.KRHF):
                          'of electrons %s', ne/nkpts, nelectron/nkpts)
             dm_kpts *= (nelectron / ne).reshape(-1,1,1)
         return dm_kpts
-
-    check_sanity = stop_trace(pyscf_khf.KRHF.check_sanity)

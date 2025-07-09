@@ -342,7 +342,7 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
         Two-electron repulsion integrals.
     """
     DIIS = SCF_DIIS
-    _dynamic_attr = {'mol', '_eri', 'mo_coeff', 'mo_energy'}
+    _dynamic_attr = Traced_Attributes
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
                omega=None):
