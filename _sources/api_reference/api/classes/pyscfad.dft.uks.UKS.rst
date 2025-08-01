@@ -55,6 +55,7 @@ pyscfad.dft.uks.UKS
          
          
          
+         
            ~UKS.energy_elec
          
          
@@ -75,6 +76,7 @@ pyscfad.dft.uks.UKS
          
          
            ~UKS.get_veff
+         
          
          
          

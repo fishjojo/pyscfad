@@ -29,6 +29,7 @@ pyscfad.tdscf.rhf.CIS
          
          
          
+         
            ~CIS.gen_vind
          
          
@@ -36,7 +37,10 @@ pyscfad.tdscf.rhf.CIS
          
          
          
+         
+         
            ~CIS.kernel
+         
          
          
          

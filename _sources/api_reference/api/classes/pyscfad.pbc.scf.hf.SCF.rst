@@ -29,6 +29,7 @@ pyscfad.pbc.scf.hf.SCF
          
          
          
+         
            ~SCF.check_sanity
          
          
@@ -45,6 +46,7 @@ pyscfad.pbc.scf.hf.SCF
          
          
            ~SCF.energy_nuc
+         
          
          
          
@@ -72,6 +74,7 @@ pyscfad.pbc.scf.hf.SCF
          
          
            ~SCF.get_veff
+         
          
          
          

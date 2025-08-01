@@ -38,6 +38,7 @@ pyscfad.pbc.dft.rks.RKS
          
          
          
+         
            ~RKS.dump_flags
          
          
@@ -62,11 +63,11 @@ pyscfad.pbc.dft.rks.RKS
          
          
          
-         
            ~RKS.get_rho
          
          
            ~RKS.get_veff
+         
          
          
          

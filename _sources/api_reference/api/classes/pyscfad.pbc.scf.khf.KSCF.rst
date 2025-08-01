@@ -35,6 +35,7 @@ pyscfad.pbc.scf.khf.KSCF
          
          
          
+         
            ~KSCF.dump_chk
          
          
@@ -44,6 +45,7 @@ pyscfad.pbc.scf.khf.KSCF
          
          
            ~KSCF.energy_elec
+         
          
          
          
@@ -97,6 +99,7 @@ pyscfad.pbc.scf.khf.KSCF
          
          
            ~KSCF.make_rdm1
+         
          
          
          

@@ -22,7 +22,6 @@ pyscfad.gw.rpa.RPA
       
          
          
-         
            ~RPA.ao2mo
          
          

@@ -33,7 +33,7 @@
     <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/plot_directive.css" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/sphinx-design.min.css?v=95c83b7e" />
   
   <!-- So that users can add custom icons -->
@@ -48,6 +48,8 @@
     <script src="../../../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/classes/methods/pyscfad.pbc.dft.krks.KRKS.energy_elec';</script>
     <script src="../../../../_static/custom-icon.js?v=40bda21d"></script>
     <link rel="icon" href="../../../../_static/pyscfad_logo.svg"/>
@@ -58,7 +60,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.1.10" />
-    <meta name="docbuild:last-update" content="Jun 16, 2025"/>
+    <meta name="docbuild:last-update" content="Aug 01, 2025"/>
   </head>
   
   
@@ -820,11 +822,9 @@
 <span class="sig-prename descclassname"><span class="pre">KRKS.</span></span><span class="sig-name descname"><span class="pre">energy_elec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dm_kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">h1e_kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vhf</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/pbc/dft/krks.py#L111-L124"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.dft.krks.KRKS.energy_elec" title="Link to this definition">#</a></dt>
 <dd><p>Electronic part of Hartree-Fock energy, for given core hamiltonian and
 HF potential</p>
-<p>… math:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">E</span> <span class="o">=</span> \<span class="n">sum_</span><span class="p">{</span><span class="n">ij</span><span class="p">}</span><span class="n">h_</span><span class="p">{</span><span class="n">ij</span><span class="p">}</span> \<span class="n">gamma_</span><span class="p">{</span><span class="n">ji</span><span class="p">}</span>
-  <span class="o">+</span> \<span class="n">frac</span><span class="p">{</span><span class="mi">1</span><span class="p">}{</span><span class="mi">2</span><span class="p">}</span>\<span class="n">sum_</span><span class="p">{</span><span class="n">ijkl</span><span class="p">}</span> \<span class="n">gamma_</span><span class="p">{</span><span class="n">ji</span><span class="p">}</span>\<span class="n">gamma_</span><span class="p">{</span><span class="n">lk</span><span class="p">}</span> \<span class="n">langle</span> <span class="n">ik</span><span class="o">||</span><span class="n">jl</span>\<span class="n">rangle</span>
-</pre></div>
-</div>
+<div class="math notranslate nohighlight">
+\[E = \sum_{ij}h_{ij} \gamma_{ji}
+  + \frac{1}{2}\sum_{ijkl} \gamma_{ji}\gamma_{lk} \langle ik||jl\rangle\]</div>
 <p>Note this function has side effects which cause mf.scf_summary updated.</p>
 <dl class="simple">
 <dt>Args:</dt><dd><p>mf : an instance of SCF class</p>

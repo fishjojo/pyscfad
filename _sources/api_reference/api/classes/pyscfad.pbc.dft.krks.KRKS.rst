@@ -38,6 +38,7 @@ pyscfad.pbc.dft.krks.KRKS
          
          
          
+         
            ~KRKS.dump_flags
          
          
@@ -63,11 +64,11 @@ pyscfad.pbc.dft.krks.KRKS
          
          
          
-         
            ~KRKS.get_rho
          
          
            ~KRKS.get_veff
+         
          
          
          

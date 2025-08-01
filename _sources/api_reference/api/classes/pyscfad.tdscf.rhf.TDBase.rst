@@ -29,11 +29,14 @@ pyscfad.tdscf.rhf.TDBase
          
          
          
+         
            ~TDBase.get_ab
          
          
          
+         
            ~TDBase.get_precond
+         
          
          
          
