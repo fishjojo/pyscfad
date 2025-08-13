@@ -31,16 +31,12 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
 
     log = logger.new_logger(ks)
 
-    omega, alpha, hyb = ks._numint.rsh_and_hybrid_coeff(ks.xc, spin=cell.spin)
-    hybrid = abs(hyb) > 1e-10 or abs(alpha) > 1e-10
+    ni = ks._numint
+    if isinstance(ni, multigrid.MultiGridNumInt):
+        raise NotImplementedError
 
-    if not hybrid and isinstance(ks.with_df, multigrid.MultiGridFFTDF):
-        n, exc, vxc = multigrid.nr_rks(ks.with_df, ks.xc, dm, hermi,
-                                       kpts, kpts_band,
-                                       with_j=True, return_j=False)
-        log.debug('nelec by numeric integration = %s', n)
-        log.timer('vxc')
-        return vxc
+    omega, alpha, hyb = ni.rsh_and_hybrid_coeff(ks.xc, spin=cell.spin)
+    hybrid = abs(hyb) > 1e-10 or abs(alpha) > 1e-10
 
     # ndim = 3 : dm.shape = (nkpts, nao, nao)
     ground_state = (getattr(dm, 'ndim', None) == 3 and
@@ -58,7 +54,7 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     if hermi == 2:  # because rho = 0
         n, exc, vxc = 0, 0, 0
     else:
-        n, exc, vxc = ks._numint.nr_rks(cell, ks.grids, ks.xc, dm, 0,
+        n, exc, vxc = ni.nr_rks(cell, ks.grids, ks.xc, dm, 0,
                                         kpts, kpts_band)
         log.debug('nelec by numeric integration = %s', n)
         log.timer('vxc')

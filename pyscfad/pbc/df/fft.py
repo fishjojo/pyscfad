@@ -138,7 +138,6 @@ def get_pp(mydf, kpts=None):
 #@util.pytree_node(['cell','kpts'])
 class FFTDF(pyscf_fft.FFTDF):
     def __init__(self, cell, kpts=numpy.zeros((1,3))):#, **kwargs):
-        from pyscfad.pbc.dft import gen_grid
         from pyscfad.pbc.dft import numint
         self.cell = cell
         self.stdout = cell.stdout
@@ -146,7 +145,7 @@ class FFTDF(pyscf_fft.FFTDF):
         self.max_memory = cell.max_memory
 
         self.kpts = kpts
-        self.grids = gen_grid.UniformGrids(cell)
+        self.mesh = cell.mesh
 
         self.blockdim = getattr(__config__, 'pbc_df_df_DF_blockdim', 240)
 
@@ -155,6 +154,13 @@ class FFTDF(pyscf_fft.FFTDF):
         self._rsh_df = {}  # Range separated Coulomb DF objects
         self._keys = set(self.__dict__.keys())
         #self.__dict__.update(kwargs)
+
+    @property
+    def grids(self):
+        from pyscfad.pbc.dft import gen_grid
+        grids = gen_grid.UniformGrids(self.cell)
+        grids.mesh = self.mesh
+        return grids
 
     def get_jk(self, dm, hermi=1, kpts=None, kpts_band=None,
                with_j=True, with_k=True, omega=None, exxdiv=None):

@@ -64,7 +64,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
         dm = normalize_dm_(self, dm, s1e)
         return dm
 
-    def get_hcore(self, cell=None, kpt=None):
+    def get_hcore(self, cell=None, kpt=None, **kwargs):
         if cell is None:
             cell = self.cell
         if kpt is None:

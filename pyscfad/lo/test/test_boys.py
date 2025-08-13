@@ -47,9 +47,9 @@ def test_boys_cost_nuc_grad(get_mol):
     mol = get_mol
     g0 = jax.grad(cost_function)(mol).coords
 
-    mol.set_geom_('O 0. 0.  0.001; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587')
+    mol = mol.set_geom_('O 0. 0.  0.001; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587')
     f1 = cost_function(mol)
-    mol.set_geom_('O 0. 0. -0.001; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587')
+    mol = mol.set_geom_('O 0. 0. -0.001; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587')
     f2 = cost_function(mol)
     g1 = (f1 - f2) / (0.002 / BOHR)
     assert abs(g0[0,2]-g1) < 1e-4

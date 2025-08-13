@@ -206,7 +206,7 @@ class TDA(TDBase, pyscf_tdrhf.TDA):
         precond = self.get_precond(hdiag)
 
         if x0 is None:
-            x0 = self.init_guess(stop_grad(self._scf), self.nstates)
+            x0 = self.get_init_guess(stop_grad(self._scf), self.nstates)
 
         def pickeig(w, v, nroots, envs):
             idx = numpy.where(w > self.positive_eig_threshold)[0]

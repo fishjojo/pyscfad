@@ -116,7 +116,7 @@ class Mole(pytree.PytreeNode, pyscf_mole.Mole):
                 return self.coords
 
     def set_geom_(self, atoms_or_coords, unit=None, symmetry=None,
-                  inplace=False):
+                  inplace=True):
         mol = pyscf_mole.Mole.set_geom_(self, atoms_or_coords,
                                         unit=unit, symmetry=symmetry, inplace=inplace)
         if self.coords is not None:

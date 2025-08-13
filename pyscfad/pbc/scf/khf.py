@@ -31,7 +31,7 @@ def get_ovlp(mf, cell=None, kpts=None):
         kpts = mf.kpts
     return pbchf.get_ovlp(cell, kpts)
 
-def get_hcore(mf, cell=None, kpts=None):
+def get_hcore(mf, cell=None, kpts=None, **kwargs):
     if cell is None:
         cell = mf.cell
     if kpts is None:

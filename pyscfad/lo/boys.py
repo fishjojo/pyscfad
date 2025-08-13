@@ -116,8 +116,11 @@ class Boys(pyscf_boys.Boys):
 
 def dipole_integral(mol, mo_coeff):
     # FIXME do we need charge center response?
-    charge_center = numpy.einsum('z,zx->x', mol.atom_charges(),
-                                 stop_grad(mol.atom_coords()))
+    #charge_center = numpy.einsum('z,zx->x', mol.atom_charges(),
+    #                             stop_grad(mol.atom_coords()))
+    # NOTE set origin as the charge center,
+    # otherwise, will need to compute charge center response
+    charge_center = numpy.zeros(3)
     with mol.with_common_origin(charge_center):
         r = mol.intor('int1e_r')
         dip = np.einsum('ui,xuv,vj->xij', mo_coeff.conj(), r, mo_coeff)
