@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from functools import reduce, wraps
 import numpy
 from pyscf.scf import rohf as pyscf_rohf
@@ -207,7 +221,7 @@ class ROHF(hf.SCF, pyscf_rohf.ROHF):
             mo_occ = (mo_occ == 2), (mo_occ > 0)
         return make_rdm1(mo_coeff, mo_occ, **kwargs)
 
-    def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
+    def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1, **kwargs):
         if mol is None: mol = self.mol
         if dm is None: dm = self.make_rdm1()
         if getattr(dm, 'ndim', None) == 2:

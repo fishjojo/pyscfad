@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 Custom jax.lax.linalg functions
 """
@@ -28,9 +42,8 @@ from jax._src.lax.linalg import (
     _nan_like_hlo,
     _broadcasting_select_hlo,
 )
-from jax._src.numpy import lax_numpy as jnp
 from jax._src.numpy import ufuncs
-
+from jax import numpy as jnp
 from pyscfadlib import lapack as lp
 
 def eigh_gen(a, b, *,
@@ -83,9 +96,9 @@ def _eigh_gen_jvp_rule(primals, tangents, *, lower, itype, deg_thresh):
                     deg_thresh=deg_thresh)
 
     w = w_real.astype(a.dtype)
-    eji = w[..., jnp.newaxis, :] - w[..., jnp.newaxis]
+    eji = w[..., np.newaxis, :] - w[..., np.newaxis]
     Fmat = ufuncs.reciprocal(
-        jnp.where(ufuncs.absolute(eji) > deg_thresh, eji, jnp.inf)
+        jnp.where(ufuncs.absolute(eji) > deg_thresh, eji, np.inf)
     )
 
     dot = partial(lax.dot if a.ndim == 2 else lax.batch_matmul,
@@ -101,7 +114,10 @@ def _eigh_gen_jvp_rule(primals, tangents, *, lower, itype, deg_thresh):
             w_diag = jnp.diag(w)
         else:
             batch_dims = a.shape[:-2]
-            w_diag = api.vmap(jnp.diag, in_axes=batch_dims, out_axes=batch_dims)(w)
+            fn = jnp.diag
+            for _ in batch_dims:
+                fn = api.vmap(fn)
+            w_diag = fn(w)
         vt_bt_v = dot(_H(v), dot(bt, v))
         vt_bt_v_w = dot(vt_bt_v, w_diag)
         vt_at_v -= vt_bt_v_w

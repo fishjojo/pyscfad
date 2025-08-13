@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import warnings
 import numpy
 from jax.scipy.special import erf, erfc
@@ -264,8 +278,11 @@ energy_nuc = ewald
 
 
 def _estimate_rcut(alpha, l, c, precision=1e-8):
-    """Same as :func:`pyscf.pbc.gto.cell._estimate_rcut`,
-    but gives slightly different cutoff radius.
+    r"""Similar as :func:`pyscf.pbc.gto.cell._estimate_rcut`,
+    but with cutoff radius estimated based on
+
+    .. math::
+        \int \phi(0) \phi(r_0) < \epsilon
     """
     theta = alpha * .5
     a1 = (alpha * 2)**-.5
@@ -299,7 +316,7 @@ def estimate_rcut(cell, precision=None):
     if cell.use_loose_rcut:
         return cell.rcut_by_shells(precision).max()
 
-    exps, cs = pyscf_cell._extract_pgto_params(cell, "min")
+    exps, cs = pyscf_cell._extract_pgto_params(cell, 'min')
     ls = cell._bas[:,ANG_OF]
     rcut = _estimate_rcut(exps, ls, cs, precision)
     return rcut.max()

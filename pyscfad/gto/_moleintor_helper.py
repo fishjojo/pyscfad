@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import numpy
 from pyscf.gto import mole as pyscf_mole
 from pyscfad.gto import _pyscf_moleintor as moleintor
@@ -18,8 +32,10 @@ def _intor_impl(mol, intor_name, comp=None, hermi=0, aosym='s1', out=None,
         env = numpy.append(env, grids.ravel())
         env[pyscf_mole.NGRIDS] = grids.shape[0]
         env[pyscf_mole.PTR_GRIDS] = env.size - grids.size
-    return moleintor.getints(intor_name, mol._atm, bas, env,
-                             shls_slice, comp, hermi, aosym, out=out)
+
+    out = moleintor.getints(intor_name, mol._atm, bas, env,
+                            shls_slice, comp, hermi, aosym, out=out)
+    return out
 
 def _intor_cross_impl(intor, mol1, mol2, comp=None, grids=None):
     nbas1 = len(mol1._bas)

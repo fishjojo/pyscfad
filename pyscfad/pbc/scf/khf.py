@@ -1,10 +1,24 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import sys
 import h5py
 import numpy
 from pyscf import __config__
 from pyscf.pbc.scf import khf as pyscf_khf
 from pyscfad import numpy as np
-from pyscfad.ops import stop_grad, stop_trace
+from pyscfad.ops import stop_grad, stop_trace, vmap
 from pyscfad.lib import logger
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
@@ -134,14 +148,8 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         return vj, vk
 
     def eig(self, h_kpts, s_kpts):
-        nkpts = len(h_kpts)
-        eig_kpts = []
-        mo_coeff_kpts = []
-
-        for k in range(nkpts):
-            e, c = self._eigh(h_kpts[k], s_kpts[k])
-            eig_kpts.append(e)
-            mo_coeff_kpts.append(c)
+        eig_kpts, mo_coeff_kpts = vmap(self._eigh,
+                                       signature='(x,y),(x,y)->(x),(x,y)')(h_kpts, s_kpts)
         return eig_kpts, mo_coeff_kpts
 
     def make_rdm1(self, mo_coeff_kpts=None, mo_occ_kpts=None, **kwargs):
@@ -158,6 +166,12 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
                 fh5['scf/kpts'] = stop_grad(self.kpts)
         return self
 
+    def get_veff(self, cell=None, dm_kpts=None, dm_last=0, vhf_last=0, hermi=1,
+                 kpts=None, kpts_band=None, **kwargs):
+        return pyscf_khf.KSCF.get_veff(
+                    self, cell=cell, dm_kpts=dm_kpts, dm_last=dm_last,
+                    vhf_last=vhf_last, hermi=hermi, kpts=kpts, kpts_band=kpts_band)
+
     get_hcore = get_hcore
     get_ovlp = get_ovlp
     get_fock = get_fock
@@ -165,7 +179,6 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
     energy_elec = energy_elec
     get_fermi = pyscf_khf.KSCF.get_fermi
 
-    get_veff = pyscf_khf.KSCF.get_veff
     get_j = pyscf_khf.KSCF.get_j
     get_k = pyscf_khf.KSCF.get_k
     get_grad = stop_trace(pyscf_khf.KSCF.get_grad)

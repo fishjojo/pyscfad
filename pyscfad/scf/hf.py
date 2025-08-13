@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from functools import (
     partial,
     wraps,
@@ -5,7 +19,7 @@ from functools import (
 import numpy
 
 from pyscf.data import nist
-from pyscf.lib import alias, module_method
+from pyscf.lib import alias, module_method, with_doc
 from pyscf.scf import hf as pyscf_hf
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
 
@@ -24,10 +38,9 @@ from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scipy.linalg import eigh
 from pyscfad.tools.linear_solver import gen_gmres
 
-Traced_Attributes = ['mol', '_eri', 'mo_coeff', 'mo_energy']
 
 def _scf_fixed_point(dm, mf, s1e, h1e):
-    vhf = mf.get_veff(mf.mol, dm)
+    vhf = mf.get_veff(mf.mol, dm, s1e=s1e)
     fock = mf.get_fock(h1e, s1e, vhf, dm)
     mo_energy, mo_coeff = mf.eig(fock, s1e)
     mo_occ = mf.get_occ(mo_energy, mo_coeff)
@@ -52,7 +65,7 @@ def _scf(dm, mf, s1e, h1e, *,
         mo_energy, mo_coeff = mf.eig(fock, s1e)
         mo_occ = mf.get_occ(mo_energy, mo_coeff)
         dm = mf.make_rdm1(mo_coeff, mo_occ)
-        vhf = mf.get_veff(mol, dm, dm_last, vhf)
+        vhf = mf.get_veff(mol, dm, dm_last, vhf, s1e=s1e)
         e_tot = mf.energy_tot(dm, h1e, vhf)
 
         fock_last = fock
@@ -83,7 +96,7 @@ def _scf(dm, mf, s1e, h1e, *,
     return dm, scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 
-@wraps(pyscf_hf.kernel)
+@with_doc(pyscf_hf.kernel.__doc__)
 def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
            dump_chk=True, dm0=None, callback=None, conv_check=True, **kwargs):
     log = logger.new_logger(mf)
@@ -100,8 +113,8 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     else:
         dm = dm0
 
-    h1e = mf.get_hcore(mol)
-    vhf = mf.get_veff(mol, dm)
+    h1e = mf.get_hcore(mol, s1e=s1e)
+    vhf = mf.get_veff(mol, dm, s1e=s1e)
     e_tot = mf.energy_tot(dm, h1e, vhf)
     log.info('init E= %.15g', e_tot)
 
@@ -152,7 +165,9 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
         has_aux=True,
     )
     if config.scf_implicit_diff:
+        e_tot = ops.stop_grad(e_tot)
         vhf = ops.stop_grad(vhf)
+        mf_diis.Corth = ops.stop_grad(mf_diis.Corth)
     # NOTE if use implicit differentiation, only dm will have gradient.
     dm, scf_conv, e_tot, mo_energy, mo_coeff, mo_occ = _scf_wrapped(
         dm, mf, s1e, h1e,
@@ -169,12 +184,13 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
         _extra_cycle = True
 
     if (scf_conv and conv_check) or _extra_cycle:
-        vhf = mf.get_veff(mf.mol, dm)
+        cput1 = log.get_t0()
+        vhf = mf.get_veff(mol, dm, s1e=s1e)
         fock = mf.get_fock(h1e, s1e, vhf, dm)
         mo_energy, mo_coeff = mf.eig(fock, s1e)
         mo_occ = mf.get_occ(mo_energy, mo_coeff)
         dm, dm_last = mf.make_rdm1(mo_coeff, mo_occ), dm
-        vhf = mf.get_veff(mol, dm, dm_last, vhf)
+        vhf = mf.get_veff(mol, dm, dm_last, vhf, s1e=s1e)
         e_tot, last_hf_e = mf.energy_tot(dm, h1e, vhf), e_tot
 
         fock = mf.get_fock(h1e, s1e, vhf, dm)
@@ -193,6 +209,8 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
                  e_tot, e_tot-last_hf_e, norm_gorb, norm_ddm)
         if dump_chk:
             mf.dump_chk(locals())
+
+        log.timer('extra cycle', *cput1)
 
     # hack for ROHF
     mo_energy = getattr(mo_energy, 'mo_energy', mo_energy)
@@ -231,7 +249,7 @@ def dot_eri_dm(eri, dm, hermi=0, with_j=True, with_k=True):
     return vj, vk
 
 
-@wraps(pyscf_hf.energy_elec)
+@with_doc(pyscf_hf.energy_elec.__doc__)
 def energy_elec(mf, dm=None, h1e=None, vhf=None):
     if dm is None:
         dm = mf.make_rdm1()
@@ -291,14 +309,14 @@ def dip_moment(mol, dm, unit='Debye', verbose=logger.NOTE, **kwargs):
     return mol_dip
 
 
-@wraps(pyscf_hf.get_fock)
+@with_doc(pyscf_hf.get_fock.__doc__)
 def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
              diis_start_cycle=None, level_shift_factor=None, damp_factor=None,
              fock_last=None):
     if h1e is None:
         h1e = mf.get_hcore()
     if vhf is None:
-        vhf = mf.get_veff(mf.mol, dm)
+        vhf = mf.get_veff(mf.mol, dm, s1e=s1e)
 
     # hack for DFT
     vhf = getattr(vhf, 'vxc', vhf)
@@ -342,7 +360,10 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
         Two-electron repulsion integrals.
     """
     DIIS = SCF_DIIS
-    _dynamic_attr = Traced_Attributes
+    _dynamic_attr = ['mol', '_eri', 'mo_coeff', 'mo_energy']
+
+    def get_hcore(self, mol=None, **kwargs):
+        return super().get_hcore(mol)
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
                omega=None):
@@ -453,7 +474,7 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
         return df_jk.density_fit(self, auxbasis, with_df, only_dfj)
 
     @wraps(pyscf_hf.SCF.get_veff)
-    def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
+    def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1, **kwargs):
         if mol is None:
             mol = self.mol
         if dm is None:
@@ -511,7 +532,7 @@ class RHF(SCF, pyscf_hf.RHF):
         return SCF.check_sanity(self)
 
     @wraps(pyscf_hf.RHF.get_veff)
-    def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1):
+    def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1, **kwargs):
         if mol is None:
             mol = self.mol
         if dm is None:

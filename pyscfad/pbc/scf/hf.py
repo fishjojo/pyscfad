@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import sys
 import h5py
 import numpy
@@ -28,7 +42,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
     mo_energy : array
         MO energies.
     """
-    _dynamic_attr = ["cell",]
+    _dynamic_attr = ['cell',]
     def __init__(self, cell, kpt=numpy.zeros(3),
                  exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')):
         if not cell._built:
@@ -135,7 +149,12 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
         logger.info(self, 'DF object = %s', self.with_df)
         return self
 
-    get_veff = pyscf_pbc_hf.SCF.get_veff
+    def get_veff(self, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
+                 kpt=None, kpts_band=None, **kwargs):
+        return pyscf_pbc_hf.SCF.get_veff(
+                    self, cell=cell, dm=dm, dm_last=dm_last, vhf_last=vhf_last,
+                    hermi=hermi, kpt=kpt, kpts_band=kpts_band)
+
     energy_grad = NotImplemented
 
 
