@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import (
-    partial,
-    wraps,
-)
+from functools import partial
 import numpy
 
 from pyscf.data import nist
@@ -265,20 +262,20 @@ def energy_elec(mf, dm=None, h1e=None, vhf=None):
     return e1+e_coul, e_coul
 
 
-@wraps(pyscf_hf.make_rdm1)
+@with_doc(pyscf_hf.make_rdm1.__doc__)
 def make_rdm1(mo_coeff, mo_occ, **kwargs):
     mocc = mo_coeff[:,mo_occ>0]
     dm = (mocc*mo_occ[mo_occ>0]) @ mocc.conj().T
     return dm
 
 
-@wraps(pyscf_hf.level_shift)
+@with_doc(pyscf_hf.level_shift.__doc__)
 def level_shift(s, d, f, factor):
     dm_vir = s - s @ d @ s
     return f + dm_vir * factor
 
 
-@wraps(pyscf_hf.dip_moment)
+@with_doc(pyscf_hf.dip_moment.__doc__)
 def dip_moment(mol, dm, unit='Debye', verbose=logger.NOTE, **kwargs):
     log = logger.new_logger(mol, verbose)
 
@@ -473,7 +470,7 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
     def density_fit(self, auxbasis=None, with_df=None, only_dfj=False):
         return df_jk.density_fit(self, auxbasis, with_df, only_dfj)
 
-    @wraps(pyscf_hf.SCF.get_veff)
+    @with_doc(pyscf_hf.SCF.get_veff.__doc__)
     def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1, **kwargs):
         if mol is None:
             mol = self.mol
@@ -487,7 +484,7 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
             vj, vk = self.get_jk(mol, dm, hermi=hermi)
             return vj - vk * .5
 
-    @wraps(pyscf_hf.SCF.dip_moment)
+    @with_doc(pyscf_hf.SCF.dip_moment.__doc__)
     def dip_moment(self, mol=None, dm=None, unit='Debye', verbose=logger.NOTE,
                    **kwargs):
         if mol is None:
@@ -509,7 +506,7 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
         return self.mol.energy_nuc()
 
     def check_sanity(self):
-        return pyscf_hf.SCF.check_sanity(ops.stop_grad(self))
+        pass
 
     def get_occ(self, mo_energy=None, mo_coeff=None):
         if mo_energy is None:
@@ -523,7 +520,6 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
 
 
 class RHF(SCF, pyscf_hf.RHF):
-    @wraps(pyscf_hf.RHF.check_sanity)
     def check_sanity(self):
         mol = self.mol
         if mol.nelectron != 1 and mol.spin != 0:
@@ -531,7 +527,7 @@ class RHF(SCF, pyscf_hf.RHF):
                         mol.nelectron)
         return SCF.check_sanity(self)
 
-    @wraps(pyscf_hf.RHF.get_veff)
+    @with_doc(pyscf_hf.RHF.get_veff.__doc__)
     def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1, **kwargs):
         if mol is None:
             mol = self.mol
