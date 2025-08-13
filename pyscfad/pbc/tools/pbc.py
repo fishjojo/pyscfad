@@ -15,10 +15,9 @@
 from functools import wraps
 import warnings
 import numpy
-import numpy as np
 from pyscf import lib
 from pyscf.pbc import tools as pyscf_pbctools
-from pyscfad import numpy as jnp
+from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.ops import stop_trace
 from pyscfad.lib import logger
@@ -26,12 +25,12 @@ from pyscfad.lib import logger
 @wraps(pyscf_pbctools.fft)
 def fft(f, mesh):
     if f.size == 0:
-        return np.zeros_like(f)
+        return numpy.zeros_like(f)
 
     f3d = f.reshape(-1, *mesh)
     assert(f3d.shape[0] == 1 or f[0].size == f3d[0].size)
-    g3d = jnp.fft.fftn(f3d, axes=(1,2,3))
-    ngrids = np.prod(mesh)
+    g3d = np.fft.fftn(f3d, axes=(1,2,3))
+    ngrids = numpy.prod(mesh)
     if f.ndim == 1 or (f.ndim == 3 and f.size == ngrids):
         return g3d.ravel()
     else:
@@ -40,12 +39,12 @@ def fft(f, mesh):
 @wraps(pyscf_pbctools.ifft)
 def ifft(g, mesh):
     if g.size == 0:
-        return np.zeros_like(g)
+        return numpy.zeros_like(g)
 
     g3d = g.reshape(-1, *mesh)
     assert(g3d.shape[0] == 1 or g[0].size == g3d[0].size)
-    f3d = jnp.fft.ifftn(g3d, axes=(1,2,3))
-    ngrids = np.prod(mesh)
+    f3d = np.fft.ifftn(g3d, axes=(1,2,3))
+    ngrids = numpy.prod(mesh)
     if g.ndim == 1 or (g.ndim == 3 and g.size == ngrids):
         return f3d.ravel()
     else:
@@ -105,16 +104,16 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
                              numpy.arange(-bounds[1], bounds[1]+1),
                              numpy.arange(-bounds[2], bounds[2]+1)))
 
-    Ls = jnp.dot(Ts[:,:dimension], cell.lattice_vectors()[:dimension])
+    Ls = np.dot(Ts[:,:dimension], cell.lattice_vectors()[:dimension])
     if discard:
         rcut_penalty = numpy.linalg.norm(numpy.dot(atom_boundary_max - atom_boundary_min, a))
-        Ls_mask = jnp.where(jnp.linalg.norm(Ls, axis=1) < rcut + rcut_penalty)[0]
+        Ls_mask = np.where(np.linalg.norm(Ls, axis=1) < rcut + rcut_penalty)[0]
         Ls = Ls[Ls_mask]
     return Ls
 
 
 @wraps(pyscf_pbctools.get_coulG)
-def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
+def get_coulG(cell, k=numpy.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
               wrap_around=True, omega=None, **kwargs):
     exxdiv = exx
     if isinstance(exx, str):
@@ -136,12 +135,12 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
     else:
         kG = Gv
 
-    equal2boundary = np.zeros(Gv.shape[0], dtype=bool)
+    equal2boundary = numpy.zeros(Gv.shape[0], dtype=bool)
     if wrap_around and abs(k).sum() > 1e-9:
         b = cell.reciprocal_vectors()
-        box_edge = jnp.einsum('i,ij->ij', np.asarray(mesh)//2+0.5, b)
-        assert (all(stop_trace(np.linalg.solve)(box_edge.T, k).round(9).astype(int)==0))
-        reduced_coords = stop_trace(np.linalg.solve)(box_edge.T, kG.T).T.round(9)
+        box_edge = np.einsum('i,ij->ij', numpy.asarray(mesh)//2+0.5, b)
+        assert (all(stop_trace(numpy.linalg.solve)(box_edge.T, k).round(9).astype(int)==0))
+        reduced_coords = stop_trace(numpy.linalg.solve)(box_edge.T, kG.T).T.round(9)
         on_edge = reduced_coords.astype(int)
         if cell.dimension >= 1:
             equal2boundary |= reduced_coords[:,0] == 1
@@ -159,9 +158,9 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
             kG = ops.index_add(kG, ops.index[on_edge[:,2]== 1], -2 * box_edge[2])
             kG = ops.index_add(kG, ops.index[on_edge[:,2]==-1],  2 * box_edge[2])
 
-    absG2 = jnp.einsum('gi,gi->g', kG, kG)
-    G0_idx = jnp.where(absG2==0)[0]
-    absG2 = jnp.where(absG2!=0, absG2, 0)
+    absG2 = np.einsum('gi,gi->g', kG, kG)
+    G0_idx = np.where(absG2==0)[0]
+    absG2 = np.where(absG2!=0, absG2, 0)
 
     if getattr(mf, 'kpts', None) is not None:
         kpts = mf.kpts
@@ -170,11 +169,11 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
     Nk = len(kpts)
 
     if exxdiv == 'vcut_sph':  # PRB 77 193110
-        Rc = (3*Nk*cell.vol/(4*np.pi))**(1./3)
-        with np.errstate(divide='ignore',invalid='ignore'):
-            coulG = 4*np.pi/absG2*(1.0 - jnp.cos(jnp.sqrt(absG2)*Rc))
+        Rc = (3*Nk*cell.vol/(4*numpy.pi))**(1./3)
+        with numpy.errstate(divide='ignore',invalid='ignore'):
+            coulG = 4*numpy.pi/absG2*(1.0 - np.cos(np.sqrt(absG2)*Rc))
         if len(G0_idx) > 0:
-            coulG = ops.index_update(coulG, ops.index[G0_idx], 4*np.pi*0.5*Rc**2)
+            coulG = ops.index_update(coulG, ops.index[G0_idx], 4*numpy.pi*0.5*Rc**2)
 
         if cell.dimension < 3:
             raise NotImplementedError
@@ -185,8 +184,8 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
         # error in exchange integrals
 
         if cell.dimension != 2 or cell.low_dim_ft_type == 'inf_vacuum':
-            with np.errstate(divide='ignore'):
-                coulG = 4*np.pi/absG2
+            with numpy.errstate(divide='ignore'):
+                coulG = 4*numpy.pi/absG2
             if len(G0_idx) > 0:
                 coulG = ops.index_update(coulG, ops.index[G0_idx], 0)
 
@@ -194,14 +193,14 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
             # The following 2D analytical fourier transform is taken from:
             # R. Sundararaman and T. Arias PRB 87, 2013
             b = cell.reciprocal_vectors()
-            Ld2 = np.pi/jnp.linalg.norm(b[2])
+            Ld2 = numpy.pi/np.linalg.norm(b[2])
             Gz = kG[:,2]
-            Gp = jnp.linalg.norm(kG[:,:2], axis=1)
-            weights = 1. - jnp.cos(Gz*Ld2) * jnp.exp(-Gp*Ld2)
-            with np.errstate(divide='ignore', invalid='ignore'):
-                coulG = weights*4*np.pi/absG2
+            Gp = np.linalg.norm(kG[:,:2], axis=1)
+            weights = 1. - np.cos(Gz*Ld2) * np.exp(-Gp*Ld2)
+            with numpy.errstate(divide='ignore', invalid='ignore'):
+                coulG = weights*4*numpy.pi/absG2
             if len(G0_idx) > 0:
-                coulG = ops.index_update(coulG, ops.index[G0_idx], -2*np.pi*Ld2**2)
+                coulG = ops.index_update(coulG, ops.index[G0_idx], -2*numpy.pi*Ld2**2)
 
         elif cell.dimension == 1:
             logger.warn(cell, 'No method for PBC dimension 1, dim-type %s.'
@@ -218,12 +217,12 @@ def get_coulG(cell, k=np.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
     if omega is not None:
         if omega > 0:
             # long range part
-            coulG *= jnp.exp(-.25/omega**2 * absG2)
+            coulG *= np.exp(-.25/omega**2 * absG2)
         elif omega < 0:
             # short range part
-            coulG *= (1 - jnp.exp(-.25/omega**2 * absG2))
+            coulG *= (1 - np.exp(-.25/omega**2 * absG2))
     elif cell.omega > 0:
-        coulG *= jnp.exp(-.25/cell.omega**2 * absG2)
+        coulG *= np.exp(-.25/cell.omega**2 * absG2)
     elif cell.omega < 0:
         raise NotImplementedError
 
@@ -235,26 +234,26 @@ cutoff_to_mesh = stop_trace(pyscf_pbctools.cutoff_to_mesh)
 def madelung(cell, kpts, omega=None):
     Nk = get_monkhorst_pack_size(cell, kpts)
     ecell = cell.copy()
-    ecell.coords = np.array([[0., 0., 0.],])
-    ecell._atm = np.array([[1, cell._env.size, 0, 0, 0, 0]])
-    ecell._env = np.append(cell._env, [0., 0., 0.])
+    ecell.coords = numpy.array([[0., 0., 0.],])
+    ecell._atm = numpy.array([[1, cell._env.size, 0, 0, 0, 0]])
+    ecell._env = numpy.append(cell._env, [0., 0., 0.])
     ecell.unit = 'B'
-    ecell.a = a = jnp.einsum('xi,x->xi', cell.lattice_vectors(), Nk)
+    ecell.a = a = np.einsum('xi,x->xi', cell.lattice_vectors(), Nk)
 
     if cell.omega == 0:
         return -2*ecell.ewald()
     else:
         precision = cell.precision
         Ecut = 10.
-        Ecut = np.log(16*np.pi**2/(2*omega**2*(2*Ecut)**.5) / precision + 1.) * 2*omega**2
-        Ecut = np.log(16*np.pi**2/(2*omega**2*(2*Ecut)**.5) / precision + 1.) * 2*omega**2
+        Ecut = numpy.log(16*numpy.pi**2/(2*omega**2*(2*Ecut)**.5) / precision + 1.) * 2*omega**2
+        Ecut = numpy.log(16*numpy.pi**2/(2*omega**2*(2*Ecut)**.5) / precision + 1.) * 2*omega**2
         mesh = cutoff_to_mesh(a, Ecut)
         Gv, Gvbase, weights = ecell.get_Gv_weights(mesh)
         wcoulG = get_coulG(ecell, Gv=Gv, omega=abs(omega), exxdiv=None) * weights
         SI = ecell.get_SI(mesh=mesh)
         ZSI = SI[0]
-        e_lr = (2*abs(omega)/np.pi**0.5 -
-                np.einsum('i,i,i->', ZSI.conj(), ZSI, wcoulG).real)
+        e_lr = (2*abs(omega)/numpy.pi**0.5 -
+                numpy.einsum('i,i,i->', ZSI.conj(), ZSI, wcoulG).real)
         if omega > 0:
             return e_lr
         else:

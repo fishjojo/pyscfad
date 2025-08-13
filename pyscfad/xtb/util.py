@@ -13,12 +13,10 @@
 # limitations under the License.
 
 import numpy
-from pyscf import gto
 from pyscf.gto.mole import ANG_OF
 from pyscf.data.elements import NUC
 from pyscfad import numpy as np
 from pyscfad import ops
-from pyscfad.ops import jit
 from pyscfad.lib import unpack_tril
 
 ANG_MOMENT = {
@@ -148,9 +146,11 @@ def load_unique_element_shell_params(
     for elem, nbas in uniq_element_nbas.items():
         shells = getattr(param_element[elem], "shells")
 
-        sorted_shell_id = numpy.asarray(sorted(range(len(shells)), key=lambda i: _sort_key_for_shell(shells[i])))
-        #keys = np.array([_sort_key_for_shell(s) for s in shells])
-        #sorted_shell_id = np.lexsort([keys[:,1], keys[:,0]])
+        #sorted_shell_id = numpy.asarray(sorted(range(len(shells)),
+        #                                       key=lambda i: _sort_key_for_shell(shells[i])))
+
+        keys = numpy.asarray([_sort_key_for_shell(s) for s in shells])
+        sorted_shell_id = numpy.lexsort((keys[:,1],keys[:,0]))
 
         val = np.asarray(getattr(param_element[elem], name))[sorted_shell_id]
         assert nbas == len(val), "Inconsistent basis set and parameter set"

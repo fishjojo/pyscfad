@@ -156,7 +156,7 @@ class GFN1MolParam(pytree.PytreeNode):
         "kEN",
         "CN",
     ]
-    def __init__(self, mol, param):
+    def __init__(self, mol, param): # pylint: disable=redefined-outer-name
         self.EN   = util.load_unique_element_params(mol, param, "en", broadcast="atom")
         self.gam  = util.load_unique_element_params(mol, param, "gam", broadcast="shell")
         self.gam3 = util.load_unique_element_params(mol, param, "gam3", broadcast="atom")
@@ -167,11 +167,13 @@ class GFN1MolParam(pytree.PytreeNode):
         self.lgam   = util.load_unique_element_shell_params(mol, param, "lgam", broadcast="shell")
         self.shpoly = util.load_unique_element_shell_params(mol, param, "shpoly", broadcast="shell")
         self.selfenergy = util.load_unique_element_shell_params(
-                                mol, param, "levels", pad=HARTREE2EV, broadcast="shell") / HARTREE2EV
-        self.kcn = util.load_unique_element_shell_params(mol, param, "kcn", broadcast="shell") / HARTREE2EV
+                            mol, param, "levels", pad=HARTREE2EV, broadcast="shell") / HARTREE2EV
+        self.kcn = util.load_unique_element_shell_params(
+                            mol, param, "kcn", broadcast="shell") / HARTREE2EV
 
         self.kpair = util.load_global_element_pair_params(mol, param, "kpair", broadcast="shell")
-        self.k_shlpr = util.load_global_shell_pair_params_gfn1(mol, param, "k_shlpr", broadcast="shell")
+        self.k_shlpr = util.load_global_shell_pair_params_gfn1(
+                            mol, param, "k_shlpr", broadcast="shell")
 
         self.kf = param.kf
         self.kEN = param.kEN
@@ -190,8 +192,10 @@ if __name__ == "__main__":
     cell.basis = "./basis/gfn1.dat"
     cell.build()
 
-    def foo(param):
-        return param.element["H"].gam * param.element["He"].gam * param.kpair["H-H"] * param.kEN * param.kf* param.kcn_d3
+    def foo(param): # pylint: disable=redefined-outer-name
+        return (param.element["H"].gam *
+                param.element["He"].gam *
+                param.kpair["H-H"] * param.kEN * param.kf* param.kcn_d3)
 
     param = GFN1Param()
     g = jax.jit(jax.grad(foo))(param)

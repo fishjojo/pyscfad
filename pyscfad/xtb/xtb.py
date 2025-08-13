@@ -53,15 +53,15 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
     mo_occ[:nocc] = 2
     if mf.verbose >= logger.INFO and nocc < nmo:
         if e_sort[nocc-1]+1e-3 > e_sort[nocc]:
-            logger.warn(mf, 'HOMO %.15g == LUMO %.15g',
+            logger.warn(mf, "HOMO %.15g == LUMO %.15g",
                         e_sort[nocc-1], e_sort[nocc])
         else:
-            logger.info(mf, '  HOMO = %.15g  LUMO = %.15g',
+            logger.info(mf, "  HOMO = %.15g  LUMO = %.15g",
                         e_sort[nocc-1], e_sort[nocc])
 
     if mf.verbose >= logger.DEBUG:
         numpy.set_printoptions(threshold=nmo)
-        logger.debug(mf, '  mo_energy =\n%s', mo_energy)
+        logger.debug(mf, "  mo_energy =\n%s", mo_energy)
         numpy.set_printoptions(threshold=1000)
     return mo_occ
 
@@ -114,10 +114,10 @@ class XTB(hf.SCF):
             dm = self.make_rdm1()
         if h1e is None:
             h1e = self.get_hcore(self.mol)
-        if vhf is None or getattr(vhf, 'ecoul', None) is None:
+        if vhf is None or getattr(vhf, "ecoul", None) is None:
             vhf = self.get_veff(self.mol, dm)
 
-        e1 = np.einsum('ij,ji', h1e, dm)
+        e1 = np.einsum("ij,ji", h1e, dm)
         ecoul = vhf.ecoul
         tot_e = e1 + ecoul
         return tot_e.real, ecoul

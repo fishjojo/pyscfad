@@ -118,7 +118,7 @@ def init_gamma_ewald(cell, charge=1.):
                                   cell.precision * ops.to_numpy(cell.vol))
     mesh = cell.cutoff_to_mesh(ke_cutoff)
     Gv, _, weights = cell.get_Gv_weights(mesh)
-    absG2 = np.einsum('gi,gi->g', Gv, Gv)
+    absG2 = np.einsum("gi,gi->g", Gv, Gv)
     absG2 = np.where(absG2==0., np.inf, absG2)
 
     coulG = 4 * numpy.pi / absG2
@@ -206,7 +206,7 @@ def rcut_erep(cell, kf, zeff, arep, extra_prec=1):
     r = 20.
     r = (-numpy.log(r * prec / zeff**2) / arep) ** (1/kf)
     r = (-numpy.log(r * prec / zeff**2) / arep) ** (1/kf)
-    return r 
+    return r
 
 
 def get_occ(mf, mo_energy_kpts=None, mo_coeff_kpts=None):
@@ -222,19 +222,19 @@ def get_occ(mf, mo_energy_kpts=None, mo_coeff_kpts=None):
         mo_occ_kpts.append((mo_e <= fermi).astype(float) * 2)
 
     if nocc < mo_energy.size:
-        logger.info(mf, 'HOMO = %.12g  LUMO = %.12g',
+        logger.info(mf, "HOMO = %.12g  LUMO = %.12g",
                     mo_energy[nocc-1], mo_energy[nocc])
         if mo_energy[nocc-1]+1e-3 > mo_energy[nocc]:
-            logger.warn(mf, 'HOMO %.12g == LUMO %.12g',
+            logger.warn(mf, "HOMO %.12g == LUMO %.12g",
                         mo_energy[nocc-1], mo_energy[nocc])
     else:
-        logger.info(mf, 'HOMO = %.12g', mo_energy[nocc-1])
+        logger.info(mf, "HOMO = %.12g", mo_energy[nocc-1])
 
     if mf.verbose >= logger.DEBUG:
         numpy.set_printoptions(threshold=len(mo_energy))
-        logger.debug(mf, '     k-point                  mo_energy')
+        logger.debug(mf, "     k-point                  mo_energy")
         for k,kpt in enumerate(mf.cell.get_scaled_kpts(mf.kpts)):
-            logger.debug(mf, '  %2d (%6.3f %6.3f %6.3f)   %s %s',
+            logger.debug(mf, "  %2d (%6.3f %6.3f %6.3f)   %s %s",
                          k, kpt[0], kpt[1], kpt[2],
                          np.sort(mo_energy_kpts[k][mo_occ_kpts[k]> 0]),
                          np.sort(mo_energy_kpts[k][mo_occ_kpts[k]==0]))
@@ -257,19 +257,19 @@ class KXTB(xtb.XTB):
             cell = self.cell
         if kpts is None:
             kpts = self.kpts
-        s = cell.pbc_intor('int1e_ovlp', hermi=1, kpts=kpts)
+        s = cell.pbc_intor("int1e_ovlp", hermi=1, kpts=kpts)
         return np.asarray(s)
 
     def energy_elec(self, dm=None, h1e=None, vhf=None):
         if dm is None:
             dm = self.make_rdm1()
         if h1e is None:
-            h1e = mf.get_hcore(cell=self.cell, kpts=self.kpts)
-        if vhf is None or getattr(vhf, 'ecoul', None) is None:
-            vhf = mf.get_veff(self.cell, dm)
+            h1e = self.get_hcore(cell=self.cell, kpts=self.kpts)
+        if vhf is None or getattr(vhf, "ecoul", None) is None:
+            vhf = self.get_veff(self.cell, dm)
 
         weight = 1. / len(h1e)
-        e1 = weight * np.einsum('kij,kji', h1e, dm)
+        e1 = weight * np.einsum("kij,kji", h1e, dm)
         ecoul = vhf.ecoul
         tot_e = e1 + ecoul
         return tot_e.real, ecoul
@@ -304,7 +304,7 @@ class GFN1KXTB(KXTB):
             rcut = self.rcut
         return energy_nuc(self, cell=cell, rcut=rcut)
 
-    def get_init_guess(self, cell=None, key='refocc', s1e=None, **kwargs):
+    def get_init_guess(self, cell=None, key="refocc", s1e=None, **kwargs):
         if cell is None:
             cell = self.cell
         if s1e is None:
@@ -315,15 +315,15 @@ class GFN1KXTB(KXTB):
         nkpts = len(self.kpts)
         dm_kpts = np.repeat(dm[None,:,:], nkpts, axis=0)
 
-        ne = np.einsum('kij,kji->', dm_kpts, s1e).real
+        ne = np.einsum("kij,kji->", dm_kpts, s1e).real
         nelectron = self.tot_electrons
         if abs(ne - nelectron) > 0.01*nkpts:
-            logger.debug(self, 'Big error detected in the electron number '
-                         'of initial guess density matrix (Ne/cell = %g)!\n'
-                         '  This can cause huge error in Fock matrix and '
-                         'lead to instability in SCF for low-dimensional '
-                         'systems.\n  DM is normalized wrt the number '
-                         'of electrons %s', ne/nkpts, nelectron/nkpts)
+            logger.debug(self, "Big error detected in the electron number "
+                         "of initial guess density matrix (Ne/cell = %g)!\n"
+                         "  This can cause huge error in Fock matrix and "
+                         "lead to instability in SCF for low-dimensional "
+                         "systems.\n  DM is normalized wrt the number "
+                         "of electrons %s", ne/nkpts, nelectron/nkpts)
             dm_kpts *= (nelectron / ne).reshape(-1,1,1)
         return dm_kpts
 
@@ -378,7 +378,7 @@ class GFN1KXTB(KXTB):
         if kpts is None:
             kpts = self.kpts
         if s1e is None:
-            s1e = mf.get_ovlp(kpts=kpts)
+            s1e = self.get_ovlp(kpts=kpts)
 
         log = logger.new_logger(self)
         cput0 = log.get_t0()

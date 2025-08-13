@@ -17,7 +17,6 @@ import jax
 from pyscf.lib import logger
 from pyscf.lo import boys as pyscf_boys
 from pyscfad import numpy as np
-from pyscfad.ops import stop_grad
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.soscf.ciah import (
     extract_rotation,
