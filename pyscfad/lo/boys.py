@@ -1,9 +1,22 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import numpy
 import jax
 from pyscf.lib import logger
 from pyscf.lo import boys as pyscf_boys
 from pyscfad import numpy as np
-from pyscfad.ops import stop_grad
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.soscf.ciah import (
     extract_rotation,
@@ -102,8 +115,11 @@ class Boys(pyscf_boys.Boys):
 
 def dipole_integral(mol, mo_coeff):
     # FIXME do we need charge center response?
-    charge_center = numpy.einsum('z,zx->x', mol.atom_charges(),
-                                 stop_grad(mol.atom_coords()))
+    #charge_center = numpy.einsum('z,zx->x', mol.atom_charges(),
+    #                             stop_grad(mol.atom_coords()))
+    # NOTE set origin as the charge center,
+    # otherwise, will need to compute charge center response
+    charge_center = numpy.zeros(3)
     with mol.with_common_origin(charge_center):
         r = mol.intor('int1e_r')
         dip = np.einsum('ui,xuv,vj->xij', mo_coeff.conj(), r, mo_coeff)

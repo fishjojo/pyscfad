@@ -49,7 +49,7 @@ setup(
     author="Xing Zhang",
     author_email="zhangxing.nju@gmail.com",
     packages=[package_name],
-    python_requires=">=3.10",
+    python_requires=">=3.11",
     extras_require={
       'with_cuda': [
           "nvidia-cublas-cu12>=12.1.3.1",
@@ -60,13 +60,12 @@ setup(
           "nvidia-nvjitlink-cu12>=12.1.105",
       ],
     },
-    license="MIT",
+    license="Apache-2.0",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Topic :: Scientific/Engineering",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.10",
+        "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",

@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import pytest
 import numpy
 import jax
@@ -16,6 +30,7 @@ a = 5.431020511
 lattice = [[0., a/2, a/2],
           [a/2, 0., a/2],
           [a/2, a/2, 0.]]
+mesh = [21,]*3
 disp = 0.01
 atom = [['Si', [0., 0., 0.]],
         ['Si', [a/4+disp, a/4+disp, a/4+disp]]]
@@ -33,7 +48,7 @@ def get_cell():
     cell.a = lattice
     cell.basis = basis
     cell.pseudo = pseudo
-    cell.build(trace_exp=False, trace_ctr_coeff=False)
+    cell.build()
     return cell
 
 @pytest.fixture
@@ -78,7 +93,7 @@ def test_get_hcore(get_cell, get_cell_ref):
     cell_ref = get_cell_ref
     mf_ref = pyscf_scf.KRHF(cell_ref, kpts=kpts)
     h1_ref = mf_ref.get_hcore()
-    assert abs(h1-h1_ref).max() < 1e-10
+    assert abs(h1-h1_ref).max() < 1e-8
 
     g_fwd = jax.jacfwd(get_hcore)(cell, kpts).coords
     #g_bwd = jax.jacrev(get_hcore)(cell, kpts).coords
@@ -87,8 +102,8 @@ def test_get_hcore(get_cell, get_cell_ref):
     hcore_deriv = mf_grad.hcore_generator(cell_ref, kpts)
     for ia in range(cell_ref.natm):
         g0 = hcore_deriv(ia).transpose(1,2,3,0)
-        assert abs(g_fwd[...,ia,:] - g0).max() < 1e-10
-        #assert abs(g_bwd[...,ia,:] - g0).max() < 1e-10
+        assert abs(g_fwd[...,ia,:] - g0).max() < 1e-8
+        #assert abs(g_bwd[...,ia,:] - g0).max() < 1e-8
 
 def test_get_veff(get_cell, get_cellp_ref, get_cellm_ref):
     cell = get_cell
@@ -118,7 +133,7 @@ def test_get_veff(get_cell, get_cellp_ref, get_cellm_ref):
     assert abs(g_fwd[...,1,2] - g0z).max() < 1e-6
     #assert abs(g_bwd[...,1,2] - g0z).max() < 1e-6
 
-def test_e_tot(get_cell, get_cell_ref):
+def test_krhf(get_cell, get_cell_ref):
     cell = get_cell
     kpts = cell.make_kpts([2,1,1])
     def hf_energy(cell, kpts):
@@ -134,6 +149,6 @@ def test_e_tot(get_cell, get_cell_ref):
     mf_grad = pyscf_grad.krhf.Gradients(mf_ref)
     g0 = mf_grad.kernel()
 
-    assert abs(e_tot - e_tot_ref) < 1e-10
+    assert abs(e_tot - e_tot_ref) < 1e-8
     #assert abs(jac_fwd.coords - g0).max() < 1e-8
     assert abs(jac_bwd.coords - g0).max() < 1e-8

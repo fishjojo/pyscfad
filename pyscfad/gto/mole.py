@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from functools import wraps
 from pyscf.gto import mole as pyscf_mole
 from pyscf.lib import logger, param
@@ -10,15 +24,34 @@ from ._mole_helper import setup_exp, setup_ctr_coeff
 Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
 Exclude_Aux_Names = ('verbose',)
 
+def inter_distance(mol=None, coords=None, Ls=None):
+    """Atom distance array.
 
-@wraps(pyscf_mole.inter_distance)
-def inter_distance(mol, coords=None):
+    Parameters
+    ----------
+    mol : :class:`Mole` instance, optional
+        Either ``mol`` or ``coords`` must be specified.
+    coords : array, optional
+        Atom coordinates. If not specified,
+        will use ``mol.atom_coords()``.
+    Ls : array, optional
+        Lattice translation vectors.
+
+    Returns
+    -------
+    r : array
+    """
+    if mol is None and coords is None:
+        raise KeyError("Either 'mol' or 'coords' must be specified.")
     if coords is None:
         coords = mol.atom_coords()
-    r = coords[:,None,:] - coords[None,:,:]
-    rr = np.sum(r*r, axis=2)
-    rr = np.sqrt(np.where(rr>1e-10, rr, 0))
-    return rr
+    rij = coords[:,None,:] - coords[None,:,:]
+    if Ls is not None:
+        Ls = Ls.reshape(-1, 3)
+        rij = rij[None,...] + Ls[:,None,None,:]
+    r2 = np.sum(rij * rij, axis=-1)
+    r = np.sqrt(np.where(r2>1e-12, r2, 0))
+    return r
 
 @wraps(pyscf_mole.classical_coulomb_energy)
 def classical_coulomb_energy(mol, charges=None, coords=None):
@@ -27,7 +60,7 @@ def classical_coulomb_energy(mol, charges=None, coords=None):
     if len(charges) <= 1:
         return 0.0
     rr = inter_distance(mol, coords)
-    rr = np.where(rr>1e-5, rr, 1e200)
+    rr = np.where(rr>1e-6, rr, np.inf)
     enuc = np.einsum('i,ij,j->', charges, 1./rr, charges) * .5
     return enuc
 
@@ -64,7 +97,7 @@ class Mole(pytree.PytreeNode, pyscf_mole.Mole):
         not used as the basis functions are atom centered. This
         is a placeholder for floating Gaussian basis sets.
     """
-    _dynamic_attr = _keys = {'coords', 'exp', 'ctr_coeff', 'r0'}
+    _dynamic_attr = _keys = ['coords', 'exp', 'ctr_coeff', 'r0']
 
     def __init__(self, **kwargs):
         self.coords = None
@@ -81,6 +114,18 @@ class Mole(pytree.PytreeNode, pyscf_mole.Mole):
                 return self.coords * param.BOHR
             else:
                 return self.coords
+
+    def set_geom_(self, atoms_or_coords, unit=None, symmetry=None,
+                  inplace=True):
+        mol = pyscf_mole.Mole.set_geom_(self, atoms_or_coords,
+                                        unit=unit, symmetry=symmetry, inplace=inplace)
+        if self.coords is not None:
+            mol.coords = np.asarray(pyscf_mole.Mole.atom_coords(mol))
+        if self.exp is not None:
+            mol.exp = np.asarray(setup_exp(mol)[0])
+        if self.ctr_coeff is not None:
+            mol.ctr_coeff = np.asarray(setup_ctr_coeff(mol)[0])
+        return mol
 
     def build(self, *args, **kwargs):
         trace_coords = kwargs.pop('trace_coords', True)

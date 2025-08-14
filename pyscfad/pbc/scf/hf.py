@@ -1,8 +1,22 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import sys
-from functools import wraps
 import h5py
 import numpy
 from pyscf import __config__
+from pyscf.lib import with_doc
 from pyscf.pbc.scf import hf as pyscf_pbc_hf
 from pyscf.pbc.scf.hf import _format_jks
 from pyscfad import numpy as np
@@ -11,9 +25,9 @@ from pyscfad.lib import logger
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
 
-@wraps(pyscf_pbc_hf.get_ovlp)
+@with_doc(pyscf_pbc_hf.get_ovlp.__doc__)
 def get_ovlp(cell, kpt=np.zeros(3)):
-    s = cell.pbc_intor('int1e_ovlp', hermi=0, kpts=kpt)
+    s = cell.pbc_intor('int1e_ovlp', hermi=1, kpts=kpt)
     return np.asarray(s)
 
 class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
@@ -28,6 +42,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
     mo_energy : array
         MO energies.
     """
+    _dynamic_attr = ['cell',]
     def __init__(self, cell, kpt=numpy.zeros(3),
                  exxdiv=getattr(__config__, 'pbc_scf_SCF_exxdiv', 'ewald')):
         if not cell._built:
@@ -49,7 +64,7 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
         dm = normalize_dm_(self, dm, s1e)
         return dm
 
-    def get_hcore(self, cell=None, kpt=None):
+    def get_hcore(self, cell=None, kpt=None, **kwargs):
         if cell is None:
             cell = self.cell
         if kpt is None:
@@ -60,10 +75,10 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
             raise NotImplementedError
         if len(cell._ecpbas) > 0:
             raise NotImplementedError
-        h1 = cell.pbc_intor('int1e_kin', comp=1, hermi=1, kpts=kpt)
+        h1 = cell.pbc_intor('int1e_kin', hermi=1, kpts=kpt)
         return nuc + h1
 
-    @wraps(pyscf_pbc_hf.SCF.get_jk)
+    @with_doc(pyscf_pbc_hf.SCF.get_jk.__doc__)
     def get_jk(self, cell=None, dm=None, hermi=1, kpt=None, kpts_band=None,
                with_j=True, with_k=True, omega=None, **kwargs):
         if cell is None:
@@ -114,11 +129,32 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
         return self
 
     def energy_nuc(self):
-        # recompute nuclear energy to trace it
+        # NOTE always compute nuclear energy to trace it
         return self.cell.energy_nuc()
 
-    check_sanity = stop_trace(pyscf_pbc_hf.SCF.check_sanity)
-    get_veff = pyscf_pbc_hf.SCF.get_veff
+    def check_sanity(self):
+        # TODO need better way to adapt pyscf's check_sanity
+        return self
+
+    def dump_flags(self, verbose=None):
+        mol_hf.SCF.dump_flags(self, verbose)
+        logger.info(self, '******** PBC SCF flags ********')
+        if hasattr(self, 'kpts'):
+            logger.info(self, 'kpts = %s', self.kpts)
+        elif hasattr(self, 'kpt'):
+            logger.info(self, 'kpt = %s', self.kpt)
+        logger.info(self, 'Exchange divergence treatment (exxdiv) = %s', self.exxdiv)
+        if getattr(self, 'smearing_method', None) is not None:
+            logger.info(self, 'Smearing method = %s', self.smearing_method)
+        logger.info(self, 'DF object = %s', self.with_df)
+        return self
+
+    def get_veff(self, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
+                 kpt=None, kpts_band=None, **kwargs):
+        return pyscf_pbc_hf.SCF.get_veff(
+                    self, cell=cell, dm=dm, dm_last=dm_last, vhf_last=vhf_last,
+                    hermi=hermi, kpt=kpt, kpts_band=kpts_band)
+
     energy_grad = NotImplemented
 
 
@@ -126,7 +162,9 @@ class RHF(SCF, pyscf_pbc_hf.RHF):
     pass
 
 
-@wraps(pyscf_pbc_hf.normalize_dm_)
+@with_doc(pyscf_pbc_hf.normalize_dm_.__doc__)
 def normalize_dm_(mf, dm, s1e=None):
+    # NOTE not tracing this function as it is mainly used
+    # to generate the initial density matrix
     return stop_trace(pyscf_pbc_hf.normalize_dm_)(mf, dm, s1e=s1e)
 

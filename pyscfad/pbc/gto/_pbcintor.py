@@ -1,8 +1,25 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from functools import partial
 import numpy
-from jax import numpy as jnp
-from jax import custom_jvp, custom_vjp
+from jax import custom_vjp
+from pyscf.gto.moleintor import _get_intor_and_comp
 from pyscf.pbc.gto import Cell
+from pyscfad import numpy as np
+from pyscfad.ops import custom_jvp
+from pyscfad.gto._moleintor_jvp import _int1e_fill_jvp_r0_s2
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
 def _pbc_intor(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
@@ -12,6 +29,11 @@ def _pbc_intor(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
 @_pbc_intor.defjvp
 def _pbc_intor_jvp(intor, comp, hermi, kpts, kpt, shls_slice,
                    primals, tangents):
+    if hermi != 1:
+        raise NotImplementedError
+    if shls_slice is not None:
+        raise NotImplementedError
+
     mol, = primals
     mol_t, = tangents
 
@@ -22,43 +44,35 @@ def _pbc_intor_jvp(intor, comp, hermi, kpts, kpt, shls_slice,
             intor_ip = intor.replace("int1e_", "int1e_ip")
         else:
             raise NotImplementedError
-        tangent_out = _int1e_jvp_r0(mol, mol_t, intor_ip, kpts, kpt, shls_slice)
+        tangent_out = _int1e_jvp_r0(mol, mol_t, intor_ip, hermi, kpts, kpt, shls_slice)
 
     if mol.ctr_coeff is not None:
-        pass
+        raise NotImplementedError
     if mol.exp is not None:
-        pass
+        raise NotImplementedError
 
     return primal_out, tangent_out
 
-def _int1e_jvp_r0(mol, mol_t, intor, kpts, kpt, shls_slice):
-    coords_t = mol_t.coords
-    aoslices = mol.aoslice_by_atom()
-    nao = mol.nao
-    s1 = Cell.pbc_intor(mol.view(Cell), intor, comp=3, hermi=0,
-                        kpts=kpts, kpt=kpt, shls_slice=shls_slice)
+def _int1e_jvp_r0(mol, mol_t, intor, hermi, kpts, kpt, shls_slice):
+    _, comp = _get_intor_and_comp(intor)
+    if comp != 3:
+        raise NotImplementedError
+
+    s1 = _pbc_intor(mol, intor, comp=comp, hermi=0,
+                    kpts=kpts, kpt=kpt, shls_slice=shls_slice)
 
     gamma = False
-    if isinstance(s1, numpy.ndarray):
+    if getattr(s1, "ndim", None) == 3:
         s1 = [s1,]
         gamma = True
 
-    def get_tangent_out(s1_k):
-        grad = numpy.zeros((mol.natm,3,nao,nao), dtype=s1_k.dtype)
-        for ia in range(mol.natm):
-            p0, p1 = aoslices [ia,2:]
-            grad[ia,:,p0:p1] += -s1_k[:,p0:p1]
-        tangent_out_k = jnp.einsum("nxij,nx->ij", grad, coords_t)
-        tangent_out_k += tangent_out_k.T.conj()
-        return tangent_out_k
-
-    # FIXME this may be slow with many k-points
-    tangent_out = [get_tangent_out(s1_k) for s1_k in s1]
+    aoslices = mol.aoslice_by_atom()[:,2:4]
+    idx = np.arange(mol.nao)[None,:,None]
+    tangent_out = [_int1e_fill_jvp_r0_s2(-s1_k, mol_t.coords, aoslices, idx) for s1_k in s1]
 
     if gamma:
         tangent_out = tangent_out[0]
     return tangent_out
-
 
 @partial(custom_vjp, nondiff_argnums=tuple(range(1,7)))
 def _pbc_intor_rev(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
@@ -80,11 +94,11 @@ def _pbc_intor_bwd(intor, comp, hermi, kpts, kpt, shls_slice, res, y_bar):
             raise NotImplementedError
     partial_r0 = _int1e_partial_r0(mol, intor_ip, kpts, kpt, shls_slice)
     if isinstance(partial_r0, numpy.ndarray):
-        r0_bar = jnp.einsum("nxij,ij->nx", partial_r0, y_bar)
+        r0_bar = np.einsum("nxij,ij->nx", partial_r0, y_bar)
     else:
         r0_bar = []
         for item in partial_r0:
-            r0_bar.append(jnp.einsum("nxij,ij->nx", item, y_bar))
+            r0_bar.append(np.einsum("nxij,ij->nx", item, y_bar))
 
     ctr_coeff_bar=None
     if mol.ctr_coeff is not None:

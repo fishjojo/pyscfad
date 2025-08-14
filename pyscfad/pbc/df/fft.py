@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import numpy
 from jax import numpy as np
 from pyscf import __config__
@@ -89,20 +103,21 @@ def get_pp(mydf, kpts=None):
                     #:tmp = numpy.einsum('ij,jmp->imp', hl, SPG_lm_aoG)
                     #:vppnl += numpy.einsum('imp,imq->pq', SPG_lm_aoG.conj(), tmp)
 
-            buf = np.vstack(buf)
-            if p1 > 0:
-                #SPG_lmi = buf #buf[:p1]
-                SPG_lmi = buf * SI[ia].conj()
-                SPG_lm_aoGs = np.dot(SPG_lmi, aokG)
-                p1 = 0
-                for l, proj in enumerate(pp[5:]):
-                    rl, nl, hl = proj
-                    if nl > 0:
-                        p0, p1 = p1, p1+nl*(l*2+1)
-                        hl = numpy.asarray(hl)
-                        SPG_lm_aoG = SPG_lm_aoGs[p0:p1].reshape(nl,l*2+1,-1)
-                        tmp = np.einsum('ij,jmp->imp', hl, SPG_lm_aoG)
-                        vppnl += np.einsum('imp,imq->pq', SPG_lm_aoG.conj(), tmp)
+            if len(buf) > 0:
+                buf = np.vstack(buf)
+                if p1 > 0:
+                    #SPG_lmi = buf #buf[:p1]
+                    SPG_lmi = buf * SI[ia].conj()
+                    SPG_lm_aoGs = np.dot(SPG_lmi, aokG)
+                    p1 = 0
+                    for l, proj in enumerate(pp[5:]):
+                        rl, nl, hl = proj
+                        if nl > 0:
+                            p0, p1 = p1, p1+nl*(l*2+1)
+                            hl = numpy.asarray(hl)
+                            SPG_lm_aoG = SPG_lm_aoGs[p0:p1].reshape(nl,l*2+1,-1)
+                            tmp = np.einsum('ij,jmp->imp', hl, SPG_lm_aoG)
+                            vppnl += np.einsum('imp,imq->pq', SPG_lm_aoG.conj(), tmp)
         #return vppnl * (1./cell.vol)
         return vppnl * (1./ngrids**2)
 
@@ -123,7 +138,6 @@ def get_pp(mydf, kpts=None):
 #@util.pytree_node(['cell','kpts'])
 class FFTDF(pyscf_fft.FFTDF):
     def __init__(self, cell, kpts=numpy.zeros((1,3))):#, **kwargs):
-        from pyscfad.pbc.dft import gen_grid
         from pyscfad.pbc.dft import numint
         self.cell = cell
         self.stdout = cell.stdout
@@ -131,7 +145,7 @@ class FFTDF(pyscf_fft.FFTDF):
         self.max_memory = cell.max_memory
 
         self.kpts = kpts
-        self.grids = gen_grid.UniformGrids(cell)
+        self.mesh = cell.mesh
 
         self.blockdim = getattr(__config__, 'pbc_df_df_DF_blockdim', 240)
 
@@ -140,6 +154,13 @@ class FFTDF(pyscf_fft.FFTDF):
         self._rsh_df = {}  # Range separated Coulomb DF objects
         self._keys = set(self.__dict__.keys())
         #self.__dict__.update(kwargs)
+
+    @property
+    def grids(self):
+        from pyscfad.pbc.dft import gen_grid
+        grids = gen_grid.UniformGrids(self.cell)
+        grids.mesh = self.mesh
+        return grids
 
     def get_jk(self, dm, hermi=1, kpts=None, kpts_band=None,
                with_j=True, with_k=True, omega=None, exxdiv=None):

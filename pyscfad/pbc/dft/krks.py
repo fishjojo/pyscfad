@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import numpy
 from pyscf import __config__
 from pyscf.lib import logger
@@ -10,23 +24,19 @@ from pyscfad.pbc.scf import khf
 from pyscfad.pbc.dft import rks
 
 def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
-             kpts=None, kpts_band=None):
+             kpts=None, kpts_band=None, **kwargs):
     if cell is None: cell = ks.cell
     if dm is None: dm = ks.make_rdm1()
     if kpts is None: kpts = ks.kpts
 
     log = logger.new_logger(ks)
 
-    omega, alpha, hyb = ks._numint.rsh_and_hybrid_coeff(ks.xc, spin=cell.spin)
-    hybrid = abs(hyb) > 1e-10 or abs(alpha) > 1e-10
+    ni = ks._numint
+    if isinstance(ni, multigrid.MultiGridNumInt):
+        raise NotImplementedError
 
-    if not hybrid and isinstance(ks.with_df, multigrid.MultiGridFFTDF):
-        n, exc, vxc = multigrid.nr_rks(ks.with_df, ks.xc, dm, hermi,
-                                       kpts, kpts_band,
-                                       with_j=True, return_j=False)
-        log.debug('nelec by numeric integration = %s', n)
-        log.timer('vxc')
-        return vxc
+    omega, alpha, hyb = ni.rsh_and_hybrid_coeff(ks.xc, spin=cell.spin)
+    hybrid = abs(hyb) > 1e-10 or abs(alpha) > 1e-10
 
     # ndim = 3 : dm.shape = (nkpts, nao, nao)
     ground_state = (getattr(dm, 'ndim', None) == 3 and
@@ -44,7 +54,7 @@ def get_veff(ks, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
     if hermi == 2:  # because rho = 0
         n, exc, vxc = 0, 0, 0
     else:
-        n, exc, vxc = ks._numint.nr_rks(cell, ks.grids, ks.xc, dm, 0,
+        n, exc, vxc = ni.nr_rks(cell, ks.grids, ks.xc, dm, 0,
                                         kpts, kpts_band)
         log.debug('nelec by numeric integration = %s', n)
         log.timer('vxc')

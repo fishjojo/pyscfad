@@ -30,7 +30,6 @@ jobs:
             /opt/python/cp311-cp311/bin/pip install --upgrade pip setuptools wheel auditwheel && \
             ln -s /opt/python/cp311-cp311/bin/python3 /usr/local/bin/python3 && \
             cd pyscfadlib && \
-            python3 build/build.py build --python_version=3.10 && \
             python3 build/build.py build --python_version=3.11 && \
             python3 build/build.py build --python_version=3.12 && \
             python3 build/build.py build --python_version=3.13 && \
@@ -54,7 +53,6 @@ jobs:
             /opt/python/cp311-cp311/bin/pip install --upgrade pip setuptools wheel auditwheel && \
             ln -s /opt/python/cp311-cp311/bin/python3 /usr/local/bin/python3 && \
             cd pyscfadlib && \
-            python3 build/build.py build --python_version=3.10 --target_cpu=aarch64 && \
             python3 build/build.py build --python_version=3.11 --target_cpu=aarch64 && \
             python3 build/build.py build --python_version=3.12 --target_cpu=aarch64 && \
             python3 build/build.py build --python_version=3.13 --target_cpu=aarch64 && \

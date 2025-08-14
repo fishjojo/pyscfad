@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from functools import reduce
 import numpy
 from pyscf import symm
@@ -7,7 +21,7 @@ from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.ops import vmap, stop_grad
 from pyscfad import util
-from pyscfad.lib import logger, chkfile
+from pyscfad.lib import logger
 from pyscfad.lib.linalg_helper import davidson1
 from pyscfad import ao2mo
 from pyscfad.gto import mole
@@ -192,7 +206,7 @@ class TDA(TDBase, pyscf_tdrhf.TDA):
         precond = self.get_precond(hdiag)
 
         if x0 is None:
-            x0 = self.init_guess(stop_grad(self._scf), self.nstates)
+            x0 = self.get_init_guess(stop_grad(self._scf), self.nstates)
 
         def pickeig(w, v, nroots, envs):
             idx = numpy.where(w > self.positive_eig_threshold)[0]
@@ -211,8 +225,9 @@ class TDA(TDBase, pyscf_tdrhf.TDA):
         self.xy = [(xi.reshape(nocc,nvir)*numpy.sqrt(.5),0) for xi in x1]
 
         if self.chkfile:
-            chkfile.save(self.chkfile, 'tddft/e', self.e)
-            chkfile.save(self.chkfile, 'tddft/xy', self.xy)
+            pass
+            #chkfile.save(self.chkfile, 'tddft/e', self.e)
+            #chkfile.save(self.chkfile, 'tddft/xy', self.xy)
 
         log.timer('TDA', *cpu0)
         self._finalize()

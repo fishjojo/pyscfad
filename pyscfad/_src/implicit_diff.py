@@ -1,9 +1,24 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import inspect
 import operator
 from functools import partial
 import jax
 from jax.tree_util import tree_map
 from jax.scipy.sparse.linalg import gmres
+from pyscfad.backend import get_backend
 
 _Sub = partial(tree_map, operator.sub)
 
@@ -92,8 +107,8 @@ def _custom_root(solver_fun, optimality_fun, solve,
             try:
                 _ = optimality_fun_sig.bind(*args)
             except TypeError as err:
-                msg = ('The optimality function has arguments that '
-                       'are not compatible with the solver function.')
+                msg = ("The optimality function has arguments that "
+                       "are not compatible with the solver function.")
                 raise TypeError(msg) from err
 
             vjps = root_vjp(optimality_fun, sol,
@@ -206,15 +221,15 @@ def make_implicit_diff(fn, implicit_diff=False, fixed_point=True,
     wrapped_fn : object
         The wrapped function.
     """
-    if implicit_diff:
+    if implicit_diff and get_backend().__name__ == "jax.numpy":
         if fixed_point:
             method = custom_fixed_point
         else:
             method = custom_root
 
         if not callable(optimality_cond):
-            raise KeyError(f'optimality_cond must be a function, '
-                           f'but get{optimality_cond}.')
+            raise KeyError(f"optimality_cond must be a function, "
+                           f"but got {optimality_cond}.")
         if solver is None:
             solver = gmres
         return method(optimality_cond, solve=solver, has_aux=has_aux,

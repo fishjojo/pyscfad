@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from functools import partial
 import numpy
 
@@ -260,7 +274,7 @@ def _int1e_fill_jvp_r0_s2(ints, coords_t, aoslices, aoidx):
         grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
         return np.einsum('xij,x->ij', grad, coord_t)
     jvp = np.sum(vmap(_fill)(aoslices, coords_t), axis=0)
-    jvp += jvp.T
+    jvp += jvp.T.conj()
     return jvp
 
 def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b,

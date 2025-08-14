@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 def stop_gradient(x):
     return x
 
@@ -17,6 +31,11 @@ class custom_jvp:
 
 def jit(fun, **kwargs):
     return fun
+
+def pure_callback(callback, result_shape_dtypes,
+                  *args, sharding=None, vmap_method=None,
+                  **kwargs):
+    return callback(*args, **kwargs)
 
 def while_loop(cond_fun, body_fun, init_val):
     val = init_val
