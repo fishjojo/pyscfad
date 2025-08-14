@@ -225,8 +225,9 @@ class TDA(TDBase, pyscf_tdrhf.TDA):
         self.xy = [(xi.reshape(nocc,nvir)*numpy.sqrt(.5),0) for xi in x1]
 
         if self.chkfile:
-            chkfile.save(self.chkfile, 'tddft/e', ops.to_numpy(self.e))
-            chkfile.save(self.chkfile, 'tddft/xy', ops.to_numpy(np.asarray(self.xy)))
+            pass
+            #chkfile.save(self.chkfile, 'tddft/e', self.e)
+            #chkfile.save(self.chkfile, 'tddft/xy', self.xy)
 
         log.timer('TDA', *cpu0)
         self._finalize()
