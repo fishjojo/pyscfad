@@ -226,7 +226,7 @@ class TDA(TDBase, pyscf_tdrhf.TDA):
 
         if self.chkfile:
             chkfile.save(self.chkfile, 'tddft/e', ops.to_numpy(self.e))
-            chkfile.save(self.chkfile, 'tddft/xy', ops.to_numpy(self.xy))
+            chkfile.save(self.chkfile, 'tddft/xy', ops.to_numpy(np.asarray(self.xy)))
 
         log.timer('TDA', *cpu0)
         self._finalize()
