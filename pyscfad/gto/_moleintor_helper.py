@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import lru_cache
 import numpy
 from pyscf.gto import mole as pyscf_mole
 from pyscfad.gto import _pyscf_moleintor as moleintor
@@ -84,6 +85,40 @@ def promote_xyz(xyz, x, l):
         return 'x'*l+xyz
     else:
         raise ValueError
+
+@lru_cache(100)
+def index_prompt_xyz(l, increment):
+    '''
+    Returns the addresses of Cartesian functions with angular momentum l+increment,
+    corresponding to the Cartesian functions with angular momentum l (in lexical order)
+    by increasing the "increment" power for the x, y, and z components.
+
+    For example, for Cartesian functions with l=1, the functions are x, y, and z.
+    If increment=2, the computed indices correspond to the addresses of the following
+    functions in the l=3 Cartesian functions:
+    [xxx, xxy, xxz]
+    [yyx, yyy, yyz]
+    [zzx, zzy, zzz]
+    '''
+    l2 = l + increment
+    l2_addrs = {}
+    n = 0
+    for x in range(l2, -1, -1):
+        for y in range(l2-x, -1, -1):
+            z = l2-x-y
+            l2_addrs[x,y,z] = n
+            n += 1
+
+    x_idx = []
+    y_idx = []
+    z_idx = []
+    for x in range(l, -1, -1):
+        for y in range(l-x, -1, -1):
+            z = l-x-y
+            x_idx.append(l2_addrs[x+increment,y,z])
+            y_idx.append(l2_addrs[x,y+increment,z])
+            z_idx.append(l2_addrs[x,y,z+increment])
+    return x_idx, y_idx, z_idx
 
 def int1e_get_dr_order(intor):
     fname = intor.replace('_sph', '').replace('_cart', '')

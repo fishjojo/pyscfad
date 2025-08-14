@@ -103,7 +103,7 @@ def shlmap_ctr2unctr(mol):
     map_c2u = numpy.asarray(map_c2u)
     return map_c2u
 
-def setup_exp(mol):
+def setup_exp(mol, return_unravel_fn=False):
     """Find unique exponents of the basis functions.
 
     Parameters
@@ -126,6 +126,37 @@ def setup_exp(mol):
     --------
     setup_ctr_coeff : Find unique contraction coefficients.
     """
+    ptr_exps, uniq_shell, inverse_idx = numpy.unique(
+        mol._bas[:,PTR_EXP], return_index=True, return_inverse=True)
+    offset = 0
+    env_idx_by_shell = []
+    es_section_offset = []
+    for i in uniq_shell:
+        nprim = mol._bas[i,NPRIM_OF]
+        ptr_exp = mol._bas[i,PTR_EXP]
+        env_idx_by_shell.append(numpy.arange(ptr_exp, ptr_exp+nprim))
+        es_section_offset.append(offset)
+        offset += nprim
+    env_of = numpy.hstack(env_idx_by_shell)
+    es = mol._env[env_of]
+    es_of = numpy.array(es_section_offset)[inverse_idx]
+    if not return_unravel_fn:
+        return es, es_of, env_of
+
+    def rebuild_basis(exp):
+        ls = mol._bas[uniq_shell,ANG_OF]
+        nprims = mol._bas[uniq_shell,NPRIM_OF]
+        l_exp_by_shell = [
+            [l, exp[p0:p0+np]] for l, p0, np in zip(ls, es_section_offset, nprims)
+        ]
+        raw_basis = groupby(mol._bas[uniq_shell,ATOM_OF], l_exp_by_shell)
+        basis_wo_coeff = {
+            mol._atom[atom_id][0]: shells for atom_id, shells in raw_basis.items()
+        }
+        return basis_wo_coeff
+    return es, es_of, env_of, rebuild_basis
+
+def setup_exp_legacy(mol):
     tmp = []
     es = numpy.empty([0], dtype=float)
     env_of = numpy.empty([0], dtype=numpy.int32)
@@ -150,7 +181,7 @@ def setup_exp(mol):
     es_of = es_of[idx]
     return es, es_of, env_of
 
-def setup_ctr_coeff(mol):
+def setup_ctr_coeff(mol, return_unravel_fn=False):
     """Find unique contraction coefficients of the basis functions.
 
     Parameters
@@ -167,6 +198,40 @@ def setup_ctr_coeff(mol):
     --------
     set_exp : Find unique exponents.
     """
+    ptr_coeffs, uniq_shell, inverse_idx = numpy.unique(
+        mol._bas[:,PTR_COEFF], return_index=True, return_inverse=True)
+    offset = 0
+    env_idx_by_shell = []
+    cs_section_offset = []
+    for i in uniq_shell:
+        nprim = mol._bas[i,NPRIM_OF]
+        nctr = mol._bas[i,NCTR_OF]
+        ptr_coeff = mol._bas[i,PTR_COEFF]
+        env_idx_by_shell.append(numpy.arange(ptr_coeff, ptr_coeff+nprim*nctr))
+        cs_section_offset.append(offset)
+        offset += nprim * nctr
+    env_of = numpy.hstack(env_idx_by_shell)
+    cs = mol._env[env_of]
+    cs_of = numpy.array(cs_section_offset)[inverse_idx]
+    if not return_unravel_fn:
+        return cs, cs_of, env_of
+
+    def rebuild_basis(ctr_coeff):
+        ls = mol._bas[uniq_shell,ANG_OF]
+        nprims = mol._bas[uniq_shell,NPRIM_OF]
+        nctrs = mol._bas[uniq_shell,NCTR_OF]
+        l_cs_by_shell = [
+            [l, ctr_coeff[p0:p0+np*nc].reshape(nc,np).T]
+            for l, p0, np, nc in zip(ls, cs_section_offset, nprims, nctrs)
+        ]
+        raw_basis = groupby(mol._bas[uniq_shell,ATOM_OF], l_cs_by_shell)
+        basis_wo_exp = {
+            mol._atom[atom_id][0]: shells for atom_id, shells in raw_basis.items()
+        }
+        return basis_wo_exp
+    return cs, cs_of, env_of, rebuild_basis
+
+def setup_ctr_coeff_legacy(mol):
     tmp = []
     cs = numpy.empty([0], dtype=float)
     env_of = numpy.empty([0], dtype=numpy.int32)
@@ -201,3 +266,13 @@ def get_fakemol_exp(mol, order=2, shls_slice=None):
 def get_fakemol_cs(mol, shls_slice=None):
     mol1 = uncontract(mol, shls_slice=shls_slice)
     return mol1
+
+def groupby(labels, values):
+    '''returns dict like pandas.groupby(labels, values)'''
+    assert len(labels) == len(values)
+    dic = {}
+    for label, val in zip(labels, values):
+        if label not in dic:
+            dic[label] = []
+        dic[label].append(val)
+    return dic
