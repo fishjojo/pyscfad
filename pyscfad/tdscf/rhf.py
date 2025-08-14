@@ -21,7 +21,7 @@ from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.ops import vmap, stop_grad
 from pyscfad import util
-from pyscfad.lib import logger, chkfile
+from pyscfad.lib import logger
 from pyscfad.lib.linalg_helper import davidson1
 from pyscfad import ao2mo
 from pyscfad.gto import mole
