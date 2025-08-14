@@ -1,5 +1,18 @@
 # Change log
 
+## pyscfad 0.1.11 (August 13, 2025)
+
+* Changes
+  * Drop support to Python 3.10.
+  * Updata for compatibility with pyscf 2.10.
+  * Updata for compatibility with jax 0.7.
+  * Add int3c2e auxiliary basis response.
+  * Update rcut estimation for lattice sum.
+
+* Bug fixes
+  * Fix optimized DF-CCSD(T)
+  * Fix implicit differentiation for PBC methods
+
 ## pyscfad 0.1.10 (April 12, 2025)
 
 * Changes
