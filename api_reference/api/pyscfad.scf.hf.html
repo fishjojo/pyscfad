@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>pyscfad.scf.hf &#8212; pyscfad 0.1.10 documentation</title>
+    <title>pyscfad.scf.hf &#8212; pyscfad 0.1.11 documentation</title>
   
   
   
@@ -42,7 +42,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=3d055840"></script>
+    <script src="../../_static/documentation_options.js?v=86f9da5d"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="pyscfad.scf.diis.get_err_vec_orth" href="functions/pyscfad.scf.diis.get_err_vec_orth.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="0.1.10" />
-    <meta name="docbuild:last-update" content="Aug 06, 2025"/>
+  <meta name="docsearch:version" content="0.1.11" />
+    <meta name="docbuild:last-update" content="Aug 14, 2025"/>
   </head>
   
   
@@ -548,6 +548,7 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.gto.mole.html">pyscfad.gto.mole</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="classes/pyscfad.gto.mole.Mole.html">pyscfad.gto.mole.Mole</a></li>
+<li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.gto.mole.inter_distance.html">pyscfad.gto.mole.inter_distance</a></li>
 <li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.gto.mole.nao_nr_range.html">pyscfad.gto.mole.nao_nr_range</a></li>
 </ul>
 </details></li>
@@ -674,7 +675,13 @@
 <li class="toctree-l3 current active has-children"><a class="current reference internal" href="#">pyscfad.scf.hf</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="classes/pyscfad.scf.hf.RHF.html">pyscfad.scf.hf.RHF</a></li>
 <li class="toctree-l4"><a class="reference internal" href="classes/pyscfad.scf.hf.SCF.html">pyscfad.scf.hf.SCF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.scf.hf.dip_moment.html">pyscfad.scf.hf.dip_moment</a></li>
 <li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.scf.hf.dot_eri_dm.html">pyscfad.scf.hf.dot_eri_dm</a></li>
+<li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.scf.hf.energy_elec.html">pyscfad.scf.hf.energy_elec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.scf.hf.get_fock.html">pyscfad.scf.hf.get_fock</a></li>
+<li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.scf.hf.kernel.html">pyscfad.scf.hf.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.scf.hf.level_shift.html">pyscfad.scf.hf.level_shift</a></li>
+<li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.scf.hf.make_rdm1.html">pyscfad.scf.hf.make_rdm1</a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.scf.rohf.html">pyscfad.scf.rohf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -823,8 +830,26 @@
 <p class="rubric">Functions</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf.dot_eri_dm.html#pyscfad.scf.hf.dot_eri_dm" title="pyscfad.scf.hf.dot_eri_dm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dot_eri_dm</span></code></a>(eri, dm[, hermi, with_j, with_k])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf.dip_moment.html#pyscfad.scf.hf.dip_moment" title="pyscfad.scf.hf.dip_moment"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dip_moment</span></code></a>(mol, dm[, unit, verbose])</p></td>
+<td><p>Dipole moment calculation</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf.dot_eri_dm.html#pyscfad.scf.hf.dot_eri_dm" title="pyscfad.scf.hf.dot_eri_dm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dot_eri_dm</span></code></a>(eri, dm[, hermi, with_j, with_k])</p></td>
 <td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf.energy_elec.html#pyscfad.scf.hf.energy_elec" title="pyscfad.scf.hf.energy_elec"><code class="xref py py-obj docutils literal notranslate"><span class="pre">energy_elec</span></code></a>(mf[, dm, h1e, vhf])</p></td>
+<td><p>Electronic part of Hartree-Fock energy, for given core hamiltonian and HF potential</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf.get_fock.html#pyscfad.scf.hf.get_fock" title="pyscfad.scf.hf.get_fock"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_fock</span></code></a>(mf[, h1e, s1e, vhf, dm, cycle, ...])</p></td>
+<td><p>F = h^{core} + V^{HF}</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf.kernel.html#pyscfad.scf.hf.kernel" title="pyscfad.scf.hf.kernel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">kernel</span></code></a>(mf[, conv_tol, conv_tol_grad, ...])</p></td>
+<td><p>kernel: the SCF driver.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf.level_shift.html#pyscfad.scf.hf.level_shift" title="pyscfad.scf.hf.level_shift"><code class="xref py py-obj docutils literal notranslate"><span class="pre">level_shift</span></code></a>(s, d, f, factor)</p></td>
+<td><p>Apply level shift <span class="math notranslate nohighlight">\(\Delta\)</span> to virtual orbitals</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf.make_rdm1.html#pyscfad.scf.hf.make_rdm1" title="pyscfad.scf.hf.make_rdm1"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_rdm1</span></code></a>(mo_coeff, mo_occ, **kwargs)</p></td>
+<td><p>One-particle density matrix in AO representation</p></td>
 </tr>
 </tbody>
 </table>

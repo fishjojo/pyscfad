@@ -41,6 +41,8 @@ pyscfad.pbc.scf.hf.SCF
            ~SCF.dump_chk
          
          
+           ~SCF.dump_flags
+         
          
          
          

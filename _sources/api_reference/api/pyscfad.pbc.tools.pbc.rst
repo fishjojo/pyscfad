@@ -19,6 +19,7 @@ pyscfad.pbc.tools.pbc
       :toctree: functions/
 
    
+      get_lattice_Ls
       madelung
 
    

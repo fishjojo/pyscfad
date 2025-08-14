@@ -30,8 +30,6 @@ pyscfad.pbc.scf.khf.KRHF
          
          
          
-           ~KRHF.check_sanity
-         
          
          
          

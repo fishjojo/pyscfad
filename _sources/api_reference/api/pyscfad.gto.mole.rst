@@ -28,6 +28,7 @@ pyscfad.gto.mole
       :toctree: functions/
 
    
+      inter_distance
       nao_nr_range
 
    

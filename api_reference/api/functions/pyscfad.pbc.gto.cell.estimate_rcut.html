@@ -1,0 +1,968 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>pyscfad.pbc.gto.cell.estimate_rcut &#8212; pyscfad 0.1.11 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../../_static/documentation_options.js?v=86f9da5d"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/functions/pyscfad.pbc.gto.cell.estimate_rcut';</script>
+    <script src="../../../_static/custom-icon.js?v=40bda21d"></script>
+    <link rel="icon" href="../../../_static/pyscfad_logo.svg"/>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="pyscfad.pbc.gto.cell.ewald" href="pyscfad.pbc.gto.cell.ewald.html" />
+    <link rel="prev" title="pyscfad.pbc.gto.cell.energy_nuc" href="pyscfad.pbc.gto.cell.energy_nuc.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.1.11" />
+    <meta name="docbuild:last-update" content="Aug 14, 2025"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class=" navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../../_static/pyscfad_logo.svg" class="logo__image only-light" alt=""/>
+    <img src="../../../_static/pyscfad_logo.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">pyscfad</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class=" navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../getting_started/index.html">
+    Getting started
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../../index.html">
+    API reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../development/index.html">
+    Development
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/fishjojo/pyscfad" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/pyscfad" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-custom fa-pypi fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../getting_started/index.html">
+    Getting started
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../user_guide/index.html">
+    User Guide
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="../../index.html">
+    API reference
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../../development/index.html">
+    Development
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/fishjojo/pyscfad" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://pypi.org/project/pyscfad" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-custom fa-pypi fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">PyPI</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../ao2mo.html">Orbital transformation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.ao2mo.html">pyscfad.ao2mo</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.ao2mo.general.html">pyscfad.ao2mo.general</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.ao2mo.addons.html">pyscfad.ao2mo.addons</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.ao2mo.addons.load.html">pyscfad.ao2mo.addons.load</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.ao2mo.addons.restore.html">pyscfad.ao2mo.addons.restore</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.ao2mo.incore.html">pyscfad.ao2mo.incore</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.ao2mo.incore.full.html">pyscfad.ao2mo.incore.full</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.ao2mo.incore.general.html">pyscfad.ao2mo.incore.general</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../cc.html">Coupled cluster methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.cc.html">pyscfad.cc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.cc.RCCSD.html">pyscfad.cc.RCCSD</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.cc.ccsd.html">pyscfad.cc.ccsd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.cc.ccsd.CCSD.html">pyscfad.cc.ccsd.CCSD</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd.amplitudes_to_vector.html">pyscfad.cc.ccsd.amplitudes_to_vector</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd.energy.html">pyscfad.cc.ccsd.energy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd.kernel.html">pyscfad.cc.ccsd.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd.update_amps.html">pyscfad.cc.ccsd.update_amps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd.vector_to_amplitudes.html">pyscfad.cc.ccsd.vector_to_amplitudes</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3"><a class="reference internal" href="../pyscfad.cc.ccsd_rdm.html">pyscfad.cc.ccsd_rdm</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.cc.ccsd_t.html">pyscfad.cc.ccsd_t</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t.kernel.html">pyscfad.cc.ccsd_t.kernel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.cc.ccsd_t_slow.html">pyscfad.cc.ccsd_t_slow</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.P3.html">pyscfad.cc.ccsd_t_slow.P3</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.P6.html">pyscfad.cc.ccsd_t_slow.P6</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.energy.html">pyscfad.cc.ccsd_t_slow.energy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.get_d3.html">pyscfad.cc.ccsd_t_slow.get_d3</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.get_ovvv.html">pyscfad.cc.ccsd_t_slow.get_ovvv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.get_v_6d.html">pyscfad.cc.ccsd_t_slow.get_v_6d</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.get_w_6d.html">pyscfad.cc.ccsd_t_slow.get_w_6d</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.iterative_kernel.html">pyscfad.cc.ccsd_t_slow.iterative_kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.kernel.html">pyscfad.cc.ccsd_t_slow.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.r3_6d.html">pyscfad.cc.ccsd_t_slow.r3_6d</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.run_diis.html">pyscfad.cc.ccsd_t_slow.run_diis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.ccsd_t_slow.update_amps.html">pyscfad.cc.ccsd_t_slow.update_amps</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.cc.dfccsd.html">pyscfad.cc.dfccsd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.cc.dfccsd.RCCSD.html">pyscfad.cc.dfccsd.RCCSD</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.cc.dfdcsd.html">pyscfad.cc.dfdcsd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.cc.dfdcsd.RDCSD.html">pyscfad.cc.dfdcsd.RDCSD</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.cc.gccsd_t.html">pyscfad.cc.gccsd_t</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.gccsd_t.kernel.html">pyscfad.cc.gccsd_t.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.gccsd_t.spatial2spin.html">pyscfad.cc.gccsd_t.spatial2spin</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.cc.rccsd.html">pyscfad.cc.rccsd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.cc.rccsd.RCCSD.html">pyscfad.cc.rccsd.RCCSD</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.amplitude_equation.html">pyscfad.cc.rccsd.amplitude_equation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.update_amps.html">pyscfad.cc.rccsd.update_amps</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.cc.rintermediates.html">pyscfad.cc.rintermediates</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.Loo.html">pyscfad.cc.rintermediates.Loo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.Lvv.html">pyscfad.cc.rintermediates.Lvv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.W1ovov.html">pyscfad.cc.rintermediates.W1ovov</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.W1ovvo.html">pyscfad.cc.rintermediates.W1ovvo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.W2ovov.html">pyscfad.cc.rintermediates.W2ovov</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.W2ovvo.html">pyscfad.cc.rintermediates.W2ovvo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.Woooo.html">pyscfad.cc.rintermediates.Woooo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.Wooov.html">pyscfad.cc.rintermediates.Wooov</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.Wovoo.html">pyscfad.cc.rintermediates.Wovoo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.Wovov.html">pyscfad.cc.rintermediates.Wovov</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.Wovvo.html">pyscfad.cc.rintermediates.Wovvo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.Wvovv.html">pyscfad.cc.rintermediates.Wvovv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.Wvvvo.html">pyscfad.cc.rintermediates.Wvvvo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.Wvvvv.html">pyscfad.cc.rintermediates.Wvvvv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.cc_Foo.html">pyscfad.cc.rintermediates.cc_Foo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.cc_Fov.html">pyscfad.cc.rintermediates.cc_Fov</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.cc_Fvv.html">pyscfad.cc.rintermediates.cc_Fvv</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.cc_Woooo.html">pyscfad.cc.rintermediates.cc_Woooo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.cc_Wvoov.html">pyscfad.cc.rintermediates.cc_Wvoov</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.cc_Wvovo.html">pyscfad.cc.rintermediates.cc_Wvovo</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rintermediates.cc_Wvvvv.html">pyscfad.cc.rintermediates.cc_Wvvvv</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../df.html">Density fitting</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.df.html">pyscfad.df</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.df.addons.html">pyscfad.df.addons</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.df.addons.load.html">pyscfad.df.addons.load</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.df.addons.make_auxmol.html">pyscfad.df.addons.make_auxmol</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.df.addons.restore.html">pyscfad.df.addons.restore</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.df.df.html">pyscfad.df.df</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.df.df.DF.html">pyscfad.df.df.DF</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.df.df_jk.html">pyscfad.df.df_jk</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.df.df_jk.get_jk.html">pyscfad.df.df_jk.get_jk</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.df.df_jk.get_jk_gen.html">pyscfad.df.df_jk.get_jk_gen</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.df.incore.html">pyscfad.df.incore</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.df.incore.cholesky_eri.html">pyscfad.df.incore.cholesky_eri</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.df.incore.int3c_cross_jvp.html">pyscfad.df.incore.int3c_cross_jvp</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../dft.html">DFT methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.dft.html">pyscfad.dft</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.dft.libxc.html">pyscfad.dft.libxc</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.libxc.eval_xc.html">pyscfad.dft.libxc.eval_xc</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.dft.numint.html">pyscfad.dft.numint</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.dft.numint.NumInt.html">pyscfad.dft.numint.NumInt</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.numint.eval_mat.html">pyscfad.dft.numint.eval_mat</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.numint.eval_rho.html">pyscfad.dft.numint.eval_rho</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.numint.nr_nlc_vxc.html">pyscfad.dft.numint.nr_nlc_vxc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.numint.nr_rks.html">pyscfad.dft.numint.nr_rks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.numint.nr_uks.html">pyscfad.dft.numint.nr_uks</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.dft.rks.html">pyscfad.dft.rks</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.dft.rks.KohnShamDFT.html">pyscfad.dft.rks.KohnShamDFT</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.dft.rks.RKS.html">pyscfad.dft.rks.RKS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.dft.rks.VXC.html">pyscfad.dft.rks.VXC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.rks.energy_elec.html">pyscfad.dft.rks.energy_elec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.rks.get_veff.html">pyscfad.dft.rks.get_veff</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.rks.prune_small_rho_grids_.html">pyscfad.dft.rks.prune_small_rho_grids_</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.dft.uks.html">pyscfad.dft.uks</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.dft.uks.UKS.html">pyscfad.dft.uks.UKS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.uks.energy_elec.html">pyscfad.dft.uks.energy_elec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.dft.uks.get_veff.html">pyscfad.dft.uks.get_veff</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../fci.html">Full CI</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.fci.html">pyscfad.fci</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.fci.solve_fci.html">pyscfad.fci.solve_fci</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.fci.fci_slow.html">pyscfad.fci.fci_slow</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.fci.fci_slow.absorb_h1e.html">pyscfad.fci.fci_slow.absorb_h1e</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.fci.fci_slow.contract_2e.html">pyscfad.fci.fci_slow.contract_2e</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.fci.fci_slow.fci_ovlp.html">pyscfad.fci.fci_slow.fci_ovlp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.fci.fci_slow.get_occ_loc.html">pyscfad.fci.fci_slow.get_occ_loc</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.fci.fci_slow.kernel.html">pyscfad.fci.fci_slow.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.fci.fci_slow.make_hdiag.html">pyscfad.fci.fci_slow.make_hdiag</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../geomopt.html">Geometry optimization</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.geomopt.html">pyscfad.geomopt</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.geomopt.optimize.html">pyscfad.geomopt.optimize</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.geomopt.optimize_mpi.html">pyscfad.geomopt.optimize_mpi</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.geomopt.geometric_solver.html">pyscfad.geomopt.geometric_solver</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.geomopt.geometric_solver.PySCFADEngine.html">pyscfad.geomopt.geometric_solver.PySCFADEngine</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.geomopt.geometric_solver.kernel.html">pyscfad.geomopt.geometric_solver.kernel</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../gto.html">Molecular information</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.gto.html">pyscfad.gto</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.gto.eval_gto.html">pyscfad.gto.eval_gto</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.gto.eval_gto.eval_gto.html">pyscfad.gto.eval_gto.eval_gto</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.gto.mole.html">pyscfad.gto.mole</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.gto.mole.Mole.html">pyscfad.gto.mole.Mole</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.gto.mole.inter_distance.html">pyscfad.gto.mole.inter_distance</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.gto.mole.nao_nr_range.html">pyscfad.gto.mole.nao_nr_range</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.gto.moleintor.html">pyscfad.gto.moleintor</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.gto.moleintor.intor.html">pyscfad.gto.moleintor.intor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.gto.moleintor.intor_cross.html">pyscfad.gto.moleintor.intor_cross</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../gw.html">GW methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.gw.html">pyscfad.gw</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.gw.rpa.html">pyscfad.gw.rpa</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.gw.rpa.RPA.html">pyscfad.gw.rpa.RPA</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.gw.rpa.get_rho_response.html">pyscfad.gw.rpa.get_rho_response</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.gw.rpa.get_rpa_ecorr.html">pyscfad.gw.rpa.get_rpa_ecorr</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.gw.rpa.kernel.html">pyscfad.gw.rpa.kernel</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../mp.html">MP2 methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.mp.html">pyscfad.mp</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.mp.dfmp2.html">pyscfad.mp.dfmp2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.mp.dfmp2.MP2.html">pyscfad.mp.dfmp2.MP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.dfmp2.kernel.html">pyscfad.mp.dfmp2.kernel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.mp.mp2.html">pyscfad.mp.mp2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.mp.mp2.MP2.html">pyscfad.mp.mp2.MP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.mp.mp2.RMP2.html">pyscfad.mp.mp2.RMP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.mp2.make_rdm1.html">pyscfad.mp.mp2.make_rdm1</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../../pbc.html">Methods for Solids</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="../pyscfad.pbc.html">pyscfad.pbc</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.pbc.df.html">pyscfad.pbc.df</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.df.df_jk.html">pyscfad.pbc.df.df_jk</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.df.fft.html">pyscfad.pbc.df.fft</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.df.fft_jk.html">pyscfad.pbc.df.fft_jk</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.pbc.dft.html">pyscfad.pbc.dft</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.dft.KRKS.html">pyscfad.pbc.dft.KRKS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.dft.RKS.html">pyscfad.pbc.dft.RKS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.dft.gen_grid.html">pyscfad.pbc.dft.gen_grid</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.dft.krks.html">pyscfad.pbc.dft.krks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.dft.numint.html">pyscfad.pbc.dft.numint</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.dft.rks.html">pyscfad.pbc.dft.rks</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 current active has-children"><a class="reference internal" href="../pyscfad.pbc.gto.html">pyscfad.pbc.gto</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l4 current active"><a class="reference internal" href="../pyscfad.pbc.gto.cell.html">pyscfad.pbc.gto.cell</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.gto.eval_gto.html">pyscfad.pbc.gto.eval_gto</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.gto.pseudo.html">pyscfad.pbc.gto.pseudo</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.pbc.lib.html">pyscfad.pbc.lib</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.lib.kpts_helper.html">pyscfad.pbc.lib.kpts_helper</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.pbc.scf.html">pyscfad.pbc.scf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.scf.KRHF.html">pyscfad.pbc.scf.KRHF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.pbc.scf.RHF.html">pyscfad.pbc.scf.RHF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.scf.hf.html">pyscfad.pbc.scf.hf</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.scf.khf.html">pyscfad.pbc.scf.khf</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.pbc.tools.html">pyscfad.pbc.tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.pbc.tools.pbc.html">pyscfad.pbc.tools.pbc</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../prop.html">Property methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.prop.html">pyscfad.prop</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.prop.polarizability.html">pyscfad.prop.polarizability</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.prop.polarizability.rhf.html">pyscfad.prop.polarizability.rhf</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.prop.thermo.html">pyscfad.prop.thermo</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.prop.thermo.vib.html">pyscfad.prop.thermo.vib</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../scf.html">Hartree-Fock methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.scf.html">pyscfad.scf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.scf.RHF.html">pyscfad.scf.RHF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.scf.ROHF.html">pyscfad.scf.ROHF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.scf.UHF.html">pyscfad.scf.UHF</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pyscfad.scf.addons.html">pyscfad.scf.addons</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.chkfile.html">pyscfad.scf.chkfile</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.chkfile.dump_scf.html">pyscfad.scf.chkfile.dump_scf</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.cphf.html">pyscfad.scf.cphf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.cphf.solve.html">pyscfad.scf.cphf.solve</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.cphf.solve_nos1.html">pyscfad.scf.cphf.solve_nos1</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.diis.html">pyscfad.scf.diis</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.diis.CDIIS.html">pyscfad.scf.diis.CDIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.diis.DIIS.html">pyscfad.scf.diis.DIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.diis.SCFDIIS.html">pyscfad.scf.diis.SCFDIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.diis.SCF_DIIS.html">pyscfad.scf.diis.SCF_DIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.diis.get_err_vec.html">pyscfad.scf.diis.get_err_vec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.diis.get_err_vec_orig.html">pyscfad.scf.diis.get_err_vec_orig</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.diis.get_err_vec_orth.html">pyscfad.scf.diis.get_err_vec_orth</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.hf.html">pyscfad.scf.hf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.hf.RHF.html">pyscfad.scf.hf.RHF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.hf.SCF.html">pyscfad.scf.hf.SCF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf.dip_moment.html">pyscfad.scf.hf.dip_moment</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf.dot_eri_dm.html">pyscfad.scf.hf.dot_eri_dm</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf.energy_elec.html">pyscfad.scf.hf.energy_elec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf.get_fock.html">pyscfad.scf.hf.get_fock</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf.kernel.html">pyscfad.scf.hf.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf.level_shift.html">pyscfad.scf.hf.level_shift</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf.make_rdm1.html">pyscfad.scf.hf.make_rdm1</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.rohf.html">pyscfad.scf.rohf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.rohf.ROHF.html">pyscfad.scf.rohf.ROHF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.rohf.get_fock.html">pyscfad.scf.rohf.get_fock</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.rohf.get_occ.html">pyscfad.scf.rohf.get_occ</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.rohf.get_roothaan_fock.html">pyscfad.scf.rohf.get_roothaan_fock</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.rohf.make_rdm1.html">pyscfad.scf.rohf.make_rdm1</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.uhf.html">pyscfad.scf.uhf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.uhf.UHF.html">pyscfad.scf.uhf.UHF</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../tdscf.html">TDSCF methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.tdscf.html">pyscfad.tdscf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.tdscf.rhf.html">pyscfad.tdscf.rhf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.tdscf.rhf.CIS.html">pyscfad.tdscf.rhf.CIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.tdscf.rhf.TDA.html">pyscfad.tdscf.rhf.TDA</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.tdscf.rhf.TDBase.html">pyscfad.tdscf.rhf.TDBase</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.tdscf.rhf.cis_ovlp.html">pyscfad.tdscf.rhf.cis_ovlp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.tdscf.rhf.gen_tda_hop.html">pyscfad.tdscf.rhf.gen_tda_hop</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.tdscf.rhf.gen_tda_operation.html">pyscfad.tdscf.rhf.gen_tda_operation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.tdscf.rhf.get_ab.html">pyscfad.tdscf.rhf.get_ab</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../tools.html">Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.tools.html">pyscfad.tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.tools.linear_solver.html">pyscfad.tools.linear_solver</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.tools.linear_solver.GMRESDisp.html">pyscfad.tools.linear_solver.GMRESDisp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.tools.linear_solver.gen_gmres.html">pyscfad.tools.linear_solver.gen_gmres</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.tools.linear_solver.gen_gmres_with_default_kwargs.html">pyscfad.tools.linear_solver.gen_gmres_with_default_kwargs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.tools.linear_solver.precond_by_hdiag.html">pyscfad.tools.linear_solver.precond_by_hdiag</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.tools.timer.html">pyscfad.tools.timer</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.tools.timer.Timer.html">pyscfad.tools.timer.Timer</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.tools.util.html">pyscfad.tools.util</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.tools.util.rotate_mo1.html">pyscfad.tools.util.rotate_mo1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.tools.util.rotate_mo1_ov.html">pyscfad.tools.util.rotate_mo1_ov</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../util.html">Utility functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.util.html">pyscfad.util</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.util.is_tracer.html">pyscfad.util.is_tracer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.util.pytree_node.html">pyscfad.util.pytree_node</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pyscfad.util.to_pyscf.html">pyscfad.util.to_pyscf</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../../index.html" class="nav-link">API reference</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="../../pbc.html" class="nav-link">Methods for Solids</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="../pyscfad.pbc.html" class="nav-link">pyscfad.pbc</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="../pyscfad.pbc.gto.html" class="nav-link">pyscfad.pbc.gto</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="../pyscfad.pbc.gto.cell.html" class="nav-link">pyscfad.pbc.gto.cell</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">pyscfad.pbc.gto.cell.estimate_rcut</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="pyscfad-pbc-gto-cell-estimate-rcut">
+<h1>pyscfad.pbc.gto.cell.estimate_rcut<a class="headerlink" href="#pyscfad-pbc-gto-cell-estimate-rcut" title="Link to this heading">#</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.estimate_rcut">
+<span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.gto.cell.</span></span><span class="sig-name descname"><span class="pre">estimate_rcut</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">precision</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/pbc/gto/cell.py#L308-L322"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.estimate_rcut" title="Link to this definition">#</a></dt>
+<dd><p>Same as <code class="xref py py-func docutils literal notranslate"><span class="pre">pyscf.pbc.gto.cell.estimate_rcut()</span></code>,
+but gives slightly different cutoff radius.</p>
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="pyscfad.pbc.gto.cell.energy_nuc.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">pyscfad.pbc.gto.cell.energy_nuc</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="pyscfad.pbc.gto.cell.ewald.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">pyscfad.pbc.gto.cell.ewald</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#pyscfad.pbc.gto.cell.estimate_rcut"><code class="docutils literal notranslate"><span class="pre">estimate_rcut()</span></code></a></li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  
+  <div class="tocsection editthispage">
+    <a href="https://github.com/fishjojo/pyscfad/edit/doc/doc/source/api_reference/api/functions/pyscfad.pbc.gto.cell.estimate_rcut.rst">
+      <i class="fa-solid fa-pencil"></i>
+      
+      
+        
+          Edit on GitHub
+        
+      
+    </a>
+  </div>
+</div>
+
+  <div class="sidebar-secondary-item">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../../../_sources/api_reference/api/functions/pyscfad.pbc.gto.cell.estimate_rcut.rst"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2021-2024, Xing Zhang.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+    <div class="footer-items__center">
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.1.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

@@ -29,7 +29,13 @@ pyscfad.scf.hf
       :toctree: functions/
 
    
+      dip_moment
       dot_eri_dm
+      energy_elec
+      get_fock
+      kernel
+      level_shift
+      make_rdm1
 
    
    

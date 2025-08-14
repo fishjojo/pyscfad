@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>pyscfad.pbc.gto.cell.Cell &#8212; pyscfad 0.1.10 documentation</title>
+    <title>pyscfad.pbc.gto.cell.Cell &#8212; pyscfad 0.1.11 documentation</title>
   
   
   
@@ -42,7 +42,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=3d055840"></script>
+    <script src="../../../_static/documentation_options.js?v=86f9da5d"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -55,12 +55,12 @@
     <link rel="icon" href="../../../_static/pyscfad_logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="pyscfad.pbc.gto.cell.Cell.build" href="methods/pyscfad.pbc.gto.cell.Cell.build.html" />
+    <link rel="next" title="pyscfad.pbc.gto.cell.Cell.bas_rcut" href="methods/pyscfad.pbc.gto.cell.Cell.bas_rcut.html" />
     <link rel="prev" title="pyscfad.pbc.gto.cell" href="../pyscfad.pbc.gto.cell.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="0.1.10" />
-    <meta name="docbuild:last-update" content="Aug 06, 2025"/>
+  <meta name="docsearch:version" content="0.1.11" />
+    <meta name="docbuild:last-update" content="Aug 14, 2025"/>
   </head>
   
   
@@ -548,6 +548,7 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.gto.mole.html">pyscfad.gto.mole</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.gto.mole.Mole.html">pyscfad.gto.mole.Mole</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.gto.mole.inter_distance.html">pyscfad.gto.mole.inter_distance</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.gto.mole.nao_nr_range.html">pyscfad.gto.mole.nao_nr_range</a></li>
 </ul>
 </details></li>
@@ -674,7 +675,13 @@
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.hf.html">pyscfad.scf.hf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf.RHF.html">pyscfad.scf.hf.RHF</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf.SCF.html">pyscfad.scf.hf.SCF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.dip_moment.html">pyscfad.scf.hf.dip_moment</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.dot_eri_dm.html">pyscfad.scf.hf.dot_eri_dm</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.energy_elec.html">pyscfad.scf.hf.energy_elec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.get_fock.html">pyscfad.scf.hf.get_fock</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.kernel.html">pyscfad.scf.hf.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.level_shift.html">pyscfad.scf.hf.level_shift</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.make_rdm1.html">pyscfad.scf.hf.make_rdm1</a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.rohf.html">pyscfad.scf.rohf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -816,7 +823,7 @@
 <h1>pyscfad.pbc.gto.cell.Cell<a class="headerlink" href="#pyscfad-pbc-gto-cell-cell" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyscfad.pbc.gto.cell.Cell">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.gto.cell.</span></span><span class="sig-name descname"><span class="pre">Cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/pbc/gto/cell.py#L262-L376"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell" title="Link to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.gto.cell.</span></span><span class="sig-name descname"><span class="pre">Cell</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/pbc/gto/cell.py#L327-L451"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.gto.cell.Cell" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference internal" href="pyscfad.gto.mole.Mole.html#pyscfad.gto.mole.Mole" title="pyscfad.gto.mole.Mole"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mole</span></code></a>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Cell</span></code></p>
 <p>Subclass of <code class="xref py py-class docutils literal notranslate"><span class="pre">pyscf.pbc.gto.Cell</span></code> with traceable attributes.</p>
 <p class="rubric">Attributes</p>
@@ -843,64 +850,70 @@
 <p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.build.html#pyscfad.pbc.gto.cell.Cell.build" title="pyscfad.pbc.gto.cell.Cell.build"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build</span></code></a>(*args, **kwargs)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.bas_rcut.html#pyscfad.pbc.gto.cell.Cell.bas_rcut" title="pyscfad.pbc.gto.cell.Cell.bas_rcut"><code class="xref py py-obj docutils literal notranslate"><span class="pre">bas_rcut</span></code></a>(bas_id[, precision])</p></td>
+<td><p>Same as <code class="xref py py-func docutils literal notranslate"><span class="pre">pyscf.pbc.gto.cell.bas_rcut()</span></code>, but gives slightly different cutoff radius.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.build.html#pyscfad.pbc.gto.cell.Cell.build" title="pyscfad.pbc.gto.cell.Cell.build"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Setup molecule and initialize some control parameters.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.cutoff_to_mesh.html#pyscfad.pbc.gto.cell.Cell.cutoff_to_mesh" title="pyscfad.pbc.gto.cell.Cell.cutoff_to_mesh"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cutoff_to_mesh</span></code></a>(ke_cutoff)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.cutoff_to_mesh.html#pyscfad.pbc.gto.cell.Cell.cutoff_to_mesh" title="pyscfad.pbc.gto.cell.Cell.cutoff_to_mesh"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cutoff_to_mesh</span></code></a>(ke_cutoff)</p></td>
 <td><p>Convert KE cutoff to FFT-mesh</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.energy_nuc.html#pyscfad.pbc.gto.cell.Cell.energy_nuc" title="pyscfad.pbc.gto.cell.Cell.energy_nuc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">energy_nuc</span></code></a>([ew_eta, ew_cut])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.energy_nuc.html#pyscfad.pbc.gto.cell.Cell.energy_nuc" title="pyscfad.pbc.gto.cell.Cell.energy_nuc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">energy_nuc</span></code></a>([ew_eta, ew_cut])</p></td>
 <td><p>Perform real (R) and reciprocal (G) space Ewald sum for the energy.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.eval_ao.html#pyscfad.pbc.gto.cell.Cell.eval_ao" title="pyscfad.pbc.gto.cell.Cell.eval_ao"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eval_ao</span></code></a>(eval_name, coords[, comp, kpts, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.eval_ao.html#pyscfad.pbc.gto.cell.Cell.eval_ao" title="pyscfad.pbc.gto.cell.Cell.eval_ao"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eval_ao</span></code></a>(eval_name, coords[, comp, kpts, ...])</p></td>
 <td><p>Evaluate AO function value on the given grids,</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.eval_gto.html#pyscfad.pbc.gto.cell.Cell.eval_gto" title="pyscfad.pbc.gto.cell.Cell.eval_gto"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eval_gto</span></code></a>(eval_name, coords[, comp, kpts, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.eval_gto.html#pyscfad.pbc.gto.cell.Cell.eval_gto" title="pyscfad.pbc.gto.cell.Cell.eval_gto"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eval_gto</span></code></a>(eval_name, coords[, comp, kpts, ...])</p></td>
 <td><p>Evaluate AO function value on the given grids,</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.ewald.html#pyscfad.pbc.gto.cell.Cell.ewald" title="pyscfad.pbc.gto.cell.Cell.ewald"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ewald</span></code></a>([ew_eta, ew_cut])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.ewald.html#pyscfad.pbc.gto.cell.Cell.ewald" title="pyscfad.pbc.gto.cell.Cell.ewald"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ewald</span></code></a>([ew_eta, ew_cut])</p></td>
 <td><p>Perform real (R) and reciprocal (G) space Ewald sum for the energy.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.gen_uniform_grids.html#pyscfad.pbc.gto.cell.Cell.gen_uniform_grids" title="pyscfad.pbc.gto.cell.Cell.gen_uniform_grids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gen_uniform_grids</span></code></a>([mesh, wrap_around])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.gen_uniform_grids.html#pyscfad.pbc.gto.cell.Cell.gen_uniform_grids" title="pyscfad.pbc.gto.cell.Cell.gen_uniform_grids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">gen_uniform_grids</span></code></a>([mesh, wrap_around])</p></td>
 <td><p>Generate a uniform real-space grid consistent w/ samp thm; see MH (3.19).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_Gv.html#pyscfad.pbc.gto.cell.Cell.get_Gv" title="pyscfad.pbc.gto.cell.Cell.get_Gv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_Gv</span></code></a>([mesh])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_Gv.html#pyscfad.pbc.gto.cell.Cell.get_Gv" title="pyscfad.pbc.gto.cell.Cell.get_Gv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_Gv</span></code></a>([mesh])</p></td>
 <td><p>Calculate three-dimensional G-vectors for the cell; see MH (3.8).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_Gv_weights.html#pyscfad.pbc.gto.cell.Cell.get_Gv_weights" title="pyscfad.pbc.gto.cell.Cell.get_Gv_weights"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_Gv_weights</span></code></a>([mesh])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_Gv_weights.html#pyscfad.pbc.gto.cell.Cell.get_Gv_weights" title="pyscfad.pbc.gto.cell.Cell.get_Gv_weights"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_Gv_weights</span></code></a>([mesh])</p></td>
 <td><p>Calculate G-vectors and weights.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_SI.html#pyscfad.pbc.gto.cell.Cell.get_SI" title="pyscfad.pbc.gto.cell.Cell.get_SI"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_SI</span></code></a>([Gv, mesh, atmlst])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_SI.html#pyscfad.pbc.gto.cell.Cell.get_SI" title="pyscfad.pbc.gto.cell.Cell.get_SI"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_SI</span></code></a>([Gv, mesh, atmlst])</p></td>
 <td><p>Calculate the structure factor (0D, 1D, 2D, 3D) for all atoms; see MH (3.34).</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_abs_kpts.html#pyscfad.pbc.gto.cell.Cell.get_abs_kpts" title="pyscfad.pbc.gto.cell.Cell.get_abs_kpts"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_abs_kpts</span></code></a>(scaled_kpts)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_abs_kpts.html#pyscfad.pbc.gto.cell.Cell.get_abs_kpts" title="pyscfad.pbc.gto.cell.Cell.get_abs_kpts"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_abs_kpts</span></code></a>(scaled_kpts)</p></td>
 <td><p>Get absolute k-points (in 1/Bohr), given &quot;scaled&quot; k-points in fractions of lattice vectors.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_ewald_params.html#pyscfad.pbc.gto.cell.Cell.get_ewald_params" title="pyscfad.pbc.gto.cell.Cell.get_ewald_params"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_ewald_params</span></code></a>([precision, mesh])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_ewald_params.html#pyscfad.pbc.gto.cell.Cell.get_ewald_params" title="pyscfad.pbc.gto.cell.Cell.get_ewald_params"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_ewald_params</span></code></a>([precision, mesh])</p></td>
 <td><p>Choose a reasonable value of Ewald 'eta' and 'cut' parameters.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_lattice_Ls.html#pyscfad.pbc.gto.cell.Cell.get_lattice_Ls" title="pyscfad.pbc.gto.cell.Cell.get_lattice_Ls"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_lattice_Ls</span></code></a>([nimgs, rcut, dimension, discard])</p></td>
-<td><p>Get the (Cartesian, unitful) lattice translation vectors for nearby images.</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_lattice_Ls.html#pyscfad.pbc.gto.cell.Cell.get_lattice_Ls" title="pyscfad.pbc.gto.cell.Cell.get_lattice_Ls"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_lattice_Ls</span></code></a>([nimgs, rcut, dimension, discard])</p></td>
+<td><p>Same as <code class="xref py py-func docutils literal notranslate"><span class="pre">pyscf.pbc.tools.get_lattice_Ls()</span></code>, but gives fewer periodic images for lattice summations.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_scaled_atom_coords.html#pyscfad.pbc.gto.cell.Cell.get_scaled_atom_coords" title="pyscfad.pbc.gto.cell.Cell.get_scaled_atom_coords"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_scaled_atom_coords</span></code></a>([a])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_scaled_atom_coords.html#pyscfad.pbc.gto.cell.Cell.get_scaled_atom_coords" title="pyscfad.pbc.gto.cell.Cell.get_scaled_atom_coords"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_scaled_atom_coords</span></code></a>([a])</p></td>
 <td><p>Get scaled atomic coordinates.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_uniform_grids.html#pyscfad.pbc.gto.cell.Cell.get_uniform_grids" title="pyscfad.pbc.gto.cell.Cell.get_uniform_grids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_uniform_grids</span></code></a>([mesh, wrap_around])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.get_uniform_grids.html#pyscfad.pbc.gto.cell.Cell.get_uniform_grids" title="pyscfad.pbc.gto.cell.Cell.get_uniform_grids"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_uniform_grids</span></code></a>([mesh, wrap_around])</p></td>
 <td><p>Generate a uniform real-space grid consistent w/ samp thm; see MH (3.19).</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.lattice_vectors.html#pyscfad.pbc.gto.cell.Cell.lattice_vectors" title="pyscfad.pbc.gto.cell.Cell.lattice_vectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lattice_vectors</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.lattice_vectors.html#pyscfad.pbc.gto.cell.Cell.lattice_vectors" title="pyscfad.pbc.gto.cell.Cell.lattice_vectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">lattice_vectors</span></code></a>()</p></td>
 <td><p>Convert the primitive lattice vectors.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.pbc_eval_ao.html#pyscfad.pbc.gto.cell.Cell.pbc_eval_ao" title="pyscfad.pbc.gto.cell.Cell.pbc_eval_ao"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pbc_eval_ao</span></code></a>(eval_name, coords[, comp, kpts, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.pbc_eval_ao.html#pyscfad.pbc.gto.cell.Cell.pbc_eval_ao" title="pyscfad.pbc.gto.cell.Cell.pbc_eval_ao"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pbc_eval_ao</span></code></a>(eval_name, coords[, comp, kpts, ...])</p></td>
 <td><p>Evaluate PBC-AO function value on the given grids,</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.pbc_eval_gto.html#pyscfad.pbc.gto.cell.Cell.pbc_eval_gto" title="pyscfad.pbc.gto.cell.Cell.pbc_eval_gto"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pbc_eval_gto</span></code></a>(eval_name, coords[, comp, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.pbc_eval_gto.html#pyscfad.pbc.gto.cell.Cell.pbc_eval_gto" title="pyscfad.pbc.gto.cell.Cell.pbc_eval_gto"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pbc_eval_gto</span></code></a>(eval_name, coords[, comp, ...])</p></td>
 <td><p>Evaluate PBC-AO function value on the given grids,</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.pbc_intor.html#pyscfad.pbc.gto.cell.Cell.pbc_intor" title="pyscfad.pbc.gto.cell.Cell.pbc_intor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pbc_intor</span></code></a>(intor[, comp, hermi, kpts, kpt, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.pbc_intor.html#pyscfad.pbc.gto.cell.Cell.pbc_intor" title="pyscfad.pbc.gto.cell.Cell.pbc_intor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pbc_intor</span></code></a>(intor[, comp, hermi, kpts, kpt, ...])</p></td>
 <td><p>One-electron integrals with PBC.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.reciprocal_vectors.html#pyscfad.pbc.gto.cell.Cell.reciprocal_vectors" title="pyscfad.pbc.gto.cell.Cell.reciprocal_vectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reciprocal_vectors</span></code></a>([norm_to])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.reciprocal_vectors.html#pyscfad.pbc.gto.cell.Cell.reciprocal_vectors" title="pyscfad.pbc.gto.cell.Cell.reciprocal_vectors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reciprocal_vectors</span></code></a>([norm_to])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.gto.cell.Cell.to_pyscf.html#pyscfad.pbc.gto.cell.Cell.to_pyscf" title="pyscfad.pbc.gto.cell.Cell.to_pyscf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_pyscf</span></code></a>()</p></td>
 <td><p></p></td>
 </tr>
 </tbody>
@@ -930,11 +943,11 @@
       </div>
     </a>
     <a class="right-next"
-       href="methods/pyscfad.pbc.gto.cell.Cell.build.html"
+       href="methods/pyscfad.pbc.gto.cell.Cell.bas_rcut.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">pyscfad.pbc.gto.cell.Cell.build</p>
+        <p class="prev-next-title">pyscfad.pbc.gto.cell.Cell.bas_rcut</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

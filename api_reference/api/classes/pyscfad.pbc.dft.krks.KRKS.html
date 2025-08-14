@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>pyscfad.pbc.dft.krks.KRKS &#8212; pyscfad 0.1.10 documentation</title>
+    <title>pyscfad.pbc.dft.krks.KRKS &#8212; pyscfad 0.1.11 documentation</title>
   
   
   
@@ -42,7 +42,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=3d055840"></script>
+    <script src="../../../_static/documentation_options.js?v=86f9da5d"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="pyscfad.pbc.dft.krks" href="../pyscfad.pbc.dft.krks.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="0.1.10" />
-    <meta name="docbuild:last-update" content="Aug 06, 2025"/>
+  <meta name="docsearch:version" content="0.1.11" />
+    <meta name="docbuild:last-update" content="Aug 14, 2025"/>
   </head>
   
   
@@ -548,6 +548,7 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.gto.mole.html">pyscfad.gto.mole</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.gto.mole.Mole.html">pyscfad.gto.mole.Mole</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.gto.mole.inter_distance.html">pyscfad.gto.mole.inter_distance</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.gto.mole.nao_nr_range.html">pyscfad.gto.mole.nao_nr_range</a></li>
 </ul>
 </details></li>
@@ -674,7 +675,13 @@
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.hf.html">pyscfad.scf.hf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf.RHF.html">pyscfad.scf.hf.RHF</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf.SCF.html">pyscfad.scf.hf.SCF</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.dip_moment.html">pyscfad.scf.hf.dip_moment</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.dot_eri_dm.html">pyscfad.scf.hf.dot_eri_dm</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.energy_elec.html">pyscfad.scf.hf.energy_elec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.get_fock.html">pyscfad.scf.hf.get_fock</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.kernel.html">pyscfad.scf.hf.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.level_shift.html">pyscfad.scf.hf.level_shift</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.hf.make_rdm1.html">pyscfad.scf.hf.make_rdm1</a></li>
 </ul>
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.rohf.html">pyscfad.scf.rohf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -816,7 +823,7 @@
 <h1>pyscfad.pbc.dft.krks.KRKS<a class="headerlink" href="#pyscfad-pbc-dft-krks-krks" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyscfad.pbc.dft.krks.KRKS">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.dft.krks.</span></span><span class="sig-name descname"><span class="pre">KRKS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[0.,</span> <span class="pre">0.,</span> <span class="pre">0.]])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LDA,VWN'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exxdiv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ewald'</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/pbc/dft/krks.py#L79-L126"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.dft.krks.KRKS" title="Link to this definition">#</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.pbc.dft.krks.</span></span><span class="sig-name descname"><span class="pre">KRKS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[0.,</span> <span class="pre">0.,</span> <span class="pre">0.]])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LDA,VWN'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exxdiv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ewald'</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/pbc/dft/krks.py#L89-L136"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.pbc.dft.krks.KRKS" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference internal" href="pyscfad.pbc.dft.rks.KohnShamDFT.html#pyscfad.pbc.dft.rks.KohnShamDFT" title="pyscfad.pbc.dft.rks.KohnShamDFT"><code class="xref py py-class docutils literal notranslate"><span class="pre">KohnShamDFT</span></code></a>, <a class="reference internal" href="pyscfad.pbc.scf.khf.KRHF.html#pyscfad.pbc.scf.khf.KRHF" title="pyscfad.pbc.scf.khf.KRHF"><code class="xref py py-class docutils literal notranslate"><span class="pre">KRHF</span></code></a></p>
 <p>Subclass of <code class="xref py py-class docutils literal notranslate"><span class="pre">pyscf.pbc.dft.krks.KRKS</span></code> with traceable attributes.</p>
 <p class="rubric">Attributes</p>
@@ -849,7 +856,7 @@
 <td><p>Compute density in real space</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.pbc.dft.krks.KRKS.get_veff.html#pyscfad.pbc.dft.krks.KRKS.get_veff" title="pyscfad.pbc.dft.krks.KRKS.get_veff"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_veff</span></code></a>([cell, dm, dm_last, vhf_last, ...])</p></td>
-<td><p>Hartree-Fock potential matrix for the given density matrix.</p></td>
+<td><p>Hartree-Fock potential matrix for the given density matrix</p></td>
 </tr>
 </tbody>
 </table>

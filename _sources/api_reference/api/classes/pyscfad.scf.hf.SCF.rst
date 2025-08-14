@@ -66,6 +66,8 @@ pyscfad.scf.hf.SCF
          
          
          
+           ~SCF.get_hcore
+         
          
            ~SCF.get_init_guess
          

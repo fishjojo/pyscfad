@@ -52,6 +52,8 @@ pyscfad.pbc.gto.cell.Cell
          
          
          
+           ~Cell.bas_rcut
+         
          
            ~Cell.build
          
@@ -198,6 +200,8 @@ pyscfad.pbc.gto.cell.Cell
          
          
          
+         
+           ~Cell.to_pyscf
          
          
          
