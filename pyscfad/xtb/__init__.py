@@ -13,8 +13,5 @@
 # limitations under the License.
 
 """
-Custom scipy functions
+XTB
 """
-from pyscfad.scipy import linalg
-from pyscfad.scipy import sparse
-from pyscfad.scipy import special

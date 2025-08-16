@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Custom scipy functions
-"""
-from pyscfad.scipy import linalg
-from pyscfad.scipy import sparse
-from pyscfad.scipy import special
+import os
+
+def get_basis_filename(model="GFN1"):
+    if model.upper() == "GFN1":
+        filename = "gfn1.dat"
+    else:
+        raise KeyError(f"Unsupported model type {model}")
+
+    dir_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(dir_path, filename)
