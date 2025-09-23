@@ -14,13 +14,13 @@
 
 from __future__ import annotations
 from typing import Any
-from functools import partial
+#from functools import partial
 
 import numpy
 import pyscf
 from pyscf.lib import with_doc
 from pyscf.data.elements import (
-    charge,
+    charge as get_charge,
     _atom_symbol,
     _std_symbol,
     _symbol,
@@ -44,9 +44,9 @@ from pyscf.gto.mole import (
 )
 
 from pyscfad import numpy as np
-from pyscfad import pytree
+#from pyscfad import pytree
 from pyscfad import ops
-from pyscfad.ops import jit
+#from pyscfad.ops import jit
 from pyscfad.gto.mole import energy_nuc
 
 Array = Any
@@ -81,7 +81,7 @@ def _format_symbols(symbols):
         return symbols
     if isinstance(symbols, str):
         symbols = [symbols,]
-    return tuple([_atom_symbol(symb) for symb in symbols])
+    return tuple(_atom_symbol(symb) for symb in symbols)
 
 class Mole(MoleBase):
     """Molecular information.
@@ -125,7 +125,7 @@ class Mole(MoleBase):
             if symbols is not None:
                 raise KeyError("Only one of 'symbols' and 'numbers' can be specified.")
             numbers = numpy.asarray(numbers, dtype=int)
-            self.symbols = tuple([_symbol(i) for i in numbers])
+            self.symbols = tuple(_symbol(i) for i in numbers)
         else:
             self.symbols = _format_symbols(symbols)
 
@@ -238,7 +238,7 @@ class Mole(MoleBase):
         if mol.ecp or mol.pseudo:
             raise NotImplementedError
         coords = np.asarray(mol.atom_coords())
-        symbols = tuple([mol.atom_symbol(i) for i in range(mol.natm)])
+        symbols = tuple(mol.atom_symbol(i) for i in range(mol.natm))
         uniq_symbols = set(symbols)
         basis = _format_basis_from_pyscf(mol._basis, uniq_symbols)
 
@@ -327,7 +327,7 @@ def make_atm_env(
     nucprop: dict | None = None,
 ) -> tuple[numpy.ndarray, Array]:
     natm = len(coords)
-    nuc_charge = [charge(symb) for symb in symbols]
+    nuc_charge = [get_charge(symb) for symb in symbols]
     if nuclear_model == NUC_POINT:
         zeta = np.zeros((natm,1))
     else:
@@ -355,7 +355,7 @@ def make_bas_env(
             es = param[:,0]
             cs = param[:,1:]
             nprim, nctr = cs.shape
-            cs = np.einsum('pi,p->pi', cs, gto_norm(l, es))
+            cs = np.einsum("pi,p->pi", cs, gto_norm(l, es))
             if NORMALIZE_GTO:
                 cs = _nomalize_contracted_ao(l, es, cs)
 

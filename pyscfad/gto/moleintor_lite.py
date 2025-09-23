@@ -61,7 +61,6 @@ def _get_shape_ints3c(
     aosym: str,
     ao_loc: numpy.ndarray | None,
 ) -> tuple[int, ...]:
-    from pyscfad.gto._pyscf_moleintor import make_loc
     nbas = bas.shape[0]
     if shls_slice is None:
         shls_slice = (0, nbas, 0, nbas, 0, nbas)
@@ -77,7 +76,7 @@ def _get_shape_ints3c(
         naoj = ao_loc[j1] - ao_loc[j0]
         shape = (naoi, naoj, naok)
     else:
-        aosym = 's2ij'
+        aosym = "s2ij"
         nij = ao_loc[i1]*(ao_loc[i1]+1)//2 - ao_loc[i0]*(ao_loc[i0]+1)//2
         shape = (nij, naok)
     if comp > 1:
@@ -92,7 +91,6 @@ def _get_shape_ints4c(
     aosym: str,
     ao_loc: numpy.ndarray | None,
 ) -> tuple[int, ...]:
-    from pyscfad.gto._pyscf_moleintor import make_loc
     nbas = bas.shape[0]
     if ao_loc is None:
         ao_loc = make_loc(bas, intor_name)
@@ -350,7 +348,8 @@ def _gen_int1e_jvp_r0(
         s1b = s1b.reshape(3**order_a,3,-1,naoi,naoj).transpose(1,0,2,3,4).reshape(3,-1,naoi,naoj)
 
         aoidx = np.arange(naoj)
-        jvp += _gen_int1e_fill_jvp_r0(s1b, coords_dot, aoslices-_ao_loc[j0], aoidx[None,None,None,:])
+        jvp += _gen_int1e_fill_jvp_r0(s1b, coords_dot, aoslices-_ao_loc[j0],
+                                      aoidx[None,None,None,:])
 
     elif hermi == 1:
         jvp += jvp.transpose(0,2,1)

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from __future__ import annotations
-from collections.abc import Callable
 from typing import Any
 import numpy
 
@@ -87,7 +86,7 @@ def _scf(
     e_tot: float,
     conv_tol: float,
     conv_tol_grad: float,
-) -> tuple[Array, tuple[Arrray, Array, float]]:
+) -> tuple[Array, tuple[Array, Array, float]]:
     def cond_fun(value):
         cycle, de, norm_gorb = value[:3]
         return (cycle < mf.max_cycle) & ((abs(de) > conv_tol) | (norm_gorb > conv_tol_grad))
@@ -121,7 +120,7 @@ def _scf_implicit(
     e_tot: float,
     conv_tol: float,
     conv_tol_grad: float,
-) -> tuple[Array, tuple[Arrray, Array, float]]:
+) -> tuple[Array, tuple[Array, Array, float]]:
     oracle = lambda fn, dm0: _scf(mf, dm0, h1e, s1e, vhf, e_tot, conv_tol, conv_tol_grad)
 
     def root_fn(dm):
@@ -152,7 +151,7 @@ def kernel(
     #cput0 = log.get_t0()
     if conv_tol_grad is None:
         conv_tol_grad = numpy.sqrt(conv_tol)
-        log.info('Set gradient conv threshold to %g', conv_tol_grad)
+        log.info("Set gradient conv threshold to %g", conv_tol_grad)
 
     mol = mf.mol
     s1e = mf.get_ovlp(mol)
@@ -165,7 +164,7 @@ def kernel(
     h1e = mf.get_hcore(mol, s1e=s1e)
     vhf = mf.get_veff(mol, dm, s1e=s1e)
     e_tot = mf.energy_tot(dm, h1e, vhf)
-    log.info('init E= %.15g', e_tot)
+    log.info("init E= %.15g", e_tot)
 
     scf_conv = False
     mo_energy = mo_coeff = mo_occ = None
@@ -175,7 +174,7 @@ def kernel(
         mo_energy, mo_coeff = mf.eig(fock, s1e)
         mo_occ = mf.get_occ(mo_energy, mo_coeff)
         # hack for ROHF
-        mo_energy = getattr(mo_energy, 'mo_energy', mo_energy)
+        mo_energy = getattr(mo_energy, "mo_energy", mo_energy)
         return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
     #cput1 = log.timer('initialize scf', *cput0)
@@ -274,5 +273,6 @@ class SCF(SCFBase):
 
     get_hcore = hf.SCF.get_hcore
     get_init_guess = hf.SCF.get_init_guess
+    get_veff = hf.SCF.get_veff
     make_rdm1 = hf.SCF.make_rdm1
     _eigh = hf.SCF._eigh

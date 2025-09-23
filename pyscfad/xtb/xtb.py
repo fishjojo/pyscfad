@@ -22,7 +22,7 @@ from pyscf.gto.mole import ANG_OF
 
 from pyscfad import numpy as np
 from pyscfad import ops
-from pyscfad.ops import jit
+#from pyscfad.ops import jit
 from pyscfad.lib import logger
 from pyscfad.gto.mole import inter_distance
 from pyscfad.scf import hf_lite as hf
