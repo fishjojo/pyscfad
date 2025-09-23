@@ -164,7 +164,8 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     if config.scf_implicit_diff:
         e_tot = ops.stop_grad(e_tot)
         vhf = ops.stop_grad(vhf)
-        mf_diis.Corth = ops.stop_grad(mf_diis.Corth)
+        if mf_diis is not None:
+            mf_diis.Corth = ops.stop_grad(mf_diis.Corth)
     # NOTE if use implicit differentiation, only dm will have gradient.
     dm, scf_conv, e_tot, mo_energy, mo_coeff, mo_occ = _scf_wrapped(
         dm, mf, s1e, h1e,
@@ -410,9 +411,6 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
 
     def _eigh(self, h, s):
         return eigh(h, s)
-
-    def eig(self, h, s):
-        return self._eigh(h, s)
 
     def energy_grad(self, dm0=None, mode='rev'):
         """Computing energy gradients w.r.t AO parameters.

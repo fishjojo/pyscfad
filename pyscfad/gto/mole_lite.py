@@ -1,3 +1,17 @@
+# Copyright 2021-2025 Xing Zhang
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import annotations
 from typing import Any
 from functools import partial
@@ -5,7 +19,13 @@ from functools import partial
 import numpy
 import pyscf
 from pyscf.lib import with_doc
-from pyscf.data.elements import charge
+from pyscf.data.elements import (
+    charge,
+    _atom_symbol,
+    _std_symbol,
+    _symbol,
+)
+from pyscf.data.nist import BOHR
 from pyscf.gto.mole import (
     ATOM_OF,
     ATM_SLOTS,
@@ -17,102 +37,228 @@ from pyscf.gto.mole import (
     PTR_ENV_START,
     PTR_ZETA,
     NORMALIZE_GTO,
+    MoleBase,
+    _parse_default_basis,
+    format_basis,
+    is_au,
 )
 
 from pyscfad import numpy as np
 from pyscfad import pytree
 from pyscfad import ops
 from pyscfad.ops import jit
+from pyscfad.gto.mole import energy_nuc
 
-class Mole(pytree.PytreeNode):
+Array = Any
+
+def _format_basis(basis, uniq_symbols):
+    if isinstance(basis, dict):
+        for k, v in basis.items():
+            if isinstance(v, dict):
+                return basis
+
+    basis = format_basis(basis)
+    return _format_basis_from_pyscf(basis, uniq_symbols)
+
+def _format_basis_from_pyscf(pyscf_basis, uniq_symbols):
+    basis = {}
+    for symb, shls in pyscf_basis.items():
+        if symb not in uniq_symbols:
+            continue
+        tmp = {}
+        for shell in shls:
+            l = shell[0]
+            param = np.asarray(shell[1:])
+            tmp.setdefault(l, []).append(param)
+        basis[symb] = {l: tmp[l] for l in sorted(tmp)}
+
+    if not basis:
+        basis = None
+    return basis
+
+def _format_symbols(symbols):
+    if symbols is None:
+        return symbols
+    if isinstance(symbols, str):
+        symbols = [symbols,]
+    return tuple([_atom_symbol(symb) for symb in symbols])
+
+class Mole(MoleBase):
     """Molecular information.
 
-    Attributes
+    Parameters
     ----------
-    coords : array
-        Atomic coordinates (in a.u.).
-    atomic_symbols : tuple of str
+    symbols : tuple of str
         Atomic symbols.
-    cgto_params : dict
-        Atom-centered contracted Gaussian basis function parameters
+    coords : array
+        Atomic coordinates (in Bohr).
+    basis : dict or str
+        Atom-centered contracted Gaussian basis set parameters
         (including exponents and contraction coefficients).
+    numbers : tuple of ints
+        Atomic numbers (mutually exclusive with ``symbols``).
     charge : int
         Total charge.
     spin : int
         2S (number of alpha electrons minus number of beta electrons).
     cart : bool
         Whether to use Cartesian Gaussian basis.
+    trace_coords : bool
+        Whether to trace atomic coordinates for gradient calculations.
+    trace_basis : bool
+        Whether to trace basis set parameters for gradient calculations.
     """
-    _dynamic_attr = [
-        "coords",
-        "cgto_params",
-    ]
-
     def __init__(
         self,
-        coords,
-        atomic_symbols: tuple[str],
-        cgto_params: dict | None = None,
+        symbols: tuple[str, ...] | None = None,
+        coords: Array | None = None,
+        basis: dict | str | None = None,
+        numbers: tuple[int, ...] | None = None,
         charge: int = 0,
         spin: int = 0,
         cart: bool = False,
+        verbose: int = 3,
+        trace_coords: bool = False,
+        trace_basis: bool = False,
     ):
+        if numbers is not None:
+            if symbols is not None:
+                raise KeyError("Only one of 'symbols' and 'numbers' can be specified.")
+            numbers = numpy.asarray(numbers, dtype=int)
+            self.symbols = tuple([_symbol(i) for i in numbers])
+        else:
+            self.symbols = _format_symbols(symbols)
+
         self.coords = coords
-        self.atomic_symbols = atomic_symbols
-        self.cgto_params = cgto_params
+
+        if basis is not None:
+            uniq_symbols = set(self.symbols)
+            _basis = _parse_default_basis(basis, uniq_symbols)
+            basis = _format_basis(_basis, uniq_symbols)
+        self.basis = basis
+
         self.charge = charge
         self.spin = spin
         self.cart = cart
+        self.verbose = verbose
+        self.trace_coords = trace_coords
+        self.trace_basis = trace_basis
 
-    @partial(jit, static_argnames=["intor_name", "comp", "hermi", "aosym", "shls_slice"])
+        self._atm = self._bas = self._env = None
+        if self.basis is not None:
+            self._atm, self._bas, self._env = make_env(self)
+
+        self._built = True
+
+    def atom_pure_symbol(
+        self,
+        atm_id: int,
+    ) -> str:
+        return _std_symbol(self.symbols[atm_id])
+
+    def atom_coords(
+        self,
+        unit: str = "Bohr",
+    ):
+        if not is_au(unit):
+            return self.coords * BOHR
+        else:
+            return self.coords
+
+    def copy(
+        self,
+        deep: bool = True,
+    ) -> Mole:
+        import copy
+        newmol = self.view(self.__class__)
+        if not deep:
+            return newmol
+
+        newmol.coords = np.copy(self.coords)
+        newmol.basis = copy.deepcopy(self.basis)
+        newmol._atm = numpy.copy(self._atm)
+        newmol._bas = numpy.copy(self._bas)
+        newmol._env = np.copy(self._env)
+        return newmol
+
+    def build(self, *args, **kwargs):
+        pass
+
+    #@partial(
+    #    jit,
+    #    static_argnames=[
+    #        "intor_name",
+    #        "comp",
+    #        "hermi",
+    #        "aosym",
+    #        "shls_slice",
+    #    ]
+    #)
     def intor(
         self,
         intor_name: str,
         comp: int | None = None,
         hermi: int = 0,
         aosym: str = "s1",
-        shls_slice: tuple[int] | None = None,
-        grids: Any | None = None,
-    ):
-        return 0
+        out: Array | None = None,
+        shls_slice: tuple[int, ...] | None = None,
+        grids: Array | None = None,
+    ) -> Array:
+        from pyscfad.gto import moleintor_lite
+        intor_name = self._add_suffix(intor_name)
+        if "ECP" in intor_name:
+            raise NotImplementedError
+        if "_grids" in intor_name:
+            raise NotImplementedError
+
+        out = moleintor_lite.getints(
+            intor_name,
+            self._atm,
+            self._bas,
+            self._env,
+            shls_slice=shls_slice,
+            comp=comp,
+            hermi=hermi,
+            aosym=aosym,
+            out=out,
+            trace_coords=self.trace_coords,
+            trace_basis=self.trace_basis,
+        )
+        return out
 
     @classmethod
     def from_pyscf(
         cls,
-        mol: pyscf.gto.MoleBase,
+        mol: MoleBase,
+        trace_coords: bool = False,
+        trace_basis: bool = False,
     ) -> Mole:
         if not mol._built:
             raise KeyError(f"{mol} not built")
         if mol.ecp or mol.pseudo:
             raise NotImplementedError
         coords = np.asarray(mol.atom_coords())
-        atomic_symbols = tuple([mol.atom_symbol(a) for a in range(mol.natm)])
+        symbols = tuple([mol.atom_symbol(i) for i in range(mol.natm)])
+        uniq_symbols = set(symbols)
+        basis = _format_basis_from_pyscf(mol._basis, uniq_symbols)
 
-        cgto_params = {}
-        for k, v in mol._basis.items():
-            if k not in set(atomic_symbols):
-                continue
-            tmp = {}
-            for shell in v:
-                l = shell[0]
-                param = np.asarray(shell[1:])
-                tmp.setdefault(l, []).append(param)
-            cgto_params[k] = {l: tmp[l] for l in sorted(tmp)}
-        for k in set(atomic_symbols):
-            if k not in cgto_params:
-                raise ValueError(
-                    f"Atomic symbol '{k}' not found in the basis set {mol.basis}.\n"
-                    f"{cls} requires one-to-one mapping between the input "
-                    "atomic symbols and those in the basis set definition."
-                )
+        #for symb in uniq_symbols:
+        #    if symb not in basis:
+        #        raise ValueError(
+        #            f"Atomic symbol '{symb}' not found in the basis set {mol.basis}.\n"
+        #            f"{cls} requires one-to-one mapping between the input "
+        #            "atomic symbols and those in the basis set definition."
+        #        )
 
         dmol = cls(
-            coords,
-            atomic_symbols,
-            cgto_params=cgto_params,
+            symbols=symbols,
+            coords=coords,
+            basis=basis,
             charge=mol.charge,
             spin=mol.spin,
             cart=mol.cart,
+            trace_coords=trace_coords,
+            trace_basis=trace_basis,
         )
         return dmol
 
@@ -121,15 +267,15 @@ class Mole(pytree.PytreeNode):
         verbose: int | None = None,
         output: str | None = None,
         max_memory: int | None = None,
-    ) -> pyscf.gto.Mole:
+    ) -> MoleBase:
         coords = ops.to_numpy(self.coords)
-        atom = [[a, tuple(x.tolist())] for a, x in zip(self.atomic_symbols, coords)]
+        atom = [[a, tuple(x.tolist())] for a, x in zip(self.symbols, coords)]
 
         basis = {}
-        for k, v in self.cgto_params.items():
-            for l, shells in v.items():
-                for shl_param in shells:
-                    basis.setdefault(k, []).append([l, *(ops.to_numpy(shl_param).tolist())])
+        for symb, shls_dict in self.basis.items():
+            for l, shls in shls_dict.items():
+                for shl_param in shls:
+                    basis.setdefault(symb, []).append([l, *(ops.to_numpy(shl_param).tolist())])
 
         mol = pyscf.M(
             atom=atom,
@@ -146,11 +292,12 @@ class Mole(pytree.PytreeNode):
         )
         return mol
 
+    energy_nuc = energy_nuc
 
 def gaussian_int(
     n: int | numpy.ndarray,
-    alpha: Any,
-) -> Any:
+    alpha: Array,
+) -> Array:
     r"""Gaussian integral.
     Computes :math:`\int_0^\infty x^n exp(-alpha x^2) dx`.
     """
@@ -161,8 +308,8 @@ def gaussian_int(
 @with_doc(pyscf.gto.mole.gto_norm.__doc__)
 def gto_norm(
     l: int | numpy.ndarray,
-    expnt: Any,
-) -> Any:
+    expnt: Array,
+) -> Array:
     assert numpy.all(l >= 0)
     return 1. / np.sqrt(gaussian_int(l*2+2, 2*expnt))
 
@@ -174,13 +321,13 @@ def _nomalize_contracted_ao(l, es, cs):
 
 def make_atm_env(
     coords,
-    atomic_symbols: tuple[str],
+    symbols: tuple[str, ...],
     ptr: int = 0,
     nuclear_model: int = NUC_POINT,
     nucprop: dict | None = None,
-) -> tuple[numpy.ndarray, Any]:
+) -> tuple[numpy.ndarray, Array]:
     natm = len(coords)
-    nuc_charge = [charge(symb) for symb in atomic_symbols]
+    nuc_charge = [charge(symb) for symb in symbols]
     if nuclear_model == NUC_POINT:
         zeta = np.zeros((natm,1))
     else:
@@ -198,7 +345,7 @@ def make_bas_env(
     basis_add: dict,
     atom_id: int = 0,
     ptr: int = 0,
-) -> tuple[numpy.ndarray, Any]:
+) -> tuple[numpy.ndarray, Array]:
     _bas = []
     _env = []
     # TODO kappa
@@ -223,10 +370,9 @@ def make_bas_env(
     _env = np.hstack(_env)
     return _bas, _env
 
-@jit
 def make_env(
     mol: Mole,
-) -> tuple[numpy.ndarray, numpy.ndarray, Any]:
+) -> tuple[numpy.ndarray, numpy.ndarray, Array]:
     """Make ``_atm``, ``_bas``, and ``_env`` for
     interfacing with libcint.
     """
@@ -235,51 +381,26 @@ def make_env(
     ptr_env = pre_env.size
 
     # TODO other nuclear charge models
-    _atm, env0 = make_atm_env(mol.coords, mol.atomic_symbols, ptr_env)
+    _atm, env0 = make_atm_env(mol.coords, mol.symbols, ptr_env)
     _env.append(env0)
     ptr_env += env0.size
 
     _basdic = {}
-    for symb, basis_add in mol.cgto_params.items():
+    for symb, basis_add in mol.basis.items():
         bas0, env0 = make_bas_env(basis_add, 0, ptr_env)
         ptr_env += env0.size
         _basdic[symb] = bas0
         _env.append(env0)
 
     _bas = []
-    for ia, symb in enumerate(mol.atomic_symbols):
+    for ia, symb in enumerate(mol.symbols):
         if symb in _basdic:
             b = _basdic[symb].copy()
-        else:
-            raise RuntimeError(f"Basis for '{symb}' not found")
+        #else:
+        #    raise RuntimeError(f"Basis for '{symb}' not found")
         b[:,ATOM_OF] = ia
         _bas.append(b)
 
     _bas = numpy.vstack(_bas)
     _env = np.hstack(_env)
     return _atm, _bas, _env
-
-if __name__ == "__main__":
-    import pyscf
-    import jax
-    pmol = pyscf.M(atom="h1 0 0 0; h2 0 0 1",
-                   basis={"H1" : "sto3g", "H2" : "631G**"}, verbose=5)
-    mol = Mole.from_pyscf(pmol)
-    #mol = mol.to_pyscf()
-
-    def foo(mol):
-        _atm, _bas, _env = make_env(mol)
-        return np.sum(mol.coords ** 2) + np.linalg.norm(_env**2)
-
-    gfn = jax.jit(jax.grad(foo))
-    g = gfn(mol)
-    print(g.coords)
-    print(g.cgto_params)
-
-    mol.coords = mol.coords.at[0,2].add(0.001)
-    mol.cgto_params["H1"][0][0] = mol.cgto_params["H1"][0][0].at[0,0].add(1.2)
-    print(mol.coords)
-    print(mol.cgto_params)
-    g = gfn(mol)
-    print(g.coords)
-    print(g.cgto_params)

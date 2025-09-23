@@ -129,6 +129,8 @@ def pack_tril(a, axis=-1, out=None):
             tril = vmap(fn, -1, signature='(m,m)->(n)')(a)
         else:
             raise KeyError
+    elif a.ndim == 2:
+        tril = fn(a)
     else:
         raise NotImplementedError
     return tril

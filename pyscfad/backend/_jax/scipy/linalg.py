@@ -15,8 +15,10 @@
 """
 Custom jax.scipy.linalg functions
 """
+from functools import partial
 import warnings
 import jax
+from jax import jit
 from jax import numpy as jnp
 from jax import scipy as jsp
 from jax._src.numpy.util import promote_dtypes_inexact
@@ -47,6 +49,7 @@ def eigh(a, b=None, *,
          subset_by_index, subset_by_value, driver)
     return _eigh(a, b, lower, type, eigvals_only, deg_thresh)
 
+@partial(jit, static_argnames=('lower', 'itype', 'eigvals_only', 'deg_thresh'))
 def _eigh(a, b, lower, itype, eigvals_only, deg_thresh):
     if b is None:
         b = jnp.zeros_like(a) + jnp.eye(a.shape[-1])

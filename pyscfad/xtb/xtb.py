@@ -16,6 +16,7 @@
 XTB
 """
 import numpy
+import jax
 
 from pyscf.gto.mole import ANG_OF
 
@@ -24,7 +25,7 @@ from pyscfad import ops
 from pyscfad.ops import jit
 from pyscfad.lib import logger
 from pyscfad.gto.mole import inter_distance
-from pyscfad.scf import hf
+from pyscfad.scf import hf_lite as hf
 from pyscfad.dft.rks import VXC
 
 from pyscfad.xtb import util
@@ -41,7 +42,8 @@ def tot_valence_electrons(mol, charge=None, nkpts=1):
     return n
 
 def get_occ(mf, mo_energy=None, mo_coeff=None):
-    # NOTE assume mo_energy in ascending order
+    # NOTE assuming mo_energy is in ascending order
+    # so that mo_occ can be made static
     if mo_energy is None:
         mo_energy = mf.mo_energy
     #e_idx = np.argsort(mo_energy)
@@ -49,15 +51,15 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
     nmo = mo_energy.size
     mo_occ = numpy.zeros(nmo)
     nocc = mf.tot_electrons // 2
-    #mo_occ[e_idx[:nocc]] = 2
+    #mo_occ = ops.index_update(mo_occ, ops.index[e_idx[:nocc]], 2)
     mo_occ[:nocc] = 2
     if mf.verbose >= logger.INFO and nocc < nmo:
-        if e_sort[nocc-1]+1e-3 > e_sort[nocc]:
-            logger.warn(mf, "HOMO %.15g == LUMO %.15g",
-                        e_sort[nocc-1], e_sort[nocc])
-        else:
-            logger.info(mf, "  HOMO = %.15g  LUMO = %.15g",
-                        e_sort[nocc-1], e_sort[nocc])
+        jax.lax.cond(
+            np.greater(e_sort[nocc-1]+1e-3, e_sort[nocc]),
+            lambda e_homo, e_lumo: logger.warn(mf, "HOMO %.15g == LUMO %.15g", e_homo, e_lumo),
+            lambda e_homo, e_lumo: logger.info(mf, "  HOMO = %.15g  LUMO = %.15g", e_homo, e_lumo),
+            e_sort[nocc-1], e_sort[nocc],
+        )
 
     if mf.verbose >= logger.DEBUG:
         numpy.set_printoptions(threshold=nmo)
@@ -69,13 +71,17 @@ class XTB(hf.SCF):
     """Base class for XTB
     """
     init_guess = "refocc"
-    _dynamic_attr = ["_enuc", "_gamma", "param"]
+    #_dynamic_attr = ["_enuc", "_gamma", "param"]
 
     def __init__(self, mol, param):
         super().__init__(mol)
         self.param = param.to_mol_param(mol)
         self._enuc = None
         self._gamma = None
+
+    def build(self, mol=None):
+        _ = self.energy_nuc()
+        _ = self.gamma
 
     def get_hcore(self, mol=None, **kwargs):
         raise NotImplementedError
@@ -103,12 +109,6 @@ class XTB(hf.SCF):
             self._gamma = self._get_gamma()
         return self._gamma
 
-    def dump_flags(self, verbose=None):
-        return self
-
-    def build(self, mol=None):
-        return self
-
     def energy_elec(self, dm=None, h1e=None, vhf=None):
         if dm is None:
             dm = self.make_rdm1()
@@ -134,7 +134,7 @@ class XTB(hf.SCF):
     get_occ = get_occ
 
 
-@jit
+#@jit
 def EHT_X_GFN1(mol, param):
     kEN = param.kEN
     EN = param.EN
@@ -148,7 +148,7 @@ def EHT_X_GFN1(mol, param):
 def EHT_Y_GFN1(*args, **kwargs):
     return 1
 
-@jit
+#@jit
 def EHT_Hdiag_GFN1(mol, param):
     selfenergy = param.selfenergy
     kcn = param.kcn
@@ -157,7 +157,7 @@ def EHT_Hdiag_GFN1(mol, param):
     Hdiag = selfenergy - kcn * CN
     return .5 * (Hdiag[:,None] + Hdiag[None,:])
 
-@jit
+#@jit
 def EHT_PI_GFN1(mol, param, atomic_radii=ATOMIC_RADII):
     shpoly = param.shpoly
 
@@ -174,14 +174,14 @@ def EHT_PI_GFN1(mol, param, atomic_radii=ATOMIC_RADII):
     PI = (1 + shpoly[:,None] * RR) * (1 + shpoly[None,:] * RR)
     return PI
 
-@jit
+#@jit
 def mulliken_charge(mol, param, s1e, dm):
     SP = np.einsum("pq,pq->p", s1e, dm)
     occs = np.zeros(mol.nbas)
     occs = ops.index_add(occs, ops.index[util.bas_to_ao_indices(mol)], SP)
     return param.refocc - occs
 
-@jit
+#@jit
 def sum_shell_charges(mol, partial_charges):
     atm_charges = np.zeros(mol.natm)
     atm_charges = ops.index_add(
@@ -190,7 +190,7 @@ def sum_shell_charges(mol, partial_charges):
                         partial_charges)
     return atm_charges
 
-@jit
+#@jit
 def gamma_GFN1(mol, param):
     eta = 1. / (param.lgam * param.gam)
     eta = 2. / (eta[:,None] + eta[None,:])
@@ -209,7 +209,7 @@ class GFN1XTB(XTB):
     def _get_gamma(self):
         return gamma_GFN1(self.mol, self.param)
 
-    @jit
+    #@jit
     def get_hcore(self, mol=None, s1e=None):
         if mol is None:
             mol = self.mol
@@ -232,8 +232,9 @@ class GFN1XTB(XTB):
         h1 = s1e * h1[util.bas_to_ao_indices_2d(mol)]
         return h1
 
-    @jit
+    #@jit
     def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1, s1e=None, **kwargs):
+        del dm_last, vhf_last
         if mol is None:
             mol = self.mol
         if dm is None:
@@ -261,7 +262,7 @@ class GFN1XTB(XTB):
         vxc = VXC(vxc=vj, ecoul=ecoul)
         return vxc
 
-    @jit
+    #@jit
     def _energy_nuc(self, mol=None, **kwargs):
         if mol is None:
             mol = self.mol
@@ -276,7 +277,9 @@ class GFN1XTB(XTB):
 
         z_ab = zeff[:,None] * zeff[None,:]
         arep_ab = np.sqrt(arep[:,None] * arep[None,:])
-        enuc = .5 * np.sum(z_ab * np.exp(-arep_ab * r**kf) * r_inv)
+
+        damp = np.where(r>1e-6, np.exp(-arep_ab * r**kf), 0)
+        enuc = .5 * np.sum(z_ab * damp * r_inv)
         return enuc
 
     def get_init_guess(self, mol=None, key="refocc", **kwargs):
