@@ -214,6 +214,8 @@ def kernel(
 
 class SCF(SCFBase):
     DIIS = SCF_DIIS
+    use_sp2 = False
+    conv_tol_dm = None
 
     def __init__(
         self,
@@ -236,10 +238,17 @@ class SCF(SCFBase):
         self.dump_flags()
         self.build(self.mol)
         if self.max_cycle > 0 or self.mo_coeff is None:
-            self.converged, self.e_tot, \
-                    self.mo_energy, self.mo_coeff, self.mo_occ = \
-                    kernel(self, conv_tol=self.conv_tol, conv_tol_grad=self.conv_tol_grad,
-                           dm0=dm0, **kwargs)
+            if self.use_sp2:
+                from pyscfad.scf import sp2
+                self.converged, self.e_tot, \
+                        self.mo_energy, self.mo_coeff, self.mo_occ = \
+                        sp2.scf(self, conv_tol=self.conv_tol, conv_tol_dm=self.conv_tol_dm,
+                                dm0=dm0, **kwargs)
+            else:
+                self.converged, self.e_tot, \
+                        self.mo_energy, self.mo_coeff, self.mo_occ = \
+                        kernel(self, conv_tol=self.conv_tol, conv_tol_grad=self.conv_tol_grad,
+                               dm0=dm0, **kwargs)
         else:
             self.e_tot = kernel(self, conv_tol=self.conv_tol, conv_tol_grad=self.conv_tol_grad,
                                 dm0=dm0, **kwargs)[1]

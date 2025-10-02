@@ -167,9 +167,14 @@ class Anderson(pytree.PytreeNode):
             return extrapolated
 
         def _use_param(param, state):
-            return param
+            return param * (1.-self.damp) + param_last * self.damp
 
-        start_cycle = np.minimum(self.start_cycle+1, self.space)
+        start_cycle = jax.lax.select(
+            np.greater_equal(self.start_cycle+1, self.space),
+            self.start_cycle+1,
+            self.space,
+        )
+        #start_cycle = np.minimum(self.start_cycle+1, self.space)
         extrapolated = jax.lax.cond(
             np.greater_equal(cycle+1, start_cycle),
             _anderson_step,
