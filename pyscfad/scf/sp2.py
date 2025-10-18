@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import Any
 
 import numpy
-import jax
 from jax import vjp
 from jax.lax import cond, while_loop, custom_root
 
@@ -126,7 +125,6 @@ def update_dm(
     h = _ao2mo(fock_last, x)
     nocc = mf.tot_electrons // 2 #FIXME
     dm_orth = sp2(h, nocc)
-    #jax.debug.print("{}", abs(np.dot(dm_orth,dm_orth) - dm_orth).max())
     dm = _mo2ao(dm_orth, x) * 2
 
     vhf = mf.get_veff(mol, dm, dm_last, vhf, s1e=s1e)
@@ -258,14 +256,5 @@ def scf(
     log.info("Extra cycle  E= %.15g  delta_E= %4.3g  |ddm|= %4.3g",
              e_tot, e_tot-last_hf_e, norm_ddm)
 
-    #log.timer('scf_cycle', *cput0)
     del log
     return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
-
-if __name__ == "__main__":
-    import numpy
-    fock = numpy.random.rand(100,100)
-    fock = (fock + fock.T) * .5
-    dm = sp2(fock, 50)
-    #print(dm)
-    print(abs(numpy.dot(dm,dm) - dm).max())
