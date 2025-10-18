@@ -22,7 +22,6 @@ from pyscf.gto.mole import ANG_OF
 
 from pyscfad import numpy as np
 from pyscfad import ops
-#from pyscfad.ops import jit
 from pyscfad.lib import logger
 from pyscfad.gto.mole import inter_distance
 from pyscfad.scf import hf_lite as hf
@@ -100,6 +99,9 @@ class XTB(hf.SCF):
             self._enuc = self._energy_nuc()
         return self._enuc
 
+    def _get_EHT_factor(self, mol=None, s1e=None):
+        raise NotImplementedError
+
     def _get_gamma(self):
         raise NotImplementedError
 
@@ -134,7 +136,6 @@ class XTB(hf.SCF):
     get_occ = get_occ
 
 
-#@jit
 def EHT_X_GFN1(mol, param):
     kEN = param.kEN
     EN = param.EN
@@ -148,7 +149,6 @@ def EHT_X_GFN1(mol, param):
 def EHT_Y_GFN1(*args, **kwargs):
     return 1
 
-#@jit
 def EHT_Hdiag_GFN1(mol, param):
     selfenergy = param.selfenergy
     kcn = param.kcn
@@ -157,7 +157,6 @@ def EHT_Hdiag_GFN1(mol, param):
     Hdiag = selfenergy - kcn * CN
     return .5 * (Hdiag[:,None] + Hdiag[None,:])
 
-#@jit
 def EHT_PI_GFN1(mol, param, atomic_radii=ATOMIC_RADII):
     shpoly = param.shpoly
 
@@ -174,14 +173,12 @@ def EHT_PI_GFN1(mol, param, atomic_radii=ATOMIC_RADII):
     PI = (1 + shpoly[:,None] * RR) * (1 + shpoly[None,:] * RR)
     return PI
 
-#@jit
 def mulliken_charge(mol, param, s1e, dm):
     SP = np.einsum("pq,pq->p", s1e, dm)
     occs = np.zeros(mol.nbas)
     occs = ops.index_add(occs, ops.index[util.bas_to_ao_indices(mol)], SP)
     return param.refocc - occs
 
-#@jit
 def sum_shell_charges(mol, partial_charges):
     atm_charges = np.zeros(mol.natm)
     atm_charges = ops.index_add(
@@ -190,7 +187,6 @@ def sum_shell_charges(mol, partial_charges):
                         partial_charges)
     return atm_charges
 
-#@jit
 def gamma_GFN1(mol, param):
     eta = 1. / (param.lgam * param.gam)
     eta = 2. / (eta[:,None] + eta[None,:])
@@ -209,8 +205,14 @@ class GFN1XTB(XTB):
     def _get_gamma(self):
         return gamma_GFN1(self.mol, self.param)
 
-    #@jit
     def get_hcore(self, mol=None, s1e=None):
+        if mol is None:
+            mol = self.mol
+        if s1e is None:
+            s1e = self.get_ovlp()
+        return s1e * self._get_EHT_factor(mol, s1e)
+
+    def _get_EHT_factor(self, mol=None, s1e=None):
         if mol is None:
             mol = self.mol
         if s1e is None:
@@ -228,11 +230,8 @@ class GFN1XTB(XTB):
         h1 = np.where(mask,
                       hscale * EHT_PI_GFN1(mol, param) * hdiag,
                       hdiag)
+        return h1[util.bas_to_ao_indices_2d(mol)]
 
-        h1 = s1e * h1[util.bas_to_ao_indices_2d(mol)]
-        return h1
-
-    #@jit
     def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1, s1e=None, **kwargs):
         del dm_last, vhf_last
         if mol is None:
@@ -262,7 +261,6 @@ class GFN1XTB(XTB):
         vxc = VXC(vxc=vj, ecoul=ecoul)
         return vxc
 
-    #@jit
     def _energy_nuc(self, mol=None, **kwargs):
         if mol is None:
             mol = self.mol
