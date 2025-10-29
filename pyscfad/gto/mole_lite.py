@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2025 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -124,7 +124,7 @@ class Mole(MoleBase):
         if numbers is not None:
             if symbols is not None:
                 raise KeyError("Only one of 'symbols' and 'numbers' can be specified.")
-            numbers = numpy.asarray(numbers, dtype=int)
+            #numbers = numpy.asarray(numbers, dtype=int)
             self.symbols = tuple(_symbol(i) for i in numbers)
         else:
             self.symbols = _format_symbols(symbols)
@@ -293,6 +293,8 @@ class Mole(MoleBase):
         return mol
 
     energy_nuc = energy_nuc
+
+MoleLite = Mole
 
 def gaussian_int(
     n: int | numpy.ndarray,

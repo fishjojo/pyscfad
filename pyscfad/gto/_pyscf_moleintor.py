@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2025 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -194,6 +194,9 @@ def getints(intor_name, atm, bas, env, shls_slice=None, comp=None, hermi=0,
     intor_name, comp = _get_intor_and_comp(intor_name, comp)
     if any(bas[:,ANG_OF] > 12):
         raise NotImplementedError('cint library does not support high angular (l>12) GTOs')
+
+    if ao_loc is not None:
+        ao_loc = numpy.asarray(ao_loc, dtype=numpy.int32)
 
     if (intor_name.startswith('int1e') or
         intor_name.startswith('ECP') or

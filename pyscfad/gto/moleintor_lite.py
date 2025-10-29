@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2025 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -161,6 +161,7 @@ def _get_shape(
         "out",
         "trace_coords",
         "trace_basis",
+        "aoslices",
     ),
 )
 def getints(
@@ -177,6 +178,7 @@ def getints(
     out: Any | None = None,
     trace_coords: bool = False,
     trace_basis: bool = False,
+    aoslices: numpy.ndarray | None = None,
 ):
     from pyscfad.gto._pyscf_moleintor import getints as callback
     if out is not None:
@@ -224,6 +226,7 @@ def getints_jvp(
     out,
     trace_coords,
     trace_basis,
+    aoslices,
     primals,
     tangents,
 ):
@@ -248,6 +251,7 @@ def getints_jvp(
         out=out,
         trace_coords=trace_coords,
         trace_basis=trace_basis,
+        aoslices=aoslices,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -270,6 +274,7 @@ def getints_jvp(
             ao_loc,
             trace_coords,
             trace_basis,
+            aoslices,
         ).reshape(tangent_out.shape)
 
     if trace_basis:
@@ -291,6 +296,7 @@ def _gen_int1e_jvp_r0(
     ao_loc,
     trace_coords,
     trace_basis,
+    aoslices,
 ):
     if comp is not None:
         comp = comp * 3
@@ -324,7 +330,8 @@ def _gen_int1e_jvp_r0(
         _ao_loc = ao_loc
 
     i0, _, j0, _ = shls_slice[:4]
-    aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
+    if aoslices is None:
+        aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
     aoidx = np.arange(naoi)
     jvp = _gen_int1e_fill_jvp_r0(s1a, coords_dot, aoslices-_ao_loc[i0], aoidx[None,None,:,None])
 
@@ -344,6 +351,7 @@ def _gen_int1e_jvp_r0(
             out=None,
             trace_coords=trace_coords,
             trace_basis=trace_basis,
+            aoslices=aoslices,
         )
         s1b = s1b.reshape(3**order_a,3,-1,naoi,naoj).transpose(1,0,2,3,4).reshape(3,-1,naoi,naoj)
 
@@ -378,5 +386,5 @@ def _extract_coords(
     env,
 ):
     idx = atm[:, PTR_COORD]
-    coords = env[idx[:, None] + numpy.arange(3)]
+    coords = env[idx[:, None] + np.arange(3)]
     return coords
