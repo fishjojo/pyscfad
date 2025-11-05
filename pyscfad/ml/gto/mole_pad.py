@@ -38,6 +38,13 @@ from pyscfad.ml.gto.basis_array import BasisArray
 Array = Any
 
 
+def tot_electrons(mol):
+    nelectron = mol.atom_charges().sum()
+    nelectron -= mol.charge
+    nelectron_int = np.round(nelectron).astype(np.int32)
+    return nelectron_int
+
+
 class Mole(MoleLite):
     """Molecular information with padding.
 
@@ -85,11 +92,40 @@ class Mole(MoleLite):
         self.trace_coords = trace_coords
         self.trace_basis = trace_basis
 
+        self.ao_mask = None
         self._atm = self._bas = self._env = None
         if self.basis is not None:
             self._atm, self._bas, self._env = make_env(self, bas0=bas0, env0=env0)
 
+            self.ao_mask = self.basis.make_ao_mask(
+                self.basis.mask_shl[self.numbers],
+                self.basis.mask_ctr[self.numbers],
+                cart=self.cart,
+            )
+
+        self._nao = None
+        self._pseudo = {}
+        self._ecpbas = numpy.zeros((0,8), dtype=numpy.int32)
         self._built = True
+
+    def atom_charges(self):
+        return self.numbers
+
+    @property
+    def nao(self):
+        if self._nao is None:
+            return self.nao_nr()
+        else:
+            return self._nao
+
+    def nao_nr(self, cart=None):
+        if cart is None:
+            cart = self.cart
+        return self.basis.nao_nr(cart=cart) * self.natm
+
+    @property
+    def natm(self):
+        return len(self.numbers)
 
     def copy(
         self,
@@ -145,6 +181,7 @@ class Mole(MoleLite):
         )
         return out
 
+    tot_electrons = tot_electrons
     atom_pure_symbol = NotImplemented
     from_pyscf = NotImplemented
     to_pyscf = NotImplemented
@@ -233,5 +270,5 @@ if __name__ == "__main__":
         s = mol.intor("int1e_ovlp")
         return np.linalg.norm(s)
 
-    g = jax.jit(jax.grad(foo, 1))(numbers, coords)
-    print(g)
+    e, g = jax.jit(jax.value_and_grad(foo, 1))(numbers, coords)
+    print(e, g)

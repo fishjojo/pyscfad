@@ -228,6 +228,9 @@ class SCF(SCFBase):
         self.converged = False
         self.verbose = mol.verbose
 
+        self._eri = None
+        self.scf_summary = {}
+
     def dump_flags(self, verbose=None):
         pass
 
@@ -280,8 +283,13 @@ class SCF(SCFBase):
 
         return f
 
-    get_hcore = hf.SCF.get_hcore
+    def get_hcore(self, mol=None, **kwargs):
+        return super().get_hcore(mol)
+
     get_init_guess = hf.SCF.get_init_guess
+    get_jk = hf.SCF.get_jk
     get_veff = hf.SCF.get_veff
     make_rdm1 = hf.SCF.make_rdm1
+    energy_elec = hf.SCF.energy_elec
+    energy_nuc = hf.SCF.energy_nuc
     _eigh = hf.SCF._eigh

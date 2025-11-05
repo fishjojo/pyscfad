@@ -34,11 +34,16 @@ def _load_external(module, filename_or_basisname, symb, **kwargs):
         return [[0, [0., 0.],],]
 pyscf_basis._load_external = _load_external
 
-
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
 class BasisArray:
+    """Basis set stored in an array, padded to make
+    each element type have the same numbers of shells,
+    primitives and contractions.
+    """
     data: jax.Array
+    mask_shl: jax.Array
+    mask_ctr: jax.Array
     ls: numpy.ndarray = dataclasses.field(metadata=dict(static=True))
     l_loc: numpy.ndarray = dataclasses.field(metadata=dict(static=True))
 
@@ -51,6 +56,17 @@ class BasisArray:
     def aoslice_by_atom(self, natm, ao_loc=None, cart=False):
         return aoslice_by_atom(self, natm, ao_loc=ao_loc, cart=cart)
 
+    def make_ao_mask(self, mask_shl, mask_ctr, cart=False):
+        return make_ao_mask(self, mask_shl=mask_shl, mask_ctr=mask_ctr, cart=cart)
+
+    def nao_nr(self, cart=False):
+        """Number of atomic orbitals per element (non-relativistic).
+        """
+        ls = self.ls
+        if cart:
+            return numpy.sum((ls+1)*(ls+2)//2, dtype=numpy.int32)
+        else:
+            return numpy.sum(2*ls+1, dtype=numpy.int32)
 
 def gaussian_int(n, alpha):
     from jax.scipy.special import gamma
@@ -161,6 +177,28 @@ def aoslice_by_atom(
     aorange[:,3] = ao_loc[shl_end]
     return aorange
 
+def make_ao_mask(
+    basis: BasisArray,
+    mask_shl: jnp.Array,
+    mask_ctr: jnp.Array,
+    cart: bool = False,
+) -> jax.Array:
+    ls = basis.ls
+    mask_shl_ctr = jnp.einsum("zs,zc->zsc", mask_shl, mask_ctr)
+
+    def _scatter_sph(mask):
+        out = [jnp.repeat(mask[i], l * 2 + 1) for i, l in enumerate(ls)]
+        return jnp.hstack(out)
+
+    def _scatter_cart(mask):
+        out = [jnp.repeat(mask[i], (l+1)*(l+2)//2) for i, l in enumerate(ls)]
+        return jnp.hstack(out)
+
+    if not cart:
+        return jax.vmap(_scatter_sph)(mask_shl_ctr).ravel()
+    else:
+        return jax.vmap(_scatter_cart)(mask_shl_ctr).ravel()
+
 def basis_array(
     basis: str | dict,
     max_number: int = 118,
@@ -207,7 +245,11 @@ def basis_array(
 
     a = numpy.zeros([max_number+1, len(ls), max_nexp, max_nc1])
     a[:,:,:,0] = 1e12 # preset exponents to a large number
+    mask_shl = numpy.zeros([max_number+1, len(ls)], dtype=bool)
+    mask_ctr = numpy.zeros([max_number+1, max_nc1-1], dtype=bool)
     for z in range(max_number+1):
+        if z == 0: # dummy atom
+            continue
         symb = _symbol(z)
         basdic = basis.get(symb)
         for l, bas in basdic.items():
@@ -215,18 +257,30 @@ def basis_array(
                 l_idx = l_loc[l] + i
                 nexp, nc1 = b.shape
                 a[z, l_idx, :nexp, :nc1] = b
+                mask_shl[z, l_idx] = True
+                mask_ctr[z, :nc1-1] = True
 
-    return BasisArray(data=jnp.asarray(a), ls=ls, l_loc=l_loc)
+    return BasisArray(data=jnp.asarray(a),
+                      mask_shl=jnp.asarray(mask_shl),
+                      mask_ctr=jnp.asarray(mask_ctr),
+                      ls=ls, l_loc=l_loc)
 
 
 if __name__ == "__main__":
     from pyscfad.xtb import basis as xtb_basis
-    basis = xtb_basis.get_basis_filename()
 
-    b = basis_array(basis, max_number=10)
+    basis = xtb_basis.get_basis_filename()
+    b = basis_array(basis, max_number=9)
 
     @jax.jit
     def foo(b, idx):
-        return b.data[idx]
+        data = b.data[idx]
+        mask_shl = b.mask_shl[idx]
+        mask_ctr = b.mask_ctr[idx]
+        mask_ao = b.make_ao_mask(mask_shl, mask_ctr)
+        return data, mask_shl, mask_ctr, mask_ao
 
-    print(foo(b, 1))
+    data, mask_shl, mask_ctr, mask_ao = foo(b, jnp.array([8,1,1,0]))
+    print(mask_shl)
+    print(mask_ctr)
+    print(mask_ao)
