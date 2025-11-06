@@ -343,6 +343,14 @@ def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
     return f
 
 
+def energy_tot(mf, dm=None, h1e=None, vhf=None):
+    nuc = mf.energy_nuc()
+    mf.scf_summary['nuc'] = nuc.real
+
+    e_tot = mf.energy_elec(dm, h1e, vhf)[0] + nuc
+    return e_tot
+
+
 class SCF(pytree.PytreeNode, pyscf_hf.SCF):
     """Subclass of :class:`pyscf.scf.hf.SCF` with traceable attributes.
 
@@ -513,6 +521,7 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
 
     make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
     energy_elec = energy_elec
+    energy_tot = energy_tot
     get_fock = get_fock
     to_pyscf = util.to_pyscf
 

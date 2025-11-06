@@ -14,7 +14,16 @@
 
 from functools import partial
 from pyscf.dft import libxc
-from pyscf.dft.libxc import parse_xc, is_lda, is_meta_gga
+from pyscf.dft.libxc import (
+    parse_xc,
+    xc_type,
+    is_hybrid_xc,
+    is_nlc,
+    is_lda,
+    is_meta_gga,
+    __version__,
+    __reference__,
+)
 from pyscfad import numpy as np
 from pyscfad.ops import jit, custom_jvp
 

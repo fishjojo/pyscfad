@@ -168,6 +168,12 @@ class KohnShamDFT(pyscf_rks.KohnShamDFT):
     __init__ = _dft_common_init_
     __post_init__ = _dft_common_post_init_
 
+    def do_nlc(self):
+        if isinstance(self.xc, str):
+            return super().do_nlc()
+        else:
+            return False
+
     def reset(self, mol=None):
         hf.SCF.reset(self, mol)
         if getattr(self, 'grids', None) is not None:

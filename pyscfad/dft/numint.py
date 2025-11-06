@@ -24,7 +24,11 @@ from pyscfad.ops import (
     jit,
     custom_jvp,
 )
-from pyscfad.dft import libxc
+
+try:
+    from pyscfad.dft import autoxc as libxc
+except ImportError:
+    from pyscfad.dft import libxc
 
 def eval_mat(mol, ao, weight, rho, vxc,
              non0tab=None, xctype='LDA', spin=0, verbose=None):
@@ -498,6 +502,8 @@ def _vv10nlc_jvp(coords, vvrho, vvweight, vvcoords, nlc_pars,
     return (exc, vxc), (exc_jvp, vxc_jvp)
 
 class NumInt(numint.NumInt):
+    libxc = libxc
+
     def _gen_rho_evaluator(self, mol, dms, hermi=0, with_lapl=True, grids=None):
         if getattr(dms, 'mo_coeff', None) is not None:
             # should be inside pyscf
