@@ -27,7 +27,7 @@ from pyscf.dft.libxc import (
     nlc_coeff,
     __version__,
     __reference__,
-)
+) # pylint: disable=unused-import
 from pyscfad import numpy as np
 from pyscfad.ops import jit, custom_jvp
 

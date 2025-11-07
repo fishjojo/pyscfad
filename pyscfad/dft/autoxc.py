@@ -167,6 +167,7 @@ def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=Non
 
 def eval_xc1(xc_code, rho, spin=0, deriv=1, omega=None):
     out = _eval_xc(xc_code, rho, spin=spin, deriv=deriv, omega=omega)
+    xctype = xc_type(xc_code)
     idx = _libxc_to_xcfun_indices(xctype, spin, deriv)
     return out[idx]
 
@@ -199,7 +200,8 @@ def _eval_xc_u2r(exc, xctype, deriv):
         elif deriv >= 2:
             v2rho2 = (exc[6] + exc[7] * 2 + exc[8]) * .25
             v2rhosigma = (exc[9] + exc[10] + exc[11] + exc[12] + exc[13] + exc[14]) * .125
-            v2sigma2 = (exc[15] + exc[16] * 2 + exc[17] * 2 + exc[18] + exc[19] * 2 + exc[20]) * .0625
+            v2sigma2 = (exc[15] + exc[16] * 2 + exc[17] * 2 +
+                        exc[18] + exc[19] * 2 + exc[20]) * .0625
             out = out + [v2rho2, v2rhosigma, v2sigma2]
         elif deriv >= 3:
             raise NotImplementedError
