@@ -21,6 +21,10 @@ from pyscf.dft.libxc import (
     is_nlc,
     is_lda,
     is_meta_gga,
+    eval_xc1,
+    rsh_coeff,
+    hybrid_coeff,
+    nlc_coeff,
     __version__,
     __reference__,
 )
