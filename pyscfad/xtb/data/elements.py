@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pyscfad import numpy as np
+
 N_VALENCE = {
+    "X" : 0,
     "H" : 1,
     "He" : 2,
     "Li" : 1,
@@ -101,3 +104,4 @@ N_VALENCE = {
     "Rn" : 8,
 }
 
+N_VALENCE_ARRAY = np.array([z for z in N_VALENCE.values()], dtype=np.int32)

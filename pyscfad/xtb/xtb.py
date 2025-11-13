@@ -72,9 +72,12 @@ class XTB(hf.SCF):
     init_guess = "refocc"
     #_dynamic_attr = ["_enuc", "_gamma", "param"]
 
-    def __init__(self, mol, param):
+    def __init__(self, mol, param=None):
         super().__init__(mol)
-        self.param = param.to_mol_param(mol)
+        if param is None:
+            self.param = None
+        else:
+            self.param = param.to_mol_param(mol)
         self._enuc = None
         self._gamma = None
 
@@ -166,8 +169,13 @@ def EHT_PI_GFN1(mol, param, atomic_radii=ATOMIC_RADII):
     z = mol.atom_charges()
     cov_radii = atomic_radii[z]
     RAB = cov_radii[:,None] + cov_radii[None,:]
+    #RAB = np.where(RAB>1e-6, RAB, np.inf)
     #rr = np.where(rr>1e-6, np.sqrt(rr / RAB), 0)
     rr = np.sqrt(rr / RAB)
+
+    if hasattr(mol, "atom_mask"):
+        mask = np.outer(mol.atom_mask, mol.atom_mask)
+        rr = np.where(mask, rr, 0)
 
     RR = rr[util.atom_to_bas_indices_2d(mol)]
     PI = (1 + shpoly[:,None] * RR) * (1 + shpoly[None,:] * RR)
@@ -221,7 +229,7 @@ class GFN1XTB(XTB):
         param = self.param
 
         mask = util.mask_valence_shell_gfn1(mol)
-        hscale = np.where(numpy.outer(mask, mask),
+        hscale = np.where(np.outer(mask, mask),
                           param.k_shlpr * param.kpair * EHT_X_GFN1(mol, param),
                           param.k_shlpr)
 

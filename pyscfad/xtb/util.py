@@ -255,6 +255,13 @@ def load_global_shell_pair_params_gfn1(mol, param, name, pad=1., broadcast=None)
                                          ls=ls, uniq_l_to_bas_id=uniq_l_to_bas_id)
 
 def mask_valence_shell_gfn1(mol):
+    if hasattr(mol, "shl_mask"):
+        H_mask = numpy.zeros(mol.basis.nbas, dtype=bool)
+        H_mask[0] = True
+        mask_shl = mol.basis.mask_shl.at[1,:].set(np.asarray(H_mask))
+        mask = mask_shl[mol.numbers].ravel()
+        return mask
+
     mask = numpy.ones(mol.nbas, dtype=bool)
     if not "H" in mol.elements:
         return mask
@@ -271,9 +278,12 @@ def mask_valence_shell_gfn1(mol):
     return mask
 
 def mask_atom_pairs(mol, exclude_diag=True):
-    mask = numpy.ones((mol.natm, mol.natm), dtype=bool)
+    if hasattr(mol, "atom_mask"):
+        mask = np.outer(mol.atom_mask, mol.atom_mask)
+    else:
+        mask = np.ones((mol.natm, mol.natm), dtype=bool)
     if exclude_diag:
-        numpy.fill_diagonal(mask, False)
+        mask = np.fill_diagonal(mask, False, inplace=False)
     return mask
 
 def rcut_erfc(alpha, q, precision=1e-8):

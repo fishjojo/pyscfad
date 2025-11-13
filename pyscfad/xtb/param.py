@@ -44,6 +44,10 @@ def cn_d3(mol, charges=None, coords=None, kcn=16.0, cov_radii=None):
     r = np.where(r>1e-6, r, np.inf)
     CN = np.where(r>1e-6, 1. / (1. + np.exp(-kcn * (RAB / r - 1.))), 0)
 
+    if hasattr(mol, "atom_mask"):
+        mask = np.outer(mol.atom_mask, mol.atom_mask)
+        CN = np.where(mask, CN, 0)
+
     if CN.ndim == 2:
         axis = 1
     elif CN.ndim == 3:

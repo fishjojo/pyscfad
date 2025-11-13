@@ -15,3 +15,4 @@
 """
 Mean-field theory.
 """
+from .hf_pad import SCFPad

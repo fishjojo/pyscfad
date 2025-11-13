@@ -220,6 +220,7 @@ class SCF(SCFBase):
     def __init__(
         self,
         mol: Mole,
+        **kwargs,
     ):
         self.mol = mol
         self.mo_energy = None

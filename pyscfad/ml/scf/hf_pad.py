@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy
 from pyscfad import numpy as np
+from pyscfad.lib import logger
 from pyscfad.scf import hf_lite as hf
 from pyscfad.scipy.linalg import eigh
 
@@ -22,19 +24,21 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
         mo_energy = mf.mo_energy
     if mo_coeff is None:
         mo_coeff = mf.mo_coeff
+    nmo = mo_energy.size
     #e_sort = mo_energy
-    #nmo = mo_energy.size
 
     nocc = mf.tot_electrons // 2
 
     mask_fake_ao = np.asarray(1 - mf.mol.ao_mask, dtype=bool)
     mo_coeff_fake_ao = np.where(mask_fake_ao[:,None], mo_coeff, 0)
     tmp = np.linalg.norm(mo_coeff_fake_ao, axis=0)
-    # FIXME is 1e-14 okay?
-    mask = np.where(np.logical_and(abs(mo_energy)<1e-14, tmp>1e-14), False, True)
+    # FIXME is 1e-12 okay?
+    mask = np.where(np.logical_and(abs(mo_energy)<1e-12, tmp>1e-12), False, True)
     pick = (np.cumsum(mask) <= nocc) & mask
     mo_occ = np.where(pick, 2., 0.)
 
+    # NOTE HOMO and LUMO can only be determined at runtime,
+    # so the following is not compatible with jit compilation.
     #if mf.verbose >= logger.INFO and nocc < nmo:
     #    jax.lax.cond(
     #        np.greater(e_sort[nocc-1]+1e-3, e_sort[nocc]),
@@ -43,10 +47,10 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
     #        e_sort[nocc-1], e_sort[nocc],
     #    )
 
-    #if mf.verbose >= logger.DEBUG:
-    #    numpy.set_printoptions(threshold=nmo)
-    #    logger.debug(mf, "  mo_energy =\n%s", mo_energy)
-    #    numpy.set_printoptions(threshold=1000)
+    if mf.verbose >= logger.DEBUG:
+        numpy.set_printoptions(threshold=nmo)
+        logger.debug(mf, "  mo_energy =\n%s", mo_energy)
+        numpy.set_printoptions(threshold=1000)
     return mo_occ
 
 def make_rdm1(mo_coeff, mo_occ, **kwargs):
@@ -60,8 +64,8 @@ def get_grad(mo_coeff, mo_occ, fock_ao):
     return g.ravel()
 
 class SCF(hf.SCF):
-    def __init__(self, mol):
-        super().__init__(mol)
+    def __init__(self, mol, **kwargs):
+        super().__init__(mol, **kwargs)
 
     def get_occ(self, mo_energy=None, mo_coeff=None):
         return get_occ(self, mo_energy=mo_energy, mo_coeff=mo_coeff)
@@ -84,7 +88,8 @@ class SCF(hf.SCF):
         return get_grad(mo_coeff, mo_occ, fock)
 
     def _eigh(self, h, s):
-        mask = np.asarray(1 - self.mol.ao_mask, dtype=np.int32)
+        ao_mask = self.mol.ao_mask
+        mask = np.asarray(1 - ao_mask, dtype=np.int32)
         s = s + np.diag(mask)
         return eigh(h, s)
 
@@ -94,14 +99,14 @@ SCFPad = SCF
 if __name__ == "__main__":
     import numpy
     import jax
-    from pyscfad.ml.gto import basis_array, MolePad
+    from pyscfad.ml.gto import make_basis_array, MolePad
     #from pyscfad.xtb import basis as xtb_basis
     #bfile = xtb_basis.get_basis_filename()
 
     import os
     from pyscf.gto import basis
     bfile = os.path.dirname(basis.__file__) + "/sto-3g.dat"
-    basis = basis_array(bfile, max_number=8)
+    basis = make_basis_array(bfile, max_number=8)
 
     numbers = np.array([8, 1, 1, 0], dtype=np.int32)
     coords = np.array(
@@ -116,10 +121,9 @@ if __name__ == "__main__":
     @jax.jit
     def energy(numbers, coords):
         mol = MolePad(numbers, coords, basis=basis, verbose=4)
-        dm0 = numpy.zeros((mol.nao, mol.nao))
+        dm0 = np.zeros((mol.nao, mol.nao))
         for i in range(5):
-            dm0[i,i] = 2.
-
+            dm0 = dm0.at[i,i].set(2.)
         mf = SCFPad(mol)
         ehf = mf.kernel(dm0=dm0)
         return ehf

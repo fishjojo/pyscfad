@@ -92,11 +92,14 @@ class Mole(MoleLite):
         self.trace_coords = trace_coords
         self.trace_basis = trace_basis
 
+        self.atom_mask = np.greater(self.numbers, 0)
+        self.shl_mask = None
         self.ao_mask = None
         self._atm = self._bas = self._env = None
         if self.basis is not None:
             self._atm, self._bas, self._env = make_env(self, bas0=bas0, env0=env0)
 
+            self.shl_mask = self.basis.mask_shl[self.numbers].ravel()
             self.ao_mask = self.basis.make_ao_mask(
                 self.basis.mask_shl[self.numbers],
                 self.basis.mask_ctr[self.numbers],
@@ -110,6 +113,10 @@ class Mole(MoleLite):
 
     def atom_charges(self):
         return self.numbers
+
+    def atom_nshells(self, atm_id):
+        del atm_id
+        return self.basis.nbas
 
     @property
     def nao(self):
@@ -160,9 +167,8 @@ class Mole(MoleLite):
         if "_grids" in intor_name:
             raise NotImplementedError
 
-        natm = len(self._atm)
-        ao_loc = self.basis.make_loc(natm, intor_name)
-        aoslices = self.basis.aoslice_by_atom(natm, ao_loc=ao_loc)[:,2:4]
+        ao_loc = self.ao_loc
+        aoslices = self.aoslice_by_atom(ao_loc=ao_loc)[:,2:4]
 
         out = moleintor_lite.getints(
             intor_name,
@@ -180,6 +186,21 @@ class Mole(MoleLite):
             aoslices=aoslices,
         )
         return out
+
+    def ao_loc_nr(self):
+        if self.cart:
+            key = "cart"
+        else:
+            key = "sph"
+        return self.basis.make_loc(self.natm, key)
+
+    ao_loc = property(ao_loc_nr)
+    ao_loc_2c = NotImplemented
+
+    def aoslice_by_atom(self, ao_loc=None):
+        if ao_loc is None:
+            ao_loc = self.ao_loc
+        return self.basis.aoslice_by_atom(self.natm, ao_loc=ao_loc)
 
     tot_electrons = tot_electrons
     atom_pure_symbol = NotImplemented
@@ -251,9 +272,9 @@ def make_env(
 if __name__ == "__main__":
     import jax
     from pyscfad.xtb import basis as xtb_basis
-    from pyscfad.ml.gto.basis_array import basis_array
+    from pyscfad.ml.gto.basis_array import make_basis_array
 
-    basis = basis_array(xtb_basis.get_basis_filename(), max_number=8)
+    basis = make_basis_array(xtb_basis.get_basis_filename(), max_number=8)
 
     numbers = np.array([8, 1, 1], dtype=np.int32)
     coords = np.array(

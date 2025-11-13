@@ -68,6 +68,13 @@ class BasisArray:
         else:
             return numpy.sum(2*ls+1, dtype=numpy.int32)
 
+    @property
+    def nbas(self):
+        """Number of shells per element.
+        """
+        return len(self.ls)
+
+
 def gaussian_int(n, alpha):
     from jax.scipy.special import gamma
     n1 = (n + 1) * .5
@@ -199,7 +206,7 @@ def make_ao_mask(
     else:
         return jax.vmap(_scatter_cart)(mask_shl_ctr).ravel()
 
-def basis_array(
+def make_basis_array(
     basis: str | dict,
     max_number: int = 118,
 ) -> BasisArray:
@@ -270,7 +277,7 @@ if __name__ == "__main__":
     from pyscfad.xtb import basis as xtb_basis
 
     basis = xtb_basis.get_basis_filename()
-    b = basis_array(basis, max_number=9)
+    b = make_basis_array(basis, max_number=9)
 
     @jax.jit
     def foo(b, idx):

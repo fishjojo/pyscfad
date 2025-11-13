@@ -14,6 +14,7 @@
 
 from functools import partial
 from pyscf.dft import libxc
+# pylint: disable=unused-import
 from pyscf.dft.libxc import (
     parse_xc,
     xc_type,
@@ -27,7 +28,7 @@ from pyscf.dft.libxc import (
     nlc_coeff,
     __version__,
     __reference__,
-) # pylint: disable=unused-import
+)
 from pyscfad import numpy as np
 from pyscfad.ops import jit, custom_jvp
 

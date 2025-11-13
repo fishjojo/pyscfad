@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy
 from pyscf.data.nist import BOHR
+from pyscfad import numpy as np
 
 __all__ = ["ATOMIC", "COV_D3"]
 
 AA2AU = 1 / BOHR
 
-ATOMIC = AA2AU * numpy.array([
-    0.00,  # dummy
+ATOMIC = AA2AU * np.array([
+    0.00,  # X
     0.32,0.37,  # H,He
     1.30,0.99,0.84,0.75,0.71,0.64,0.60,0.62,  # Li-Ne
     1.60,1.40,1.24,1.14,1.09,1.04,1.00,1.01,  # Na-Ar
@@ -47,8 +47,8 @@ ATOMIC = AA2AU * numpy.array([
 ])
 """Atomic radii."""
 
-COV_2009 = AA2AU * numpy.array([
-    0.00,  # None
+COV_2009 = AA2AU * np.array([
+    0.00,  # X
     0.32,0.46,  # H,He
     1.20,0.94,0.77,0.75,0.71,0.63,0.64,0.67,  # Li-Ne
     1.40,1.25,1.13,1.04,1.10,1.02,0.99,0.96,  # Na-Ar
