@@ -104,4 +104,4 @@ N_VALENCE = {
     "Rn" : 8,
 }
 
-N_VALENCE_ARRAY = np.array([z for z in N_VALENCE.values()], dtype=np.int32)
+N_VALENCE_ARRAY = np.array(list(N_VALENCE.values()), dtype=np.int32)
