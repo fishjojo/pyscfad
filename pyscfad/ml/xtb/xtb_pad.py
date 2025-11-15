@@ -67,13 +67,27 @@ if __name__ == "__main__":
     basis = make_basis_array(bfile, max_number=8)
     param = make_param_array(basis, 8)
 
-    numbers = np.array([8, 1, 1, 0], dtype=np.int32)
+    numbers = np.array(
+        [
+            [8, 1, 1, 0],
+            [7, 1, 1, 1],
+        ],
+        dtype=np.int32
+    )
     coords = np.array(
         [
-            [0.00000,  0.00000,  0.00000],
-            [1.43355,  0.00000, -0.95296],
-            [1.43355,  0.00000,  0.95296],
-            [0.00000,  0.00000,  0.00000],
+            np.array([
+                [0.00000,  0.00000,  0.00000],
+                [1.43355,  0.00000, -0.95296],
+                [1.43355,  0.00000,  0.95296],
+                [0.00000,  0.00000,  0.00000],
+            ]),
+            np.array([
+                [-0.80650, -1.00659,  0.02850],
+                [-0.50540, -0.31299,  0.68220],
+                [ 0.00620, -1.41579, -0.38500],
+                [-1.32340, -0.54779, -0.69350],
+            ]) / 0.52917721067121,
         ]
     )
 
@@ -88,21 +102,7 @@ if __name__ == "__main__":
         e = mf.kernel()
         return e
 
-    gfn = jax.jit(jax.grad(energy, 1))
-    g = gfn(numbers, coords)
+    gfn = jax.value_and_grad(energy, 1)
+    e, g = jax.jit(jax.vmap(gfn))(numbers, coords)
+    print(e)
     print(g)
-    print(gfn._cache_size())
-
-    numbers = np.array([7, 1, 1, 1], dtype=np.int32)
-    coords = np.array(
-        [
-            [-0.80650,       -1.00659,        0.02850],
-            [-0.50540,       -0.31299,        0.68220],
-            [ 0.00620,       -1.41579,       -0.38500],
-            [-1.32340,       -0.54779,       -0.69350],
-        ]
-    ) / 0.52917721067121
-
-    g = gfn(numbers, coords)
-    print(g)
-    print(gfn._cache_size())
