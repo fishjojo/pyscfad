@@ -84,6 +84,7 @@ if __name__ == "__main__":
         mf.conv_tol = 1e-6
         mf.diis_damp = 0.5
         mf.diis_space = 6
+        mf.sigma = 0.001
         e = mf.kernel()
         return e
 

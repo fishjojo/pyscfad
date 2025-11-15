@@ -17,6 +17,36 @@ from pyscfad import numpy as np
 from pyscfad.lib import logger
 from pyscfad.scf import hf_lite as hf
 from pyscfad.scipy.linalg import eigh
+from pyscfad.ops import stop_grad
+
+def _fermi_smearing_occ(mu, mo_energy, sigma, mo_mask):
+    de = (mo_energy - mu) / sigma
+    de = np.where(np.less(de, 40.), de, np.inf)
+    occ = np.where(np.less(de, 40.), 1. / (np.exp(de) + 1.), 0.)
+    occ = np.where(mo_mask, occ, 0)
+    return occ
+
+def _smearing_optimize(mo_es, nocc, sigma, mo_mask):
+    from jax.scipy import optimize
+    def nelec_cost_fn(mu):
+        mo_occ = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
+        return (np.sum(mo_occ) - nocc)**2
+
+    mu0 = np.array([mo_es[nocc-1],])
+    res = optimize.minimize(
+        nelec_cost_fn, mu0, method="BFGS", tol=1e-5,
+    )
+    mu = res.x
+    mo_occs = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
+    return mu, mo_occs
+
+def make_mo_mask(mo_energy, mo_coeff, ao_mask):
+    mask_fake_ao = np.asarray(1 - ao_mask, dtype=bool)
+    mo_coeff_fake_ao = np.where(mask_fake_ao[:,None], mo_coeff, 0)
+    tmp = np.linalg.norm(mo_coeff_fake_ao, axis=0)
+    # FIXME is 1e-12 okay?
+    mask = np.where(np.logical_and(abs(mo_energy)<1e-12, tmp>1e-12), False, True)
+    return mask
 
 def get_occ(mf, mo_energy=None, mo_coeff=None):
     # NOTE assuming mo_energy is in ascending order
@@ -27,15 +57,15 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
     nmo = mo_energy.size
     #e_sort = mo_energy
 
+    mask = make_mo_mask(mo_energy, mo_coeff, mf.mol.ao_mask)
     nocc = mf.tot_electrons // 2
 
-    mask_fake_ao = np.asarray(1 - mf.mol.ao_mask, dtype=bool)
-    mo_coeff_fake_ao = np.where(mask_fake_ao[:,None], mo_coeff, 0)
-    tmp = np.linalg.norm(mo_coeff_fake_ao, axis=0)
-    # FIXME is 1e-12 okay?
-    mask = np.where(np.logical_and(abs(mo_energy)<1e-12, tmp>1e-12), False, True)
-    pick = (np.cumsum(mask) <= nocc) & mask
-    mo_occ = np.where(pick, 2., 0.)
+    if mf.sigma is not None and mf.sigma > 0:
+        mu, mo_occ = _smearing_optimize(stop_grad(mo_energy), nocc, mf.sigma, mask)
+        mo_occ *= 2
+    else:
+        pick = (np.cumsum(mask) <= nocc) & mask
+        mo_occ = np.where(pick, 2., 0.)
 
     # NOTE HOMO and LUMO can only be determined at runtime,
     # so the following is not compatible with jit compilation.
@@ -66,6 +96,7 @@ def get_grad(mo_coeff, mo_occ, fock_ao):
 class SCF(hf.SCF):
     def __init__(self, mol, **kwargs):
         super().__init__(mol, **kwargs)
+        self.sigma = None
 
     def get_occ(self, mo_energy=None, mo_coeff=None):
         return get_occ(self, mo_energy=mo_energy, mo_coeff=mo_coeff)
