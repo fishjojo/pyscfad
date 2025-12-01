@@ -48,8 +48,6 @@
     <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="../../../_static/copybutton.js?v=f281be69"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
-    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
-    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'api_reference/api/classes/pyscfad.dft.rks.RKS';</script>
     <script src="../../../_static/custom-icon.js?v=40bda21d"></script>
     <link rel="icon" href="../../../_static/pyscfad_logo.svg"/>
@@ -60,7 +58,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.1.11" />
-    <meta name="docbuild:last-update" content="Aug 14, 2025"/>
+    <meta name="docbuild:last-update" content="Dec 01, 2025"/>
   </head>
   
   
@@ -820,7 +818,7 @@
 <h1>pyscfad.dft.rks.RKS<a class="headerlink" href="#pyscfad-dft-rks-rks" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyscfad.dft.rks.RKS">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.dft.rks.</span></span><span class="sig-name descname"><span class="pre">RKS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LDA,VWN'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/dft/rks.py#L203-L232"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.dft.rks.RKS" title="Link to this definition">#</a></dt>
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pyscfad.dft.rks.</span></span><span class="sig-name descname"><span class="pre">RKS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'LDA,VWN'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/dft/rks.py#L203-L232"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.dft.rks.RKS" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference internal" href="pyscfad.dft.rks.KohnShamDFT.html#pyscfad.dft.rks.KohnShamDFT" title="pyscfad.dft.rks.KohnShamDFT"><code class="xref py py-class docutils literal notranslate"><span class="pre">KohnShamDFT</span></code></a>, <a class="reference internal" href="pyscfad.scf.hf.RHF.html#pyscfad.scf.hf.RHF" title="pyscfad.scf.hf.RHF"><code class="xref py py-class docutils literal notranslate"><span class="pre">RHF</span></code></a></p>
 <p>Subclass of <code class="xref py py-class docutils literal notranslate"><span class="pre">pyscf.dft.rks.RKS</span></code> with traceable attributes.</p>
 <p class="rubric">Attributes</p>
@@ -844,7 +842,7 @@
 <p class="rubric">Notes</p>
 <p>Grid response is not considered with AD.</p>
 <p class="rubric">Methods</p>
-<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.dft.rks.RKS.energy_elec.html#pyscfad.dft.rks.RKS.energy_elec" title="pyscfad.dft.rks.RKS.energy_elec"><code class="xref py py-obj docutils literal notranslate"><span class="pre">energy_elec</span></code></a>([dm, h1e, vhf])</p></td>
 <td><p>Electronic part of Hartree-Fock energy, for given core hamiltonian and HF potential</p></td>
@@ -977,7 +975,7 @@
         <div class="footer-item">
 
   <p class="sphinx-version">
-    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.1.3.
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
     <br/>
   </p>
 </div>
