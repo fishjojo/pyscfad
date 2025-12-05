@@ -84,6 +84,8 @@ class Element(pytree.PytreeNode):
         "qkernel",
         "mprad",
         "mpvcn",
+        "dipgam",
+        "quadgam"
     ]
     def __init__(self, data: dict):
         self.shells = list(data.get("shells"))
@@ -104,6 +106,8 @@ class Element(pytree.PytreeNode):
         self.qkernel = numpy.asarray(data.get("qkernel"))
         self.mprad = numpy.asarray(data.get("mprad"))
         self.mpvcn = numpy.asarray(data.get("mpvcn"))
+        self.dipgam = None
+        self.quadgam = None
 
 
 class GFN1Param(pytree.PytreeNode):
@@ -159,6 +163,8 @@ class GFN1MolParam(pytree.PytreeNode):
         "kf",
         "kEN",
         "CN",
+        "dipgam",
+        "quadgam"
     ]
     def __init__(self, mol, param): # pylint: disable=redefined-outer-name
         self.EN   = util.load_unique_element_params(mol, param, "en", broadcast="atom")
@@ -182,6 +188,9 @@ class GFN1MolParam(pytree.PytreeNode):
         self.kf = param.kf
         self.kEN = param.kEN
         self.CN = cn_d3(mol, kcn=param.kcn_d3)
+
+        self.dipgam = None
+        self.quadgam = None
 
 
 if __name__ == "__main__":
