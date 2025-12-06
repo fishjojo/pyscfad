@@ -91,17 +91,13 @@ def add_mm_charges(xtb_method, mm_coords, a, mm_charges, mm_radii, ewald_precisi
         mm_coords = mm_coords / lib.param.BOHR
         a = a / lib.param.BOHR
         mm_radii = mm_radii / lib.param.BOHR
-    if isinstance(xtb_method.mol, MolePad):
-        qmmm_cls = QMMMPad
-    else:
-        qmmm_cls = QMMM
-    xtbqmmm = qmmm_cls(xtb_method,
+    xtbqmmm = QMMM(xtb_method,
                        mm_coords=mm_coords, a=a, mm_charges=mm_charges, mm_radii=mm_radii,
                        ewald_precision=ewald_precision,
                        eta=eta, mesh=mesh,
                        pbcqm=pbcqm,
                        )
-    return lib.set_class(xtbqmmm, (qmmm_cls, xtb_method.__class__))
+    return lib.set_class(xtbqmmm, (QMMM, xtb_method.__class__))
 
 
 class QMMM:
@@ -134,7 +130,6 @@ class QMMM:
 
     get_Gv_weights = cell.Cell.get_Gv_weights
     reciprocal_vectors = cell.Cell.reciprocal_vectors
-    apply_shl_mask = apply_atom_mask = lambda self, x: x
 
     def lattice_vectors(self):
         return self.a
@@ -163,10 +158,10 @@ class QMMM:
                 numpy.sum(self.mol.atom_charges()**2)
             eta = stop_gradient(
                 1 / rcut * numpy.sqrt(
-                1.5 *
-                lambertw(
-                    2/3 * (4/e*Q/rcut/self.vol)**(2/3) * rcut**2
-                ).real
+                    1.5 *
+                    lambertw(
+                        2/3 * (4/e*Q/rcut/self.vol)**(2/3) * rcut**2
+                    ).real
                 )
             )
         else:
@@ -199,7 +194,7 @@ class QMMM:
         for i0, i1 in lib.prange(0, len(coords2), blksize):
             R = coords1[:, None, :] - coords2[None, i0:i1, :]
             r2 = numpy.sum(R * R, axis=-1)
-            r = numpy.sqrt(numpy.where(r2<1e-20, numpy.inf, r2))
+            r = numpy.sqrt(numpy.where(r2 < 1e-20, numpy.inf, r2))
 
             # difference between MM gaussain charges and MM point charges
             expnts = 2. / (1 / (param.gam*param.lgam)
@@ -306,9 +301,7 @@ class QMMM:
         else:
             ewg2 = 0.
 
-        return self.apply_shl_mask(ewovrl0 + ewg0),  \
-            self.apply_atom_mask(ewovrl1 + ewg1), \
-            self.apply_atom_mask(ewovrl2 + ewg2)
+        return ewovrl0+ewg0, ewovrl1+ewg1, ewovrl2+ewg2
 
     def get_qm_ewald_hess(self):
         ew_eta, mesh = self.get_ewald_params()
@@ -323,14 +316,15 @@ class QMMM:
         # ewald real-space sum for qm subtract unit cell Coulomb
         # = 1 - erf - 1 = -erf
         r = inter_distance(coords=coords1)
-        r = numpy.where(r<1e-12, numpy.inf, r) 
+        r = numpy.where(r < 1e-12, numpy.inf, r)
         # NOTE this does not contain lim_(r->0) erf(eta * r) / r
         ewself00 -= erf(ew_eta * r) / r
 
         # spurious interaction with Ewald compensenting gaussian charge
-        eye = self.apply_atom_mask(numpy.eye(len(coords1)))
+        eye = numpy.eye(len(coords1))
         # -d^2 Eself / dQi dQj
-        ewself00 += -eye * 2 * ew_eta / numpy.sqrt(numpy.pi) # to include the lim
+        ewself00 += -eye * 2 * ew_eta / \
+            numpy.sqrt(numpy.pi)  # to include the lim
         # -d^2 Eself / dDia dDjb
         ewself11 += -numpy.einsum('ij,ab->ijab', eye, numpy.eye(3)) \
             * 4 * ew_eta**3 / 3 / numpy.sqrt(numpy.pi)
@@ -369,18 +363,10 @@ class QMMM:
                                Gv, sinGvR, sinGvR, Gpref)
         ewg02 /= 3
 
-        return self.apply_shl_mask(
-                self.apply_shl_mask((ewself00 + ewg00)[util.atom_to_bas_indices_2d(self.mol)]).T
-                ).T, \
-            self.apply_atom_mask(
-                self.apply_shl_mask((ewself01 + ewg01)[util.atom_to_bas_indices(self.mol)]).transpose(1,0,2)
-                ).transpose(1,0,2), \
-            self.apply_atom_mask(
-                self.apply_atom_mask(ewself11 + ewg11).transpose(1,0,2,3)
-                ).transpose(0,1,2,3), \
-            self.apply_atom_mask(
-                self.apply_shl_mask((ewself02 + ewg02)[util.atom_to_bas_indices(self.mol)]).transpose(1,0,2,3)
-                ).transpose(0,1,2,3)
+        return (ewself00 + ewg00)[util.atom_to_bas_indices_2d(self.mol)], \
+            (ewself01 + ewg01)[util.atom_to_bas_indices(self.mol)], \
+            (ewself11 + ewg11), \
+            (ewself02 + ewg02)[util.atom_to_bas_indices(self.mol)]
 
     def get_qm_ewald_pot(self, mol, dm, qm_ewald_hess=None):
         # hess = d^2 E / dQ_i dQ_j, d^2 E / dQ_i dD_ja, d^2 E / dDia dDjb, d^2 E/ dQ_i dO_jab
@@ -408,9 +394,7 @@ class QMMM:
                                        qm_ewald_hess[3], charges)
         else:
             pass
-        return self.apply_shl_mask(ewpot0),  \
-            self.apply_atom_mask(ewpot1), \
-            self.apply_atom_mask(ewpot2)
+        return ewpot0, ewpot1, ewpot2
 
     def get_ovlp(self, *args):
         if self.s1 is None:
@@ -567,13 +551,6 @@ class QMMM:
         # energy correction for non zero total charge
         eta, _ = self.get_ewald_params()
         e += -.5 * numpy.sum(qm_charges)**2 * numpy.pi/(eta**2 * self.vol)
-        e += -1. * numpy.sum(qm_charges)* numpy.sum(self.mm_charges) * numpy.pi/(eta**2 * self.vol)
+        e += -1. * numpy.sum(qm_charges) * \
+            numpy.sum(self.mm_charges) * numpy.pi/(eta**2 * self.vol)
         return e
-
-
-class QMMMPad(QMMM):
-    def apply_shl_mask(self, arr):
-        return jax.vmap(lambda c, v: numpy.where(c, v, 0.))(self.mol.shl_mask, arr)
-
-    def apply_atom_mask(self, arr):
-        return jax.vmap(lambda c, v: numpy.where(c, v, 0.))(self.mol.atom_mask, arr)
