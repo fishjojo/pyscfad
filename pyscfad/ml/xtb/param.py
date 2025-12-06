@@ -127,6 +127,8 @@ class GFN1ParamArray(ParamArray):
     kcn: jax.Array
     kpair: jax.Array
     k_shlpr: jax.Array
+    dipgam: jax.Array | None = None
+    quadgam: jax.Array | None = None
 
     def to_mol_param(self, mol: MolePad) -> GFN1MoleParam:
         kf = self.kf
@@ -136,6 +138,14 @@ class GFN1ParamArray(ParamArray):
         arep = self.arep[mol.numbers]
         refocc = self.refocc[mol.numbers].ravel()
         gam = self.gam[mol.numbers][atom_to_bas_indices(mol)]
+        if self.dipgam is not None:
+            dipgam = self.dipgam[mol.numbers]
+        else:
+            dipgam = None
+        if self.quadgam is not None:
+            quadgam = self.quadgam[mol.numbers]
+        else:
+            quadgam = None
         lgam = self.lgam[mol.numbers].ravel()
         gam3 = self.gam3[mol.numbers]
         selfenergy = self.selfenergy[mol.numbers].ravel()
@@ -163,7 +173,10 @@ class GFN1ParamArray(ParamArray):
                              kcn=kcn,
                              CN=CN,
                              kpair=kpair,
-                             k_shlpr=k_shlpr)
+                             k_shlpr=k_shlpr,
+                             dipgam=dipgam,
+                             quadgam=quadgam,
+                             )
 
 class MoleParam(ABC):
     pass
@@ -186,6 +199,8 @@ class GFN1MoleParam(MoleParam):
     CN: jax.Array
     kpair: jax.Array
     k_shlpr: jax.Array
+    dipgam: jax.Array | None = None
+    quadgam: jax.Array | None = None
 
 if __name__ == "__main__":
     from pyscfad.xtb import basis as xtb_basis
