@@ -11,7 +11,7 @@ from pyscf.gto.mole import is_au
 
 import functools
 import jax
-from jax.lax import stop_gradient
+from jax.lax import stop_gradient, fori_loop
 from typing import Tuple
 
 from pyscfad.gto.mole import inter_distance
@@ -92,11 +92,11 @@ def add_mm_charges(xtb_method, mm_coords, a, mm_charges, mm_radii, ewald_precisi
         a = a / lib.param.BOHR
         mm_radii = mm_radii / lib.param.BOHR
     xtbqmmm = QMMM(xtb_method,
-                       mm_coords=mm_coords, a=a, mm_charges=mm_charges, mm_radii=mm_radii,
-                       ewald_precision=ewald_precision,
-                       eta=eta, mesh=mesh,
-                       pbcqm=pbcqm,
-                       )
+                   mm_coords=mm_coords, a=a, mm_charges=mm_charges, mm_radii=mm_radii,
+                   ewald_precision=ewald_precision,
+                   eta=eta, mesh=mesh,
+                   pbcqm=pbcqm,
+                   )
     return lib.set_class(xtbqmmm, (QMMM, xtb_method.__class__))
 
 
@@ -185,47 +185,45 @@ class QMMM:
         coords1 = self.mol.atom_coords()
         coords2 = self.mm_coords
 
-        ewovrl0 = numpy.zeros_like(param.gam)
-        ewovrl1 = numpy.zeros((len(coords1), 3))
-        ewovrl2 = numpy.zeros((len(coords1), 3, 3))
-
         atom_to_bas = util.atom_to_bas_indices(self.mol)
-        blksize = 1024
-        for i0, i1 in lib.prange(0, len(coords2), blksize):
-            R = coords1[:, None, :] - coords2[None, i0:i1, :]
+
+#        for i0, i1 in lib.prange(0, len(coords2), blksize):
+        def accumulate_ewovrl(j, ewovrl):
+            R = coords1 - coords2[None, j, :]
             r2 = numpy.sum(R * R, axis=-1)
             r = numpy.sqrt(numpy.where(r2 < 1e-20, numpy.inf, r2))
 
             # difference between MM gaussain charges and MM point charges
-            expnts = 2. / (1 / (param.gam*param.lgam)
-                           [:, None] + self.mm_radii[i0:i1][None])
+            expnts = 2. / (1 / (param.gam*param.lgam) + self.mm_radii[j])
             Tij = erfc(expnts * r[atom_to_bas]) / r[atom_to_bas]
-            ewovrl0 -= numpy.einsum('ij,j->i', Tij, self.mm_charges[i0:i1])
+            ewovrl0 = ewovrl[0] - Tij * self.mm_charges[j]
             if param.dipgam is not None:
                 expnts = 2. / \
-                    (1 / param.dipgam[:, None] + self.mm_radii[i0:i1][None])
+                    (1 / param.dipgam + self.mm_radii[j])
                 ekR = numpy.exp(-expnts**2 * r**2)
                 Tij = erfc(expnts * r) / r
                 invr3 = (Tij + 2/numpy.sqrt(numpy.pi) * expnts * ekR) / r**2
-                Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
-                ewovrl1 -= numpy.einsum('j,ija->ia',
-                                        self.mm_charges[i0:i1], Tija)
+                Tija = -numpy.einsum('ix,i->ix', R, invr3)
+                ewovrl1 = ewovrl[1] - self.mm_charges[j] * Tija
+            else:
+                ewovrl1 = ewovrl[1]
             if param.quadgam is not None:
                 expnts = 2. / \
-                    (1 / param.quadgam[:, None] + self.mm_radii[i0:i1][None])
+                    (1 / param.quadgam + self.mm_radii[j])
                 ekR = numpy.exp(-expnts**2 * r**2)
                 Tij = erfc(expnts * r) / r
                 invr3 = (Tij + 2/numpy.sqrt(numpy.pi) * expnts * ekR) / r**2
-                Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
-                Tijab = 3 * numpy.einsum('ija,ijb,ij->ijab', R, R, 1/r**2)
-                Tijab -= numpy.einsum('ij,ab->ijab',
+                Tija = -numpy.einsum('ix,i->ix', R, invr3)
+                Tijab = 3 * numpy.einsum('ia,ib,i->iab', R, R, 1/r**2)
+                Tijab -= numpy.einsum('i,ab->iab',
                                       numpy.ones_like(r), numpy.eye(3))
                 invr5 = invr3 + 4/3/numpy.sqrt(numpy.pi) * expnts**3 * ekR
-                Tijab = numpy.einsum('ijab,ij->ijab', Tijab, invr5)
-                Tijab += numpy.einsum('ij,ij,ab->ijab', expnts **
+                Tijab = numpy.einsum('iab,i->iab', Tijab, invr5)
+                Tijab += numpy.einsum('i,i,ab->iab', expnts **
                                       3, 4/3/numpy.sqrt(numpy.pi)*ekR, numpy.eye(3))
-                ewovrl2 -= numpy.einsum('j,ijab->iab',
-                                        self.mm_charges[i0:i1], Tijab) / 3
+                ewovrl2 = ewovrl[2] - self.mm_charges[j] * Tijab / 3
+            else:
+                ewovrl2 = ewovrl[2]
 
             # ewald real-space sum; treat MM as point charges
             ekR = numpy.exp(-ew_eta**2 * r**2)
@@ -234,27 +232,34 @@ class QMMM:
             if param.dipgam is not None or param.quadgam is not None:
                 # Tija = -Rija \hat{1/r^3} = -Rija / r^2 ( \hat{1/r} + 2 eta/sqrt(pi) exp(-eta^2 r^2) )
                 invr3 = (Tij + 2*ew_eta/numpy.sqrt(numpy.pi) * ekR) / r**2
-                Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
+                Tija = -numpy.einsum('ix,i->ix', R, invr3)
                 # Tijab = (3 RijaRijb - Rij^2 delta_ab) \hat{1/r^5}
-                Tijab = 3 * numpy.einsum('ija,ijb,ij->ijab', R, R, 1/r**2)
-                Tijab -= numpy.einsum('ij,ab->ijab',
+                Tijab = 3 * numpy.einsum('ia,ib,i->iab', R, R, 1/r**2)
+                Tijab -= numpy.einsum('i,ab->iab',
                                       numpy.ones_like(r), numpy.eye(3))
                 invr5 = invr3 + 4/3*ew_eta**3 / \
                     numpy.sqrt(numpy.pi) * ekR  # NOTE this is invr5 * r**2
-                Tijab = numpy.einsum('ijab,ij->ijab', Tijab, invr5)
+                Tijab = numpy.einsum('iab,i->iab', Tijab, invr5)
                 # NOTE the below is present in Eq 8 but missing in Eq 12
                 Tijab += 4/3*ew_eta**3 / \
                     numpy.sqrt(numpy.pi) * \
-                    numpy.einsum('ij,ab->ijab', ekR, numpy.eye(3))
+                    numpy.einsum('i,ab->iab', ekR, numpy.eye(3))
 
-            ewovrl0 += numpy.einsum('ij,j->i', Tij,
-                                    self.mm_charges[i0:i1])[atom_to_bas]
+            ewovrl0 += (Tij * self.mm_charges[j])[atom_to_bas]
             if param.dipgam is not None:
-                ewovrl1 += numpy.einsum('j,ija->ia',
-                                        self.mm_charges[i0:i1], Tija)
+                ewovrl1 += self.mm_charges[j] * Tija
             if param.quadgam is not None:
-                ewovrl2 += numpy.einsum('j,ijab->iab',
-                                        self.mm_charges[i0:i1], Tijab) / 3
+                ewovrl2 += self.mm_charges[j] * Tijab / 3
+            return ewovrl0, ewovrl1, ewovrl2
+
+        (ewovrl0, ewovrl1, ewovrl2) = fori_loop(0, len(coords2),
+                                                accumulate_ewovrl,
+                                                (
+                                                    numpy.zeros_like(param.gam),
+                                                    numpy.zeros((len(coords1), 3)),
+                                                    numpy.zeros((len(coords1), 3, 3))
+                                                )
+        )
 
         # g-space sum (using g grid)
         logger.debug(self, f"Ewald mesh {mesh}")
