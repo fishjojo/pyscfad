@@ -164,18 +164,17 @@ def EHT_PI_GFN1(mol, param, atomic_radii=ATOMIC_RADII):
     shpoly = param.shpoly
 
     rr = inter_distance(mol)
-    #rr = np.where(rr>1e-6, rr, 0)
 
     z = mol.atom_charges()
     cov_radii = atomic_radii[z]
     RAB = cov_radii[:,None] + cov_radii[None,:]
-    #RAB = np.where(RAB>1e-6, RAB, np.inf)
-    #rr = np.where(rr>1e-6, np.sqrt(rr / RAB), 0)
-    rr = np.sqrt(rr / RAB)
 
     if hasattr(mol, "atom_mask"):
         mask = np.outer(mol.atom_mask, mol.atom_mask)
-        rr = np.where(mask, rr, 0)
+        rr = np.where(mask, rr, 0.)
+        RAB = np.where(mask, RAB, np.inf)
+
+    rr = np.sqrt(rr / RAB)
 
     RR = rr[util.atom_to_bas_indices_2d(mol)]
     PI = (1 + shpoly[:,None] * RR) * (1 + shpoly[None,:] * RR)
