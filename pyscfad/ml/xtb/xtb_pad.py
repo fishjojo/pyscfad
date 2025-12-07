@@ -57,20 +57,19 @@ class GFN1XTB(GFN1XTBBase, XTB):
 
 
 if __name__ == "__main__":
-    import numpy
     import jax
-    from pyscfad.ml.gto import make_basis_array
     from pyscfad.xtb import basis as xtb_basis
+    from pyscfad.ml.gto import make_basis_array
     from pyscfad.ml.xtb.param import make_param_array
 
     bfile = xtb_basis.get_basis_filename()
     basis = make_basis_array(bfile, max_number=8)
-    param = make_param_array(basis, 8)
+    param = make_param_array(basis, max_number=8)
 
     numbers = np.array(
         [
-            [8, 1, 1, 0],
-            [7, 1, 1, 1],
+            [8, 1, 1, 0, 0],
+            [7, 1, 1, 1, 0],
         ],
         dtype=np.int32
     )
@@ -81,12 +80,14 @@ if __name__ == "__main__":
                 [1.43355,  0.00000, -0.95296],
                 [1.43355,  0.00000,  0.95296],
                 [0.00000,  0.00000,  0.00000],
+                [1.00000,  0.00000,  0.00000],
             ]),
             np.array([
                 [-0.80650, -1.00659,  0.02850],
                 [-0.50540, -0.31299,  0.68220],
                 [ 0.00620, -1.41579, -0.38500],
                 [-1.32340, -0.54779, -0.69350],
+                [ 0.00000,  0.00000,  0.00000],
             ]) / 0.52917721067121,
         ]
     )

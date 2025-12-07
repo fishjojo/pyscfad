@@ -78,28 +78,22 @@ class BasisArray:
 def gaussian_int(n, alpha):
     from jax.scipy.special import gamma
     n1 = (n + 1) * .5
-    return jnp.where(
-        jnp.greater(alpha, 1e-12),
-        gamma(n1) / (2. * alpha**n1),
-        jnp.array(0.),
-    )
+    return gamma(n1) / (2. * alpha**n1)
 
 def gto_norm(l, expnt):
     assert numpy.all(l >= 0)
-    return jnp.where(
-        jnp.greater(expnt, 1e-12),
-        1. / jnp.sqrt(gaussian_int(l*2+2, 2*expnt)),
-        jnp.array(0.),
-    )
+    return 1. / jnp.sqrt(gaussian_int(l*2+2, 2*expnt))
 
 def _nomalize_contracted_ao(l, es, cs):
     ee = es.reshape(-1,1) + es.reshape(1,-1)
-    ee = jnp.where(
-        jnp.greater(ee, 1e-12),
-        gaussian_int(l*2+2, ee),
-        jnp.array(0.),
+    ee = gaussian_int(l*2+2, ee)
+    norm2 = jnp.einsum("pi,pq,qi->i", cs, ee, cs)
+    norm = jnp.where(
+        jnp.equal(norm2, 0.),
+        jnp.array(jnp.inf),
+        jnp.sqrt(norm2),
     )
-    s1 = 1. / jnp.sqrt(jnp.einsum("pi,pq,qi->i", cs, ee, cs))
+    s1 = 1. / norm
     return jnp.einsum("pi,i->pi", cs, s1)
 
 def make_bas_env(
@@ -121,17 +115,9 @@ def make_bas_env(
             cs = param[:,1:]
             nprim, nctr = cs.shape
 
-            cs = jnp.where(
-                jnp.greater(es, 1e-12)[:,None],
-                jnp.einsum("pi,p->pi", cs, gto_norm(l, es)),
-                jnp.array(0.),
-            )
+            cs = jnp.einsum("pi,p->pi", cs, gto_norm(l, es))
             if NORMALIZE_GTO:
-                cs = jnp.where(
-                    jnp.greater(es, 1e-12)[:,None],
-                    _nomalize_contracted_ao(l, es, cs),
-                    jnp.array(0.),
-                )
+                cs = _nomalize_contracted_ao(l, es, cs)
 
             _env.append(es)
             _env.append(cs.T.ravel())
