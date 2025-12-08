@@ -44,8 +44,7 @@ def make_mo_mask(mo_energy, mo_coeff, ao_mask):
     mask_fake_ao = np.asarray(1 - ao_mask, dtype=bool)
     mo_coeff_fake_ao = np.where(mask_fake_ao[:,None], mo_coeff, 0)
     tmp = np.linalg.norm(mo_coeff_fake_ao, axis=0)
-    # FIXME is 1e-12 okay?
-    mask = np.where(np.logical_and(abs(mo_energy)<1e-12, tmp>1e-12), False, True)
+    mask = np.where(np.logical_and(mo_energy>1e8, tmp>1e-12), False, True)
     return mask
 
 def get_occ(mf, mo_energy=None, mo_coeff=None):
@@ -136,6 +135,10 @@ class SCF(hf.SCF):
         ao_mask = self.mol.ao_mask
         mask = np.asarray(1 - ao_mask, dtype=np.int32)
         s = s + np.diag(mask)
+        h = np.where(np.outer(ao_mask, ao_mask), h, 0.)
+        h1e_diag = np.diag(h)
+        h1e_diag = np.where(ao_mask, h1e_diag, 1e10)
+        h = np.fill_diagonal(h, h1e_diag, inplace=False)
         return eigh(h, s)
 
     get_homo_lumo_energy = get_homo_lumo_energy
