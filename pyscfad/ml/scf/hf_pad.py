@@ -77,7 +77,6 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
     nocc = mf.tot_electrons // 2
 
     if mf.sigma is not None and mf.sigma > 0:
-#        mu, mo_occ = _smearing_optimize(stop_grad(mo_energy), nocc, mf.sigma, mask)
         mu, mo_occ = _smearing_optimize(mo_energy, nocc, mf.sigma, mask)
         mo_occ *= 2
     else:
