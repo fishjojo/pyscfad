@@ -19,6 +19,9 @@ from pyscfad.scf import hf_lite as hf
 from pyscfad.scipy.linalg import eigh
 from pyscfad.ops import stop_grad
 
+from functools import partial
+from jax import custom_jvp
+
 def _fermi_smearing_occ(mu, mo_energy, sigma, mo_mask):
     de = (mo_energy - mu) / sigma
     de = np.where(np.less(de, 40.), de, np.inf)
@@ -26,7 +29,8 @@ def _fermi_smearing_occ(mu, mo_energy, sigma, mo_mask):
     occ = np.where(mo_mask, occ, 0)
     return occ
 
-def _smearing_optimize(mo_es, nocc, sigma, mo_mask):
+@partial(custom_jvp, nondiff_argnums=(1,2,3))
+def _smearing_solve_mu(mo_es, nocc, sigma, mo_mask):
     from jax.scipy import optimize
     def nelec_cost_fn(mu):
         mo_occ = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
@@ -36,7 +40,20 @@ def _smearing_optimize(mo_es, nocc, sigma, mo_mask):
     res = optimize.minimize(
         nelec_cost_fn, mu0, method="BFGS", tol=1e-5,
     )
-    mu = res.x
+    return res.x
+
+@_smearing_solve_mu.defjvp
+def _smearing_solve_mu_jvp(nocc, sigma, mo_mask, primals, tangents):
+    mo_es, = primals
+    dmo_e, = tangents
+
+    mu = _smearing_solve_mu(mo_es, nocc, sigma, mo_mask)
+    occ = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
+    dndmu = occ * (1.-occ) / sigma
+    return mu, np.dot(dndmu, dmo_e)[None] / np.sum(dndmu)
+
+def _smearing_optimize(mo_es, nocc, sigma, mo_mask):
+    mu = _smearing_solve_mu(mo_es, nocc, sigma, mo_mask)
     mo_occs = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
     return mu, mo_occs
 
@@ -60,7 +77,8 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
     nocc = mf.tot_electrons // 2
 
     if mf.sigma is not None and mf.sigma > 0:
-        mu, mo_occ = _smearing_optimize(stop_grad(mo_energy), nocc, mf.sigma, mask)
+#        mu, mo_occ = _smearing_optimize(stop_grad(mo_energy), nocc, mf.sigma, mask)
+        mu, mo_occ = _smearing_optimize(mo_energy, nocc, mf.sigma, mask)
         mo_occ *= 2
     else:
         pick = (np.cumsum(mask) <= nocc) & mask
