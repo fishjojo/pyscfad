@@ -86,7 +86,7 @@ pyscfad requires the following dependencies.
 ==========================================================  ==================
 Package                                                     supported versions
 ==========================================================  ==================
-`jax <https://jax.readthedocs.io/en/latest/>`_              >=0.7,<0.9
+`jax <https://jax.readthedocs.io/en/latest/>`_              >=0.7.1,<0.9
 `pyscfadlib <https://pypi.org/project/pyscfadlib/>`_        >=0.2
 `pyscf <https://pyscf.org/>`_                               >=2.3
 `pyscf-properties <https://github.com/pyscf/properties>`_   >=0.1
