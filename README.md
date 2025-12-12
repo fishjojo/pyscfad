@@ -28,15 +28,15 @@ pip install pyscfad[cuda12]
 ```
 pip install git+https://github.com/fishjojo/pyscfad.git
 ```
-The dependent C library `pyscfadlib` can be compiled from source following the instruction
+The dependent C/C++ library `pyscfadlib` can be compiled from source following the instruction
 [here](https://fishjojo.github.io/pyscfad/getting_started/install.html#installing-pyscfadlib).
 
 
 `pyscfad` depends on
-`numpy`, `scipy`,
-`pyscf>=2.3.0`,
-`pyscfadlib>=0.1.11`, and
-`jax>=0.7.0,<0.8`.
+`jax>=0.7,<0.9`,
+`pyscfadlib>=0.2`,
+`pyscf>=2.3`, and
+`pyscf-properties`.
 
 Citing PySCFAD
 --------------
