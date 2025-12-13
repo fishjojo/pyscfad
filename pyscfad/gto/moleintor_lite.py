@@ -231,7 +231,7 @@ def getints_jvp(
     tangents,
 ):
     if (not intor_name.startswith("int1e") or
-        intor_name.startswith("int1e_r") or
+        #intor_name.startswith("int1e_r") or
         "nuc" in intor_name):
         raise NotImplementedError(f"Autodiff not implemented for {intor_name}")
 

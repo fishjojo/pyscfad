@@ -16,8 +16,9 @@ from __future__ import annotations
 from typing import Any
 import numpy
 
-from jax import vjp
+import jax
 from jax.lax import while_loop, custom_root
+from jax import scipy as jsp
 
 from pyscf.scf.hf import (
     SCF as SCFBase,
@@ -134,8 +135,17 @@ def _scf_implicit(
 
     solver = gen_gmres()
     def tangent_solve(g, dm_bar):
-        _, vjp_fn = vjp(g, dm_bar)
-        return solver(lambda u: vjp_fn(u)[0], dm_bar)[0]
+        # FIXME restore the following once issue
+        # (https://github.com/jax-ml/jax/issues/33872) is fixed
+        #_, vjp_fn = jax.vjp(g, dm_bar)
+        #return solver(lambda u: vjp_fn(u)[0], dm_bar)[0]
+        assert dm_bar.ndim == 2
+        n = dm_bar.shape[-1]
+        n2 = n * n
+        return jsp.linalg.solve(
+            jax.jacobian(g)(dm_bar).reshape((n2,n2)),
+            dm_bar.ravel(),
+        ).reshape(dm_bar.shape)
 
     dm_cnvg, (vhf_cnvg, fock_cnvg, e_tot_cnvg) = \
         custom_root(root_fn, dm, oracle, tangent_solve, has_aux=True)
@@ -179,7 +189,7 @@ def kernel(
 
     #cput1 = log.timer('initialize scf', *cput0)
 
-    dm, vhf, fock, e_tot = _scf_implicit(
+    dm, _, _, e_tot = _scf_implicit(
         mf,
         dm,
         h1e,
@@ -190,6 +200,8 @@ def kernel(
         conv_tol_grad,
     )
 
+    vhf = mf.get_veff(mol, dm, s1e=s1e)
+    fock = mf.get_fock(h1e, s1e, vhf, dm)
     mo_energy, mo_coeff = mf.eig(fock, s1e)
     mo_occ = mf.get_occ(mo_energy, mo_coeff)
     dm, dm_last = mf.make_rdm1(mo_coeff, mo_occ), dm

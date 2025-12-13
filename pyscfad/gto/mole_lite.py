@@ -144,6 +144,8 @@ class Mole(MoleBase):
         self.trace_coords = trace_coords
         self.trace_basis = trace_basis
 
+        self._pseudo = {}
+
         self._atm = self._bas = self._env = None
         if self.basis is not None:
             self._atm, self._bas, self._env = make_env(self)
