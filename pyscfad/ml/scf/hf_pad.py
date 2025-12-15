@@ -24,7 +24,7 @@ from jax import custom_jvp
 
 def _fermi_smearing_occ(mu, mo_energy, sigma, mo_mask):
     de = (mo_energy - mu) / sigma
-    de = np.where(np.less(de, 40.), de, np.inf)
+    de = np.where(np.less(de, 40.), de, 0)
     occ = np.where(np.less(de, 40.), 1. / (np.exp(de) + 1.), 0.)
     occ = np.where(mo_mask, occ, 0)
     return occ
@@ -50,7 +50,8 @@ def _smearing_solve_mu_jvp(nocc, sigma, mo_mask, primals, tangents):
     mu = _smearing_solve_mu(mo_es, nocc, sigma, mo_mask)
     occ = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
     dndmu = occ * (1.-occ) / sigma
-    return mu, np.dot(dndmu, dmo_e)[None] / np.sum(dndmu)
+    dndmu = np.where(np.abs(dndmu) < 1e-10, 0., dndmu)
+    return mu, np.dot(dndmu, dmo_e)[None] / (1e-13 + np.sum(dndmu))
 
 def _smearing_optimize(mo_es, nocc, sigma, mo_mask):
     mu = _smearing_solve_mu(mo_es, nocc, sigma, mo_mask)
