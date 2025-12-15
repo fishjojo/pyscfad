@@ -24,8 +24,8 @@ from jax import custom_jvp
 
 def _fermi_smearing_occ(mu, mo_energy, sigma, mo_mask):
     de = (mo_energy - mu) / sigma
-    de = np.where(np.less(de, 40.), de, 0)
-    occ = np.where(np.less(de, 40.), 1. / (np.exp(de) + 1.), 0.)
+    de_ = np.where(np.less(de, 40.), de, 0)
+    occ = np.where(np.less(de, 40.), 1. / (np.exp(de_) + 1.), 0.)
     occ = np.where(mo_mask, occ, 0)
     return occ
 
@@ -78,6 +78,7 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
     nocc = mf.tot_electrons // 2
 
     if mf.sigma is not None and mf.sigma > 0:
+        breakpoint()
         mu, mo_occ = _smearing_optimize(mo_energy, nocc, mf.sigma, mask)
         mo_occ *= 2
     else:
