@@ -14,11 +14,11 @@
 
 from functools import partial
 import pytest
+import numpy
 import jax
 import pyscf
 from pyscfad import numpy as np
-from pyscfad.gto.mole import Mole
-from pyscfad.gto.mole_lite import Mole as MoleLite
+from pyscfad.gto import Mole, MoleLite
 
 @pytest.fixture
 def atom():
@@ -61,19 +61,76 @@ def test_int1e(atom, basis, unit):
     for intor in ["int1e_ovlp", "int1e_kin"]:
         fn = partial(int1e_norm, intor=intor)
         fn1 = lambda x: int1e_norm1(x, basis, intor=intor)
-        assert abs(fn1(coords) - fn(mol)) < 1e-6
+        assert abs(fn1(coords) - fn(mol)) < 1e-8
 
         gfn = jax.grad(fn)
         gfn1 = jax.jit(jax.grad(fn1))
         grad = gfn(mol).coords
         grad1 = gfn1(coords)
-        assert abs(grad1 - grad).max() < 1e-6
+        assert abs(grad1 - grad).max() < 1e-8
 
         hfn = jax.jacfwd(jax.grad(fn))
         hfn1 = jax.jit(jax.jacfwd(jax.grad(fn1)))
         hess = hfn(mol).coords.coords
         hess1 = hfn1(coords)
-        assert abs(hess1 - hess).max() < 1e-6
+        assert abs(hess1 - hess).max() < 1e-8
+
+def test_int1e_origin(atom, basis, unit):
+    mol = pyscf.M(atom=atom, basis=basis, unit=unit)
+    symbols = tuple(mol.atom_symbol(ia) for ia in range(mol.natm))
+
+    def int_fn(coords, R0, intor, hermi=0, shls_slice=None, origin="common"):
+        mol1 = MoleLite(
+            symbols=symbols,
+            coords=coords,
+            basis=basis,
+            trace_coords=True,
+        )
+
+        if origin == "rinv":
+            with mol1.with_rinv_origin(R0):
+                int1 = mol1.intor(intor, hermi=hermi, shls_slice=shls_slice)
+        elif origin == "common":
+            with mol1.with_common_origin(R0):
+                int1 = mol1.intor(intor, hermi=hermi, shls_slice=shls_slice)
+        else:
+            raise NotImplementedError
+        return int1
+
+    coords = np.asarray(mol.atom_coords())
+    R0 = numpy.array([1., 0., 1.])
+    shls_slice = None
+
+    intor_dr01 = {
+        "int1e_r": "int1e_irp",
+        "int1e_rr": "int1e_irrp",
+    }
+    for intor in ["int1e_r", "int1e_rr",]:
+        with mol.with_common_origin(R0):
+            int0 = mol.intor(intor, hermi=1, shls_slice=shls_slice)
+            int0_dr01 = mol.intor(intor_dr01[intor], shls_slice=shls_slice)
+            int0_dR0 = int0_dr01 + int0_dr01.transpose(0,2,1)
+            int0_dR0 = int0_dR0.reshape(-1,3,mol.nao,mol.nao).transpose(0,2,3,1)
+
+        int1 = int_fn(coords, R0, intor, hermi=1, shls_slice=shls_slice)
+        int1_dR0 = jax.jacrev(int_fn, 1)(coords, R0, intor, hermi=1, shls_slice=shls_slice)
+
+        assert abs(int1 - int0).max() < 1e-8
+        assert abs(int1_dR0 - int0_dR0).max() < 1e-8
+
+    with mol.with_rinv_origin(R0):
+        int0 = mol.intor("int1e_rinv", hermi=1, shls_slice=shls_slice)
+        int0_dr10 = mol.intor("int1e_iprinv", shls_slice=shls_slice)
+        int0_dR0 = int0_dr10 + int0_dr10.transpose(0,2,1)
+        int0_dR0 = int0_dR0.transpose(1,2,0)
+
+        int1 = int_fn(coords, R0, "int1e_rinv", hermi=1, shls_slice=shls_slice,
+                      origin="rinv")
+        int1_dR0 = jax.jacrev(int_fn, 1)(coords, R0, "int1e_rinv", hermi=1, shls_slice=shls_slice,
+                                         origin="rinv")
+
+        assert abs(int1 - int0).max() < 1e-8
+        assert abs(int1_dR0 - int0_dR0).max() < 1e-8
 
 def test_from_to_pyscf(atom, basis, unit):
     pmol = pyscf.M(atom=atom, basis=basis, unit=unit)
