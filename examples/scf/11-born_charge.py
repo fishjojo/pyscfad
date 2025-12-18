@@ -1,5 +1,4 @@
-'''
-Bohrn effective charge tensor
+'''Bohrn effective charge tensor at RHF level
 '''
 import numpy
 import jax
