@@ -17,7 +17,6 @@
 import numpy
 import jax
 from pyscf.data.nist import BOHR
-from pyscf.hessian.rhf import Hessian
 from pyscfad import gto
 
 def make_mol(
@@ -51,6 +50,8 @@ def make_mol(
 
 hf_energy = lambda mol, method: method(mol).kernel()
 df_hf_energy = lambda mol, method: method(mol).density_fit().kernel()
+dft_energy = lambda mol, method, xc: method(mol, xc=xc).kernel()
+df_dft_energy = lambda mol, method, xc: method(mol, xc=xc).density_fit().kernel()
 
 def hf_nuc_grad(mol, method):
     mf = method(mol).to_pyscf()
@@ -58,10 +59,22 @@ def hf_nuc_grad(mol, method):
     grad = mf.nuc_grad_method().kernel()
     return grad
 
+def dft_nuc_grad(mol, method, xc):
+    mf = method(mol, xc=xc).to_pyscf()
+    mf.kernel()
+    grad = mf.nuc_grad_method().kernel()
+    return grad
+
 def hf_nuc_hess(mol, method):
     mf = method(mol).to_pyscf()
     mf.kernel()
-    hess = Hessian(mf).kernel().transpose(0,2,1,3)
+    hess = mf.Hessian().kernel().transpose(0,2,1,3)
+    return hess
+
+def dft_nuc_hess(mol, method, xc):
+    mf = method(mol.to_pyscf(), xc=xc)
+    mf.kernel()
+    hess = mf.Hessian().kernel().transpose(0,2,1,3)
     return hess
 
 def _get_fdiff_mols(mol, disp, unit="A"):
