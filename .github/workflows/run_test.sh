@@ -7,9 +7,11 @@ export OMP_NUM_THREADS=1
 
 coverage erase
 
-MODULES=("scipy" "gto" "scf" "dft" "cc" "fci" "gw" "mp" "tdscf" "lo" "pbc")
+MODULES=("scipy" "gto" "dft" "cc" "fci" "gw" "mp" "tdscf" "lo" "pbc")
 
 FAILED=0
+
+pytest "./tests" --cov=pyscfad --cov-report=xml --verbosity=1 --durations=5 --cov-append || FAILED=1
 
 for mod in "${MODULES[@]}"; do
     pytest "./pyscfad/$mod" --cov=pyscfad --cov-report=xml --verbosity=1 --durations=5 --cov-append || FAILED=1
