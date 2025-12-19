@@ -50,7 +50,6 @@ test-command = "pytest --import-mode=append {package}/test"
 #test-skip = "cp311-macosx_arm64"
 
 container-engine = "docker"
-manylinux-x86_64-image = "manylinux2014"
 skip = ["pp*", "*musllinux*"]
 
 [tool.cibuildwheel.config-settings]

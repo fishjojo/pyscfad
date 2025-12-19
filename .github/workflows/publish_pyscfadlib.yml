@@ -24,7 +24,7 @@ jobs:
           platforms: all
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.3
+        uses: pypa/cibuildwheel@v3.3.0
         env:
           CIBW_ARCHS_LINUX: x86_64 aarch64
         with:
@@ -62,13 +62,13 @@ jobs:
 
   build_wheel_macos_arm64:
     name: Build macos_arm64 wheels
-    runs-on: macos-14
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v5
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.3
+        uses: pypa/cibuildwheel@v3.3.0
         env:
           CMAKE_OSX_ARCHITECTURES: arm64;x86_64
         with:
