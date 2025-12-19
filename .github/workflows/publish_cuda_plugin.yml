@@ -90,14 +90,12 @@ jobs:
 
               if [ \"$ARCH\" = \"aarch64\" ]; then
                 python3 build/build.py build --python_version=${PY} --target_cpu=aarch64
-                OUTDIR=wheelhouse_aarch64
               else
                 python3 build/build.py build --python_version=${PY}
-                OUTDIR=wheelhouse_x86_64
               fi
 
-              mkdir -p \$OUTDIR
-              auditwheel repair dist/*cp${TAG}*.whl -w \$OUTDIR/
+              mkdir -p wheelhouse
+              auditwheel repair dist/*cp${TAG}*.whl -w wheelhouse/
             "
 
       - name: Upload wheel
@@ -105,7 +103,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cuda_plugin_${{ matrix.arch }}_${{ matrix.py }}
-          path: pyscfadlib/wheelhouse_*/*.whl
+          path: pyscfadlib/wheelhouse/*.whl
           overwrite: true
 
   publish_pypi_linux:
