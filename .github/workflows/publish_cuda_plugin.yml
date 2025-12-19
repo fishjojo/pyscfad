@@ -5,74 +5,111 @@ on:
     types:
       - released
   workflow_dispatch:
+    inputs:
+      build_x86_64:
+        description: "Build x86_64 wheels"
+        type: boolean
+        default: true
+      build_aarch64:
+        description: "Build aarch64 wheels"
+        type: boolean
+        default: true
 
 jobs:
   build_wheel_linux:
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+        py: ['3.11', '3.12', '3.13', '3.14']
+
     steps:
       - uses: actions/checkout@v5
 
+      - name: Decide whether to build
+        id: decide
+        shell: bash
+        run: |
+          should_build=false
+
+          if [ "${{ github.event_name }}" = "release" ]; then
+            # On release: always build all matrix combinations
+            should_build=true
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ matrix.arch }}" = "x86_64" ] && [ "${{ inputs.build_x86_64 }}" = "true" ]; then
+              should_build=true
+            elif [ "${{ matrix.arch }}" = "aarch64" ] && [ "${{ inputs.build_aarch64 }}" = "true" ]; then
+              should_build=true
+            fi
+          fi
+
+          echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
+
       - name: Set up QEMU
+        if: ${{ steps.decide.outputs.should_build == 'true' }}
         uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
       - name: Set up Docker Buildx
+        if: ${{ steps.decide.outputs.should_build == 'true' }}
         uses: docker/setup-buildx-action@v3
 
-      - name: Build wheel for x86_64
+      - name: Build ${{ matrix.arch }} wheel for Python ${{ matrix.py }}
+        if: ${{ steps.decide.outputs.should_build == 'true' }}
         run: |
-          docker run --rm -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux2014_x86_64 bash -c "
-            yum install -y curl && \
-            curl -Lo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 && \
-            chmod +x /usr/local/bin/bazel && \
-            /opt/python/cp311-cp311/bin/pip install --upgrade pip setuptools wheel auditwheel && \
-            ln -s /opt/python/cp311-cp311/bin/python3 /usr/local/bin/python3 && \
-            cd pyscfadlib && \
-            python3 build/build.py build --python_version=3.11 && \
-            python3 build/build.py build --python_version=3.12 && \
-            python3 build/build.py build --python_version=3.13 && \
-            python3 build/build.py build --python_version=3.14 && \
-            auditwheel repair dist/*.whl -w wheelhouse_x86_64/ && \
-            rm -rf dist/
-          "
+          ARCH=${{ matrix.arch }}
+          PY=${{ matrix.py }}
+          TAG=${PY/./}
 
-      - name: Upload x86_64 wheel
+          if [ "$ARCH" = "x86_64" ]; then
+            IMAGE=quay.io/pypa/manylinux_2_28_x86_64
+            BAZEL_URL=https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+            PLATFORM_ARG=""
+          else
+            IMAGE=quay.io/pypa/manylinux_2_28_aarch64
+            BAZEL_URL=https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64
+            PLATFORM_ARG="--platform linux/arm64"
+          fi
+
+          docker run --rm $PLATFORM_ARG \
+            -v ${{ github.workspace }}:/project \
+            -w /project \
+            "$IMAGE" \
+            bash -lc "
+              yum install -y curl
+              curl -Lo /usr/local/bin/bazel $BAZEL_URL
+              chmod +x /usr/local/bin/bazel
+
+              /opt/python/cp${TAG}-cp${TAG}/bin/pip install --no-cache-dir --upgrade pip setuptools wheel auditwheel
+              ln -sf /opt/python/cp${TAG}-cp${TAG}/bin/python3 /usr/local/bin/python3
+
+              cd /project/pyscfadlib
+
+              if [ \"$ARCH\" = \"aarch64\" ]; then
+                python3 build/build.py build --python_version=${PY} --target_cpu=aarch64
+              else
+                python3 build/build.py build --python_version=${PY}
+              fi
+
+              mkdir -p wheelhouse
+              auditwheel repair dist/*cp${TAG}*.whl -w wheelhouse/
+            "
+
+      - name: Upload wheel
+        if: ${{ steps.decide.outputs.should_build == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: cuda_plugin_wheels_x86_64
-          path: pyscfadlib/wheelhouse_x86_64/*.whl
-          overwrite: true
-
-      - name: Build wheel for aarch64
-        run: |
-          docker run --rm --platform linux/arm64 -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux2014_aarch64 bash -c "
-            yum install -y curl && \
-            curl -Lo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 && \
-            chmod +x /usr/local/bin/bazel && \
-            /opt/python/cp311-cp311/bin/pip install --upgrade pip setuptools wheel auditwheel && \
-            ln -s /opt/python/cp311-cp311/bin/python3 /usr/local/bin/python3 && \
-            cd pyscfadlib && \
-            python3 build/build.py build --python_version=3.11 --target_cpu=aarch64 && \
-            python3 build/build.py build --python_version=3.12 --target_cpu=aarch64 && \
-            python3 build/build.py build --python_version=3.13 --target_cpu=aarch64 && \
-            python3 build/build.py build --python_version=3.14 --target_cpu=aarch64 && \
-            auditwheel repair dist/*.whl -w wheelhouse_aarch64/
-          "
-
-      - name: Upload aarch64 wheel
-        uses: actions/upload-artifact@v4
-        with:
-          name: cuda_plugin_wheels_aarch64
-          path: pyscfadlib/wheelhouse_aarch64/*.whl
+          name: cuda_plugin_${{ matrix.arch }}_${{ matrix.py }}
+          path: pyscfadlib/wheelhouse/*.whl
           overwrite: true
 
   publish_pypi_linux:
-    name: publish linux wheels to pypi
     needs: build_wheel_linux
+    if: always()
     runs-on: ubuntu-latest
-
     environment: release
     permissions:
       id-token: write
@@ -88,3 +125,5 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
