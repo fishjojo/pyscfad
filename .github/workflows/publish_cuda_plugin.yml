@@ -25,20 +25,40 @@ jobs:
         arch: [x86_64, aarch64]
         py: ['3.11', '3.12', '3.13', '3.14']
 
-    if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && ((matrix.arch == 'x86_64' && inputs.build_x86_64 == true) || (matrix.arch == 'aarch64' && inputs.build_aarch64 == true))) }}
-
     steps:
       - uses: actions/checkout@v5
 
+      - name: Decide whether to build
+        id: decide
+        shell: bash
+        run: |
+          should_build=false
+
+          if [ "${{ github.event_name }}" = "release" ]; then
+            # On release: always build all matrix combinations
+            should_build=true
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ matrix.arch }}" = "x86_64" ] && [ "${{ inputs.build_x86_64 }}" = "true" ]; then
+              should_build=true
+            elif [ "${{ matrix.arch }}" = "aarch64" ] && [ "${{ inputs.build_aarch64 }}" = "true" ]; then
+              should_build=true
+            fi
+          fi
+
+          echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
+
       - name: Set up QEMU
+        if: ${{ steps.decide.outputs.should_build == 'true' }}
         uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
       - name: Set up Docker Buildx
+        if: ${{ steps.decide.outputs.should_build == 'true' }}
         uses: docker/setup-buildx-action@v3
 
       - name: Build ${{ matrix.arch }} wheel for Python ${{ matrix.py }}
+        if: ${{ steps.decide.outputs.should_build == 'true' }}
         run: |
           ARCH=${{ matrix.arch }}
           PY=${{ matrix.py }}
@@ -81,6 +101,7 @@ jobs:
             "
 
       - name: Upload wheel
+        if: ${{ steps.decide.outputs.should_build == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: cuda_plugin_${{ matrix.arch }}_${{ matrix.py }}
