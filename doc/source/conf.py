@@ -11,7 +11,7 @@ import warnings
 import inspect
 
 project = "pyscfad"
-copyright = "2021-2024, Xing Zhang"
+copyright = "2021-2025, Xing Zhang"
 author = "Xing Zhang"
 
 import pyscfad
@@ -81,6 +81,7 @@ nb_execution_excludepatterns = [
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "pydata_sphinx_theme"
+html_show_sourcelink = False
 html_logo = "_static/pyscfad_logo.svg"
 html_favicon = "_static/pyscfad_logo.svg"
 html_sourcelink_suffix = ""

@@ -8,7 +8,7 @@ Installation
 Python version support
 ----------------------
 
-Officially Python 3.11, 3.12, and 3.13.
+Officially Python 3.11, 3.12, 3.13, and 3.14.
 
 Installing from PyPI
 --------------------
@@ -83,14 +83,12 @@ Dependencies
 
 pyscfad requires the following dependencies.
 
-=====================================================  ==================
-Package                                                supported versions
-=====================================================  ==================
-`numpy <https://numpy.org>`_                           >=1.17
-`scipy <https://scipy.org>`_                           >=1.7
-`h5py <https://www.h5py.org/>`_                        >=2.7
-`jax <https://jax.readthedocs.io/en/latest/>`_         >=0.7.0,<0.8
-`pyscf <https://pyscf.org/>`_                          >=2.3.0
-`pyscfadlib <https://pypi.org/project/pyscfadlib/>`_   >=0.1.10
-=====================================================  ==================
+==========================================================  ==================
+Package                                                     supported versions
+==========================================================  ==================
+`jax <https://jax.readthedocs.io/en/latest/>`_              >=0.7.1,<0.9
+`pyscfadlib <https://pypi.org/project/pyscfadlib/>`_        >=0.2
+`pyscf <https://pyscf.org/>`_                               >=2.3
+`pyscf-properties <https://github.com/pyscf/properties>`_   >=0.1
+==========================================================  ==================
 

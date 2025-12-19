@@ -1,5 +1,4 @@
-"""
-Example of computing the nuclear Hessian vector product
+"""Nuclear Hessian vector product
 """
 import jax
 from pyscfad import gto, scf, cc

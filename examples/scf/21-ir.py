@@ -1,5 +1,4 @@
-'''
-IR intensity
+'''IR intensity at RHF level
 
 Vibrational frequency in cm^-1:
 [1775.68298016 4113.24151671 4211.55679665]

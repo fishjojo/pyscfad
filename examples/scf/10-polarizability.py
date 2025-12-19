@@ -1,3 +1,5 @@
+"""Static polarizability and hyper-polarizability at RHF level
+"""
 import jax
 from pyscfad import numpy as np
 from pyscfad import gto, scf

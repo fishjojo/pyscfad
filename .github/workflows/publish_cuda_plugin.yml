@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -33,6 +33,7 @@ jobs:
             python3 build/build.py build --python_version=3.11 && \
             python3 build/build.py build --python_version=3.12 && \
             python3 build/build.py build --python_version=3.13 && \
+            python3 build/build.py build --python_version=3.14 && \
             auditwheel repair dist/*.whl -w wheelhouse_x86_64/ && \
             rm -rf dist/
           "
@@ -56,6 +57,7 @@ jobs:
             python3 build/build.py build --python_version=3.11 --target_cpu=aarch64 && \
             python3 build/build.py build --python_version=3.12 --target_cpu=aarch64 && \
             python3 build/build.py build --python_version=3.13 --target_cpu=aarch64 && \
+            python3 build/build.py build --python_version=3.14 --target_cpu=aarch64 && \
             auditwheel repair dist/*.whl -w wheelhouse_aarch64/
           "
 

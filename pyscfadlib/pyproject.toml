@@ -2,7 +2,7 @@
 requires = [
     "scikit-build-core",
     "nanobind",
-    "jax==0.7.0",
+    "jax>=0.7.1,<0.9",
 ]
 build-backend = "scikit_build_core.build"
 
@@ -23,11 +23,11 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "numpy>=1.17",
     "nanobind",
-    "jax==0.7.0",
+    "jax>=0.7.1,<0.9",
 ]
 
 [project.urls]
@@ -45,7 +45,7 @@ cmake.source-dir = "pyscfadlib"
 [tool.cibuildwheel]
 build-verbosity = 1
 
-test-requires = ["pytest", "pyscf==2.10.0", "jax==0.7.0"]
+test-requires = ["pytest", "pyscf==2.11.0", "jax>=0.7.1,<0.9"]
 test-command = "pytest --import-mode=append {package}/test"
 #test-skip = "cp311-macosx_arm64"
 

@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=65"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyscfad"
+dynamic = ["version"]
+description = "PySCF with autodiff"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+
+authors = [
+  { name = "Xing Zhang", email = "zhangxing.nju@gmail.com" },
+]
+
+dependencies = [
+  "jax>=0.7.1,<0.9",
+  "pyscfadlib>=0.1.11",
+  "pyscf>=2.3",
+  "pyscf-properties",
+]
+
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Topic :: Scientific/Engineering",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+
+[project.optional-dependencies]
+cuda12 = [
+  "jax[cuda12]>=0.7.1,<0.9",
+  "pyscfad-cuda12-plugin[with_cuda]>=0.1.11",
+]
+
+[project.urls]
+Homepage = "https://github.com/fishjojo/pyscfad"
+
+[tool.setuptools.dynamic]
+version = { attr = "pyscfad.version.__version__" }
+
+[tool.setuptools.packages.find]
+exclude = ["examples", "*test*"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"pyscfad.geomopt" = ["log.ini"]
+
+[tool.pytest.ini_options]
+addopts = """
+--import-mode=importlib
+-k "not _high_cost and not _skip"
+--ignore=examples
+"""
