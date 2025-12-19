@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>pyscfad.scf.hf.SCF.energy_grad &#8212; pyscfad 0.1.11 documentation</title>
+    <title>pyscfad.scf.hf.SCF.energy_grad &#8212; pyscfad 0.2.0 documentation</title>
   
   
   
@@ -42,7 +42,7 @@
   <link rel="preload" as="script" href="../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../../_static/documentation_options.js?v=86f9da5d"></script>
+    <script src="../../../../_static/documentation_options.js?v=7f7c277e"></script>
     <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -57,8 +57,8 @@
     <link rel="prev" title="pyscfad.scf.hf.SCF.energy_elec" href="pyscfad.scf.hf.SCF.energy_elec.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="0.1.11" />
-    <meta name="docbuild:last-update" content="Dec 01, 2025"/>
+  <meta name="docsearch:version" content="0.2.0" />
+    <meta name="docbuild:last-update" content="Dec 19, 2025"/>
   </head>
   
   
@@ -821,7 +821,7 @@
 <h1>pyscfad.scf.hf.SCF.energy_grad<a class="headerlink" href="#pyscfad-scf-hf-scf-energy-grad" title="Link to this heading">#</a></h1>
 <dl class="py method">
 <dt class="sig sig-object py" id="pyscfad.scf.hf.SCF.energy_grad">
-<span class="sig-prename descclassname"><span class="pre">SCF.</span></span><span class="sig-name descname"><span class="pre">energy_grad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dm0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'rev'</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf.py#L417-L468"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf.SCF.energy_grad" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">SCF.</span></span><span class="sig-name descname"><span class="pre">energy_grad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dm0</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'rev'</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf.py#L417-L472"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf.SCF.energy_grad" title="Link to this definition">#</a></dt>
 <dd><p>Computing energy gradients w.r.t AO parameters.</p>
 <p>In principle, MO response is not needed, and it is sufficient to
 compute the gradient of the eigen decomposition with the converged
@@ -847,7 +847,7 @@ to show the difference between unrolling for loops and implicit differentiation.
 <p>The attributes of the <a class="reference internal" href="../pyscfad.scf.hf.SCF.html#pyscfad.scf.hf.SCF" title="pyscfad.scf.hf.SCF"><code class="xref py py-class docutils literal notranslate"><span class="pre">SCF</span></code></a> instance will not be modified.
 This function only works with the JAX backend.</p>
 <div class="deprecated">
-<p><span class="versionmodified deprecated">Deprecated since version 0.2.0: </span>This function will be deprecated in PySCFAD 0.2.0.</p>
+<p><span class="versionmodified deprecated">Deprecated since version 0.2.0: </span>This function is deprecated since PySCFAD v0.2.0.</p>
 </div>
 </dd></dl>
 
@@ -920,15 +920,6 @@ This function only works with the JAX backend.</p>
   </div>
 </div>
 
-  <div class="sidebar-secondary-item">
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="../../../../_sources/api_reference/api/classes/methods/pyscfad.scf.hf.SCF.energy_grad.rst"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div></div>
-
 </div></div>
               
             
@@ -954,7 +945,7 @@ This function only works with the JAX backend.</p>
 
   <p class="copyright">
     
-      © Copyright 2021-2024, Xing Zhang.
+      © Copyright 2021-2025, Xing Zhang.
       <br/>
     
   </p>

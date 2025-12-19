@@ -38,7 +38,6 @@ pyscfad.dft
    rks
    
    
-   
    uks
    
 

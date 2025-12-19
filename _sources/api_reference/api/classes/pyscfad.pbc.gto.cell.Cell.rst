@@ -122,6 +122,8 @@ pyscfad.pbc.gto.cell.Cell
            ~Cell.get_scaled_atom_coords
          
          
+           ~Cell.get_scaled_kpts
+         
          
            ~Cell.get_uniform_grids
          
@@ -168,6 +170,7 @@ pyscfad.pbc.gto.cell.Cell
          
          
            ~Cell.reciprocal_vectors
+         
          
          
          

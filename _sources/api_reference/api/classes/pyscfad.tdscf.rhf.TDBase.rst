@@ -30,6 +30,7 @@ pyscfad.tdscf.rhf.TDBase
          
          
          
+         
            ~TDBase.get_ab
          
          

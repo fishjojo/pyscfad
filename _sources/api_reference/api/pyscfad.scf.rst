@@ -58,7 +58,6 @@ pyscfad.scf
    rohf
    
    
-   
    uhf
    
 

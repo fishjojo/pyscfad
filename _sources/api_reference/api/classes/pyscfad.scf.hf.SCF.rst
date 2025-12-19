@@ -29,6 +29,7 @@ pyscfad.scf.hf.SCF
          
          
          
+         
            ~SCF.check_sanity
          
          
