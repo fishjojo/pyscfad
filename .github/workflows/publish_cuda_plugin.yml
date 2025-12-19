@@ -23,7 +23,7 @@ jobs:
 
       - name: Build wheel for x86_64
         run: |
-          docker run --rm -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux2014_x86_64 bash -c "
+          docker run --rm -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux_2_28_x86_64 bash -c "
             yum install -y curl && \
             curl -Lo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 && \
             chmod +x /usr/local/bin/bazel && \
@@ -47,7 +47,7 @@ jobs:
 
       - name: Build wheel for aarch64
         run: |
-          docker run --rm --platform linux/arm64 -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux2014_aarch64 bash -c "
+          docker run --rm --platform linux/arm64 -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux_2_28_aarch64 bash -c "
             yum install -y curl && \
             curl -Lo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 && \
             chmod +x /usr/local/bin/bazel && \
