@@ -21,29 +21,29 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build wheel for x86_64
-        run: |
-          docker run --rm -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux_2_28_x86_64 bash -c "
-            yum install -y curl && \
-            curl -Lo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 && \
-            chmod +x /usr/local/bin/bazel && \
-            /opt/python/cp311-cp311/bin/pip install --upgrade pip setuptools wheel auditwheel && \
-            ln -s /opt/python/cp311-cp311/bin/python3 /usr/local/bin/python3 && \
-            cd pyscfadlib && \
-            python3 build/build.py build --python_version=3.11 && \
-            python3 build/build.py build --python_version=3.12 && \
-            python3 build/build.py build --python_version=3.13 && \
-            python3 build/build.py build --python_version=3.14 && \
-            auditwheel repair dist/*.whl -w wheelhouse_x86_64/ && \
-            rm -rf dist/
-          "
-
-      - name: Upload x86_64 wheel
-        uses: actions/upload-artifact@v4
-        with:
-          name: cuda_plugin_wheels_x86_64
-          path: pyscfadlib/wheelhouse_x86_64/*.whl
-          overwrite: true
+#      - name: Build wheel for x86_64
+#        run: |
+#          docker run --rm -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux_2_28_x86_64 bash -c "
+#            yum install -y curl && \
+#            curl -Lo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 && \
+#            chmod +x /usr/local/bin/bazel && \
+#            /opt/python/cp311-cp311/bin/pip install --upgrade pip setuptools wheel auditwheel && \
+#            ln -s /opt/python/cp311-cp311/bin/python3 /usr/local/bin/python3 && \
+#            cd pyscfadlib && \
+#            python3 build/build.py build --python_version=3.11 && \
+#            python3 build/build.py build --python_version=3.12 && \
+#            python3 build/build.py build --python_version=3.13 && \
+#            python3 build/build.py build --python_version=3.14 && \
+#            auditwheel repair dist/*.whl -w wheelhouse_x86_64/ && \
+#            rm -rf dist/
+#          "
+#
+#      - name: Upload x86_64 wheel
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: cuda_plugin_wheels_x86_64
+#          path: pyscfadlib/wheelhouse_x86_64/*.whl
+#          overwrite: true
 
       - name: Build wheel for aarch64
         run: |
@@ -57,7 +57,7 @@ jobs:
             python3 build/build.py build --python_version=3.11 --target_cpu=aarch64 && \
             python3 build/build.py build --python_version=3.12 --target_cpu=aarch64 && \
             python3 build/build.py build --python_version=3.13 --target_cpu=aarch64 && \
-            python3 build/build.py build --python_version=3.14 --target_cpu=aarch64 && \
+#            python3 build/build.py build --python_version=3.14 --target_cpu=aarch64 && \
             auditwheel repair dist/*.whl -w wheelhouse_aarch64/
           "
 
