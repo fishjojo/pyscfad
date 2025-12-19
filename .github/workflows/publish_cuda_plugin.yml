@@ -5,6 +5,15 @@ on:
     types:
       - released
   workflow_dispatch:
+    inputs:
+      build_x86_64:
+        description: "Build x86_64 wheels"
+        type: boolean
+        default: true
+      build_aarch64:
+        description: "Build aarch64 wheels"
+        type: boolean
+        default: true
 
 jobs:
   build_wheel_linux:
@@ -15,8 +24,15 @@ jobs:
       matrix:
         arch: [x86_64, aarch64]
         py: ['3.11', '3.12', '3.13', '3.14']
-      exclude:
-        - arch: x86_64
+
+    if: >
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' &&
+        (
+          (matrix.arch == 'x86_64' && inputs.build_x86_64 == true) ||
+          (matrix.arch == 'aarch64' && inputs.build_aarch64 == true)
+        )
+      )
 
     steps:
       - uses: actions/checkout@v5
@@ -29,7 +45,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build wheel
+      - name: Build ${{ matrix.arch }} wheel for Python ${{ matrix.py }}
         run: |
           ARCH=${{ matrix.arch }}
           PY=${{ matrix.py }}
