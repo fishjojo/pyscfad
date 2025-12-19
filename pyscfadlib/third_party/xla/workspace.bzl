@@ -1,7 +1,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-XLA_COMMIT = "a7e58876b73dfa9bb6bc785f6981a332c133bb55"
-XLA_SHA256 = "28808e845c5d409422c0762a02324348d598a57e4d5250d0ad4866ae3e1a531f"
+XLA_COMMIT = "913ae2eaa3cb88971003592a90959685a78c9e30"
+XLA_SHA256 = "9fa67049a1b3db0ae25895dc7e6edb8bf05edaabe811484053636c0127090590"
 
 def repo():
     http_archive(
