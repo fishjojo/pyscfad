@@ -145,7 +145,7 @@ set(patch_libcint ${PROJECT_SOURCE_DIR}/apply_patch.sh libcint.patch)
 if(BUILD_LIBCINT)
   ExternalProject_Add(libcint
     GIT_REPOSITORY https://github.com/fishjojo/libcint.git
-    GIT_TAG ad1
+    GIT_TAG 0e4e4c74de4d92c211e68bc4f547ec999bf9012e
     PATCH_COMMAND ${patch_libcint}
     PREFIX ${PROJECT_BINARY_DIR}/thirdparty
     INSTALL_DIR ${PROJECT_SOURCE_DIR}/thirdparty
