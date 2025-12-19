@@ -4,5 +4,5 @@ python -m pip cache purge
 pip install wheel
 pip install pytest
 pip install pytest-cov
-pip install 'jax==0.8.1'
-pip install 'pyscf==2.11.0'
+pip install jax
+pip install pyscf
