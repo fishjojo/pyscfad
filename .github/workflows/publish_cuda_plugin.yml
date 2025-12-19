@@ -10,6 +10,14 @@ jobs:
   build_wheel_linux:
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+        py: ['3.11', '3.12', '3.13', '3.14']
+      exclude:
+        - arch: x86_64
+
     steps:
       - uses: actions/checkout@v5
 
@@ -18,60 +26,62 @@ jobs:
         with:
           platforms: all
 
-      - name: Set up Docker Build
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-#      - name: Build wheel for x86_64
-#        run: |
-#          docker run --rm -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux_2_28_x86_64 bash -c "
-#            yum install -y curl && \
-#            curl -Lo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 && \
-#            chmod +x /usr/local/bin/bazel && \
-#            /opt/python/cp311-cp311/bin/pip install --upgrade pip setuptools wheel auditwheel && \
-#            ln -s /opt/python/cp311-cp311/bin/python3 /usr/local/bin/python3 && \
-#            cd pyscfadlib && \
-#            python3 build/build.py build --python_version=3.11 && \
-#            python3 build/build.py build --python_version=3.12 && \
-#            python3 build/build.py build --python_version=3.13 && \
-#            python3 build/build.py build --python_version=3.14 && \
-#            auditwheel repair dist/*.whl -w wheelhouse_x86_64/ && \
-#            rm -rf dist/
-#          "
-#
-#      - name: Upload x86_64 wheel
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: cuda_plugin_wheels_x86_64
-#          path: pyscfadlib/wheelhouse_x86_64/*.whl
-#          overwrite: true
-
-      - name: Build wheel for aarch64
+      - name: Build wheel
         run: |
-          docker run --rm --platform linux/arm64 -v ${{ github.workspace }}:/project -w /project quay.io/pypa/manylinux_2_28_aarch64 bash -c "
-            yum install -y curl && \
-            curl -Lo /usr/local/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 && \
-            chmod +x /usr/local/bin/bazel && \
-            /opt/python/cp311-cp311/bin/pip install --upgrade pip setuptools wheel auditwheel && \
-            ln -s /opt/python/cp311-cp311/bin/python3 /usr/local/bin/python3 && \
-            cd pyscfadlib && \
-            python3 build/build.py build --python_version=3.11 --target_cpu=aarch64 && \
-            python3 build/build.py build --python_version=3.12 --target_cpu=aarch64 && \
-            python3 build/build.py build --python_version=3.13 --target_cpu=aarch64 && \
-            auditwheel repair dist/*.whl -w wheelhouse_aarch64/
-          "
+          ARCH=${{ matrix.arch }}
+          PY=${{ matrix.py }}
+          TAG=${PY/./}
 
-      - name: Upload aarch64 wheel
+          if [ "$ARCH" = "x86_64" ]; then
+            IMAGE=quay.io/pypa/manylinux_2_28_x86_64
+            BAZEL_URL=https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+            PLATFORM_ARG=""
+          else
+            IMAGE=quay.io/pypa/manylinux_2_28_aarch64
+            BAZEL_URL=https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64
+            PLATFORM_ARG="--platform linux/arm64"
+          fi
+
+          docker run --rm $PLATFORM_ARG \
+            -v ${{ github.workspace }}:/project \
+            -w /project \
+            "$IMAGE" \
+            bash -lc "
+              yum install -y curl
+              curl -Lo /usr/local/bin/bazel $BAZEL_URL
+              chmod +x /usr/local/bin/bazel
+
+              /opt/python/cp${TAG}-cp${TAG}/bin/pip install --no-cache-dir --upgrade pip setuptools wheel auditwheel
+              ln -sf /opt/python/cp${TAG}-cp${TAG}/bin/python3 /usr/local/bin/python3
+
+              cd /project/pyscfadlib
+
+              if [ \"$ARCH\" = \"aarch64\" ]; then
+                python3 build/build.py build --python_version=${PY} --target_cpu=aarch64
+                OUTDIR=wheelhouse_aarch64
+              else
+                python3 build/build.py build --python_version=${PY}
+                OUTDIR=wheelhouse_x86_64
+              fi
+
+              mkdir -p \$OUTDIR
+              auditwheel repair dist/*cp${TAG}*.whl -w \$OUTDIR/
+            "
+
+      - name: Upload wheel
         uses: actions/upload-artifact@v4
         with:
-          name: cuda_plugin_wheels_aarch64
-          path: pyscfadlib/wheelhouse_aarch64/*.whl
+          name: cuda_plugin_${{ matrix.arch }}_${{ matrix.py }}
+          path: pyscfadlib/wheelhouse_*/*.whl
           overwrite: true
 
   publish_pypi_linux:
-    name: publish linux wheels to pypi
     needs: build_wheel_linux
+    if: always()
     runs-on: ubuntu-latest
-
     environment: release
     permissions:
       id-token: write
@@ -87,3 +97,5 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
