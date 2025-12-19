@@ -405,6 +405,16 @@ class Cell(mole.Mole, pyscf_cell.Cell):
     def get_abs_kpts(self, scaled_kpts):
         return np.dot(scaled_kpts, self.reciprocal_vectors())
 
+    @with_doc(pyscf_cell.Cell.get_scaled_kpts.__doc__)
+    def get_scaled_kpts(self, abs_kpts, kpts_in_ibz=True):
+        from pyscf.pbc.lib.kpts import KPoints
+        if isinstance(abs_kpts, KPoints):
+            if kpts_in_ibz:
+                return abs_kpts.kpts_scaled_ibz
+            else:
+                return abs_kpts.kpts_scaled
+        return 1./(2*np.pi)*np.dot(abs_kpts, self.lattice_vectors().T)
+
     @with_doc(pyscf_cell.Cell.cutoff_to_mesh.__doc__)
     def cutoff_to_mesh(self, ke_cutoff):
         a = self.lattice_vectors()
