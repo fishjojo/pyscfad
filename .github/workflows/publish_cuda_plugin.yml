@@ -25,14 +25,16 @@ jobs:
         arch: [x86_64, aarch64]
         py: ['3.11', '3.12', '3.13', '3.14']
 
-    if: >
+    if: ${{ 
       github.event_name == 'release' ||
-      (github.event_name == 'workflow_dispatch' &&
+      (
+        github.event_name == 'workflow_dispatch' &&
         (
           (matrix.arch == 'x86_64' && inputs.build_x86_64 == true) ||
           (matrix.arch == 'aarch64' && inputs.build_aarch64 == true)
         )
       )
+    }}
 
     steps:
       - uses: actions/checkout@v5
