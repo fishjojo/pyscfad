@@ -84,21 +84,35 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
         pick = (np.cumsum(mask) <= nocc) & mask
         mo_occ = np.where(pick, 2., 0.)
 
-    # NOTE HOMO and LUMO can only be determined at runtime,
-    # so the following is not compatible with jit compilation.
-    #if mf.verbose >= logger.INFO and nocc < nmo:
-    #    jax.lax.cond(
-    #        np.greater(e_sort[nocc-1]+1e-3, e_sort[nocc]),
-    #        lambda e_homo, e_lumo: logger.warn(mf, "HOMO %.15g == LUMO %.15g", e_homo, e_lumo),
-    #        lambda e_homo, e_lumo: logger.info(mf, "  HOMO = %.15g  LUMO = %.15g", e_homo, e_lumo),
-    #        e_sort[nocc-1], e_sort[nocc],
-    #    )
+        e_homo = np.max(np.where(pick, mo_energy, -np.inf))
+        e_lumo = np.min(np.where(mask & ~pick, mo_energy, np.inf))
+        if mf.verbose >= logger.DEBUG:
+            logger.debug(mf, "  HOMO = %.15g  LUMO = %.15g", e_homo, e_lumo)
 
     if mf.verbose >= logger.DEBUG:
         numpy.set_printoptions(threshold=nmo)
         logger.debug(mf, "  mo_energy =\n%s", mo_energy)
         numpy.set_printoptions(threshold=1000)
     return mo_occ
+
+def get_homo_lumo_energy(mf, mo_energy=None, mo_coeff=None):
+    if mf.sigma is not None and mf.sigma > 0:
+        raise NotImplementedError
+
+    if mo_energy is None:
+        mo_energy = mf.mo_energy
+    if mo_coeff is None:
+        mo_coeff = mf.mo_coeff
+
+    mask = make_mo_mask(mo_energy, mo_coeff, mf.mol.ao_mask)
+    nocc = mf.tot_electrons // 2
+    pick = (np.cumsum(mask) <= nocc) & mask
+
+    e_homo = np.max(np.where(pick, mo_energy, -np.inf))
+    e_lumo = np.min(np.where(mask & ~pick, mo_energy, np.inf))
+    if mf.verbose >= logger.DEBUG:
+        logger.debug(mf, "  HOMO = %.15g  LUMO = %.15g", e_homo, e_lumo)
+    return e_homo, e_lumo
 
 def make_rdm1(mo_coeff, mo_occ, **kwargs):
     dm = (mo_coeff * mo_occ) @ mo_coeff.conj().T
@@ -144,6 +158,8 @@ class SCF(hf.SCF):
         h1e_diag = np.where(ao_mask, h1e_diag, 1e10)
         h = np.fill_diagonal(h, h1e_diag, inplace=False)
         return eigh(h, s)
+
+    get_homo_lumo_energy = get_homo_lumo_energy
 
 SCFPad = SCF
 

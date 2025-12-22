@@ -14,7 +14,9 @@
 
 from __future__ import annotations
 from typing import Any
+from collections.abc import Callable
 #from functools import partial
+import contextlib
 
 import numpy
 import pyscf
@@ -33,6 +35,8 @@ from pyscf.gto.mole import (
     CHARGE_OF,
     NUC_MOD_OF,
     NUC_POINT,
+    PTR_COMMON_ORIG,
+    PTR_RINV_ORIG,
     PTR_COORD,
     PTR_ENV_START,
     PTR_ZETA,
@@ -144,6 +148,8 @@ class Mole(MoleBase):
         self.trace_coords = trace_coords
         self.trace_basis = trace_basis
 
+        self._pseudo = {}
+
         self._atm = self._bas = self._env = None
         if self.basis is not None:
             self._atm, self._bas, self._env = make_env(self)
@@ -225,6 +231,63 @@ class Mole(MoleBase):
             trace_basis=self.trace_basis,
         )
         return out
+
+    def set_common_origin(
+        self,
+        coord: Array,
+    ) -> Mole:
+        if self._env is None:
+            raise RuntimeError("{self}._env is not initialized, "
+                               "possibly because basis is not set.")
+
+        self._env = ops.index_update(
+            self._env,
+            ops.index[PTR_COMMON_ORIG:PTR_COMMON_ORIG+3],
+            coord,
+        )
+        return self
+
+    def with_common_origin(
+        self,
+        coord: Array,
+    ):
+        coord0 = np.copy(self._env[PTR_COMMON_ORIG:PTR_COMMON_ORIG+3])
+        return self._TemporaryMoleContext(self.set_common_origin, (coord,), (coord0,))
+
+    def set_rinv_origin(
+        self,
+        coord: Array,
+    ) -> Mole:
+        if self._env is None:
+            raise RuntimeError("{self}._env is not initialized, "
+                               "possibly because basis is not set.")
+
+        self._env = ops.index_update(
+            self._env,
+            ops.index[PTR_RINV_ORIG:PTR_RINV_ORIG+3],
+            coord,
+        )
+        return self
+
+    def with_rinv_origin(
+        self,
+        coord: Array,
+    ):
+        coord0 = np.copy(self._env[PTR_RINV_ORIG:PTR_RINV_ORIG+3])
+        return self._TemporaryMoleContext(self.set_rinv_origin, (coord,), (coord0,))
+
+    @contextlib.contextmanager
+    def _TemporaryMoleContext(
+        self,
+        method: Callable[...],
+        args: tuple[...],
+        args_bak: tuple[...],
+    ):
+        method(*args)
+        try:
+            yield
+        finally:
+            method(*args_bak)
 
     @classmethod
     def from_pyscf(

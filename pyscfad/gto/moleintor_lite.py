@@ -20,6 +20,8 @@ import numpy
 from pyscf.gto.mole import (
     ATOM_OF,
     PTR_COORD,
+    PTR_COMMON_ORIG,
+    PTR_RINV_ORIG,
 )
 
 from pyscfad import ops
@@ -30,6 +32,8 @@ from ._moleintor_helper import (
     int1e_dr1_name,
 )
 from ._moleintor_jvp import _gen_int1e_fill_jvp_r0
+
+Array = Any
 
 def _get_shape_ints2c(
     intor_name: str,
@@ -166,19 +170,19 @@ def _get_shape(
 )
 def getints(
     intor_name: str,
-    atm: numpy.ndarray,
-    bas: numpy.ndarray,
-    env: Any,
+    atm: Array,
+    bas: Array,
+    env: Array,
     shls_slice: tuple[int, ...] | None = None,
     comp: int | None = None,
     hermi: int = 0,
     aosym: str = "s1",
-    ao_loc: numpy.ndarray | None = None,
+    ao_loc: Array | None = None,
     cintopt: Any | None = None,
     out: Any | None = None,
     trace_coords: bool = False,
     trace_basis: bool = False,
-    aoslices: numpy.ndarray | None = None,
+    aoslices: Array | None = None, # for padding
 ):
     from pyscfad.gto._pyscf_moleintor import getints as callback
     if out is not None:
@@ -231,7 +235,6 @@ def getints_jvp(
     tangents,
 ):
     if (not intor_name.startswith("int1e") or
-        intor_name.startswith("int1e_r") or
         "nuc" in intor_name):
         raise NotImplementedError(f"Autodiff not implemented for {intor_name}")
 
@@ -260,6 +263,13 @@ def getints_jvp(
     intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor_name)
 
     if trace_coords and (intor_ip_bra or intor_ip_ket):
+        if intor_name.startswith("int1e_rinv"):
+            rc_deriv = PTR_RINV_ORIG
+        elif intor_name.startswith("int1e_r"):
+            rc_deriv = PTR_COMMON_ORIG
+        else:
+            rc_deriv = None
+
         tangent_out += _gen_int1e_jvp_r0(
             intor_ip_bra,
             intor_ip_ket,
@@ -275,28 +285,30 @@ def getints_jvp(
             trace_coords,
             trace_basis,
             aoslices,
+            rc_deriv,
         ).reshape(tangent_out.shape)
 
     if trace_basis:
-        raise NotImplementedError
+        raise NotImplementedError("basis set parameter derivative not supported")
     return primal_out, tangent_out
 
 
 def _gen_int1e_jvp_r0(
-    intor_a,
-    intor_b,
-    atm,
-    bas,
-    env,
-    env_dot,
-    shls_slice,
-    comp,
-    hermi,
-    aosym,
-    ao_loc,
-    trace_coords,
-    trace_basis,
-    aoslices,
+    intor_a: str,
+    intor_b: str,
+    atm: Array,
+    bas: Array,
+    env: Array,
+    env_dot: Array,
+    shls_slice: tuple[int, ...] | None,
+    comp: int | None,
+    hermi: int,
+    aosym: str,
+    ao_loc: Array | None,
+    trace_coords: bool,
+    trace_basis: bool,
+    aoslices: Array | None = None,
+    rc_deriv: int | None = None,
 ):
     if comp is not None:
         comp = comp * 3
@@ -315,6 +327,7 @@ def _gen_int1e_jvp_r0(
         out=None,
         trace_coords=trace_coords,
         trace_basis=trace_basis,
+        aoslices=aoslices,
     )
     naoi, naoj = s1a.shape[1:]
     s1a = s1a.reshape(3,-1,naoi,naoj)
@@ -334,6 +347,10 @@ def _gen_int1e_jvp_r0(
         aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
     aoidx = np.arange(naoi)
     jvp = _gen_int1e_fill_jvp_r0(s1a, coords_dot, aoslices-_ao_loc[i0], aoidx[None,None,:,None])
+
+    if isinstance(rc_deriv, int):
+        R0_dot = env_dot[rc_deriv:rc_deriv+3]
+        jvp -= np.einsum("xyij,x->yij", s1a, R0_dot)
 
     if hermi == 0:
         order_a = int1e_get_dr_order(intor_b)[0]
@@ -358,6 +375,10 @@ def _gen_int1e_jvp_r0(
         aoidx = np.arange(naoj)
         jvp += _gen_int1e_fill_jvp_r0(s1b, coords_dot, aoslices-_ao_loc[j0],
                                       aoidx[None,None,None,:])
+
+        if isinstance(rc_deriv, int):
+            R0_dot = env_dot[rc_deriv:rc_deriv+3]
+            jvp -= np.einsum("xyij,x->yij", s1b, R0_dot)
 
     elif hermi == 1:
         jvp += jvp.transpose(0,2,1)

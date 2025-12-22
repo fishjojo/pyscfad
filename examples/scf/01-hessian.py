@@ -1,24 +1,22 @@
+"""RHF nuclear hessian
+"""
 import jax
-import pyscf
 from pyscfad import gto, scf
-
-"""
-Analytic nuclear Hessian for RHF computed by auto-differentiation
-"""
 
 mol = gto.Mole()
 mol.atom = [
-        ['O' , 0. , 0.     , 0],
-        ['H' , 0. , -0.757 , 0.587],
-        ['H' , 0. ,  0.757 , 0.587]]
-mol.basis = '631g'
-mol.verbose=5
+    ["O", 0.000,  0.000, 0.000],
+    ["H", 0.000, -0.757, 0.587],
+    ["H", 0.000,  0.757, 0.587],
+]
+mol.basis = "631g*"
+mol.verbose = 4
 mol.build(trace_exp=False, trace_ctr_coeff=False)
 
-def ehf(mol):
+def rhf_energy(mol):
     mf = scf.RHF(mol)
-    e = mf.kernel()
-    return e
+    ehf = mf.kernel()
+    return ehf
 
-jac = jax.jacrev(jax.jacrev(ehf))(mol)
-print(jac.coords.coords)
+jac = jax.hessian(rhf_energy)(mol)
+print(f"Nuclear hessian:\n{jac.coords.coords}")

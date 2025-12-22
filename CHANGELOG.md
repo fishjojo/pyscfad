@@ -1,11 +1,20 @@
 # Change log
 
+## pyscfad 0.2.0 (December 18, 2025)
+
+* Changes
+  * Add support to Python 3.14.
+  * Update for compatibility with jax 0.8.
+
+* Bug fixes
+  * Fix stress tensor
+
 ## pyscfad 0.1.11 (August 13, 2025)
 
 * Changes
   * Drop support to Python 3.10.
-  * Updata for compatibility with pyscf 2.10.
-  * Updata for compatibility with jax 0.7.
+  * Update for compatibility with pyscf 2.10.
+  * Update for compatibility with jax 0.7.
   * Add int3c2e auxiliary basis response.
   * Update rcut estimation for lattice sum.
 

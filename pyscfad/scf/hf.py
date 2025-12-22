@@ -446,9 +446,13 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
         This function only works with the JAX backend.
 
         .. deprecated:: 0.2.0
-            This function will be deprecated in PySCFAD 0.2.0.
+            This function is deprecated since PySCFAD v0.2.0.
         """
         import jax
+        import warnings
+        warnings.warn('f{self.__class__.__name__}.energy_grad is deprecated, '
+                      'and will be removed in the future.',
+                      FutureWarning, stacklevel=2)
         if dm0 is None:
             try:
                 dm0 = self.make_rdm1()

@@ -18,3 +18,4 @@ Molecular sturcture and Gaussian type orbital integrals
 
 from pyscfad.gto import mole
 from pyscfad.gto.mole import Mole
+from pyscfad.gto.mole_lite import MoleLite

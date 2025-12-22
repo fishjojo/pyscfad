@@ -1,8 +1,4 @@
-import pyscf
-from pyscfad import gto, scf
-
-"""
-Analytic nuclear gradient for ROHF computed by auto-differentiation
+"""ROHF nuclear gradient
 
 Reference results from PySCF:
 converged SCF energy = -75.578154312784
@@ -13,22 +9,26 @@ converged SCF energy = -75.578154312784
 2 H    -0.0000000000     0.0432752607     0.0011952441
 ----------------------------------------------
 """
+import jax
+from pyscfad import gto, scf
 
 mol = gto.Mole()
-mol.atom = '''
-O        0.000000    0.000000    0.117790
-H        0.000000    0.755453   -0.471161
-H        0.000000   -0.755453   -0.471161'''
-mol.basis = '631g'
+mol.atom = """
+    O        0.000000    0.000000    0.117790
+    H        0.000000    0.755453   -0.471161
+    H        0.000000   -0.755453   -0.471161
+"""
+mol.basis = "631g"
 mol.charge = 1
 mol.spin = 1  # = 2S = spin_up - spin_down
-mol.verbose = 5
+mol.verbose = 4
 mol.build()
 
-mf = scf.ROHF(mol)
-mf.kernel()
+def rohf_energy(mol):
+    mf = scf.ROHF(mol)
+    return mf.kernel()
 
-jac = mf.energy_grad()
-print(f'Nuclaer gradient:\n{jac.coords}')
+jac = jax.grad(rohf_energy)(mol)
+print(f'Nuclear gradient:\n{jac.coords}')
 print(f'Gradient wrt basis exponents:\n{jac.exp}')
 print(f'Gradient wrt basis contraction coefficients:\n{jac.ctr_coeff}')
