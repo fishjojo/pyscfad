@@ -40,7 +40,7 @@ def _fermi_smearing_occ(mu, mo_energy, sigma, mo_mask):
     occ = np.where(mo_mask, occ, 0)
     return occ
 
-@partial(custom_jvp, nondiff_argnums=(1,2,3))
+@custom_jvp
 def _smearing_solve_mu(mo_es, nocc, sigma, mo_mask):
     from jax.scipy import optimize
     def nelec_cost_fn(mu):
@@ -54,9 +54,9 @@ def _smearing_solve_mu(mo_es, nocc, sigma, mo_mask):
     return res.x
 
 @_smearing_solve_mu.defjvp
-def _smearing_solve_mu_jvp(nocc, sigma, mo_mask, primals, tangents):
-    mo_es, = primals
-    dmo_e, = tangents
+def _smearing_solve_mu_jvp(primals, tangents):
+    mo_es, nocc, sigma, mo_mask = primals
+    dmo_e, _, _, _ = tangents
 
     mu = _smearing_solve_mu(mo_es, nocc, sigma, mo_mask)
     occ = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
@@ -89,7 +89,7 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
     nocc = mf.tot_electrons // 2
 
     if mf.sigma is not None and mf.sigma > 0:
-        mu, mo_occ = _smearing_optimize(mo_energy, nocc, mf.sigma, mask)
+        mu, mo_occ = _smearing_optimize(mo_energy, stop_grad(nocc), stop_grad(mf.sigma), stop_grad(mask))
         mo_occ *= 2
     else:
         pick = (np.cumsum(mask) <= nocc) & mask
