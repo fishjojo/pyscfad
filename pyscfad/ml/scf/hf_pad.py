@@ -22,6 +22,17 @@ from pyscfad.ops import stop_grad
 from functools import partial
 from jax import custom_jvp
 
+def _fermi_entropy(occ):
+    occ = occ / 2.0
+    occ_safe = np.where(np.logical_or(occ < 1e-10, occ > 1 - 1e-10), 0.5, occ)
+    ent_term = occ_safe * np.log(occ_safe) + (1 - occ_safe) * np.log(1 - occ_safe)
+
+    return -2 * np.where(
+        np.logical_or(occ < 1e-10, occ > 1 - 1e-10),
+        0.,
+        ent_term
+    ).sum()
+
 def _fermi_smearing_occ(mu, mo_energy, sigma, mo_mask):
     de = (mo_energy - mu) / sigma
     de_ = np.where(np.less(de, 40.), de, 0)
@@ -38,7 +49,7 @@ def _smearing_solve_mu(mo_es, nocc, sigma, mo_mask):
 
     mu0 = np.array([mo_es[nocc-1],])
     res = optimize.minimize(
-        nelec_cost_fn, mu0, method="BFGS", tol=1e-5,
+        nelec_cost_fn, mu0, method="BFGS", tol=1e-8,
     )
     return res.x
 
