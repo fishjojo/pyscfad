@@ -16,10 +16,6 @@ from typing import Tuple
 
 from pyscfad.gto.mole import inter_distance
 
-from jax.debug import print as dprint
-def pp(x): return dprint("{}", x)
-
-
 @functools.partial(jax.custom_jvp, nondiff_argnums=(1, 2))
 def lambertw(
     z: numpy.ndarray, tol: float = 1e-8, max_iter: int = 100
@@ -395,7 +391,7 @@ class QMMM:
                 ewpot1 += numpy.einsum('ijxy,jy->ix', qm_ewald_hess[2], dips)
             if self.param.quadgam is not None:
                 ewpot0 += numpy.einsum('ijxy,jxy->i', qm_ewald_hess[3], quads)
-                ewpot2 += numpy.einsum('ijxy,j->ixy',
+                ewpot2 += numpy.einsum('ijxy,i->jxy',
                                        qm_ewald_hess[3], charges)
         else:
             pass
