@@ -288,7 +288,7 @@ class QMMM:
         ewg0 = ewg0[atom_to_bas]
         # qm dip - mm pc
         if param.dipgam is not None:
-            p = ['einsum_path', (2, 3), (0, 2), (0, 1)]
+            p = [(2, 3), (0, 2), (0, 1)]
             ewg1 = numpy.einsum('gx,ig,g,g->ix', Gv, cosGvR1,
                                 zsinGvR2, Gpref, optimize=p)
             ewg1 -= numpy.einsum('gx,ig,g,g->ix', Gv,
@@ -297,7 +297,7 @@ class QMMM:
             ewg1 = 0.
         # qm quad - mm pc
         if param.quadgam is not None:
-            p = ['einsum_path', (3, 4), (0, 3), (0, 2), (0, 1)]
+            p = [(3, 4), (0, 3), (0, 2), (0, 1)]
             ewg2 = -numpy.einsum('gx,gy,ig,g,g->ixy', Gv,
                                  Gv, cosGvR1, zcosGvR2, Gpref, optimize=p)
             ewg2 += -numpy.einsum('gx,gy,ig,g,g->ixy', Gv,
@@ -414,15 +414,13 @@ class QMMM:
         if self.s1r is None:
             self.s1r = list()
             mol = self.mol
-            bas_atom = mol._bas[:, gto.ATOM_OF]
-            for i in range(self.mol.natm):
-                w = numpy.where(bas_atom == i)[0]
-                b0 = w[0]
-                b1 = w[-1]
-                shls_slice = (0, mol.nbas, b0, b1+1)
-                mol.set_common_origin(mol.atom_coord(i))
-                self.s1r.append(
-                    mol.intor('int1e_r', shls_slice=shls_slice))
+            aoslice = mol.aoslice_by_atom()
+            for i, c in zip(range(self.mol.natm), mol.atom_coords()):
+                b0, b1 = aoslice[i][:2]
+                shls_slice = (0, mol.nbas, b0, b1)
+                with mol.with_common_origin(c):
+                    self.s1r.append(
+                        mol.intor('int1e_r', shls_slice=shls_slice))
         return self.s1r
 
     def get_qm_dipoles(self, dm, s1r=None):
@@ -445,19 +443,17 @@ class QMMM:
             self.s1rr = list()
             mol = self.mol
             nao = mol.nao_nr()
-            bas_atom = mol._bas[:, gto.ATOM_OF]
-            for i in range(self.mol.natm):
-                w = numpy.where(bas_atom == i)[0]
-                b0 = w[0]
-                b1 = w[-1]
-                shls_slice = (0, mol.nbas, b0, b1+1)
-                mol.set_common_orig(mol.atom_coord(i))
-                s1rr_ = mol.intor('int1e_rr', shls_slice=shls_slice)
-                s1rr_ = s1rr_.reshape((3, 3, nao, -1))
-                s1rr_trace = numpy.einsum('xxuv->uv', s1rr_)
-                s1rr_ = 3/2 * s1rr_
-                for k in range(3):
-                    s1rr_[k, k] -= 0.5 * s1rr_trace
+            aoslice = mol.aoslice_by_atom()
+            for i, c in zip(range(self.mol.natm), mol.atom_coords()):
+                b0, b1 = aoslice[i][:2]
+                shls_slice = (0, mol.nbas, b0, b1)
+                with mol.with_common_orig(c):
+                    s1rr_ = mol.intor('int1e_rr', shls_slice=shls_slice)
+                    s1rr_ = s1rr_.reshape((3, 3, nao, -1))
+                    s1rr_trace = numpy.einsum('xxuv->uv', s1rr_)
+                    s1rr_ = 3/2 * s1rr_
+                    for k in range(3):
+                        s1rr_ = s1rr_.at[k, k].subtract(0.5 * s1rr_trace)
                 self.s1rr.append(s1rr_)
         return self.s1rr
 
