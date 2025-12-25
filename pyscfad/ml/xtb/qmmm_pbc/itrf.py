@@ -314,12 +314,40 @@ class QMMM:
         ewself11 = numpy.zeros((len(coords1), len(coords1), 3, 3))
         ewself02 = numpy.zeros((len(coords1), len(coords1), 3, 3))
 
-        # ewald real-space sum for qm subtract unit cell Coulomb
-        # = 1 - erf - 1 = -erf
-        r = inter_distance(coords=coords1)
-        r = numpy.where(r < 1e-12, numpy.inf, r)
-        # NOTE this does not contain lim_(r->0) erf(eta * r) / r
-        ewself00 -= erf(ew_eta * r) / r
+        R = coords1[:,None] - coords1[None]
+        r2 = numpy.sum(R * R , axis=-1)
+        r2 = numpy.where(r2 < 1e-20, numpy.inf, r2)
+        r = numpy.sqrt(r2)
+
+        # ewald real-space sum; assumed rcut < image distances
+        ekR = numpy.exp(-ew_eta**2 * r2)
+        # Tij = \hat{1/r} = f0 / r = erfc(r) / r
+        Tij = erfc(ew_eta * r) / r
+        # Tija = -Rija \hat{1/r^3} = -Rija / r^2 ( \hat{1/r} + 2 eta/sqrt(pi) exp(-eta^2 r^2) )
+        invr3 = (Tij + 2*ew_eta/numpy.sqrt(numpy.pi) * ekR) / r2
+        Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
+        # Tijab = (3 RijaRijb - Rij^2 delta_ab) \hat{1/r^5}
+        Tijab  = 3 * numpy.einsum('ija,ijb,ij->ijab', R, R, 1/r2)
+        Tijab -= numpy.einsum('ij,ab->ijab', numpy.ones_like(r), numpy.eye(3))
+        invr5 = invr3 + 4/3*ew_eta**3/numpy.sqrt(numpy.pi) * ekR # NOTE this is invr5 * r**2
+        Tijab = numpy.einsum('ijab,ij->ijab', Tijab, invr5)
+        # NOTE the below is present in Eq 8 but missing in Eq 12
+        Tijab += 4/3*ew_eta**3/numpy.sqrt(numpy.pi)*numpy.einsum('ij,ab->ijab', ekR, numpy.eye(3))
+        ewself00 += Tij
+        ewself01 -= Tija
+        ewself11 -= Tijab
+        ewself02 += Tijab / 3
+
+        # unit cell Coloumb, to be subtracted out
+        Tij = 1 / r
+        Tija = -numpy.einsum('ijx,ij->ijx', R, Tij**3)
+        Tijab  = 3 * numpy.einsum('ija,ijb->ijab', R, R) 
+        Tijab  = numpy.einsum('ijab,ij->ijab', Tijab, Tij**5)
+        Tijab -= numpy.einsum('ij,ab->ijab', Tij**3, numpy.eye(3))
+        ewself00 -= Tij
+        ewself01 += Tija
+        ewself11 += Tijab
+        ewself02 -= Tijab / 3
 
         # spurious interaction with Ewald compensenting gaussian charge
         eye = numpy.eye(len(coords1))
