@@ -19,14 +19,29 @@ from pyscfad.scf import hf_lite as hf
 from pyscfad.scipy.linalg import eigh
 from pyscfad.ops import stop_grad
 
+from functools import partial
+from jax import custom_jvp
+
+def _fermi_entropy(occ):
+    occ = occ / 2.0
+    occ_safe = np.where(np.logical_or(occ < 1e-10, occ > 1 - 1e-10), 0.5, occ)
+    ent_term = occ_safe * np.log(occ_safe) + (1 - occ_safe) * np.log(1 - occ_safe)
+
+    return -2 * np.where(
+        np.logical_or(occ < 1e-10, occ > 1 - 1e-10),
+        0.,
+        ent_term
+    ).sum()
+
 def _fermi_smearing_occ(mu, mo_energy, sigma, mo_mask):
     de = (mo_energy - mu) / sigma
-    de = np.where(np.less(de, 40.), de, np.inf)
-    occ = np.where(np.less(de, 40.), 1. / (np.exp(de) + 1.), 0.)
+    de_ = np.where(np.less(de, 40.), de, 0)
+    occ = np.where(np.less(de, 40.), 1. / (np.exp(de_) + 1.), 0.)
     occ = np.where(mo_mask, occ, 0)
     return occ
 
-def _smearing_optimize(mo_es, nocc, sigma, mo_mask):
+@custom_jvp
+def _smearing_solve_mu(mo_es, nocc, sigma, mo_mask):
     from jax.scipy import optimize
     def nelec_cost_fn(mu):
         mo_occ = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
@@ -34,9 +49,23 @@ def _smearing_optimize(mo_es, nocc, sigma, mo_mask):
 
     mu0 = np.array([mo_es[nocc-1],])
     res = optimize.minimize(
-        nelec_cost_fn, mu0, method="BFGS", tol=1e-5,
+        nelec_cost_fn, mu0, method="BFGS", tol=1e-8,
     )
-    mu = res.x
+    return res.x
+
+@_smearing_solve_mu.defjvp
+def _smearing_solve_mu_jvp(primals, tangents):
+    mo_es, nocc, sigma, mo_mask = primals
+    dmo_e, _, _, _ = tangents
+
+    mu = _smearing_solve_mu(mo_es, nocc, sigma, mo_mask)
+    occ = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
+    dndmu = occ * (1.-occ) / sigma
+    dndmu = np.where(np.abs(dndmu) < 1e-10, 0., dndmu)
+    return mu, np.dot(dndmu, dmo_e)[None] / (1e-13 + np.sum(dndmu))
+
+def _smearing_optimize(mo_es, nocc, sigma, mo_mask):
+    mu = _smearing_solve_mu(mo_es, nocc, sigma, mo_mask)
     mo_occs = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
     return mu, mo_occs
 
@@ -44,8 +73,7 @@ def make_mo_mask(mo_energy, mo_coeff, ao_mask):
     mask_fake_ao = np.asarray(1 - ao_mask, dtype=bool)
     mo_coeff_fake_ao = np.where(mask_fake_ao[:,None], mo_coeff, 0)
     tmp = np.linalg.norm(mo_coeff_fake_ao, axis=0)
-    # FIXME is 1e-12 okay?
-    mask = np.where(np.logical_and(abs(mo_energy)<1e-12, tmp>1e-12), False, True)
+    mask = np.where(np.logical_and(mo_energy>1e8, tmp>1e-12), False, True)
     return mask
 
 def get_occ(mf, mo_energy=None, mo_coeff=None):
@@ -61,7 +89,7 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
     nocc = mf.tot_electrons // 2
 
     if mf.sigma is not None and mf.sigma > 0:
-        mu, mo_occ = _smearing_optimize(stop_grad(mo_energy), nocc, mf.sigma, mask)
+        mu, mo_occ = _smearing_optimize(mo_energy, stop_grad(nocc), stop_grad(mf.sigma), stop_grad(mask))
         mo_occ *= 2
     else:
         pick = (np.cumsum(mask) <= nocc) & mask
@@ -136,6 +164,10 @@ class SCF(hf.SCF):
         ao_mask = self.mol.ao_mask
         mask = np.asarray(1 - ao_mask, dtype=np.int32)
         s = s + np.diag(mask)
+        h = np.where(np.outer(ao_mask, ao_mask), h, 0.)
+        h1e_diag = np.diag(h)
+        h1e_diag = np.where(ao_mask, h1e_diag, 1e10)
+        h = np.fill_diagonal(h, h1e_diag, inplace=False)
         return eigh(h, s)
 
     get_homo_lumo_energy = get_homo_lumo_energy
