@@ -450,7 +450,7 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
         """
         import jax
         import warnings
-        warnings.warn('f{self.__class__.__name__}.energy_grad is deprecated, '
+        warnings.warn(f'{self.__class__.__name__}.energy_grad is deprecated, '
                       'and will be removed in the future.',
                       FutureWarning, stacklevel=2)
         if dm0 is None:
