@@ -269,15 +269,26 @@ class QMMM:
         # NOTE Gpref is actually Gpref*2
         Gpref = numpy.exp(-absG2/(4*ew_eta**2)) * coulG
 
-        GvR2 = numpy.einsum('gx,ix->ig', Gv, coords2)
-        cosGvR2 = numpy.cos(GvR2)
-        sinGvR2 = numpy.sin(GvR2)
+        def accumulate_zexpGVR2(j, zexpGVR2):
+            zcosGvR2, zsinGvR2 = zexpGVR2
+            GvR2 = numpy.einsum('gx,x->g', Gv, coords2[j])
+            cosGvR2 = numpy.cos(GvR2)
+            sinGvR2 = numpy.sin(GvR2)
+            zcosGvR2 += self.mm_charges[j] * cosGvR2
+            zsinGvR2 += self.mm_charges[j] * sinGvR2
+            return zcosGvR2, zsinGvR2
+
+        zcosGvR2, zsinGvR2 = fori_loop(0, len(coords2),
+                                       accumulate_zexpGVR2,
+                                       (
+                                           numpy.zeros_like(coulG),
+                                           numpy.zeros_like(coulG),
+                                       )
+        )
 
         GvR1 = numpy.einsum('gx,ix->ig', Gv, coords1)
         cosGvR1 = numpy.cos(GvR1)
         sinGvR1 = numpy.sin(GvR1)
-        zcosGvR2 = numpy.einsum("i,ig->g", self.mm_charges, cosGvR2)
-        zsinGvR2 = numpy.einsum("i,ig->g", self.mm_charges, sinGvR2)
         # qm pc - mm pc
         ewg0 = numpy.einsum('ig,g,g->i', cosGvR1, zcosGvR2, Gpref)
         ewg0 += numpy.einsum('ig,g,g->i', sinGvR1, zsinGvR2, Gpref)
