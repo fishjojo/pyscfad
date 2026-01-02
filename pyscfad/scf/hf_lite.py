@@ -189,8 +189,7 @@ def kernel(
 
     #cput1 = log.timer('initialize scf', *cput0)
 
-    dm, _, _, e_tot = _scf_implicit(
-        mf,
+    dm, _, _, e_tot = mf.scf_implicit(
         dm,
         h1e,
         s1e,
@@ -228,6 +227,7 @@ class SCF(SCFBase):
     DIIS = SCF_DIIS
     use_sp2 = False
     conv_tol_dm = None
+    scf_implicit = _scf_implicit
 
     def __init__(
         self,
