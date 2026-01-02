@@ -16,19 +16,25 @@
 Molecular XTB with padding
 """
 from __future__ import annotations
-
-from pyscf.gto.mole import ANG_OF
-
-from pyscfad import numpy as np
-from pyscfad.lib import logger
-from pyscfad.xtb import XTB as XTBBase
-from pyscfad.xtb import GFN1XTB as GFN1XTBBase
-from pyscfad.xtb import util
-from pyscfad.xtb.data.elements import N_VALENCE_ARRAY
-
-from pyscfad.ml.gto import MolePad
-from pyscfad.ml.scf import SCFPad
+from pyscfad.scf import hf_lite
+from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.ml.xtb.param import ParamArray
+from pyscfad.ml.scf import SCFPad
+from pyscfad.ml.gto import MolePad
+from pyscfad.xtb.data.elements import N_VALENCE_ARRAY
+from pyscfad.xtb import util
+from pyscfad.xtb.xtb import GFN1XTB as GFN1XTBBase
+from pyscfad.xtb.xtb import XTB as XTBBase
+from pyscfad.lib import logger
+from pyscfad import numpy as np
+from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
+from pyscf.gto.mole import ANG_OF
+from jax import scipy as jsp
+from jax.lax import while_loop, custom_root
+import jax
+from typing import Any
+Array = Any
+
 
 def tot_valence_electrons(mol: MolePad, charge: int = None, nkpts: int = 1):
     if charge is None:
@@ -38,6 +44,7 @@ def tot_valence_electrons(mol: MolePad, charge: int = None, nkpts: int = 1):
     n = np.sum(nelecs) * nkpts - charge
     return n
 
+
 def dip_moment(mol, dm, unit="Debye", verbose=logger.NOTE):
     from pyscf.data import nist
     log = logger.new_logger(mol, verbose)
@@ -46,7 +53,7 @@ def dip_moment(mol, dm, unit="Debye", verbose=logger.NOTE):
     el_dip = np.einsum("xij,ji->x", ao_dip, dm)
 
     charges = N_VALENCE_ARRAY[mol.numbers]
-    coords  = np.asarray(mol.atom_coords())
+    coords = np.asarray(mol.atom_coords())
     nucl_dip = np.einsum("i,ix->x", charges.astype(coords.dtype), coords)
     mol_dip = nucl_dip - el_dip
 
@@ -58,6 +65,151 @@ def dip_moment(mol, dm, unit="Debye", verbose=logger.NOTE):
     del log
     return mol_dip
 
+
+def _scf_q_broyden(
+    mf: XTB,
+    q: Array,
+    dm: Array,
+    h1e: Array,
+    s1e: Array,
+    vhf: Array,
+    e_tot: float,
+    conv_tol: float,
+    conv_tol_grad: float,
+) -> tuple[Array, tuple[Array, Array, float]]:
+    log = logger.new_logger(mf)
+
+    def normalize_tot_charge(q):
+        tot = mf.mol.charge
+        shl_mask = mf.mol.shl_mask
+        nbas = mf.mol.nbas
+        return q.at[:nbas].set(
+            np.where(shl_mask, q[:nbas] -
+                     (np.sum(q[:nbas]) - tot) / np.sum(shl_mask), 0.)
+        )
+
+    def safe_normalize(v):
+        safe_v = np.where(np.abs(v) < 1e-6, 0., v)
+        return v / (1e-10 + np.sum(safe_v**2))
+
+    def cond_fun(value):
+        cycle, de, norm_gorb = value[:3]
+        return (cycle < mf.max_cycle) & ((abs(de) > conv_tol) | (norm_gorb > conv_tol_grad))
+
+    def body_fun(value):
+        cycle, _, _, q1, dq0, dm_last, vhf, fock, last_hf_e, u_hist, v_hist = value
+
+        # --- New dm from last fock ---
+        mo_energy, mo_coeff = mf.eig(fock, s1e)
+        mo_occ = mf.get_occ(mo_energy, mo_coeff)
+        dm = mf.make_rdm1(mo_coeff, mo_occ)
+        # FIXME possible to avoid fock build when computing energy?
+        e_tot = mf.energy_tot(dm=dm, h1e=h1e)
+        # get q from dm
+        q = mf.get_q(mol=mf.mol, dm=dm, s1e=s1e)
+
+        # --- Broyden step ---
+        # ref: https://math.leidenuniv.nl/reports/files/2003-06.pdf
+        g1 = q - q1
+
+        u_hist = u_hist.at[:, cycle-1].set(g1)
+        v_vec = safe_normalize(dq0)
+        v_hist = v_hist.at[:, cycle-1].set(v_vec)
+
+        A = np.eye(mf.max_cycle) - np.dot(v_hist.T, u_hist)
+        b = np.dot(v_hist.T, g1)
+        x = np.linalg.solve(A, b)
+
+        dq1 = g1 + np.dot(u_hist, x)
+        q2 = normalize_tot_charge(
+            mf.diis_damp * q1 + (1 - mf.diis_damp) * (q1 + dq1))
+
+        # --- New Fock from new q ---
+        vhf = mf.get_veff_fromq(q2, mol=mf.mol, s1e=s1e)
+
+        fock = h1e + vhf.vxc
+        norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
+        de = e_tot - last_hf_e
+        log.info("cycle= %d E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g",
+                 cycle+1, e_tot, de, norm_gorb, np.linalg.norm(dm-dm_last))
+
+        return cycle+1, de, norm_gorb, q2, dq1, dm, vhf, fock, e_tot, u_hist, v_hist
+
+    dm_last = dm
+    last_hf_e = e_tot
+    fock = h1e + vhf.vxc
+    mo_energy, mo_coeff = mf.eig(fock, s1e)
+    mo_occ = mf.get_occ(mo_energy, mo_coeff)
+    dm = mf.make_rdm1(mo_coeff, mo_occ)
+    # FIXME possible to avoid fock build when computing energy?
+    e_tot = mf.energy_tot(dm=dm, h1e=h1e)
+    q1 = mf.get_q(mol=mf.mol, dm=dm, s1e=s1e)
+    dq0 = q1 - q
+    q1 = normalize_tot_charge(mf.diis_damp * q + (1 - mf.diis_damp) * q1)
+    vhf = mf.get_veff_fromq(q1, mol=mf.mol, s1e=s1e)
+    fock = h1e + vhf.vxc
+    norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
+    de = e_tot - last_hf_e
+    # FIXME dm_last not known assumed to be zeros
+    log.info("cycle= %d E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g",
+             1, e_tot, de, norm_gorb, np.linalg.norm(dm-dm_last))
+
+    n_dim = q.size
+    u_hist = np.zeros((n_dim, mf.max_cycle))
+    v_hist = np.zeros((n_dim, mf.max_cycle))
+
+    init_val = (1, de, norm_gorb, q, dq0, dm, vhf, fock, e_tot, u_hist, v_hist)
+    cycle, _, _, q, _, dm, vhf, fock, e_tot, _, _ = while_loop(
+        cond_fun, body_fun, init_val)
+
+    del log
+    return q, (dm, vhf, fock, e_tot)
+
+
+def _scf_implicit_q(
+    mf: XTB,
+    dm: Array,
+    h1e: Array,
+    s1e: Array,
+    vhf: Array,
+    e_tot: float,
+    conv_tol: float,
+    conv_tol_grad: float,
+) -> tuple[Array, tuple[Array, Array, float]]:
+    if mf.diis.lower() == 'broyden':
+        def oracle(fn, q0): return _scf_q_broyden(
+            mf, q0, dm, h1e, s1e, vhf, e_tot, conv_tol, conv_tol_grad)
+    else:
+        raise NotImplementedError
+
+    def root_fn(q):
+        vhf = mf.get_veff_fromq(q, mf.mol, s1e=s1e)
+        fock = h1e + vhf.vxc
+        mo_energy, mo_coeff = mf.eig(fock, s1e)
+        mo_occ = mf.get_occ(mo_energy, mo_coeff)
+        dm_new = mf.make_rdm1(mo_coeff, mo_occ)
+        q_new = mf.get_q(mol=mf.mol, dm=dm_new, s1e=s1e)
+        del mo_energy, mo_occ
+        return q_new - q
+
+    solver = gen_gmres()
+
+    def tangent_solve(g, q_bar):
+        # FIXME restore the following once issue
+        # (https://github.com/jax-ml/jax/issues/33872) is fixed
+        # _, vjp_fn = jax.vjp(g, q_bar)
+        # return solver(lambda u: vjp_fn(u)[0], q_bar)[0]
+        return jsp.linalg.solve(
+            jax.jacobian(g)(q_bar),
+            q_bar,
+        )
+
+    q = mf.get_q(mol=mf.mol, dm=dm, s1e=s1e)
+    q_cnvg, (dm_cnvg, vhf_cnvg, fock_cnvg, e_tot_cnvg) = \
+        custom_root(root_fn, q, oracle, tangent_solve, has_aux=True)
+    return dm_cnvg, vhf_cnvg, fock_cnvg, e_tot_cnvg
+
+
 class XTB(XTBBase, SCFPad):
     @property
     def tot_electrons(self):
@@ -68,12 +220,19 @@ class XTB(XTBBase, SCFPad):
         if mol is None:
             mol = self.mol
         if dm is None:
-            dm =self.make_rdm1()
+            dm = self.make_rdm1()
         if verbose is None:
             verbose = mol.verbose
         return dip_moment(mol, dm, unit, verbose=verbose)
 
     get_occ = SCFPad.get_occ
+
+
+class XTBQ(XTB):
+    diis = 'broyden'
+    diis_damp = 0.6
+    scf_implicit = _scf_implicit_q
+
 
 class GFN1XTB(GFN1XTBBase, XTB):
     def _get_gamma(self):
@@ -86,6 +245,13 @@ class GFN1XTB(GFN1XTBBase, XTB):
 
     get_occ = XTB.get_occ
     dip_moment = XTB.dip_moment
+
+
+class GFN1XTBQ(GFN1XTB):
+    diis = 'broyden'
+    diis_damp = 0.6
+    scf_implicit = _scf_implicit_q
+
 
 if __name__ == "__main__":
     import jax
@@ -116,21 +282,22 @@ if __name__ == "__main__":
             np.array([
                 [-0.80650, -1.00659,  0.02850],
                 [-0.50540, -0.31299,  0.68220],
-                [ 0.00620, -1.41579, -0.38500],
+                [0.00620, -1.41579, -0.38500],
                 [-1.32340, -0.54779, -0.69350],
-                [ 0.00000,  0.00000,  0.00000],
+                [0.00000,  0.00000,  0.00000],
             ]) / 0.52917721067121,
         ]
     )
 
     def energy(numbers, coords):
-        mol = MolePad(numbers, coords, basis=basis, verbose=4, trace_coords=True)
+        mol = MolePad(numbers, coords, basis=basis,
+                      verbose=4, trace_coords=True)
         mf = GFN1XTB(mol, param)
         mf.diis = "anderson"
-        mf.conv_tol = 1e-6
+        mf.conv_tol = 1e-10
         mf.diis_damp = 0.5
         mf.diis_space = 6
-        #mf.sigma = 0.001
+        # mf.sigma = 0.001
         e = mf.kernel()
         mu = mf.dip_moment()
         r2 = mol.intor("int1e_r2", hermi=1)
@@ -143,3 +310,25 @@ if __name__ == "__main__":
     print(e)
     print(g)
     print(aux_res)
+
+    def energy_broyden(numbers, coords):
+        mol = MolePad(numbers, coords, basis=basis,
+                      verbose=4, trace_coords=True)
+        mf = GFN1XTBQ(mol, param)
+        mf.diis = "broyden"
+        mf.conv_tol = 1e-10
+        mf.diis_damp = 0.6
+        # mf.sigma = 0.001
+        e = mf.kernel()
+        mu = mf.dip_moment()
+        r2 = mol.intor("int1e_r2", hermi=1)
+        e_r2 = np.einsum("ij,ij->", mf.make_rdm1(), r2)
+        e_homo, e_lumo = mf.get_homo_lumo_energy()
+        return e, {"dip": mu, "r2": e_r2, "e_homo": e_homo, "e_lumo": e_lumo}
+
+    (eb, auxb), gb = jax.jit(jax.vmap(jax.value_and_grad(
+        energy_broyden, 1, has_aux=True)))(numbers, coords)
+    assert np.abs(e - eb).max() < 1e-8
+    assert np.abs(g - gb).max() < 1e-6
+    for k in aux_res.keys():
+        assert np.abs(aux_res[k] - auxb[k]).max() < 1e-4
