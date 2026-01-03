@@ -419,6 +419,14 @@ class QMMM:
             dips = self.get_qm_dipoles(dm)
         if self.param.quadgam is not None:
             quads = self.get_qm_quadrupoles(dm)
+        return self.get_qm_ewald_pot_fromq(mol, self.pack_q(charges, dips, quads), qm_ewald_hess)
+
+    def get_qm_ewald_pot_fromq(self, mol, q, qm_ewald_hess=None):
+        if qm_ewald_hess is None:
+            if self.pbcqm:
+                qm_ewald_hess = self.get_qm_ewald_hess()
+            self.qm_ewald_hess = qm_ewald_hess
+        charges, dips, quads = self.unpack_q(q)
         ewpot0 = numpy.zeros_like(charges)
         ewpot1 = numpy.zeros((mol.natm, 3))
         ewpot2 = numpy.zeros((mol.natm, 3, 3))
@@ -441,9 +449,11 @@ class QMMM:
             self.s1 = self.mol.intor('int1e_ovlp')
         return self.s1
 
-    def get_qm_charges(self, dm):
+    def get_qm_charges(self, dm, s1e=None):
         ''' shell-resolved charges '''
-        return mulliken_charge(self.mol, self.param, self.get_ovlp(), dm)
+        if s1e is None:
+            s1e = self.get_ovlp()
+        return mulliken_charge(self.mol, self.param, s1e, dm)
 
     def get_s1r(self):
         if self.s1r is None:
@@ -504,6 +514,39 @@ class QMMM:
                 -numpy.einsum('uv,xyvu->xy', dm[p0:p1], s1rr[iatm]))
         return numpy.asarray(qm_quadrupoles)
 
+    def pack_q(self, mono, dip, quad):
+        to_pack = [mono.ravel()]
+        if self.param.dipgam is not None:
+            to_pack.append(dip.ravel())
+        if self.param.quadgam is not None:
+            to_pack.append(quad.ravel())
+        return numpy.concatenate(to_pack)
+
+    def unpack_q(self, packed):
+        nbas = self.mol.nbas
+        natm = self.mol.natm
+        mono = packed[:nbas]
+        dip = quad = None
+        if self.param.dipgam is not None:
+            dip = packed[nbas:nbas+3*natm].reshape(natm, 3)
+        if self.param.quadgam is not None:
+            quad = packed[nbas+3*natm:].reshape(natm, 3, 3)
+        return mono, dip, quad
+
+    def get_q(self, mol=None, dm=None, s1e=None):
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm = self.make_rdm1()
+        if s1e is None:
+            s1e = self.get_ovlp()
+        dip = quad = None
+        if self.param.dipgam is not None:
+            dip = self.get_qm_dipoles(dm)
+        if self.param.quadgam is not None:
+            quad = self.get_qm_quadrupoles(dm)
+        return self.pack_q(self.get_qm_charges(dm, s1e=s1e), dip, quad)
+
     def get_vdiff(self, mol, ewald_pot):
         '''
         vdiff_uv = d Q_I / d dm_uv ewald_pot[0]_I
@@ -532,12 +575,11 @@ class QMMM:
         vdiff = (vdiff + vdiff.T) / 2
         return numpy.asarray(vdiff)
 
-    def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1, s1e=None,
-                 mm_ewald_pot=None, qm_ewald_pot=None):
+    def get_veff_fromq(self, q, mol=None, dm_last=0, vhf_last=0, hermi=1, s1e=None,
+                       mm_ewald_pot=None, qm_ewald_pot=None):
         del dm_last, vhf_last
         if mol is None:
             mol = self.mol
-
         if mm_ewald_pot is None:
             if self.mm_ewald_pot is not None:
                 mm_ewald_pot = self.mm_ewald_pot
@@ -546,20 +588,20 @@ class QMMM:
                 self.mm_ewald_pot = mm_ewald_pot
         if qm_ewald_pot is None:
             if self.qm_ewald_hess is not None:
-                qm_ewald_pot = self.get_qm_ewald_pot(
-                    mol, dm, self.qm_ewald_hess)
+                qm_ewald_pot = self.get_qm_ewald_pot_fromq(
+                    mol, q, self.qm_ewald_hess)
             else:
-                qm_ewald_pot = self.get_qm_ewald_pot(mol, dm)
+                qm_ewald_pot = self.get_qm_ewald_pot_fromq(mol, q)
 
         ewald_pot = \
             mm_ewald_pot[0] + qm_ewald_pot[0], \
             mm_ewald_pot[1] + qm_ewald_pot[1], \
             mm_ewald_pot[2] + qm_ewald_pot[2]
         vdiff = self.get_vdiff(mol, ewald_pot)
-        ediff = self.energy_ewald(
-            dm=dm, mm_ewald_pot=mm_ewald_pot, qm_ewald_pot=qm_ewald_pot)
+        ediff = self.energy_ewald_fromq(
+            q, mm_ewald_pot=mm_ewald_pot, qm_ewald_pot=qm_ewald_pot)
 
-        veff = super().get_veff(mol=mol, dm=dm, hermi=hermi, s1e=s1e)
+        veff = super().get_veff_fromq(q, mol=mol, hermi=hermi, s1e=s1e)
         return VXC(vxc=veff.vxc+vdiff, ecoul=veff.ecoul+ediff)
 
     def energy_ewald(self, dm=None, mm_ewald_pot=None, qm_ewald_pot=None):
@@ -574,19 +616,31 @@ class QMMM:
         if qm_ewald_pot is None:
             qm_ewald_pot = self.get_qm_ewald_pot(
                 self.mol, dm, self.qm_ewald_hess)
+        q = self.get_q(mol=mf.mol, dm=dm)
+        return self.energy_ewald_fromq(q, mm_ewald_pot, qm_ewald_pot)
+
+    def energy_ewald_fromq(self, q, mm_ewald_pot=None, qm_ewald_pot=None):
+        # QM-QM and QM-MM pbc energy
+        if mm_ewald_pot is None:
+            if self.mm_ewald_pot is not None:
+                mm_ewald_pot = self.mm_ewald_pot
+            else:
+                mm_ewald_pot = self.get_mm_ewald_pot(self.param)
+        if qm_ewald_pot is None:
+            qm_ewald_pot = self.get_qm_ewald_pot_fromq(
+                self.mol, q, self.qm_ewald_hess)
         ewald_pot = mm_ewald_pot[0] + qm_ewald_pot[0] / 2
-        qm_charges = self.get_qm_charges(dm)
-        e = numpy.einsum('i,i->', ewald_pot, qm_charges)
+        mono, dip, quad = self.unpack_q(q)
+        e = numpy.einsum('i,i->', ewald_pot, mono)
         if self.param.dipgam is not None:
             ewald_pot = mm_ewald_pot[1] + qm_ewald_pot[1] / 2
-            e += numpy.einsum('ix,ix->', ewald_pot, self.get_qm_dipoles(dm))
+            e += numpy.einsum('ix,ix->', ewald_pot, dip)
         if self.param.quadgam is not None:
             ewald_pot = mm_ewald_pot[2] + qm_ewald_pot[2] / 2
-            e += numpy.einsum('ixy,ixy->', ewald_pot,
-                              self.get_qm_quadrupoles(dm))
+            e += numpy.einsum('ixy,ixy->', ewald_pot, quad)
         # energy correction for non zero total charge
         eta, _ = self.get_ewald_params()
-        e += -.5 * numpy.sum(qm_charges)**2 * numpy.pi/(eta**2 * self.vol)
-        e += -1. * numpy.sum(qm_charges) * \
+        e += -.5 * numpy.sum(mono)**2 * numpy.pi/(eta**2 * self.vol)
+        e += -1. * numpy.sum(mono) * \
             numpy.sum(self.mm_charges) * numpy.pi/(eta**2 * self.vol)
         return e

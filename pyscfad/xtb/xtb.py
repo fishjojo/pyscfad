@@ -248,11 +248,12 @@ class GFN1XTB(XTB):
 
         param = self.param
 
-        phi = np.dot(self.gamma, q)
-        ecoul = .5 * np.dot(q, phi)
+        mono = q[:self.mol.nbas]
+        phi = np.dot(self.gamma, mono)
+        ecoul = .5 * np.dot(mono, phi)
 
         # Third-order term
-        atm_charge = sum_shell_charges(mol, q)
+        atm_charge = sum_shell_charges(mol, mono)
         phi3 = atm_charge**2 * param.gam3
         ecoul += np.sum(atm_charge**3 * param.gam3) / 3.
 
