@@ -65,6 +65,14 @@ def dip_moment(mol, dm, unit="Debye", verbose=logger.NOTE):
     del log
     return mol_dip
 
+def normalize_tot_charge(mf, q):
+    tot = mf.mol.charge
+    shl_mask = mf.mol.shl_mask
+    nbas = mf.mol.nbas
+    return q.at[:nbas].set(
+        np.where(shl_mask, q[:nbas] -
+                 (np.sum(q[:nbas]) - tot) / np.sum(shl_mask), 0.)
+    )
 
 def _scf_q_broyden(
     mf: XTB,
@@ -79,15 +87,6 @@ def _scf_q_broyden(
 ) -> tuple[Array, tuple[Array, Array, float]]:
     log = logger.new_logger(mf)
 
-    def normalize_tot_charge(q):
-        tot = mf.mol.charge
-        shl_mask = mf.mol.shl_mask
-        nbas = mf.mol.nbas
-        return q.at[:nbas].set(
-            np.where(shl_mask, q[:nbas] -
-                     (np.sum(q[:nbas]) - tot) / np.sum(shl_mask), 0.)
-        )
-
     def safe_normalize(v):
         safe_v = np.where(np.abs(v) < 1e-6, 0., v)
         return v / (1e-10 + np.sum(safe_v**2))
@@ -99,7 +98,7 @@ def _scf_q_broyden(
     def body_fun(value):
         cycle, _, _, q1, dq0, dm_last, vhf, fock, last_hf_e, u_hist, v_hist = value
 
-        # --- New dm from last fock ---
+        # --- new dm from last fock ---
         mo_energy, mo_coeff = mf.eig(fock, s1e)
         mo_occ = mf.get_occ(mo_energy, mo_coeff)
         dm = mf.make_rdm1(mo_coeff, mo_occ)
@@ -108,7 +107,7 @@ def _scf_q_broyden(
         # get q from dm
         q = mf.get_q(mol=mf.mol, dm=dm, s1e=s1e)
 
-        # --- Broyden step ---
+        # --- broyden step ---
         # ref: https://math.leidenuniv.nl/reports/files/2003-06.pdf
         g1 = q - q1
 
@@ -122,9 +121,10 @@ def _scf_q_broyden(
 
         dq1 = g1 + np.dot(u_hist, x)
         q2 = normalize_tot_charge(
+            mf,
             mf.diis_damp * q1 + (1 - mf.diis_damp) * (q1 + dq1))
 
-        # --- New Fock from new q ---
+        # --- new fock from new q ---
         vhf = mf.get_veff_fromq(q2, mol=mf.mol, s1e=s1e)
 
         fock = h1e + vhf.vxc
@@ -135,6 +135,7 @@ def _scf_q_broyden(
 
         return cycle+1, de, norm_gorb, q2, dq1, dm, vhf, fock, e_tot, u_hist, v_hist
 
+    # first cycle only does damping
     dm_last = dm
     last_hf_e = e_tot
     fock = h1e + vhf.vxc
@@ -145,12 +146,11 @@ def _scf_q_broyden(
     e_tot = mf.energy_tot(dm=dm, h1e=h1e)
     q1 = mf.get_q(mol=mf.mol, dm=dm, s1e=s1e)
     dq0 = q1 - q
-    q1 = normalize_tot_charge(mf.diis_damp * q + (1 - mf.diis_damp) * q1)
+    q1 = normalize_tot_charge(mf, mf.diis_damp * q + (1 - mf.diis_damp) * q1)
     vhf = mf.get_veff_fromq(q1, mol=mf.mol, s1e=s1e)
     fock = h1e + vhf.vxc
     norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
     de = e_tot - last_hf_e
-    # FIXME dm_last not known assumed to be zeros
     log.info("cycle= %d E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g",
              1, e_tot, de, norm_gorb, np.linalg.norm(dm-dm_last))
 
@@ -163,7 +163,7 @@ def _scf_q_broyden(
         cond_fun, body_fun, init_val)
 
     del log
-    return q, (dm, vhf, fock, e_tot)
+    return q, (dm, fock, e_tot, cycle.astype(float))
 
 
 def _scf_implicit_q(
@@ -192,21 +192,33 @@ def _scf_implicit_q(
         del mo_energy, mo_occ
         return q_new - q
 
-    solver = gen_gmres()
-
     def tangent_solve(g, q_bar):
-        # FIXME restore the following once issue
-        # (https://github.com/jax-ml/jax/issues/33872) is fixed
-        # _, vjp_fn = jax.vjp(g, q_bar)
-        # return solver(lambda u: vjp_fn(u)[0], q_bar)[0]
         return jsp.linalg.solve(
             jax.jacobian(g)(q_bar),
             q_bar,
         )
 
-    q = mf.get_q(mol=mf.mol, dm=dm, s1e=s1e)
-    q_cnvg, (dm_cnvg, vhf_cnvg, fock_cnvg, e_tot_cnvg) = \
-        custom_root(root_fn, q, oracle, tangent_solve, has_aux=True)
+    q = normalize_tot_charge(
+        mf,
+        mf.get_q(mol=mf.mol, dm=dm, s1e=s1e)
+    )
+    q_cnvg, (dm, fock, e_tot, cycle) \
+        = custom_root(root_fn, q, oracle, tangent_solve, has_aux=True)
+
+    # one more cycle to get dm
+    vhf_cnvg = mf.get_veff_fromq(q_cnvg, mf.mol, s1e=s1e)
+    fock_cnvg = h1e + vhf_cnvg.vxc
+    mo_energy, mo_coeff = mf.eig(fock_cnvg, s1e)
+    mo_occ = mf.get_occ(mo_energy, mo_coeff)
+    dm_cnvg = mf.make_rdm1(mo_coeff, mo_occ)
+    e_tot_cnvg = mf.energy_tot(dm=dm_cnvg, h1e=h1e, vhf=vhf_cnvg)
+    norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
+    de = e_tot_cnvg - e_tot
+    log = logger.new_logger(mf)
+    log.info("cycle= %d E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g",
+             cycle+1, e_tot_cnvg, de, norm_gorb, np.linalg.norm(dm_cnvg-dm))
+    del mo_energy, mo_occ, log
+
     return dm_cnvg, vhf_cnvg, fock_cnvg, e_tot_cnvg
 
 
