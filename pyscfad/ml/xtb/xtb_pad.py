@@ -87,9 +87,10 @@ def _scf_q_broyden(
 ) -> tuple[Array, tuple[Array, Array, float]]:
     log = logger.new_logger(mf)
 
-    def safe_normalize(v):
-        safe_v = np.where(np.abs(v) < 1e-6, 0., v)
-        return v / (1e-10 + np.sum(safe_v**2))
+    def safe_inv_norm(v):
+        safe_v = np.where(np.abs(v) < 1e-8, 0., v)
+        norm_v = np.sqrt(np.sum(safe_v**2))
+        return 1 / (1e-12 + norm_v)
 
     def cond_fun(value):
         cycle, de, norm_gorb = value[:3]
@@ -111,9 +112,9 @@ def _scf_q_broyden(
         # ref: https://math.leidenuniv.nl/reports/files/2003-06.pdf
         g1 = q - q1
 
-        u_hist = u_hist.at[:, cycle-1].set(g1)
-        v_vec = safe_normalize(dq0)
-        v_hist = v_hist.at[:, cycle-1].set(v_vec)
+        inv_norm = safe_inv_norm(dq0)
+        u_hist = u_hist.at[:, cycle-1].set(g1 * inv_norm)
+        v_hist = v_hist.at[:, cycle-1].set(dq0 * inv_norm)
 
         A = np.eye(mf.max_cycle) - np.dot(v_hist.T, u_hist)
         b = np.dot(v_hist.T, g1)
@@ -159,11 +160,11 @@ def _scf_q_broyden(
     v_hist = np.zeros((n_dim, mf.max_cycle))
 
     init_val = (1, de, norm_gorb, q, dq0, dm, vhf, fock, e_tot, u_hist, v_hist)
-    cycle, _, _, q, _, dm, vhf, fock, e_tot, _, _ = while_loop(
+    cycle, _, _, q, dq, dm, vhf, fock, e_tot, _, _ = while_loop(
         cond_fun, body_fun, init_val)
 
     del log
-    return q, (dm, fock, e_tot, cycle.astype(float))
+    return q, (dm, dq, fock, e_tot, cycle.astype(float))
 
 
 def _scf_implicit_q(
@@ -202,7 +203,7 @@ def _scf_implicit_q(
         mf,
         mf.get_q(mol=mf.mol, dm=dm, s1e=s1e)
     )
-    q_cnvg, (dm, fock, e_tot, cycle) \
+    q_cnvg, (dm, dq, fock, e_tot, cycle) \
         = custom_root(root_fn, q, oracle, tangent_solve, has_aux=True)
 
     # one more cycle to get dm
