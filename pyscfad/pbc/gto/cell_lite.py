@@ -99,35 +99,3 @@ class Cell(MoleLite):
         return out
 
 CellLite = Cell
-
-
-if __name__ == "__main__":
-    import jax
-    from pyscf.data.nist import BOHR
-    a = [[0.0, 2.6935121974, 2.6935121974],
-         [2.6935121974, 0.0, 2.6935121974],
-         [2.6935121974, 2.6935121974, 0.0]]
-    a = np.asarray(a) / BOHR
-
-    coords = [[0.0, 0.0, 0.0,],
-              [1.3467560987, 1.3467560987, 1.3467560987,],]
-    coords = np.asarray(coords) / BOHR
-
-    def fn(coords, a):
-        cell = Cell(numbers=(14,14), coords=coords, basis="sto3g", a=a, trace_coords=True)
-        s1e = cell.pbc_intor("int1e_ovlp")
-        return np.linalg.norm(s1e)
-
-    foo = jax.jit(fn)
-    out = foo(coords, a)
-    print(foo._cache_size())
-
-    out = foo(coords+0.01, a+0.01)
-    print(foo._cache_size())
-
-    gfn = jax.jit(jax.jacrev(fn))
-    jac = gfn(coords, a)
-    print(gfn._cache_size())
-
-    jac = gfn(coords+0.01, a+0.01)
-    print(gfn._cache_size())

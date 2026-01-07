@@ -350,7 +350,7 @@ def estimate_rcut(cell, precision=None):
         _estimate_rcut_impl_cpu,
         ops.ShapeDtypeStruct((), float),
         cell._atm, cell._bas, env, precision,
-        vmap_method="sequential",
+        vmap_method='sequential',
     )
 
 # FIXME monkey patch

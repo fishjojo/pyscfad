@@ -263,7 +263,8 @@ def _gen_int1e_jvp_r0(
     if aoslices is None:
         aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
     aoidx = np.arange(naoi)
-    jvp = _gen_int1e_fill_jvp_r0(s1a, coords_dot, aoslices-_ao_loc[i0], aoidx[None,None,None,:,None])
+    jvp = _gen_int1e_fill_jvp_r0(s1a, coords_dot, aoslices-_ao_loc[i0],
+                                 aoidx[None,None,None,:,None])
 
     if hermi == 0:
         order_a = int1e_get_dr_order(intor_b)[0]
@@ -283,7 +284,8 @@ def _gen_int1e_jvp_r0(
             trace_basis=trace_basis,
             aoslices=aoslices,
         )
-        s1b = s1b.reshape(nkpts,3**order_a,3,-1,naoi,naoj).transpose(0,2,1,3,4,5).reshape(nkpts,3,-1,naoi,naoj)
+        s1b = s1b.reshape(nkpts,3**order_a,3,-1,naoi,naoj)
+        s1b = s1b.transpose(0,2,1,3,4,5).reshape(nkpts,3,-1,naoi,naoj)
 
         aoidx = np.arange(naoj)
         jvp += _gen_int1e_fill_jvp_r0(s1b, coords_dot, aoslices-_ao_loc[j0],
@@ -296,7 +298,7 @@ def _gen_int1e_fill_jvp_r0(ints, coords_t, aoslices, aoidx):
     def _fill(sl, coord_t):
         mask = (aoidx >= sl[0]) & (aoidx < sl[1])
         grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
-        return np.einsum('kxyij,x->kyij', grad, coord_t)
+        return np.einsum("kxyij,x->kyij", grad, coord_t)
     jvp = np.sum(ops.vmap(_fill)(aoslices, coords_t), axis=0)
     return jvp
 
@@ -342,7 +344,7 @@ def _pbc_intor_jvp(
     intor_ip_bra = intor_ip_ket = None
     intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor_name)
 
-    if type(env_dot) is not SymbolicZero and trace_coords and (intor_ip_bra or intor_ip_ket):
+    if not isinstance(env_dot, SymbolicZero) and trace_coords and (intor_ip_bra or intor_ip_ket):
         tangent_out += _gen_int1e_jvp_r0(
             intor_ip_bra,
             intor_ip_ket,
@@ -362,10 +364,10 @@ def _pbc_intor_jvp(
             aoslices,
         ).reshape(tangent_out.shape)
 
-    if type(a_dot) is not SymbolicZero:
+    if not isinstance(a_dot, SymbolicZero):
         raise NotImplementedError
 
-    if type(kpts_dot) is not SymbolicZero:
+    if not isinstance(kpts_dot, SymbolicZero):
         raise NotImplementedError
 
     if trace_basis:

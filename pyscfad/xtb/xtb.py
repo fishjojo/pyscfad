@@ -85,7 +85,7 @@ class XTB(ABC, hf.SCF):
         self._enuc = None
         self._gamma = None
 
-    def build(self, mol: Mole | None = None) -> XTB:
+    def build(self, mol: Mole | None = None):
         # cache quantities that are computed only once
         _ = self.energy_nuc(mol)
         _ = self.gamma

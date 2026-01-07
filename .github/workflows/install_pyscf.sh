@@ -4,5 +4,6 @@ python -m pip cache purge
 pip install wheel
 pip install pytest
 pip install pytest-cov
+pip install 'numpy<2.4'
 pip install jax
 pip install pyscf
