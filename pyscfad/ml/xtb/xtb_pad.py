@@ -159,7 +159,7 @@ def _scf_q_broyden(
     u_hist = np.zeros((n_dim, mf.max_cycle))
     v_hist = np.zeros((n_dim, mf.max_cycle))
 
-    init_val = (1, de, norm_gorb, q, dq0, dm, vhf, fock, e_tot, u_hist, v_hist)
+    init_val = (1, de, norm_gorb, q1, dq0, dm, vhf, fock, e_tot, u_hist, v_hist)
     cycle, _, _, q, dq, dm, vhf, fock, e_tot, _, _ = while_loop(
         cond_fun, body_fun, init_val)
 
@@ -212,6 +212,7 @@ def _scf_implicit_q(
     mo_energy, mo_coeff = mf.eig(fock_cnvg, s1e)
     mo_occ = mf.get_occ(mo_energy, mo_coeff)
     dm_cnvg = mf.make_rdm1(mo_coeff, mo_occ)
+    vhf_cnvg = mf.get_veff(dm=dm_cnvg)
     e_tot_cnvg = mf.energy_tot(dm=dm_cnvg, h1e=h1e, vhf=vhf_cnvg)
     norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
     de = e_tot_cnvg - e_tot
