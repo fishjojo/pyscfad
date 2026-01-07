@@ -174,6 +174,7 @@ class QMMM:
         return eta, mesh
 
     def get_mm_ewald_pot(self, param=None):
+        log = logger.new_logger(self, self.verbose)
         if param is None:
             param = self.param
         ew_eta, mesh = self.get_ewald_params()
@@ -184,6 +185,7 @@ class QMMM:
         atom_to_bas = util.atom_to_bas_indices(self.mol)
 
 #        for i0, i1 in lib.prange(0, len(coords2), blksize):
+        @jax.checkpoint
         def accumulate_ewovrl(j, ewovrl):
             R = coords1 - coords2[None, j, :]
             r2 = numpy.sum(R * R, axis=-1)
@@ -254,12 +256,11 @@ class QMMM:
                                                     numpy.zeros_like(param.gam),
                                                     numpy.zeros((len(coords1), 3)),
                                                     numpy.zeros((len(coords1), 3, 3))
-                                                )
+                                                ),
         )
+        cput1 = log.timer('MM Ewald Real-Space')
 
         # g-space sum (using g grid)
-        logger.debug(self, f"Ewald mesh {mesh}")
-
         Gv, Gvbase, weights = self.get_Gv_weights(mesh)
         absG2 = numpy.einsum('gx,gx->g', Gv, Gv)
         absG2 = numpy.where(absG2 == 0, 1e200, absG2)
@@ -269,6 +270,7 @@ class QMMM:
         # NOTE Gpref is actually Gpref*2
         Gpref = numpy.exp(-absG2/(4*ew_eta**2)) * coulG
 
+        @jax.checkpoint
         def accumulate_zexpGVR2(j, zexpGVR2):
             zcosGvR2, zsinGvR2 = zexpGVR2
             GvR2 = numpy.einsum('gx,x->g', Gv, coords2[j])
@@ -283,7 +285,7 @@ class QMMM:
                                        (
                                            numpy.zeros_like(coulG),
                                            numpy.zeros_like(coulG),
-                                       )
+                                       ),
         )
 
         GvR1 = numpy.einsum('gx,ix->ig', Gv, coords1)
@@ -313,9 +315,12 @@ class QMMM:
         else:
             ewg2 = 0.
 
+        cput1 = log.timer('MM Ewald G-Space', *cput1)
+        del log
         return ewovrl0+ewg0, ewovrl1+ewg1, ewovrl2+ewg2
 
     def get_qm_ewald_hess(self):
+        log = logger.new_logger(self)
         ew_eta, mesh = self.get_ewald_params()
 
         coords1 = self.mol.atom_coords()
@@ -369,9 +374,9 @@ class QMMM:
         ewself11 += -numpy.einsum('ij,ab->ijab', eye, numpy.eye(3)) \
             * 4 * ew_eta**3 / 3 / numpy.sqrt(numpy.pi)
 
-        # g-space sum (using g grid)
-        logger.debug(self, f"Ewald mesh {mesh}")
+        cput1 = log.timer('QM Ewald Real-Space')
 
+        # g-space sum (using g grid)
         Gv, Gvbase, weights = self.get_Gv_weights(mesh)
         absG2 = numpy.einsum('gx,gx->g', Gv, Gv)
         absG2 = numpy.where(absG2 == 0, 1e200, absG2)
@@ -402,6 +407,9 @@ class QMMM:
         ewg02 += -numpy.einsum('gx,gy,ig,jg,g->ijxy', Gv,
                                Gv, sinGvR, sinGvR, Gpref)
         ewg02 /= 3
+
+        cput1 = log.timer('QM Ewald G-Space', *cput1)
+        del log
 
         return (ewself00 + ewg00)[util.atom_to_bas_indices_2d(self.mol)], \
             (ewself01 + ewg01)[util.atom_to_bas_indices(self.mol)], \
@@ -457,6 +465,7 @@ class QMMM:
 
     def get_s1r(self):
         if self.s1r is None:
+            log = logger.new_logger(self)
             self.s1r = list()
             mol = self.mol
             aoslice = mol.aoslice_by_atom()
@@ -466,6 +475,8 @@ class QMMM:
                 with mol.with_common_origin(c):
                     self.s1r.append(
                         mol.intor('int1e_r', shls_slice=shls_slice))
+            log.timer("get_s1r")
+            del log
         return self.s1r
 
     def get_qm_dipoles(self, dm, s1r=None):
@@ -485,6 +496,7 @@ class QMMM:
         \int phi_u phi_v [3(r-Rc)\otimes(r-Rc) - |r-Rc|^2] /2 dr
         '''
         if self.s1rr is None:
+            log = logger.new_logger(self)
             self.s1rr = list()
             mol = self.mol
             nao = mol.nao_nr()
@@ -500,6 +512,8 @@ class QMMM:
                     for k in range(3):
                         s1rr_ = s1rr_.at[k, k].subtract(0.5 * s1rr_trace)
                 self.s1rr.append(s1rr_)
+            log.timer("get_s1rr")
+            del log
         return self.s1rr
 
     def get_qm_quadrupoles(self, dm, s1rr=None):
@@ -553,6 +567,7 @@ class QMMM:
                  + d D_Ix / d dm_uv ewald_pot[1]_Ix 
                  + d O_Ixy / d dm_uv ewald_pot[2]_Ixy
         '''
+        log = logger.new_logger(self)
         ovlp = self.get_ovlp()
         vdiff = -ewald_pot[0][util.bas_to_ao_indices(mol)] * ovlp
         if self.param.dipgam is not None:
@@ -573,6 +588,8 @@ class QMMM:
                 vdiff = vdiff.at[:, p0:p1].subtract(
                     numpy.einsum('xy,xyuv->uv', v2, s1rr[iatm]))
         vdiff = (vdiff + vdiff.T) / 2
+        log.timer("get_vdiff")
+        del log
         return numpy.asarray(vdiff)
 
     def get_veff_fromq(self, q, mol=None, dm_last=0, vhf_last=0, hermi=1, s1e=None,
