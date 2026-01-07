@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2025-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,24 +15,26 @@
 """
 XTB with k-point sampling
 """
+from typing import Any
+
 import numpy
 from jax.scipy.special import erfc
 
 from pyscfad import numpy as np
 from pyscfad import ops
-from pyscfad.ops import jit
 from pyscfad.lib import logger
 from pyscfad.gto.mole import intor_cross, inter_distance
 from pyscfad.pbc.gto.cell import shift_bas_center
+from pyscfad.pbc.gto import CellLite as Cell
 from pyscfad.pbc.scf import khf
 from pyscfad.dft.rks import VXC
 
-from pyscfad.xtb import util
 from pyscfad.xtb import xtb
+from pyscfad.xtb import util
 from pyscfad.xtb.data.radii import ATOMIC as ATOMIC_RADII
 
+Array = Any
 
-@jit
 def EHT_PI_GFN1(cell, param, atomic_radii=ATOMIC_RADII,
                 Ls=numpy.zeros((1,3))):
     shpoly = param.shpoly
@@ -51,10 +53,9 @@ def EHT_PI_GFN1(cell, param, atomic_radii=ATOMIC_RADII,
     PI = (1 + shpoly[None,:,None] * RR) * (1 + shpoly[None,None,:] * RR)
     return PI
 
-@jit
 def mulliken_charge(cell, param, s1e, dm):
-    s1e = np.asarray(s1e)
-    dm = np.asarray(dm)
+    assert s1e.ndim == 3
+    assert dm.ndim == 3
     nkpts = s1e.shape[0]
 
     SP = np.einsum("kpq,kpq->p", s1e, dm).real
@@ -72,7 +73,6 @@ def estimate_ke_ewald(a, q, prec):
     G = numpy.sqrt(-numpy.log(fac * G)) * 2 * a
     return G
 
-@jit
 def _r_and_inv_r(cell, coords=None, Ls=None):
     r = inter_distance(cell, coords=coords, Ls=Ls)
     r_inv = 1. / np.where(r>1e-6, r, np.inf)
@@ -132,7 +132,6 @@ def init_gamma_ewald(cell, charge=1.):
     phi = phi[i,j]
     return phi
 
-@jit
 def get_veff(mf, cell=None, dm=None, s1e=None):
     if cell is None:
         cell = mf.cell
@@ -244,43 +243,55 @@ def get_occ(mf, mo_energy_kpts=None, mo_coeff_kpts=None):
 
 
 class KXTB(xtb.XTB):
-    """Base class for XTB with k-point sampling
+    """Base class for XTB methods with k-point sampling.
     """
-    def __init__(self, cell, param,
-                 kpts=numpy.zeros((1,3)), rcut=None):
+    def __init__(
+        self,
+        cell: Cell,
+        param: Any | None = None,
+        kpts: Array | None = None,
+        rcut: float | None = None,
+    ):
         super().__init__(cell, param)
-        self.kpts = kpts
+        if kpts is None:
+            kpts = np.zeros((1,3))
+        self.kpts = np.asarray(kpts, dtype=float).reshape(-1,3)
+        if rcut is None:
+            rcut = cell.rcut
         self.rcut = rcut
 
-    def get_ovlp(self, cell=None, kpts=None):
+    def get_ovlp(
+        self,
+        cell: Cell | None = None,
+        kpts: Array | None = None,
+    ) -> Array:
         if cell is None:
             cell = self.cell
         if kpts is None:
             kpts = self.kpts
-        s = cell.pbc_intor("int1e_ovlp", hermi=1, kpts=kpts)
-        return np.asarray(s)
+        return cell.pbc_intor("int1e_ovlp", hermi=1, kpts=kpts)
 
     def energy_elec(self, dm=None, h1e=None, vhf=None):
         if dm is None:
             dm = self.make_rdm1()
         if h1e is None:
-            h1e = self.get_hcore(cell=self.cell, kpts=self.kpts)
+            h1e = self.get_hcore(self.cell)
         if vhf is None or getattr(vhf, "ecoul", None) is None:
             vhf = self.get_veff(self.cell, dm)
 
-        weight = 1. / len(h1e)
+        weight = 1. / len(self.kpts)
         e1 = weight * np.einsum("kij,kji", h1e, dm)
         ecoul = vhf.ecoul
         tot_e = e1 + ecoul
         return tot_e.real, ecoul
 
     @property
-    def cell(self):
+    def cell(self) -> Cell:
         return self.mol
 
     @property
     def tot_electrons(self):
-        return xtb.tot_valence_electrons(self.mol, nkpts=len(self.kpts))
+        return xtb.tot_valence_electrons(self.cell, nkpts=len(self.kpts))
 
     get_occ = get_occ
     make_rdm1 = khf.KSCF.make_rdm1
@@ -310,7 +321,7 @@ class GFN1KXTB(KXTB):
         if s1e is None:
             s1e = self.get_ovlp(cell)
 
-        dm = xtb.GFN1XTB.get_init_guess(self, cell, key)
+        dm = xtb.GFN1XTB.get_init_guess(self, cell, key=key)
 
         nkpts = len(self.kpts)
         dm_kpts = np.repeat(dm[None,:,:], nkpts, axis=0)
@@ -369,8 +380,10 @@ class GFN1KXTB(KXTB):
         del log
         return hcore
 
-    def get_veff(self, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
-                 kpts=None, kpts_band=None, s1e=None):
+    def get_veff(self, cell=None, dm=None, dm_last=np.array(0.),
+                 vhf_last=np.array(0.), hermi=1, s1e=None,
+                 kpts=None, kpts_band=None, **kwargs):
+        del dm_last, vhf_last
         if cell is None:
             cell = self.cell
         if dm is None:
@@ -378,15 +391,9 @@ class GFN1KXTB(KXTB):
         if kpts is None:
             kpts = self.kpts
         if s1e is None:
-            s1e = self.get_ovlp(kpts=kpts)
-
-        log = logger.new_logger(self)
-        cput0 = log.get_t0()
+            s1e = self.get_ovlp(cell, kpts=kpts)
 
         veff = get_veff(self, cell=cell, dm=dm, s1e=s1e)
-
-        log.timer("get_veff", *cput0)
-        del log
         return veff
 
     def _get_gamma(self):

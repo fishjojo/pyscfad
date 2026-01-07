@@ -21,8 +21,8 @@ from pyscf.gto.mole import ANG_OF
 
 from pyscfad import numpy as np
 from pyscfad.lib import logger
-from pyscfad.xtb.xtb import XTB as XTBBase
-from pyscfad.xtb.xtb import GFN1XTB as GFN1XTBBase
+from pyscfad.xtb import XTB as XTBBase
+from pyscfad.xtb import GFN1XTB as GFN1XTBBase
 from pyscfad.xtb import util
 from pyscfad.xtb.data.elements import N_VALENCE_ARRAY
 
@@ -30,7 +30,7 @@ from pyscfad.ml.gto import MolePad
 from pyscfad.ml.scf import SCFPad
 from pyscfad.ml.xtb.param import ParamArray
 
-def tot_valence_electrons(mol, charge: int = None, nkpts: int = 1):
+def tot_valence_electrons(mol: MolePad, charge: int = None, nkpts: int = 1):
     if charge is None:
         charge = mol.charge
 

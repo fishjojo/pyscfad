@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2025 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
 """
 XTB
 """
+from typing import Any
+from abc import ABC, abstractmethod
+
 import numpy
 import jax
 
@@ -24,6 +27,7 @@ from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.lib import logger
 from pyscfad.gto.mole import inter_distance
+from pyscfad.gto.mole_lite import MoleLite as Mole
 from pyscfad.scf import hf_lite as hf
 from pyscfad.dft.rks import VXC
 
@@ -31,13 +35,14 @@ from pyscfad.xtb import util
 from pyscfad.xtb.data.radii import ATOMIC as ATOMIC_RADII
 from pyscfad.xtb.data.elements import N_VALENCE
 
-def tot_valence_electrons(mol, charge=None, nkpts=1):
+Array = Any
+
+def tot_valence_electrons(mol: Mole, charge: int | None = None, nkpts: int = 1):
     if charge is None:
         charge = mol.charge
 
     nelecs = [N_VALENCE.get(elem) for elem in mol.elements]
     n = numpy.sum(nelecs) * nkpts - charge
-    n = int(n + 0.5)
     return n
 
 def get_occ(mf, mo_energy=None, mo_coeff=None):
@@ -66,55 +71,89 @@ def get_occ(mf, mo_energy=None, mo_coeff=None):
         numpy.set_printoptions(threshold=1000)
     return mo_occ
 
-class XTB(hf.SCF):
-    """Base class for XTB
+class XTB(ABC, hf.SCF):
+    """Base class for XTB methods.
     """
     init_guess = "refocc"
-    #_dynamic_attr = ["_enuc", "_gamma", "param"]
 
-    def __init__(self, mol, param=None):
+    def __init__(self, mol: Mole, param: Any | None = None):
         super().__init__(mol)
-        if param is None:
-            self.param = None
-        else:
+        if hasattr(param, "to_mol_param"):
             self.param = param.to_mol_param(mol)
+        else:
+            self.param = param
         self._enuc = None
         self._gamma = None
 
-    def build(self, mol=None):
-        _ = self.energy_nuc()
+    def build(self, mol: Mole | None = None) -> XTB:
+        # cache quantities that are computed only once
+        _ = self.energy_nuc(mol)
         _ = self.gamma
+        return self
 
-    def get_hcore(self, mol=None, **kwargs):
+    @abstractmethod
+    def get_hcore(
+        self,
+        mol: Mole | None = None,
+        s1e: Array | None = None,
+    ) -> Array:
         raise NotImplementedError
 
-    def get_veff(self, mol=None, dm=None, s1e=None):
+    @abstractmethod
+    def get_veff(
+        self,
+        mol: Mole | None = None,
+        dm: Array | None = None,
+        dm_last: Array = np.array(0.),
+        vhf_last: Array = np.array(0.),
+        hermi: int = 1,
+        s1e: Array | None = None,
+        **kwargs,
+    ) -> Array:
         raise NotImplementedError
 
-    def get_init_guess(self, mol=None, key="refocc", **kwargs):
+    @abstractmethod
+    def get_init_guess(
+        self,
+        mol: Mole | None = None,
+        key: str = "refocc",
+        **kwargs
+    ) -> Array:
         raise NotImplementedError
 
-    def _energy_nuc(self, mol=None, **kwargs):
+    @abstractmethod
+    def _energy_nuc(self, mol: Mole | None = None, **kwargs) -> float:
         raise NotImplementedError
 
-    def energy_nuc(self):
+    def energy_nuc(self, mol: Mole | None = None) -> float:
         if self._enuc is None:
-            self._enuc = self._energy_nuc()
+            self._enuc = self._energy_nuc(mol)
         return self._enuc
 
-    def _get_EHT_factor(self, mol=None, s1e=None):
+    @abstractmethod
+    def _get_EHT_factor(
+        self,
+        mol: Mole | None = None,
+        s1e: Array | None = None,
+    ) -> Array:
         raise NotImplementedError
 
-    def _get_gamma(self):
+    @abstractmethod
+    def _get_gamma(self) -> Array:
         raise NotImplementedError
 
     @property
-    def gamma(self):
+    def gamma(self) -> Array:
         if self._gamma is None:
             self._gamma = self._get_gamma()
         return self._gamma
 
-    def energy_elec(self, dm=None, h1e=None, vhf=None):
+    def energy_elec(
+        self,
+        dm: Array | None = None,
+        h1e: Array | None = None,
+        vhf: Array | None = None,
+    ) -> tuple[float, float]:
         if dm is None:
             dm = self.make_rdm1()
         if h1e is None:
@@ -127,13 +166,18 @@ class XTB(hf.SCF):
         tot_e = e1 + ecoul
         return tot_e.real, ecoul
 
-    def energy_tot(self, dm=None, h1e=None, vhf=None):
+    def energy_tot(
+        self,
+        dm: Array | None = None,
+        h1e: Array | None = None,
+        vhf: Array | None = None,
+    ) -> float:
         nuc = self.energy_nuc()
         e_tot = self.energy_elec(dm, h1e, vhf)[0] + nuc
         return e_tot
 
     @property
-    def tot_electrons(self):
+    def tot_electrons(self) -> int:
         return tot_valence_electrons(self.mol)
 
     get_occ = get_occ
@@ -239,7 +283,8 @@ class GFN1XTB(XTB):
                       hdiag)
         return h1[util.bas_to_ao_indices_2d(mol)]
 
-    def get_veff(self, mol=None, dm=None, dm_last=0, vhf_last=0, hermi=1, s1e=None, **kwargs):
+    def get_veff(self, mol=None, dm=None, dm_last=np.array(0.),
+                 vhf_last=np.array(0.), hermi=1, s1e=None, **kwargs):
         del dm_last, vhf_last
         if mol is None:
             mol = self.mol

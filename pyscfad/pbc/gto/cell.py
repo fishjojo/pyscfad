@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,10 @@ import numpy
 from jax.scipy.special import erf, erfc
 from pyscf import __config__
 from pyscf.lib import with_doc
-from pyscf.gto.mole import PTR_COORD, ANG_OF
+from pyscf.gto.mole import (
+    PTR_COORD, ANG_OF,
+    NPRIM_OF, PTR_EXP, NCTR_OF, PTR_COEFF,
+)
 from pyscf.gto.moleintor import _get_intor_and_comp
 from pyscf.pbc.gto import cell as pyscf_cell
 
@@ -305,6 +308,32 @@ def bas_rcut(cell, bas_id, precision=None):
     rcut = _estimate_rcut(es, l, cs, precision)
     return rcut.max()
 
+def _estimate_rcut_impl_cpu(atm, bas, env, precision):
+    atm = numpy.asarray(atm)
+    bas = numpy.asarray(bas)
+    env = numpy.asarray(env)
+    nbas = bas.shape[0]
+
+    es = []
+    cs = []
+    for i in range(nbas):
+        nprim = bas[i, NPRIM_OF]
+        ptr = bas[i, PTR_EXP]
+        e = env[ptr:ptr+nprim]
+
+        nctr = bas[i, NCTR_OF]
+        ptr = bas[i, PTR_COEFF]
+        c = env[ptr:ptr+nprim*nctr].reshape(nctr,nprim).T
+
+        idx = e.argmin()
+        es.append(e[idx])
+        cs.append(abs(c[idx]).max())
+
+    es = numpy.asarray(es)
+    cs = numpy.asarray(cs)
+    ls = bas[:, ANG_OF]
+    return _estimate_rcut(es, ls, cs, precision).max()
+
 def estimate_rcut(cell, precision=None):
     """Same as :func:`pyscf.pbc.gto.cell.estimate_rcut`,
     but gives slightly different cutoff radius.
@@ -316,10 +345,13 @@ def estimate_rcut(cell, precision=None):
     if cell.use_loose_rcut:
         return cell.rcut_by_shells(precision).max()
 
-    exps, cs = pyscf_cell._extract_pgto_params(cell, 'min')
-    ls = cell._bas[:,ANG_OF]
-    rcut = _estimate_rcut(exps, ls, cs, precision)
-    return rcut.max()
+    env = stop_grad(cell._env)
+    return ops.pure_callback(
+        _estimate_rcut_impl_cpu,
+        ops.ShapeDtypeStruct((), float),
+        cell._atm, cell._bas, env, precision,
+        vmap_method="sequential",
+    )
 
 # FIXME monkey patch
 pyscf_cell.estimate_rcut = estimate_rcut
