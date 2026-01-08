@@ -33,6 +33,7 @@ from jax import scipy as jsp
 from jax.lax import while_loop, custom_root
 import jax
 from typing import Any
+import numpy
 Array = Any
 
 
@@ -166,11 +167,12 @@ def _scf_q_broyden(
         cond_fun, body_fun, init_val)
 
     del log
-    return q, (dm, dq, fock, e_tot, cycle.astype(float))
+    return q, (dm, dq, fock, e_tot)
 
 
 def _scf_implicit_q(
     mf: XTB,
+    q: Array,
     dm: Array,
     h1e: Array,
     s1e: Array,
@@ -201,29 +203,90 @@ def _scf_implicit_q(
             q_bar,
         )
 
-    q = normalize_tot_charge(
-        mf,
-        mf.get_q(mol=mf.mol, dm=dm, s1e=s1e)
-    )
-    q_cnvg, (dm, dq, fock, e_tot, cycle) \
-        = custom_root(root_fn, q, oracle, tangent_solve, has_aux=True)
+    q_cnvg, (dm, dq, fock, e_tot) \
+        = custom_root(root_fn, normalize_tot_charge(mf, q), oracle, tangent_solve, has_aux=True)
 
-    # one more cycle to get dm
-    vhf_cnvg = mf.get_veff_fromq(q_cnvg, mf.mol, s1e=s1e)
-    fock_cnvg = h1e + vhf_cnvg.vxc
-    mo_energy, mo_coeff = mf.eig(fock_cnvg, s1e)
-    mo_occ = mf.get_occ(mo_energy, mo_coeff)
-    dm_cnvg = mf.make_rdm1(mo_coeff, mo_occ)
-    vhf_cnvg = mf.get_veff(dm=dm_cnvg, s1e=s1e)
-    e_tot_cnvg = mf.energy_tot(dm=dm_cnvg, h1e=h1e, vhf=vhf_cnvg)
-    norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
-    de = e_tot_cnvg - e_tot
+    return q_cnvg, dm, fock, e_tot
+
+def kernel(
+    mf: SCF,
+    conv_tol: float = 1e-10,
+    conv_tol_grad: float = None,
+    dm0: Array | None = None,
+    q0: Array | None = None,
+) -> tuple[bool, float, Array, Array, numpy.ndarray]:
     log = logger.new_logger(mf)
-    log.info("cycle= %d E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g",
-             cycle+1, e_tot_cnvg, de, norm_gorb, np.linalg.norm(dm_cnvg-dm))
-    del mo_energy, mo_occ, log
+    #cput0 = log.get_t0()
+    if conv_tol_grad is None:
+        conv_tol_grad = numpy.sqrt(conv_tol)
+        log.info("Set gradient conv threshold to %g", conv_tol_grad)
 
-    return dm_cnvg, vhf_cnvg, fock_cnvg, e_tot_cnvg
+    mol = mf.mol
+    s1e = mf.get_ovlp(mol)
+
+    if dm0 is None:
+        dm = mf.get_init_guess(mol, mf.init_guess, s1e=s1e)
+    else:
+        dm = dm0
+
+    if q0 is None:
+        q = mf.get_q(mol=mol, dm=dm, s1e=s1e)
+    else:
+        q = q0
+
+    h1e = mf.get_hcore(mol, s1e=s1e)
+    vhf = mf.get_veff_fromq(q, mol=mol, s1e=s1e)
+    e_tot = mf.energy_tot(dm, h1e, vhf)
+    log.info("init E= %.15g", e_tot)
+
+    scf_conv = False
+    mo_energy = mo_coeff = mo_occ = None
+
+    if mf.max_cycle <= 0:
+        fock = mf.get_fock(h1e, s1e, vhf, dm)
+        mo_energy, mo_coeff = mf.eig(fock, s1e)
+        mo_occ = mf.get_occ(mo_energy, mo_coeff)
+        # hack for ROHF
+        mo_energy = getattr(mo_energy, "mo_energy", mo_energy)
+        return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
+
+    #cput1 = log.timer('initialize scf', *cput0)
+
+    q, dm, _, e_tot = _scf_implicit_q(
+        mf,
+        q,
+        dm,
+        h1e,
+        s1e,
+        vhf,
+        e_tot,
+        conv_tol,
+        conv_tol_grad,
+    )
+
+    vhf = mf.get_veff_fromq(q, mol=mol, s1e=s1e)
+    fock = mf.get_fock(h1e, s1e, vhf, dm)
+    mo_energy, mo_coeff = mf.eig(fock, s1e)
+    mo_occ = mf.get_occ(mo_energy, mo_coeff)
+    dm, dm_last = mf.make_rdm1(mo_coeff, mo_occ), dm
+    vhf = mf.get_veff(mol, dm, dm_last, vhf, s1e=s1e)
+    e_tot, last_hf_e = mf.energy_tot(dm, h1e, vhf), e_tot
+
+    fock = mf.get_fock(h1e, s1e, vhf, dm)
+    norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
+    if not TIGHT_GRAD_CONV_TOL:
+        norm_gorb = norm_gorb / np.sqrt(norm_gorb.size)
+    norm_ddm = np.linalg.norm(dm - dm_last)
+
+    conv_tol = conv_tol * 10
+    conv_tol_grad = conv_tol_grad * 3
+    scf_conv = (abs(e_tot-last_hf_e) < conv_tol) & (norm_gorb < conv_tol_grad)
+    log.info("Extra cycle  E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g",
+             e_tot, e_tot-last_hf_e, norm_gorb, norm_ddm)
+
+    #log.timer('scf_cycle', *cput0)
+    del log
+    return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 
 class XTB(XTBBase, SCFPad):
@@ -249,6 +312,21 @@ class XTBQ(XTB):
     diis_damp = 0.6
     scf_implicit = _scf_implicit_q
 
+    def scf(self, dm0=None, q0=None, **kwargs):
+        self.dump_flags()
+        self.build(self.mol)
+        if self.max_cycle > 0 or self.mo_coeff is None:
+            self.converged, self.e_tot, \
+                    self.mo_energy, self.mo_coeff, self.mo_occ = \
+                    kernel(self, conv_tol=self.conv_tol, conv_tol_grad=self.conv_tol_grad,
+                           dm0=dm0, q0=q0, **kwargs)
+        else:
+            self.e_tot = kernel(self, conv_tol=self.conv_tol, conv_tol_grad=self.conv_tol_grad,
+                                dm0=dm0, q0=q0, **kwargs)[1]
+        return self.e_tot
+
+    def kernel(self, dm0=None, q0=None, **kwargs):
+        return self.scf(dm0=dm0, q0=q0, **kwargs)
 
 class GFN1XTB(GFN1XTBBase, XTB):
     def _get_gamma(self):
@@ -263,10 +341,8 @@ class GFN1XTB(GFN1XTBBase, XTB):
     dip_moment = XTB.dip_moment
 
 
-class GFN1XTBQ(GFN1XTB):
-    diis = 'broyden'
-    diis_damp = 0.6
-    scf_implicit = _scf_implicit_q
+class GFN1XTBQ(XTBQ, GFN1XTB):
+    pass
 
 
 if __name__ == "__main__":
