@@ -104,7 +104,8 @@ def _scf_q_broyden(
         mo_occ = mf.get_occ(mo_energy, mo_coeff)
         dm = mf.make_rdm1(mo_coeff, mo_occ)
         # FIXME possible to avoid fock build when computing energy?
-        e_tot = mf.energy_tot(dm=dm, h1e=h1e)
+        vhf = mf.get_veff(dm=dm, s1e=s1e)
+        e_tot = mf.energy_tot(dm=dm, h1e=h1e, vhf=vhf)
         # get q from dm
         q = mf.get_q(mol=mf.mol, dm=dm, s1e=s1e)
 
@@ -144,7 +145,8 @@ def _scf_q_broyden(
     mo_occ = mf.get_occ(mo_energy, mo_coeff)
     dm = mf.make_rdm1(mo_coeff, mo_occ)
     # FIXME possible to avoid fock build when computing energy?
-    e_tot = mf.energy_tot(dm=dm, h1e=h1e)
+    vhf = mf.get_veff(dm=dm, s1e=s1e)
+    e_tot = mf.energy_tot(dm=dm, h1e=h1e, vhf=vhf)
     q1 = mf.get_q(mol=mf.mol, dm=dm, s1e=s1e)
     dq0 = q1 - q
     q1 = normalize_tot_charge(mf, mf.diis_damp * q + (1 - mf.diis_damp) * q1)
@@ -212,7 +214,7 @@ def _scf_implicit_q(
     mo_energy, mo_coeff = mf.eig(fock_cnvg, s1e)
     mo_occ = mf.get_occ(mo_energy, mo_coeff)
     dm_cnvg = mf.make_rdm1(mo_coeff, mo_occ)
-    vhf_cnvg = mf.get_veff(dm=dm_cnvg)
+    vhf_cnvg = mf.get_veff(dm=dm_cnvg, s1e=s1e)
     e_tot_cnvg = mf.energy_tot(dm=dm_cnvg, h1e=h1e, vhf=vhf_cnvg)
     norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
     de = e_tot_cnvg - e_tot
