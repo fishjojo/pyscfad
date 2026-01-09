@@ -97,7 +97,7 @@ def add_mm_charges(xtb_method, mm_coords, a, mm_charges, mm_radii, ewald_precisi
 
 def _chunkize(data, chunk_size=1024):
     '''
-    reshape data into (chunksize, data.shape[0] / chunksize, ...)
+    reshape data into (data.shape[0] / chunk_size, chunk_size, ...)
     pad zeros if not exact division
     '''
     n = data.shape[0]
@@ -228,7 +228,6 @@ class QMMM:
             expnts = 2. / (1 / (param.gam*param.lgam)[:,None] + mm_radii[None])
             Tij = erfc(expnts * r[atom_to_bas]) / r[atom_to_bas]
             ewovrl0 -= numpy.einsum('ij,j->i', Tij, mm_charges)
-            # TODO reduce computation if both dip and quad
             if param.dipgam is not None:
                 expnts = 2. / (1 / param.dipgam[:,None] + mm_radii[None])
                 ekR = numpy.exp(-expnts**2 * r**2)
@@ -253,10 +252,13 @@ class QMMM:
             ekR = numpy.exp(-ew_eta**2 * r**2)
             # Tij = \hat{1/r} = f0 / r = erfc(r) / r
             Tij = erfc(ew_eta * r) / r
-            if param.dipgam is not None or param.quadgam is not None:
+            ewovrl0 += numpy.einsum('ij,j->i', Tij, mm_charges)[atom_to_bas]
+            if param.dipgam is not None:
                 # Tija = -Rija \hat{1/r^3} = -Rija / r^2 ( \hat{1/r} + 2 eta/sqrt(pi) exp(-eta^2 r^2) )
                 invr3 = (Tij + 2*ew_eta/numpy.sqrt(numpy.pi) * ekR) / r**2
                 Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
+                ewovrl1 += numpy.einsum('ijx,j->ix', Tija, mm_charges)
+            if param.quadgam is not None:
                 # Tijab = (3 RijaRijb - Rij^2 delta_ab) \hat{1/r^5}
                 Tijab  = 3 * numpy.einsum('ija,ijb,ij->ijab', R, R, 1/r**2)
                 Tijab -= numpy.einsum('ij,ab->ijab', numpy.ones_like(r), numpy.eye(3))
@@ -264,12 +266,8 @@ class QMMM:
                 Tijab = numpy.einsum('ijab,ij->ijab', Tijab, invr5)
                 # NOTE the below is present in Eq 8 but missing in Eq 12
                 Tijab += 4/3*ew_eta**3/numpy.sqrt(numpy.pi)*numpy.einsum('ij,ab->ijab', ekR, numpy.eye(3))
-    
-            ewovrl0 += numpy.einsum('ij,j->i', Tij, mm_charges)[atom_to_bas]
-            if param.dipgam is not None:
-                ewovrl1 += numpy.einsum('ijx,j->ix', Tija, mm_charges)
-            if param.quadgam is not None:
                 ewovrl2 += numpy.einsum('ijxy,j->ixy', Tijab, mm_charges/3)
+
             return (ewovrl0, ewovrl1, ewovrl2), None
 
         (ewovrl0, ewovrl1, ewovrl2) = scan(
