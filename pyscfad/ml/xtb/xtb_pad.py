@@ -30,7 +30,7 @@ from pyscfad.ml.gto import MolePad
 from pyscfad.ml.scf import SCFPad
 from pyscfad.ml.xtb.param import ParamArray
 
-def tot_valence_electrons(mol: MolePad, charge: int = None, nkpts: int = 1):
+def tot_valence_electrons(mol: MolePad, charge: int = None, nkpts: int = 1) -> int:
     if charge is None:
         charge = mol.charge
 
@@ -38,40 +38,17 @@ def tot_valence_electrons(mol: MolePad, charge: int = None, nkpts: int = 1):
     n = np.sum(nelecs) * nkpts - charge
     return n
 
-def dip_moment(mol, dm, unit="Debye", verbose=logger.NOTE):
-    from pyscf.data import nist
-    log = logger.new_logger(mol, verbose)
-
-    ao_dip = mol.intor_symmetric("int1e_r", comp=3)
-    el_dip = np.einsum("xij,ji->x", ao_dip, dm)
-
-    charges = N_VALENCE_ARRAY[mol.numbers]
-    coords  = np.asarray(mol.atom_coords())
-    nucl_dip = np.einsum("i,ix->x", charges.astype(coords.dtype), coords)
-    mol_dip = nucl_dip - el_dip
-
-    if unit.upper() == "DEBYE":
-        mol_dip *= nist.AU2DEBYE
-        log.note("Dipole moment(X, Y, Z, Debye): %8.5f, %8.5f, %8.5f", *mol_dip)
-    else:
-        log.note("Dipole moment(X, Y, Z, A.U.): %8.5f, %8.5f, %8.5f", *mol_dip)
-    del log
-    return mol_dip
-
 class XTB(XTBBase, SCFPad):
     @property
     def tot_electrons(self):
         return tot_valence_electrons(self.mol)
 
-    def dip_moment(self, mol=None, dm=None, unit="Debye", verbose=None,
-                   **kwargs):
+    def dip_moment(self, mol=None, dm=None, charges=None, unit="Debye", verbose=None):
         if mol is None:
             mol = self.mol
-        if dm is None:
-            dm =self.make_rdm1()
-        if verbose is None:
-            verbose = mol.verbose
-        return dip_moment(mol, dm, unit, verbose=verbose)
+        if charges is None and hasattr(mol, "numbers"):
+            charges = N_VALENCE_ARRAY[mol.numbers]
+        return super().dip_moment(mol=mol, dm=dm, charges=charges, unit=unit, verbose=verbose)
 
     get_occ = SCFPad.get_occ
 

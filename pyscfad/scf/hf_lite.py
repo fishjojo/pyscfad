@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 from typing import Any
+from functools import partial
+
 import numpy
 
 import jax
@@ -32,7 +34,8 @@ from pyscfad.lib import logger
 from pyscfad.scf import hf
 from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scf.anderson import Anderson
-from pyscfad.tools.linear_solver import gen_gmres
+#from pyscfad.tools.linear_solver import gen_gmres
+from pyscfad.scipy.sparse.linalg import gmres_const_atol
 
 Array = Any
 
@@ -133,19 +136,20 @@ def _scf_implicit(
         del mo_energy, mo_occ
         return dm_new - dm
 
-    solver = gen_gmres()
+    # FIXME restore to use jax gmres once issue
+    # (https://github.com/jax-ml/jax/issues/33872) is fixed
+    solver = partial(gmres_const_atol,
+                     tol=1e-6, atol=1e-6, maxiter=30,
+                     solve_method="batched", restart=20)
     def tangent_solve(g, dm_bar):
-        # FIXME restore the following once issue
-        # (https://github.com/jax-ml/jax/issues/33872) is fixed
-        #_, vjp_fn = jax.vjp(g, dm_bar)
-        #return solver(lambda u: vjp_fn(u)[0], dm_bar)[0]
-        assert dm_bar.ndim == 2
-        n = dm_bar.shape[-1]
-        n2 = n * n
-        return jsp.linalg.solve(
-            jax.jacobian(g)(dm_bar).reshape((n2,n2)),
-            dm_bar.ravel(),
-        ).reshape(dm_bar.shape)
+        return solver(g, dm_bar)[0]
+        #assert dm_bar.ndim == 2
+        #n = dm_bar.shape[-1]
+        #n2 = n * n
+        #return jsp.linalg.solve(
+        #    jax.jacobian(g)(dm_bar).reshape((n2,n2)),
+        #    dm_bar.ravel(),
+        #).reshape(dm_bar.shape)
 
     dm_cnvg, (vhf_cnvg, fock_cnvg, e_tot_cnvg) = \
         custom_root(root_fn, dm, oracle, tangent_solve, has_aux=True)

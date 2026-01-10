@@ -19,8 +19,8 @@ from pyscf import lib
 from pyscf.pbc import tools as pyscf_pbctools
 from pyscfad import numpy as np
 from pyscfad import ops
-from pyscfad.ops import stop_trace
-from pyscfad.lib import logger
+from pyscfad.ops import stop_trace, stop_grad
+from pyscfad.lib import logger, cartesian_prod
 
 @wraps(pyscf_pbctools.fft)
 def fft(f, mesh):
@@ -59,8 +59,22 @@ def ifftk(g, mesh, expikr):
     return ifft(g, mesh) * expikr
 
 def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
-    """Same as :func:`pyscf.pbc.tools.get_lattice_Ls`,
-    but gives fewer periodic images for lattice summations.
+    """Get the lattice translation vectors for lattice sum.
+
+    Same as :func:`pyscf.pbc.tools.get_lattice_Ls`,
+    but gives slightly fewer periodic images.
+
+    Parameters
+    ----------
+    nimgs: int or array
+        Number of periodic images in each dimension.
+        Can be a number or a sequence of size 3.
+        Default is ``None``, which means to use ``rcut`` to determine
+        the number of periodic images.
+
+    Notes
+    -----
+    This function is not jit compatible unless static ``nimgs`` is set.
     """
     if dimension is None:
         # For atoms near the boundary of the cell, it is necessary (even in low-
@@ -69,43 +83,54 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
             dimension = cell.dimension
         else:
             dimension = 3
-    if rcut is None:
-        rcut = cell.rcut
 
-    if dimension == 0 or rcut <= 0 or cell.natm == 0:
-        return numpy.zeros((1, 3))
-
-    # need concrete `a` to compute `Ts`
-    a = ops.to_numpy(cell.lattice_vectors())
-
-    scaled_atom_coords = ops.to_numpy(cell.get_scaled_atom_coords(a))
-    atom_boundary_max = scaled_atom_coords[:,:dimension].max(axis=0)
-    atom_boundary_min = scaled_atom_coords[:,:dimension].min(axis=0)
-    ovlp_penalty = numpy.maximum(abs(atom_boundary_max), abs(atom_boundary_min))
+    if dimension == 0 or cell.natm == 0:
+        return np.zeros((1, 3))
 
     def find_boundary(aR):
-        r = numpy.linalg.qr(aR.T)[1]
+        r = np.linalg.qr(aR.T)[1]
         ub = (rcut + abs(r[2,3:]).sum()) / abs(r[2,2])
         return ub
 
-    xb = find_boundary(a[[1,2,0]])
-    if dimension > 1:
-        yb = find_boundary(a[[2,0,1]])
-    else:
-        yb = 0
-    if dimension > 2:
-        zb = find_boundary(a)
-    else:
-        zb = 0
-    bounds = numpy.asarray([xb, yb, zb]) + ovlp_penalty
-    bounds = numpy.ceil(bounds).astype(int)
-    Ts = lib.cartesian_prod((numpy.arange(-bounds[0], bounds[0]+1),
-                             numpy.arange(-bounds[1], bounds[1]+1),
-                             numpy.arange(-bounds[2], bounds[2]+1)))
+    a = cell.lattice_vectors()
 
-    Ls = np.dot(Ts[:,:dimension], cell.lattice_vectors()[:dimension])
-    if discard:
-        rcut_penalty = numpy.linalg.norm(numpy.dot(atom_boundary_max - atom_boundary_min, a))
+    if nimgs is not None:
+        if np.isscalar(nimgs):
+            bounds = np.repeat(nimgs, 3)
+        else:
+            assert len(nimgs) == 3
+            bounds = np.asarray(nimgs, dtype=int)
+    else:
+        if rcut is None:
+            rcut = cell.rcut
+
+        _a = stop_grad(a)
+        scaled_atom_coords = cell.get_scaled_atom_coords(_a)
+        atom_boundary_max = scaled_atom_coords[:,:dimension].max(axis=0)
+        atom_boundary_min = scaled_atom_coords[:,:dimension].min(axis=0)
+        ovlp_penalty = np.maximum(abs(atom_boundary_max), abs(atom_boundary_min))
+
+        xb = find_boundary(_a[np.array([1,2,0])])
+        if dimension > 1:
+            yb = find_boundary(_a[np.array([2,0,1])])
+        else:
+            yb = 0
+        if dimension > 2:
+            zb = find_boundary(a)
+        else:
+            zb = 0
+
+        bounds = np.asarray([xb, yb, zb]) + ovlp_penalty
+        bounds = np.ceil(bounds).astype(int)
+
+    Ts = cartesian_prod((np.arange(-bounds[0], bounds[0]+1),
+                         np.arange(-bounds[1], bounds[1]+1),
+                         np.arange(-bounds[2], bounds[2]+1)))
+
+    Ls = np.dot(Ts[:,:dimension], a[:dimension])
+
+    if nimgs is None and discard:
+        rcut_penalty = np.linalg.norm(np.dot(atom_boundary_max - atom_boundary_min, _a))
         Ls_mask = np.where(np.linalg.norm(Ls, axis=1) < rcut + rcut_penalty)[0]
         Ls = Ls[Ls_mask]
     return Ls
