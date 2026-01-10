@@ -111,6 +111,7 @@ def _structural_factor(Gv, coord_batches, charge_batches):
     charges dot cos(Gv dot coords)
     charges dot sin(Gv dot coords)
     '''
+    @jax.checkpoint
     def body_fun(carry, input):
         coord_batch, charge_batch = input
         zcosGvR, zsinGvR = carry
@@ -216,6 +217,7 @@ class QMMM:
         mm_charge_batches = _chunkize(self.mm_charges, chunk_size=chunk_size)
         mm_radius_batches = _chunkize(self.mm_radii, chunk_size=chunk_size)
 
+        @jax.checkpoint
         def accumulate_ewald_pot(carry, input):
             coords2, mm_charges, mm_radii = input
             ewovrl0, ewovrl1, ewovrl2 = carry
