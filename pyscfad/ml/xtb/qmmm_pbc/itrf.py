@@ -1,4 +1,4 @@
-from pyscfad import numpy
+from pyscfad import numpy, ops
 from pyscfad.pbc.gto import cell
 from pyscfad.xtb.xtb import mulliken_charge, util
 from pyscfad.dft.rks import VXC
@@ -11,10 +11,8 @@ from pyscf.gto.mole import is_au
 
 import functools
 import jax
-from jax.lax import stop_gradient, fori_loop, scan
+from jax.lax import stop_gradient, scan
 from typing import Tuple
-
-from pyscfad.gto.mole import inter_distance
 
 @functools.partial(jax.custom_jvp, nondiff_argnums=(1, 2))
 def lambertw(
@@ -476,17 +474,21 @@ class QMMM:
         return mulliken_charge(self.mol, self.param, s1e, dm)
 
     def get_s1r(self):
+        '''
+        s1r[x,u,v] = <u|(rx - Rvx)|v>
+        where Rv is center of AO v
+        '''
         if self.s1r is None:
             log = logger.new_logger(self)
             self.s1r = list()
             mol = self.mol
-            aoslice = mol.aoslice_by_atom()
-            for i, c in zip(range(self.mol.natm), mol.atom_coords()):
-                b0, b1 = aoslice[i][:2]
-                shls_slice = (0, mol.nbas, b0, b1)
-                with mol.with_common_origin(c):
-                    self.s1r.append(
-                        mol.intor('int1e_r', shls_slice=shls_slice))
+            atm_to_ao_id = util.atom_to_ao_indices(mol)
+            s1r = mol.intor('int1e_r')  # (3, nao, nao)
+            self.s1r = s1r - numpy.einsum(
+                'vx,uv->xuv',
+                mol.atom_coords()[atm_to_ao_id],
+                self.get_ovlp()
+            )
             log.timer("get_s1r")
             del log
         return self.s1r
@@ -495,13 +497,10 @@ class QMMM:
         ''' atom-resolved dipoles '''
         if s1r is None:
             s1r = self.get_s1r()
-        aoslices = self.mol.aoslice_by_atom()
-        qm_dipoles = list()
-        for iatm in range(self.mol.natm):
-            p0, p1 = aoslices[iatm, 2:]
-            qm_dipoles.append(
-                -numpy.einsum('uv,xvu->x', dm[p0:p1], s1r[iatm]))
-        return numpy.asarray(qm_dipoles)
+        ao_dip = -numpy.einsum('uv,xvu->ux', dm, s1r)
+        jax.debug.print("ao_dip = {}", ao_dip)
+        return numpy.zeros((self.mol.natm, 3)).at[
+            util.atom_to_ao_indices(self.mol)].add(ao_dip)
 
     def get_s1rr(self):
         r'''
@@ -587,14 +586,18 @@ class QMMM:
         if self.param.quadgam is not None:
             s1rr = self.get_s1rr()
         aoslices = mol.aoslice_by_atom()
+        atm_to_ao_id = util.atom_to_ao_indices(mol)
+        if self.param.dipgam is not None:
+            # vdiff[:,p0:p1] -= numpy.einsum('x,xuv->uv', v1, s1r[iatm])
+            vdiff -= numpy.einsum(
+                'vx,xuv->uv',
+                ewald_pot[1][atm_to_ao_id],
+                s1r
+            )
         for iatm in range(mol.natm):
-            v1 = ewald_pot[1][iatm]
+#            v1 = ewald_pot[1][iatm]
             v2 = ewald_pot[2][iatm]
             p0, p1 = aoslices[iatm, 2:]
-            if self.param.dipgam is not None:
-                # vdiff[:,p0:p1] -= numpy.einsum('x,xuv->uv', v1, s1r[iatm])
-                vdiff = vdiff.at[:, p0:p1].subtract(
-                    numpy.einsum('x,xuv->uv', v1, s1r[iatm]))
             if self.param.quadgam is not None:
                 # vdiff[:,p0:p1] -= numpy.einsum('xy,xyuv->uv', v2, s1rr[iatm])
                 vdiff = vdiff.at[:, p0:p1].subtract(
