@@ -498,7 +498,6 @@ class QMMM:
         if s1r is None:
             s1r = self.get_s1r()
         ao_dip = -numpy.einsum('uv,xvu->ux', dm, s1r)
-        jax.debug.print("ao_dip = {}", ao_dip)
         return numpy.zeros((self.mol.natm, 3)).at[
             util.atom_to_ao_indices(self.mol)].add(ao_dip)
 

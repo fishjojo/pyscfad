@@ -283,7 +283,7 @@ class GFN1XTB(XTB):
                       hdiag)
         return h1[util.bas_to_ao_indices_2d(mol)]
 
-    def get_veff_fromq(self, q, mol=None, dm_last=np.array(0.), 
+    def get_veff_fromq(self, q, mol=None, dm_last=np.array(0.),
                  vhf_last=np.array(0.), hermi=1, s1e=None, **kwargs):
         del dm_last, vhf_last
         if mol is None:
@@ -320,7 +320,7 @@ class GFN1XTB(XTB):
 
         return mulliken_charge(mol, self.param, s1e, dm)
 
-    def get_veff(self, mol=None, dm=None, dm_last=np.array(0.), 
+    def get_veff(self, mol=None, dm=None, dm_last=np.array(0.),
                  vhf_last=np.array(0.), hermi=1, s1e=None, **kwargs):
         del dm_last, vhf_last
         if mol is None:
