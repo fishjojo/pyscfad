@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -82,9 +82,8 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
     atom_boundary_max = scaled_atom_coords[:,:dimension].max(axis=0)
     atom_boundary_min = scaled_atom_coords[:,:dimension].min(axis=0)
     ovlp_penalty = numpy.maximum(abs(atom_boundary_max), abs(atom_boundary_min))
-    dR_basis = numpy.zeros((3,3))
-    def find_boundary(a):
-        aR = numpy.vstack([a, dR_basis])
+
+    def find_boundary(aR):
         r = numpy.linalg.qr(aR.T)[1]
         ub = (rcut + abs(r[2,3:]).sum()) / abs(r[2,2])
         return ub

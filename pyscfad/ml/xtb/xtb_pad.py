@@ -35,9 +35,13 @@ import jax
 from typing import Any
 import numpy
 Array = Any
+<<<<<<< HEAD
+
+=======
+>>>>>>> fishjojo-mlxtb
 
 
-def tot_valence_electrons(mol, charge: int = None, nkpts: int = 1):
+def tot_valence_electrons(mol: MolePad, charge: int = None, nkpts: int = 1):
     if charge is None:
         charge = mol.charge
 

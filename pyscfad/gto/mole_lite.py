@@ -1,4 +1,4 @@
-# Copyright 2021-2025 The PySCFAD Authors
+# Copyright 2025-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 from __future__ import annotations
 from typing import Any
 from collections.abc import Callable
-#from functools import partial
 import contextlib
 
 import numpy
@@ -190,16 +189,6 @@ class Mole(MoleBase):
     def build(self, *args, **kwargs):
         pass
 
-    #@partial(
-    #    jit,
-    #    static_argnames=[
-    #        "intor_name",
-    #        "comp",
-    #        "hermi",
-    #        "aosym",
-    #        "shls_slice",
-    #    ]
-    #)
     def intor(
         self,
         intor_name: str,
