@@ -507,21 +507,35 @@ class QMMM:
         '''
         if self.s1rr is None:
             log = logger.new_logger(self)
-            self.s1rr = list()
+#            self.s1rr = list()
+#            nao = mol.nao_nr()
+#            aoslice = mol.aoslice_by_atom()
+#            for i, c in zip(range(self.mol.natm), mol.atom_coords()):
+#                b0, b1 = aoslice[i][:2]
+#                shls_slice = (0, mol.nbas, b0, b1)
+#                with mol.with_common_orig(c):
+#                    s1rr_ = mol.intor('int1e_rr', shls_slice=shls_slice)
+#                    s1rr_ = s1rr_.reshape((3, 3, nao, -1))
+#                    s1rr_trace = numpy.einsum('xxuv->uv', s1rr_)
+#                    s1rr_ = 3/2 * s1rr_
+#                    for k in range(3):
+#                        s1rr_ = s1rr_.at[k, k].subtract(0.5 * s1rr_trace)
+#                self.s1rr.append(s1rr_)
             mol = self.mol
             nao = mol.nao_nr()
-            aoslice = mol.aoslice_by_atom()
-            for i, c in zip(range(self.mol.natm), mol.atom_coords()):
-                b0, b1 = aoslice[i][:2]
-                shls_slice = (0, mol.nbas, b0, b1)
-                with mol.with_common_orig(c):
-                    s1rr_ = mol.intor('int1e_rr', shls_slice=shls_slice)
-                    s1rr_ = s1rr_.reshape((3, 3, nao, -1))
-                    s1rr_trace = numpy.einsum('xxuv->uv', s1rr_)
-                    s1rr_ = 3/2 * s1rr_
-                    for k in range(3):
-                        s1rr_ = s1rr_.at[k, k].subtract(0.5 * s1rr_trace)
-                self.s1rr.append(s1rr_)
+            atm_to_ao_id = util.atom_to_ao_indices(mol)
+            s1rr = mol.intor('int1e_rr').reshape(3, 3, nao, nao)
+            s1r2 = numpy.einsum('xxuv->uv', s1rr)
+            s1r  = self.get_s1r()
+            s1   = self.get_ovlp()
+            Rv = mol.atom_coords()[atm_to_ao_id]
+            self.s1rr  = -1.5 * numpy.einsum('vx,yuv->xyuv', Rv, s1r)
+            self.s1rr += self.s1rr.transpose([1,0,2,3])
+            self.s1rr +=  1.5 * s1rr
+            scalar = -0.5 * s1r2 + numpy.einsum('xuv,vx->uv', s1r, Rv) \
+                     -0.5 * numpy.einsum('vx,vx,uv->uv', Rv, Rv, s1)
+            self.s1rr +=  0.5 * numpy.einsum('xy,uv->xyuv', numpy.eye(3), scalar)
+            self.s1rr +=  1.5 * numpy.einsum('vx,vy,uv->xyuv', Rv, Rv, s1)
             log.timer("get_s1rr")
             del log
         return self.s1rr
@@ -531,6 +545,10 @@ class QMMM:
         if s1rr is None:
             s1rr = self.get_s1rr()
         aoslices = self.mol.aoslice_by_atom()
+        ao_quad = -numpy.einsum('uv,xyvu->uxy', dm, s1rr)
+        return numpy.zeros((self.mol.natm,3,3)).at[
+            util.atom_to_ao_indices(self.mol)
+        ].add(ao_quad)
         qm_quadrupoles = list()
         for iatm in range(self.mol.natm):
             p0, p1 = aoslices[iatm, 2:]
@@ -584,7 +602,6 @@ class QMMM:
             s1r = self.get_s1r()
         if self.param.quadgam is not None:
             s1rr = self.get_s1rr()
-        aoslices = mol.aoslice_by_atom()
         atm_to_ao_id = util.atom_to_ao_indices(mol)
         if self.param.dipgam is not None:
             # vdiff[:,p0:p1] -= numpy.einsum('x,xuv->uv', v1, s1r[iatm])
@@ -593,14 +610,21 @@ class QMMM:
                 ewald_pot[1][atm_to_ao_id],
                 s1r
             )
-        for iatm in range(mol.natm):
-#            v1 = ewald_pot[1][iatm]
-            v2 = ewald_pot[2][iatm]
-            p0, p1 = aoslices[iatm, 2:]
-            if self.param.quadgam is not None:
-                # vdiff[:,p0:p1] -= numpy.einsum('xy,xyuv->uv', v2, s1rr[iatm])
-                vdiff = vdiff.at[:, p0:p1].subtract(
-                    numpy.einsum('xy,xyuv->uv', v2, s1rr[iatm]))
+        if self.param.quadgam is not None:
+            # vdiff[:,p0:p1] -= numpy.einsum('xy,xyuv->uv', v2, s1rr[iatm])
+            vdiff -= numpy.einsum(
+                'vxy,xyuv->uv',
+                ewald_pot[2][atm_to_ao_id],
+                s1rr
+            )
+#        aoslices = mol.aoslice_by_atom()
+#        for iatm in range(mol.natm):
+##            v1 = ewald_pot[1][iatm]
+#            v2 = ewald_pot[2][iatm]
+#            p0, p1 = aoslices[iatm, 2:]
+#            if self.param.quadgam is not None:
+#                vdiff = vdiff.at[:, p0:p1].subtract(
+#                    numpy.einsum('xy,xyuv->uv', v2, s1rr[iatm]))
         vdiff = (vdiff + vdiff.T) / 2
         log.timer("get_vdiff")
         del log
