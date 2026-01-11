@@ -14,6 +14,7 @@ import jax
 from jax.lax import stop_gradient, scan
 from typing import Tuple
 
+
 @functools.partial(jax.custom_jvp, nondiff_argnums=(1, 2))
 def lambertw(
     z: numpy.ndarray, tol: float = 1e-8, max_iter: int = 100
@@ -93,6 +94,7 @@ def add_mm_charges(xtb_method, mm_coords, a, mm_charges, mm_radii, ewald_precisi
                    )
     return lib.set_class(xtbqmmm, (QMMM, xtb_method.__class__))
 
+
 def _chunkize(data, chunk_size=1024):
     '''
     reshape data into (data.shape[0] / chunk_size, chunk_size, ...)
@@ -103,6 +105,7 @@ def _chunkize(data, chunk_size=1024):
     pad_width = ((0, padsize), ) + ((0, 0), ) * (data.ndim - 1)
     return numpy.pad(data, pad_width, mode='constant').reshape(
         (-1, chunk_size, *data.shape[1:]))
+
 
 def _structural_factor(Gv, coord_batches, charge_batches):
     '''
@@ -122,6 +125,7 @@ def _structural_factor(Gv, coord_batches, charge_batches):
 
     init_carry = (numpy.zeros(Gv.shape[0]), numpy.zeros(Gv.shape[0]))
     return scan(body_fun, init_carry, (coord_batches, charge_batches))[0]
+
 
 class QMMM:
     def __init__(self, method, mm_coords, a, mm_charges, mm_radii, pbcqm=True, ewald_precision=1e-6, eta=None, mesh=None):
@@ -220,32 +224,35 @@ class QMMM:
             coords2, mm_charges, mm_radii = input
             ewovrl0, ewovrl1, ewovrl2 = carry
 
-            R = coords1[:,None,:] - coords2[None,:,:]
+            R = coords1[:, None, :] - coords2[None, :, :]
             r2 = numpy.sum(R * R, axis=-1)
             r = numpy.sqrt(numpy.where(r2 < 1e-20, numpy.inf, r2))
 
             # difference between MM gaussain charges and MM point charges
-            expnts = 2. / (1 / (param.gam*param.lgam)[:,None] + mm_radii[None])
+            expnts = 2. / (1 / (param.gam*param.lgam)
+                           [:, None] + mm_radii[None])
             Tij = erfc(expnts * r[atom_to_bas]) / r[atom_to_bas]
             ewovrl0 -= numpy.einsum('ij,j->i', Tij, mm_charges)
             if param.dipgam is not None:
-                expnts = 2. / (1 / param.dipgam[:,None] + mm_radii[None])
+                expnts = 2. / (1 / param.dipgam[:, None] + mm_radii[None])
                 ekR = numpy.exp(-expnts**2 * r**2)
                 Tij = erfc(expnts * r) / r
                 invr3 = (Tij + 2/numpy.sqrt(numpy.pi) * expnts * ekR) / r**2
                 Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
                 ewovrl1 -= numpy.einsum('j,ija->ia', mm_charges, Tija)
             if param.quadgam is not None:
-                expnts = 2. / (1 / param.quadgam[:,None] + mm_radii[None])
+                expnts = 2. / (1 / param.quadgam[:, None] + mm_radii[None])
                 ekR = numpy.exp(-expnts**2 * r**2)
                 Tij = erfc(expnts * r) / r
                 invr3 = (Tij + 2/numpy.sqrt(numpy.pi) * expnts * ekR) / r**2
                 Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
-                Tijab  = 3 * numpy.einsum('ija,ijb,ij->ijab', R, R, 1/r**2)
-                Tijab -= numpy.einsum('ij,ab->ijab', numpy.ones_like(r), numpy.eye(3))
+                Tijab = 3 * numpy.einsum('ija,ijb,ij->ijab', R, R, 1/r**2)
+                Tijab -= numpy.einsum('ij,ab->ijab',
+                                      numpy.ones_like(r), numpy.eye(3))
                 invr5 = invr3 + 4/3/numpy.sqrt(numpy.pi) * expnts**3 * ekR
                 Tijab = numpy.einsum('ijab,ij->ijab', Tijab, invr5)
-                Tijab += numpy.einsum('ij,ij,ab->ijab', expnts**3, 4/3/numpy.sqrt(numpy.pi)*ekR, numpy.eye(3))
+                Tijab += numpy.einsum('ij,ij,ab->ijab', expnts **
+                                      3, 4/3/numpy.sqrt(numpy.pi)*ekR, numpy.eye(3))
                 ewovrl2 -= numpy.einsum('j,ijab->iab', mm_charges, Tijab) / 3
 
             # ewald real-space sum; treat MM as point charges
@@ -260,12 +267,16 @@ class QMMM:
                 ewovrl1 += numpy.einsum('ijx,j->ix', Tija, mm_charges)
             if param.quadgam is not None:
                 # Tijab = (3 RijaRijb - Rij^2 delta_ab) \hat{1/r^5}
-                Tijab  = 3 * numpy.einsum('ija,ijb,ij->ijab', R, R, 1/r**2)
-                Tijab -= numpy.einsum('ij,ab->ijab', numpy.ones_like(r), numpy.eye(3))
-                invr5 = invr3 + 4/3*ew_eta**3/numpy.sqrt(numpy.pi) * ekR # NOTE this is invr5 * r**2
+                Tijab = 3 * numpy.einsum('ija,ijb,ij->ijab', R, R, 1/r**2)
+                Tijab -= numpy.einsum('ij,ab->ijab',
+                                      numpy.ones_like(r), numpy.eye(3))
+                invr5 = invr3 + 4/3*ew_eta**3 / \
+                    numpy.sqrt(numpy.pi) * ekR  # NOTE this is invr5 * r**2
                 Tijab = numpy.einsum('ijab,ij->ijab', Tijab, invr5)
                 # NOTE the below is present in Eq 8 but missing in Eq 12
-                Tijab += 4/3*ew_eta**3/numpy.sqrt(numpy.pi)*numpy.einsum('ij,ab->ijab', ekR, numpy.eye(3))
+                Tijab += 4/3*ew_eta**3 / \
+                    numpy.sqrt(numpy.pi) * \
+                    numpy.einsum('ij,ab->ijab', ekR, numpy.eye(3))
                 ewovrl2 += numpy.einsum('ijxy,j->ixy', Tijab, mm_charges/3)
 
             return (ewovrl0, ewovrl1, ewovrl2), None
@@ -296,7 +307,7 @@ class QMMM:
         Gpref = numpy.exp(-absG2/(4*ew_eta**2)) * coulG
 
         zcosGvR2, zsinGvR2 = _structural_factor(
-                Gv, coord2_batches, mm_charge_batches)
+            Gv, coord2_batches, mm_charge_batches)
 
         GvR1 = numpy.einsum('gx,ix->ig', Gv, coords1)
         cosGvR1 = numpy.cos(GvR1)
@@ -340,8 +351,8 @@ class QMMM:
         ewself11 = numpy.zeros((len(coords1), len(coords1), 3, 3))
         ewself02 = numpy.zeros((len(coords1), len(coords1), 3, 3))
 
-        R = coords1[:,None] - coords1[None]
-        r2 = numpy.sum(R * R , axis=-1)
+        R = coords1[:, None] - coords1[None]
+        r2 = numpy.sum(R * R, axis=-1)
         r2 = numpy.where(r2 < 1e-20, numpy.inf, r2)
         r = numpy.sqrt(r2)
 
@@ -353,12 +364,14 @@ class QMMM:
         invr3 = (Tij + 2*ew_eta/numpy.sqrt(numpy.pi) * ekR) / r2
         Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
         # Tijab = (3 RijaRijb - Rij^2 delta_ab) \hat{1/r^5}
-        Tijab  = 3 * numpy.einsum('ija,ijb,ij->ijab', R, R, 1/r2)
+        Tijab = 3 * numpy.einsum('ija,ijb,ij->ijab', R, R, 1/r2)
         Tijab -= numpy.einsum('ij,ab->ijab', numpy.ones_like(r), numpy.eye(3))
-        invr5 = invr3 + 4/3*ew_eta**3/numpy.sqrt(numpy.pi) * ekR # NOTE this is invr5 * r**2
+        invr5 = invr3 + 4/3*ew_eta**3 / \
+            numpy.sqrt(numpy.pi) * ekR  # NOTE this is invr5 * r**2
         Tijab = numpy.einsum('ijab,ij->ijab', Tijab, invr5)
         # NOTE the below is present in Eq 8 but missing in Eq 12
-        Tijab += 4/3*ew_eta**3/numpy.sqrt(numpy.pi)*numpy.einsum('ij,ab->ijab', ekR, numpy.eye(3))
+        Tijab += 4/3*ew_eta**3 / \
+            numpy.sqrt(numpy.pi)*numpy.einsum('ij,ab->ijab', ekR, numpy.eye(3))
         ewself00 += Tij
         ewself01 -= Tija
         ewself11 -= Tijab
@@ -367,8 +380,8 @@ class QMMM:
         # unit cell Coloumb, to be subtracted out
         Tij = 1 / r
         Tija = -numpy.einsum('ijx,ij->ijx', R, Tij**3)
-        Tijab  = 3 * numpy.einsum('ija,ijb->ijab', R, R) 
-        Tijab  = numpy.einsum('ijab,ij->ijab', Tijab, Tij**5)
+        Tijab = 3 * numpy.einsum('ija,ijb->ijab', R, R)
+        Tijab = numpy.einsum('ijab,ij->ijab', Tijab, Tij**5)
         Tijab -= numpy.einsum('ij,ab->ijab', Tij**3, numpy.eye(3))
         ewself00 -= Tij
         ewself01 += Tija
@@ -507,35 +520,21 @@ class QMMM:
         '''
         if self.s1rr is None:
             log = logger.new_logger(self)
-#            self.s1rr = list()
-#            nao = mol.nao_nr()
-#            aoslice = mol.aoslice_by_atom()
-#            for i, c in zip(range(self.mol.natm), mol.atom_coords()):
-#                b0, b1 = aoslice[i][:2]
-#                shls_slice = (0, mol.nbas, b0, b1)
-#                with mol.with_common_orig(c):
-#                    s1rr_ = mol.intor('int1e_rr', shls_slice=shls_slice)
-#                    s1rr_ = s1rr_.reshape((3, 3, nao, -1))
-#                    s1rr_trace = numpy.einsum('xxuv->uv', s1rr_)
-#                    s1rr_ = 3/2 * s1rr_
-#                    for k in range(3):
-#                        s1rr_ = s1rr_.at[k, k].subtract(0.5 * s1rr_trace)
-#                self.s1rr.append(s1rr_)
             mol = self.mol
             nao = mol.nao_nr()
             atm_to_ao_id = util.atom_to_ao_indices(mol)
             s1rr = mol.intor('int1e_rr').reshape(3, 3, nao, nao)
             s1r2 = numpy.einsum('xxuv->uv', s1rr)
-            s1r  = self.get_s1r()
-            s1   = self.get_ovlp()
+            s1r = self.get_s1r()
+            s1 = self.get_ovlp()
             Rv = mol.atom_coords()[atm_to_ao_id]
-            self.s1rr  = -1.5 * numpy.einsum('vx,yuv->xyuv', Rv, s1r)
-            self.s1rr += self.s1rr.transpose([1,0,2,3])
-            self.s1rr +=  1.5 * s1rr
+            self.s1rr = -1.5 * numpy.einsum('vx,yuv->xyuv', Rv, s1r)
+            self.s1rr += self.s1rr.transpose([1, 0, 2, 3])
+            self.s1rr += 1.5 * s1rr
             scalar = -0.5 * s1r2 + numpy.einsum('xuv,vx->uv', s1r, Rv) \
-                     -0.5 * numpy.einsum('vx,vx,uv->uv', Rv, Rv, s1)
-            self.s1rr +=  0.5 * numpy.einsum('xy,uv->xyuv', numpy.eye(3), scalar)
-            self.s1rr +=  1.5 * numpy.einsum('vx,vy,uv->xyuv', Rv, Rv, s1)
+                + 0.5 * numpy.einsum('vx,vx,uv->uv', Rv, Rv, s1)
+            self.s1rr += numpy.einsum('xy,uv->xyuv', numpy.eye(3), scalar)
+            self.s1rr -= 1.5 * numpy.einsum('vx,vy,uv->xyuv', Rv, Rv, s1)
             log.timer("get_s1rr")
             del log
         return self.s1rr
@@ -546,15 +545,9 @@ class QMMM:
             s1rr = self.get_s1rr()
         aoslices = self.mol.aoslice_by_atom()
         ao_quad = -numpy.einsum('uv,xyvu->uxy', dm, s1rr)
-        return numpy.zeros((self.mol.natm,3,3)).at[
+        return numpy.zeros((self.mol.natm, 3, 3)).at[
             util.atom_to_ao_indices(self.mol)
         ].add(ao_quad)
-        qm_quadrupoles = list()
-        for iatm in range(self.mol.natm):
-            p0, p1 = aoslices[iatm, 2:]
-            qm_quadrupoles.append(
-                -numpy.einsum('uv,xyvu->xy', dm[p0:p1], s1rr[iatm]))
-        return numpy.asarray(qm_quadrupoles)
 
     def pack_q(self, mono, dip, quad):
         to_pack = [mono.ravel()]
@@ -598,12 +591,9 @@ class QMMM:
         log = logger.new_logger(self)
         ovlp = self.get_ovlp()
         vdiff = -ewald_pot[0][util.bas_to_ao_indices(mol)] * ovlp
-        if self.param.dipgam is not None:
-            s1r = self.get_s1r()
-        if self.param.quadgam is not None:
-            s1rr = self.get_s1rr()
         atm_to_ao_id = util.atom_to_ao_indices(mol)
         if self.param.dipgam is not None:
+            s1r = self.get_s1r()
             # vdiff[:,p0:p1] -= numpy.einsum('x,xuv->uv', v1, s1r[iatm])
             vdiff -= numpy.einsum(
                 'vx,xuv->uv',
@@ -611,20 +601,13 @@ class QMMM:
                 s1r
             )
         if self.param.quadgam is not None:
+            s1rr = self.get_s1rr()
             # vdiff[:,p0:p1] -= numpy.einsum('xy,xyuv->uv', v2, s1rr[iatm])
             vdiff -= numpy.einsum(
                 'vxy,xyuv->uv',
                 ewald_pot[2][atm_to_ao_id],
                 s1rr
             )
-#        aoslices = mol.aoslice_by_atom()
-#        for iatm in range(mol.natm):
-##            v1 = ewald_pot[1][iatm]
-#            v2 = ewald_pot[2][iatm]
-#            p0, p1 = aoslices[iatm, 2:]
-#            if self.param.quadgam is not None:
-#                vdiff = vdiff.at[:, p0:p1].subtract(
-#                    numpy.einsum('xy,xyuv->uv', v2, s1rr[iatm]))
         vdiff = (vdiff + vdiff.T) / 2
         log.timer("get_vdiff")
         del log
@@ -671,7 +654,7 @@ class QMMM:
         if qm_ewald_pot is None:
             qm_ewald_pot = self.get_qm_ewald_pot(
                 self.mol, dm, self.qm_ewald_hess)
-        q = self.get_q(mol=mf.mol, dm=dm)
+        q = self.get_q(mol=self.mol, dm=dm)
         return self.energy_ewald_fromq(q, mm_ewald_pot, qm_ewald_pot)
 
     def energy_ewald_fromq(self, q, mm_ewald_pot=None, qm_ewald_pot=None):
