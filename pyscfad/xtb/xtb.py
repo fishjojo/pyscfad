@@ -1,4 +1,4 @@
-# Copyright 2021-2025 The PySCFAD Authors
+# Copyright 2025-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from abc import ABC, abstractmethod
 import numpy
 import jax
 
+from pyscf.data import nist
 from pyscf.gto.mole import ANG_OF
 
 from pyscfad import numpy as np
@@ -37,7 +38,7 @@ from pyscfad.xtb.data.elements import N_VALENCE
 
 Array = Any
 
-def tot_valence_electrons(mol: Mole, charge: int | None = None, nkpts: int = 1):
+def tot_valence_electrons(mol: Mole, charge: int | None = None, nkpts: int = 1) -> int:
     if charge is None:
         charge = mol.charge
 
@@ -45,7 +46,7 @@ def tot_valence_electrons(mol: Mole, charge: int | None = None, nkpts: int = 1):
     n = numpy.sum(nelecs) * nkpts - charge
     return n
 
-def get_occ(mf, mo_energy=None, mo_coeff=None):
+def get_occ(mf: hf.SCF, mo_energy: Array | None = None, mo_coeff: Array | None = None) -> Array:
     # NOTE assuming mo_energy is in ascending order
     # so that mo_occ can be made static
     if mo_energy is None:
@@ -179,6 +180,48 @@ class XTB(ABC, hf.SCF):
     @property
     def tot_electrons(self) -> int:
         return tot_valence_electrons(self.mol)
+
+    def dip_moment(
+        self,
+        mol: Mole | None = None,
+        dm: Array | None = None,
+        charges: Array | None = None,
+        unit: str = "Debye",
+        verbose: int | None = None,
+    ) -> Array:
+        """Molecular dipole moment.
+
+        Parameters
+        ----------
+        charges : array, optional
+            Nuclear charges.
+        """
+
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm =self.make_rdm1()
+        if verbose is None:
+            verbose = mol.verbose
+
+        log = logger.new_logger(mol, verbose)
+
+        ao_dip = mol.intor_symmetric("int1e_r", comp=3)
+        el_dip = np.einsum("xij,ji->x", ao_dip, dm)
+
+        if charges is None:
+            charges = np.asarray([N_VALENCE.get(elem) for elem in mol.elements])
+        coords  = np.asarray(mol.atom_coords())
+        nucl_dip = np.einsum("i,ix->x", charges.astype(coords.dtype), coords)
+        mol_dip = nucl_dip - el_dip
+
+        if unit.upper() == "DEBYE":
+            mol_dip *= nist.AU2DEBYE
+            log.note("Dipole moment(X, Y, Z, Debye): %8.5f, %8.5f, %8.5f", *mol_dip)
+        else:
+            log.note("Dipole moment(X, Y, Z, A.U.): %8.5f, %8.5f, %8.5f", *mol_dip)
+        del log
+        return mol_dip
 
     get_occ = get_occ
 

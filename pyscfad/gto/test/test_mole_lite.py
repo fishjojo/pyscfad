@@ -112,11 +112,22 @@ def test_int1e_origin(atom, basis, unit):
             int0_dR0 = int0_dr01 + int0_dr01.transpose(0,2,1)
             int0_dR0 = int0_dR0.reshape(-1,3,mol.nao,mol.nao).transpose(0,2,3,1)
 
-        int1 = int_fn(coords, R0, intor, hermi=1, shls_slice=shls_slice)
-        int1_dR0 = jax.jacrev(int_fn, 1)(coords, R0, intor, hermi=1, shls_slice=shls_slice)
+            jac = [numpy.zeros_like(int0_dr01) for ia in range(mol.natm)]
+            jac = numpy.asarray(jac).reshape(mol.natm,3,-1,mol.nao,mol.nao)
+            aoslices = mol.aoslice_by_atom()
+            for ia in range(mol.natm):
+                p0, p1 = aoslices[ia,2:]
+                jac[ia,...,p0:p1] = -int0_dr01[...,p0:p1].reshape(-1,3,mol.nao,p1-p0).transpose(1,0,2,3)
+            int0_dR = jac.transpose(2,3,4,0,1)
+            int0_dR += int0_dR.transpose(0,2,1,3,4)
 
-        assert abs(int1 - int0).max() < 1e-8
-        assert abs(int1_dR0 - int0_dR0).max() < 1e-8
+        for hermi in (0, 1):
+            int1 = int_fn(coords, R0, intor, hermi=hermi, shls_slice=shls_slice)
+            int1_dR0 = jax.jacrev(int_fn, 1)(coords, R0, intor, hermi=hermi, shls_slice=shls_slice)
+            int1_dR = jax.jacrev(int_fn, 0)(coords, R0, intor, hermi=hermi, shls_slice=shls_slice)
+            assert abs(int1 - int0).max() < 1e-8
+            assert abs(int1_dR0 - int0_dR0).max() < 1e-8
+            assert abs(int1_dR - int0_dR).max() < 1e-8
 
     with mol.with_rinv_origin(R0):
         int0 = mol.intor("int1e_rinv", hermi=1, shls_slice=shls_slice)
@@ -124,13 +135,25 @@ def test_int1e_origin(atom, basis, unit):
         int0_dR0 = int0_dr10 + int0_dr10.transpose(0,2,1)
         int0_dR0 = int0_dR0.transpose(1,2,0)
 
-        int1 = int_fn(coords, R0, "int1e_rinv", hermi=1, shls_slice=shls_slice,
-                      origin="rinv")
-        int1_dR0 = jax.jacrev(int_fn, 1)(coords, R0, "int1e_rinv", hermi=1, shls_slice=shls_slice,
-                                         origin="rinv")
+        jac = [numpy.zeros_like(int0_dr10) for ia in range(mol.natm)]
+        jac = numpy.asarray(jac).reshape(mol.natm,3,mol.nao,mol.nao)
+        aoslices = mol.aoslice_by_atom()
+        for ia in range(mol.natm):
+            p0, p1 = aoslices[ia,2:]
+            jac[ia,:,p0:p1,:] = -int0_dr10[:,p0:p1,:]
+        int0_dR = jac.transpose(2,3,0,1)
+        int0_dR += int0_dR.transpose(1,0,2,3)
 
-        assert abs(int1 - int0).max() < 1e-8
-        assert abs(int1_dR0 - int0_dR0).max() < 1e-8
+        for hermi in (0, 1):
+            int1 = int_fn(coords, R0, "int1e_rinv", hermi=hermi, shls_slice=shls_slice,
+                          origin="rinv")
+            int1_dR0 = jax.jacrev(int_fn, 1)(coords, R0, "int1e_rinv", hermi=hermi,
+                                             shls_slice=shls_slice, origin="rinv")
+            int1_dR = jax.jacrev(int_fn, 0)(coords, R0, "int1e_rinv", hermi=hermi,
+                                            shls_slice=shls_slice, origin="rinv")
+            assert abs(int1 - int0).max() < 1e-8
+            assert abs(int1_dR0 - int0_dR0).max() < 1e-8
+            assert abs(int1_dR - int0_dR).max() < 1e-8
 
 def test_from_to_pyscf(atom, basis, unit):
     pmol = pyscf.M(atom=atom, basis=basis, unit=unit)

@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2025-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,11 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable = unused-import
-from pyscfad.backend._jax.scipy.sparse.linalg import (
-    gmres as gmres_const_atol, # this is only a temporary fix
-)
-from pyscfad._src.scipy.sparse.linalg import (
-    gmres,
-    gmres_safe,
-)
+"""Tests for XTB methods"""
