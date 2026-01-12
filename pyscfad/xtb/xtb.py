@@ -326,6 +326,43 @@ class GFN1XTB(XTB):
                       hdiag)
         return h1[util.bas_to_ao_indices_2d(mol)]
 
+    def get_veff_fromq(self, q, mol=None, dm_last=np.array(0.),
+                 vhf_last=np.array(0.), hermi=1, s1e=None, **kwargs):
+        del dm_last, vhf_last
+        if mol is None:
+            mol = self.mol
+        if s1e is None:
+            s1e = self.get_ovlp()
+
+        param = self.param
+
+        mono = q[:self.mol.nbas]
+        phi = np.dot(self.gamma, mono)
+        ecoul = .5 * np.dot(mono, phi)
+
+        # Third-order term
+        atm_charge = sum_shell_charges(mol, mono)
+        phi3 = atm_charge**2 * param.gam3
+        ecoul += np.sum(atm_charge**3 * param.gam3) / 3.
+
+        atm_to_bas_id = util.atom_to_bas_indices(mol)
+        phi += phi3[atm_to_bas_id]
+        phi = phi[util.bas_to_ao_indices(mol)]
+        phi = phi[:,None] + phi[None,:]
+
+        vj = -.5 * s1e * phi
+        return VXC(vxc=vj, ecoul=ecoul)
+
+    def get_q(self, mol=None, dm=None, s1e=None):
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm = self.make_rdm1()
+        if s1e is None:
+            s1e = self.get_ovlp()
+
+        return mulliken_charge(mol, self.param, s1e, dm)
+
     def get_veff(self, mol=None, dm=None, dm_last=np.array(0.),
                  vhf_last=np.array(0.), hermi=1, s1e=None, **kwargs):
         del dm_last, vhf_last
@@ -336,24 +373,9 @@ class GFN1XTB(XTB):
         if s1e is None:
             s1e = self.get_ovlp()
 
-        param = self.param
-        partial_charge = mulliken_charge(mol, param, s1e, dm)
+        q = self.get_q(mol=mol, dm=dm, s1e=s1e)
+        vxc = self.get_veff_fromq(q, mol=mol, hermi=hermi, s1e=s1e, **kwargs)
 
-        phi = np.dot(self.gamma, partial_charge)
-        ecoul = .5 * np.dot(partial_charge, phi)
-
-        # Third-order term
-        atm_charge = sum_shell_charges(mol, partial_charge)
-        phi3 = atm_charge**2 * param.gam3
-        ecoul += np.sum(atm_charge**3 * param.gam3) / 3.
-
-        atm_to_bas_id = util.atom_to_bas_indices(mol)
-        phi += phi3[atm_to_bas_id]
-        phi = phi[util.bas_to_ao_indices(mol)]
-        phi = phi[:,None] + phi[None,:]
-
-        vj = -.5 * s1e * phi
-        vxc = VXC(vxc=vj, ecoul=ecoul)
         return vxc
 
     def _energy_nuc(self, mol=None, **kwargs):

@@ -21,6 +21,7 @@ from pyscfad.ops import stop_grad
 
 from functools import partial
 from jax import custom_jvp
+from jax.lax import while_loop
 
 def _fermi_entropy(occ):
     occ = occ / 2.0
@@ -42,16 +43,25 @@ def _fermi_smearing_occ(mu, mo_energy, sigma, mo_mask):
 
 @custom_jvp
 def _smearing_solve_mu(mo_es, nocc, sigma, mo_mask):
-    from jax.scipy import optimize
-    def nelec_cost_fn(mu):
-        mo_occ = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
-        return (np.sum(mo_occ) - nocc)**2
+    def cond_fun(value):
+        mu, nerr = value
+        return nerr**2 > 1e-12
 
-    mu0 = np.array([mo_es[nocc-1],])
-    res = optimize.minimize(
-        nelec_cost_fn, mu0, method="BFGS", tol=1e-8,
-    )
-    return res.x
+    def body_fun(value):
+        ''' One Halley step '''
+        mu, nerr = value
+        occ = _fermi_smearing_occ(mu, mo_es, sigma, mo_mask)
+        grad = occ * (1.-occ) / sigma
+        hess = grad * (1.-2*occ) / sigma
+        occ = np.sum(occ)
+        nerr = occ - nocc
+        grad = np.sum(grad)
+        hess = np.sum(hess)
+        dmu = -nerr * grad / (grad**2 - .5 * hess * nerr)
+        return mu + dmu, nerr
+
+    mu, nerr = while_loop(cond_fun, body_fun, (mo_es[nocc-1], 1e2))
+    return np.array([mu])
 
 @_smearing_solve_mu.defjvp
 def _smearing_solve_mu_jvp(primals, tangents):
