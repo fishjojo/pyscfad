@@ -372,11 +372,14 @@ def _gen_int1e_jvp_r0(
         )
         # TODO make it general
         if "int1e_r_" in intor_b or intor_b == "int1e_r":
-            s1b = s1b.reshape(3**order_a,3,3,-1,naoi,naoj).transpose(2,0,1,3,4,5).reshape(3,-1,naoi,naoj)
+            s1b = s1b.reshape(3**order_a,3,3,-1,naoi,naoj)
+            s1b = s1b.transpose(2,0,1,3,4,5).reshape(3,-1,naoi,naoj)
         elif "int1e_rr_" in intor_b or intor_b == "int1e_rr":
-            s1b = s1b.reshape(3**order_a,9,3,-1,naoi,naoj).transpose(2,0,1,3,4,5).reshape(3,-1,naoi,naoj)
+            s1b = s1b.reshape(3**order_a,9,3,-1,naoi,naoj)
+            s1b = s1b.transpose(2,0,1,3,4,5).reshape(3,-1,naoi,naoj)
         else:
-            s1b = s1b.reshape(3**order_a,3,-1,naoi,naoj).transpose(1,0,2,3,4).reshape(3,-1,naoi,naoj)
+            s1b = s1b.reshape(3**order_a,3,-1,naoi,naoj)
+            s1b = s1b.transpose(1,0,2,3,4).reshape(3,-1,naoi,naoj)
 
         aoidx = np.arange(naoj)
         jvp += _gen_int1e_fill_jvp_r0(s1b, coords_dot, aoslices-_ao_loc[j0],

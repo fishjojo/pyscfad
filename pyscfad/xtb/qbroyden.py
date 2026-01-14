@@ -146,7 +146,8 @@ def _scf_implicit_q(
     conv_tol: float,
     conv_tol_grad: float,
 ) -> tuple[Array, tuple[Array, Array, float]]:
-    oracle = lambda fn, q0: _scf_q_broyden(mf, q0, dm, h1e, s1e, vhf, e_tot, conv_tol, conv_tol_grad)
+    oracle = lambda fn, q0: _scf_q_broyden(mf, q0, dm, h1e, s1e, vhf, e_tot,
+                                           conv_tol, conv_tol_grad)
 
     def root_fn(q):
         vhf = mf.get_veff(mf.mol, s1e=s1e, q=q)

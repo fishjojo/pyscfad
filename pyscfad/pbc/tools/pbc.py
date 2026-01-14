@@ -15,7 +15,6 @@
 from functools import wraps
 import warnings
 import numpy
-from pyscf import lib
 from pyscf.pbc import tools as pyscf_pbctools
 from pyscfad import numpy as np
 from pyscfad import ops

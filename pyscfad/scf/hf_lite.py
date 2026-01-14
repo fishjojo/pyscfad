@@ -17,10 +17,7 @@ from typing import Any
 from functools import partial
 
 import numpy
-
-import jax
 from jax.lax import while_loop, custom_root
-#from jax import scipy as jsp
 
 from pyscf.data import nist
 from pyscf.scf.hf import (
@@ -33,7 +30,6 @@ from pyscfad.gto.mole_lite import Mole
 from pyscfad import lib
 from pyscfad.lib import logger
 from pyscfad.scf import hf
-from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scf.anderson import Anderson
 #from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.scipy.sparse.linalg import gmres_const_atol

@@ -19,13 +19,10 @@ from typing import Any
 from abc import ABC, abstractmethod
 
 import numpy
-import jax
-
 from pyscf.gto.mole import ANG_OF
 
 from pyscfad import numpy as np
 from pyscfad import ops
-from pyscfad.lib import logger
 from pyscfad.gto.mole import inter_distance
 from pyscfad.gto.mole_lite import MoleLite as Mole
 from pyscfad.scf import hf_lite as hf
