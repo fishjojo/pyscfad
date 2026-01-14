@@ -1,3 +1,25 @@
+# Copyright 2025-2026 The PySCFAD Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import functools
+import jax
+from jax.lax import stop_gradient, scan
+from typing import Tuple
+
+from pyscf import lib, gto
+from pyscf.gto.mole import is_au
+
 from pyscfad import numpy, ops
 from pyscfad.pbc.gto import cell
 from pyscfad.xtb.xtb import mulliken_charge, util
@@ -5,15 +27,6 @@ from pyscfad.dft.rks import VXC
 from pyscfad.lib import logger
 
 from pyscfad.scipy.special import erf, erfc
-
-from pyscf import lib, gto
-from pyscf.gto.mole import is_au
-
-import functools
-import jax
-from jax.lax import stop_gradient, scan
-from typing import Tuple
-
 
 @functools.partial(jax.custom_jvp, nondiff_argnums=(1, 2))
 def lambertw(
@@ -78,8 +91,8 @@ def _lambertw_jvp(
     return w, pz * dz
 
 
-def add_mm_charges(xtb_method, mm_coords, a, mm_charges, mm_radii, ewald_precision=1e-6, eta=None, mesh=None, pbcqm=True, unit=None):
-    from pyscfad.ml.gto import MolePad
+def add_mm_charges(xtb_method, mm_coords, a, mm_charges, mm_radii,
+                   ewald_precision=1e-6, eta=None, mesh=None, pbcqm=True, unit=None):
     if unit is None:
         unit = xtb_method.mol.unit
     if not is_au(unit):
@@ -477,7 +490,7 @@ class QMMM:
 
     def get_ovlp(self, *args):
         if self.s1 is None:
-            self.s1 = self.mol.intor('int1e_ovlp')
+            self.s1 = self.mol.intor('int1e_ovlp', hermi=1)
         return self.s1
 
     def get_qm_charges(self, dm, s1e=None):
@@ -496,7 +509,7 @@ class QMMM:
             self.s1r = list()
             mol = self.mol
             atm_to_ao_id = util.atom_to_ao_indices(mol)
-            s1r = mol.intor('int1e_r')  # (3, nao, nao)
+            s1r = mol.intor('int1e_r', hermi=1)  # (3, nao, nao)
             self.s1r = s1r - numpy.einsum(
                 'vx,uv->xuv',
                 mol.atom_coords()[atm_to_ao_id],
@@ -523,7 +536,7 @@ class QMMM:
             mol = self.mol
             nao = mol.nao_nr()
             atm_to_ao_id = util.atom_to_ao_indices(mol)
-            s1rr = mol.intor('int1e_rr').reshape(3, 3, nao, nao)
+            s1rr = mol.intor('int1e_rr', hermi=1).reshape(3, 3, nao, nao)
             s1r2 = numpy.einsum('xxuv->uv', s1rr)
             s1r = self.get_s1r()
             s1 = self.get_ovlp()
@@ -613,17 +626,24 @@ class QMMM:
         del log
         return numpy.asarray(vdiff)
 
-    def get_veff_fromq(self, q, mol=None, dm_last=0, vhf_last=0, hermi=1, s1e=None,
-                       mm_ewald_pot=None, qm_ewald_pot=None):
+    def get_veff(self, mol=None, dm=None, dm_last=0,
+                 vhf_last=0, hermi=1, s1e=None, q=None,
+                 mm_ewald_pot=None, qm_ewald_pot=None):
         del dm_last, vhf_last
         if mol is None:
             mol = self.mol
+        if s1e is None:
+            s1e = self.get_ovlp()
+        if q is None:
+            q = self.get_q(mol=mol, dm=dm, s1e=s1e)
+
         if mm_ewald_pot is None:
             if self.mm_ewald_pot is not None:
                 mm_ewald_pot = self.mm_ewald_pot
             else:
                 mm_ewald_pot = self.get_mm_ewald_pot(self.param)
                 self.mm_ewald_pot = mm_ewald_pot
+
         if qm_ewald_pot is None:
             if self.qm_ewald_hess is not None:
                 qm_ewald_pot = self.get_qm_ewald_pot_fromq(
@@ -631,15 +651,15 @@ class QMMM:
             else:
                 qm_ewald_pot = self.get_qm_ewald_pot_fromq(mol, q)
 
-        ewald_pot = \
-            mm_ewald_pot[0] + qm_ewald_pot[0], \
-            mm_ewald_pot[1] + qm_ewald_pot[1], \
-            mm_ewald_pot[2] + qm_ewald_pot[2]
+        ewald_pot = (mm_ewald_pot[0] + qm_ewald_pot[0],
+                     mm_ewald_pot[1] + qm_ewald_pot[1],
+                     mm_ewald_pot[2] + qm_ewald_pot[2])
+
         vdiff = self.get_vdiff(mol, ewald_pot)
         ediff = self.energy_ewald_fromq(
             q, mm_ewald_pot=mm_ewald_pot, qm_ewald_pot=qm_ewald_pot)
 
-        veff = super().get_veff_fromq(q, mol=mol, hermi=hermi, s1e=s1e)
+        veff = super().get_veff(mol=mol, s1e=s1e, q=q)
         return VXC(vxc=veff.vxc+vdiff, ecoul=veff.ecoul+ediff)
 
     def energy_ewald(self, dm=None, mm_ewald_pot=None, qm_ewald_pot=None):

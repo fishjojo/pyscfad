@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2025-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,8 +20,9 @@ import numpy
 
 import jax
 from jax.lax import while_loop, custom_root
-from jax import scipy as jsp
+#from jax import scipy as jsp
 
+from pyscf.data import nist
 from pyscf.scf.hf import (
     SCF as SCFBase,
     TIGHT_GRAD_CONV_TOL,
@@ -36,8 +37,75 @@ from pyscfad.scf.diis import SCF_DIIS
 from pyscfad.scf.anderson import Anderson
 #from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.scipy.sparse.linalg import gmres_const_atol
+from pyscfad.scf import addons
 
 Array = Any
+
+def get_occ(
+    mf: SCF,
+    mo_energy: Array | None = None,
+    mo_coeff: Array | None = None,
+) -> Array:
+    """Get MO occupations.
+    """
+    # NOTE assuming mo_energy is in ascending order
+    if mo_energy is None:
+        mo_energy = mf.mo_energy
+    if mo_coeff is None:
+        mo_coeff = mf.mo_coeff
+    nmo = mo_energy.size
+
+    mask = mf.mo_mask(mo_energy, mo_coeff)
+    nocc = mf.tot_electrons // 2
+
+    if mf.sigma is not None and mf.sigma > 0:
+        mo_occ = addons.get_occ_smearing(mo_energy, nocc, mf.sigma, mask, method=mf.smearing_method)
+        mo_occ *= 2
+    else:
+        pick = (np.cumsum(mask) <= nocc) & mask
+        mo_occ = np.where(pick, 2., 0.)
+        if mf.verbose >= logger.DEBUG:
+            e_homo = np.max(np.where(pick, mo_energy, -np.inf))
+            e_lumo = np.min(np.where(mask & ~pick, mo_energy, np.inf))
+            logger.debug(mf, "  HOMO = %.15g  LUMO = %.15g", e_homo, e_lumo)
+
+    if mf.verbose >= logger.DEBUG:
+        numpy.set_printoptions(threshold=nmo)
+        logger.debug(mf, "  mo_energy =\n%s", mo_energy)
+        numpy.set_printoptions(threshold=1000)
+    return mo_occ
+
+def get_homo_lumo_energy(
+    mf: SCF,
+    mo_energy: Array | None = None,
+    mo_coeff: Array | None = None,
+) -> tuple[float, float]:
+    """Get HOMO and LUMO energies.
+    """
+    if mf.sigma is not None and mf.sigma > 0:
+        raise NotImplementedError
+
+    if mo_energy is None:
+        mo_energy = mf.mo_energy
+    if mo_coeff is None:
+        mo_coeff = mf.mo_coeff
+
+    mask = mf.mo_mask(mo_energy, mo_coeff)
+    nocc = mf.tot_electrons // 2
+    pick = (np.cumsum(mask) <= nocc) & mask
+
+    e_homo = np.max(np.where(pick, mo_energy, -np.inf))
+    e_lumo = np.min(np.where(mask & ~pick, mo_energy, np.inf))
+    if mf.verbose >= logger.DEBUG:
+        logger.debug(mf, "  HOMO = %.15g  LUMO = %.15g", e_homo, e_lumo)
+    return e_homo, e_lumo
+
+def get_grad(mo_coeff, mo_occ, fock_ao):
+    fock_mo = mo_coeff.conj().T @ fock_ao @ mo_coeff
+    occ_mask = np.where(mo_occ > 0, 1, 0)
+    vir_mask = 1 - occ_mask
+    g = 2 * fock_mo * (vir_mask[:,None] * occ_mask[None,:])
+    return g.ravel()
 
 def update_dm(
     mf: SCF,
@@ -52,8 +120,8 @@ def update_dm(
 ) -> tuple[float, float, Array, Array, Array, float, Any]:
     """Single SCF step updating the density matrix.
 
-    Note
-    ----
+    Notes
+    -----
     This function generally has side effects to ``diis``.
     """
     log = logger.new_logger(mf)
@@ -133,7 +201,6 @@ def _scf_implicit(
         mo_energy, mo_coeff = mf.eig(fock, s1e)
         mo_occ = mf.get_occ(mo_energy, mo_coeff)
         dm_new = mf.make_rdm1(mo_coeff, mo_occ)
-        del mo_energy, mo_occ
         return dm_new - dm
 
     # FIXME restore to use jax gmres once issue
@@ -160,7 +227,7 @@ def kernel(
     conv_tol: float = 1e-10,
     conv_tol_grad: float = None,
     dm0: Array | None = None,
-) -> tuple[bool, float, Array, Array, numpy.ndarray]:
+) -> tuple[bool, float, Array, Array, Array]:
     log = logger.new_logger(mf)
     #cput0 = log.get_t0()
     if conv_tol_grad is None:
@@ -193,7 +260,8 @@ def kernel(
 
     #cput1 = log.timer('initialize scf', *cput0)
 
-    dm, _, _, e_tot = mf.scf_implicit(
+    dm, _, _, e_tot = _scf_implicit(
+        mf,
         dm,
         h1e,
         s1e,
@@ -228,10 +296,11 @@ def kernel(
     return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 class SCF(SCFBase):
-    DIIS = SCF_DIIS
+    diss = None
     use_sp2 = False
     conv_tol_dm = None
-    scf_implicit = _scf_implicit
+    sigma = None
+    smearing_method = "fermi"
 
     def __init__(
         self,
@@ -253,6 +322,10 @@ class SCF(SCFBase):
 
     def build(self, mol=None):
         pass
+
+    @property
+    def tot_electrons(self):
+        return self.mol.tot_electrons()
 
     def scf(self, dm0=None, **kwargs):
         self.dump_flags()
@@ -303,10 +376,94 @@ class SCF(SCFBase):
     def get_hcore(self, mol=None, **kwargs):
         return super().get_hcore(mol)
 
+    def make_rdm1(self, mo_coeff=None, mo_occ=None, **kwargs):
+        if mo_coeff is None:
+            mo_coeff = self.mo_coeff
+        if mo_occ is None:
+            mo_occ = self.mo_occ
+
+        dm = (mo_coeff * mo_occ) @ mo_coeff.conj().T
+        return dm
+
+    def mo_mask(
+        self,
+        mo_energy: Array | None = None,
+        mo_coeff: Array | None = None,
+    ) -> Array:
+        """MO masks.
+
+        Useful for e.g. padding, where there are fake MOs.
+
+        Returns
+        -------
+        mask : array
+            Mask array where elements with ``True`` values
+            indicate real MOs.
+        """
+        if mo_energy is None:
+            mo_energy = self.mo_energy
+        return np.ones(mo_energy.size, dtype=bool)
+
+    def get_grad(self, mo_coeff, mo_occ, fock=None):
+        if fock is None:
+            dm1 = self.make_rdm1(mo_coeff, mo_occ)
+            fock = self.get_hcore(self.mol) + self.get_veff(self.mol, dm1)
+        return get_grad(mo_coeff, mo_occ, fock)
+
+    def dip_moment(
+        self,
+        mol: Mole | None = None,
+        dm: Array | None = None,
+        unit: str = "Debye",
+        origin: Array | None = None,
+        verbose: int | None = None,
+        charges: Array | None = None,
+    ) -> Array:
+        """Molecular dipole moment.
+
+        Parameters
+        ----------
+        charges : array, optional
+            Nuclear charges.
+        """
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm =self.make_rdm1()
+        if verbose is None:
+            verbose = mol.verbose
+
+        log = logger.new_logger(mol, verbose)
+
+        if charges is None:
+            charges = np.asarray(mol.atom_charges())
+        coords  = np.asarray(mol.atom_coords())
+
+        if origin is None:
+            origin = np.zeros(3)
+        else:
+            origin = np.asarray(origin, dtype=float)
+
+        with mol.with_common_orig(origin):
+            ao_dip = mol.intor_symmetric("int1e_r", comp=3)
+        el_dip = np.einsum("xij,ji->x", ao_dip, dm)
+
+        nucl_dip = np.einsum("i,ix->x", charges.astype(coords.dtype), coords)
+        mol_dip = nucl_dip - el_dip
+
+        if unit.upper() == "DEBYE":
+            mol_dip *= nist.AU2DEBYE
+            log.note("Dipole moment(X, Y, Z, Debye): %8.5f, %8.5f, %8.5f", *mol_dip)
+        else:
+            log.note("Dipole moment(X, Y, Z, A.U.): %8.5f, %8.5f, %8.5f", *mol_dip)
+        del log
+        return mol_dip
+
     get_init_guess = hf.SCF.get_init_guess
     get_jk = hf.SCF.get_jk
     get_veff = hf.SCF.get_veff
-    make_rdm1 = hf.SCF.make_rdm1
     energy_elec = hf.SCF.energy_elec
     energy_nuc = hf.SCF.energy_nuc
     _eigh = hf.SCF._eigh
+    get_occ = get_occ
+    get_homo_lumo_energy = get_homo_lumo_energy

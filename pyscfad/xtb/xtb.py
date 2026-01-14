@@ -21,7 +21,6 @@ from abc import ABC, abstractmethod
 import numpy
 import jax
 
-from pyscf.data import nist
 from pyscf.gto.mole import ANG_OF
 
 from pyscfad import numpy as np
@@ -45,32 +44,6 @@ def tot_valence_electrons(mol: Mole, charge: int | None = None, nkpts: int = 1) 
     nelecs = [N_VALENCE.get(elem) for elem in mol.elements]
     n = numpy.sum(nelecs) * nkpts - charge
     return n
-
-def get_occ(mf: hf.SCF, mo_energy: Array | None = None, mo_coeff: Array | None = None) -> Array:
-    # NOTE assuming mo_energy is in ascending order
-    # so that mo_occ can be made static
-    if mo_energy is None:
-        mo_energy = mf.mo_energy
-    #e_idx = np.argsort(mo_energy)
-    e_sort = mo_energy#[e_idx]
-    nmo = mo_energy.size
-    mo_occ = numpy.zeros(nmo)
-    nocc = mf.tot_electrons // 2
-    #mo_occ = ops.index_update(mo_occ, ops.index[e_idx[:nocc]], 2)
-    mo_occ[:nocc] = 2
-    if mf.verbose >= logger.INFO and nocc < nmo:
-        jax.lax.cond(
-            np.greater(e_sort[nocc-1]+1e-3, e_sort[nocc]),
-            lambda e_homo, e_lumo: logger.warn(mf, "HOMO %.15g == LUMO %.15g", e_homo, e_lumo),
-            lambda e_homo, e_lumo: logger.info(mf, "  HOMO = %.15g  LUMO = %.15g", e_homo, e_lumo),
-            e_sort[nocc-1], e_sort[nocc],
-        )
-
-    if mf.verbose >= logger.DEBUG:
-        numpy.set_printoptions(threshold=nmo)
-        logger.debug(mf, "  mo_energy =\n%s", mo_energy)
-        numpy.set_printoptions(threshold=1000)
-    return mo_occ
 
 class XTB(ABC, hf.SCF):
     """Base class for XTB methods.
@@ -109,6 +82,7 @@ class XTB(ABC, hf.SCF):
         vhf_last: Array = np.array(0.),
         hermi: int = 1,
         s1e: Array | None = None,
+        q: Array | None = None,
         **kwargs,
     ) -> Array:
         raise NotImplementedError
@@ -177,6 +151,30 @@ class XTB(ABC, hf.SCF):
         e_tot = self.energy_elec(dm, h1e, vhf)[0] + nuc
         return e_tot
 
+    def scf(self, dm0: Array | None = None, q0: Array | None = None, **kwargs) -> float:
+        if self.diis == "qbroyden":
+            from pyscfad.xtb import qbroyden
+
+            self.dump_flags()
+            self.build(self.mol)
+
+            if self.max_cycle > 0 or self.mo_coeff is None:
+                self.converged, self.e_tot, \
+                        self.mo_energy, self.mo_coeff, self.mo_occ = \
+                        qbroyden.scf(self,
+                                     conv_tol=self.conv_tol,
+                                     conv_tol_grad=self.conv_tol_grad,
+                                     dm0=dm0, q0=q0)
+            else:
+                self.e_tot = qbroyden.scf(self,
+                                          conv_tol=self.conv_tol,
+                                          conv_tol_grad=self.conv_tol_grad,
+                                          dm0=dm0, q0=q0)[1]
+            return self.e_tot
+
+        else:
+            return super().scf(dm0=dm0, **kwargs)
+
     @property
     def tot_electrons(self) -> int:
         return tot_valence_electrons(self.mol)
@@ -185,46 +183,38 @@ class XTB(ABC, hf.SCF):
         self,
         mol: Mole | None = None,
         dm: Array | None = None,
-        charges: Array | None = None,
         unit: str = "Debye",
+        origin: Array | None = None,
         verbose: int | None = None,
+        charges: Array | None = None,
     ) -> Array:
-        """Molecular dipole moment.
+        if mol is None:
+            mol = self.mol
+        if charges is None:
+            charges = np.asarray([N_VALENCE.get(elem) for elem in mol.elements])
+        return super().dip_moment(mol=mol, dm=dm, unit=unit, origin=origin, verbose=verbose,
+                                  charges=charges)
 
-        Parameters
-        ----------
-        charges : array, optional
-            Nuclear charges.
-        """
-
+    def shell_charges(
+        self,
+        mol: Mole | None = None,
+        dm: Array | None = None,
+        s1e: Array | None = None,
+        method: str = "mulliken"
+    ):
         if mol is None:
             mol = self.mol
         if dm is None:
-            dm =self.make_rdm1()
-        if verbose is None:
-            verbose = mol.verbose
+            dm = self.make_rdm1()
+        if s1e is None:
+            s1e = self.get_ovlp()
 
-        log = logger.new_logger(mol, verbose)
-
-        ao_dip = mol.intor_symmetric("int1e_r", comp=3)
-        el_dip = np.einsum("xij,ji->x", ao_dip, dm)
-
-        if charges is None:
-            charges = np.asarray([N_VALENCE.get(elem) for elem in mol.elements])
-        coords  = np.asarray(mol.atom_coords())
-        nucl_dip = np.einsum("i,ix->x", charges.astype(coords.dtype), coords)
-        mol_dip = nucl_dip - el_dip
-
-        if unit.upper() == "DEBYE":
-            mol_dip *= nist.AU2DEBYE
-            log.note("Dipole moment(X, Y, Z, Debye): %8.5f, %8.5f, %8.5f", *mol_dip)
+        if method.lower() == "mulliken":
+            q = mulliken_charge(mol, self.param, s1e, dm)
         else:
-            log.note("Dipole moment(X, Y, Z, A.U.): %8.5f, %8.5f, %8.5f", *mol_dip)
-        del log
-        return mol_dip
-
-    get_occ = get_occ
-
+            raise NotImplementedError
+        return q
+    get_q = shell_charges
 
 def EHT_X_GFN1(mol, param):
     kEN = param.kEN
@@ -326,17 +316,20 @@ class GFN1XTB(XTB):
                       hdiag)
         return h1[util.bas_to_ao_indices_2d(mol)]
 
-    def get_veff_fromq(self, q, mol=None, dm_last=np.array(0.),
-                 vhf_last=np.array(0.), hermi=1, s1e=None, **kwargs):
+    def get_veff(self, mol=None, dm=None, dm_last=np.array(0.),
+                 vhf_last=np.array(0.), hermi=1, s1e=None, q=None,
+                 **kwargs):
         del dm_last, vhf_last
         if mol is None:
             mol = self.mol
         if s1e is None:
             s1e = self.get_ovlp()
+        if q is None:
+            q = self.get_q(mol=mol, dm=dm, s1e=s1e)
 
         param = self.param
 
-        mono = q[:self.mol.nbas]
+        mono = q[:mol.nbas]
         phi = np.dot(self.gamma, mono)
         ecoul = .5 * np.dot(mono, phi)
 
@@ -352,31 +345,6 @@ class GFN1XTB(XTB):
 
         vj = -.5 * s1e * phi
         return VXC(vxc=vj, ecoul=ecoul)
-
-    def get_q(self, mol=None, dm=None, s1e=None):
-        if mol is None:
-            mol = self.mol
-        if dm is None:
-            dm = self.make_rdm1()
-        if s1e is None:
-            s1e = self.get_ovlp()
-
-        return mulliken_charge(mol, self.param, s1e, dm)
-
-    def get_veff(self, mol=None, dm=None, dm_last=np.array(0.),
-                 vhf_last=np.array(0.), hermi=1, s1e=None, **kwargs):
-        del dm_last, vhf_last
-        if mol is None:
-            mol = self.mol
-        if dm is None:
-            dm = self.make_rdm1()
-        if s1e is None:
-            s1e = self.get_ovlp()
-
-        q = self.get_q(mol=mol, dm=dm, s1e=s1e)
-        vxc = self.get_veff_fromq(q, mol=mol, hermi=hermi, s1e=s1e, **kwargs)
-
-        return vxc
 
     def _energy_nuc(self, mol=None, **kwargs):
         if mol is None:

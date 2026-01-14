@@ -105,7 +105,7 @@ def _eigh_gen_jvp_rule(primals, tangents, *, lower, itype, deg_thresh):
                   precision=lax.Precision.HIGHEST)
 
     if type(at) is ad_util.Zero:
-        vt_at_v = lax.zeros_like_array(a)
+        vt_at_v = jnp.zeros_like(a)
     else:
         vt_at_v = dot(_H(v), dot(at, v))
 

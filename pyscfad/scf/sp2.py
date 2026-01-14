@@ -1,15 +1,30 @@
+# Copyright 2025-2026 The PySCFAD Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import annotations
 from typing import Any
+from functools import partial
 
 import numpy
-from jax import vjp
 from jax.lax import cond, while_loop, custom_root
 
 from pyscfad import numpy as np
 from pyscfad import lib
 from pyscfad.lib import logger
 from pyscfad.scf.anderson import Anderson
-from pyscfad.tools.linear_solver import gen_gmres
+#from pyscfad.tools.linear_solver import gen_gmres
+from pyscfad.scipy.sparse.linalg import gmres_const_atol
 
 from pyscfad.scf.hf import SCF
 Array = Any
@@ -196,10 +211,12 @@ def _scf_implicit(
         del mo_energy, mo_occ
         return dm_new - dm
 
-    solver = gen_gmres()
+    #solver = gen_gmres()
+    solver = partial(gmres_const_atol,
+                 tol=1e-6, atol=1e-6, maxiter=30,
+                 solve_method="batched", restart=20)
     def tangent_solve(g, dm_bar):
-        _, vjp_fn = vjp(g, dm_bar)
-        return solver(lambda u: vjp_fn(u)[0], dm_bar)[0]
+        return solver(g, dm_bar)[0]
 
     dm_cnvg, (vhf_cnvg, fock_cnvg, e_tot_cnvg) = \
         custom_root(root_fn, dm, oracle, tangent_solve, has_aux=True)
