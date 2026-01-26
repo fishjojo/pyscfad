@@ -26,11 +26,6 @@ from pyscfad.scipy.sparse.linalg import gmres_const_atol
 
 Array = Any
 
-def safe_inv_norm(v):
-    safe_v = np.where(np.abs(v) < 1e-8, 0., v)
-    norm_v = np.sqrt(np.sum(safe_v**2))
-    return 1 / (1e-12 + norm_v)
-
 def normalize_tot_charge(mol, q):
     tot = mol.charge
     nbas = mol.nbas
@@ -53,46 +48,23 @@ def _scf_q_broyden(
 ) -> tuple[Array, tuple[Array, Array, float]]:
     log = logger.new_logger(mf)
     mol = mf.mol
-    diis_damp = mf.diis_damp
+    damp = mf.diis_damp
 
     def cond_fun(value):
         cycle, de, norm_gorb = value[:3]
         return (cycle < mf.max_cycle) & ((abs(de) > conv_tol) | (norm_gorb > conv_tol_grad))
 
     def body_fun(value):
-        cycle, _, _, q1, dq0, dm_last, vhf, fock, last_hf_e, u_hist, v_hist = value
+        cycle, _, _, q1, s0, g0, dm_last, vhf, fock, last_hf_e, u_hist, v_hist = value
 
         # --- new dm from last fock ---
         mo_energy, mo_coeff = mf.eig(fock, s1e)
         mo_occ = mf.get_occ(mo_energy, mo_coeff)
         dm = mf.make_rdm1(mo_coeff, mo_occ)
-
-        # FIXME possible to avoid fock build when computing energy?
         vhf = mf.get_veff(dm=dm, s1e=s1e)
         e_tot = mf.energy_tot(dm=dm, h1e=h1e, vhf=vhf)
         # get q from dm
-        q = mf.get_q(mol=mol, dm=dm, s1e=s1e)
-
-        # --- broyden step ---
-        # ref: https://math.leidenuniv.nl/reports/files/2003-06.pdf
-        g1 = q - q1
-
-        inv_norm = safe_inv_norm(dq0)
-        u_hist = u_hist.at[:, cycle-1].set(g1 * inv_norm)
-        v_hist = v_hist.at[:, cycle-1].set(dq0 * inv_norm)
-
-        A = np.eye(mf.max_cycle) - np.dot(v_hist.T, u_hist)
-        b = np.dot(v_hist.T, g1)
-        x = np.linalg.solve(A, b)
-
-        dq1 = g1 + np.dot(u_hist, x)
-        q2 = normalize_tot_charge(
-            mol,
-            diis_damp * q1 + (1 - diis_damp) * (q1 + dq1),
-        )
-
-        # --- new fock from new q ---
-        vhf = mf.get_veff(mol=mol, s1e=s1e, q=q2)
+        g1 = mf.get_q(mol=mol, dm=dm, s1e=s1e) - q1
 
         fock = h1e + vhf.vxc
         norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
@@ -100,25 +72,58 @@ def _scf_q_broyden(
         log.info("cycle= %d E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g",
                  cycle+1, e_tot, de, norm_gorb, np.linalg.norm(dm-dm_last))
 
-        return cycle+1, de, norm_gorb, q2, dq1, dm, vhf, fock, e_tot, u_hist, v_hist
+        # --- broyden step ---
+        # ref: https://math.leidenuniv.nl/reports/files/2003-06.pdf
+        y0 = g1 - g0
+
+        # v_new = s0^T J^-1 / (s0^T J^-1 y0)
+        s0h =  -(1 - damp) * s0
+        s0h += np.dot(np.dot(s0, u_hist), v_hist.T)
+        norm = np.dot(s0h, y0)
+        inv_norm = np.where(norm < 1e-12, 0., 1 / np.sqrt(norm))
+        v    = s0h * inv_norm
+
+        # u_new = s0 - J^-1 y0
+        hy0 =  -(1 - damp) * y0
+        hy0 += np.dot(u_hist, np.dot(v_hist.T , y0))
+        u   = (s0 - hy0) * inv_norm
+
+        u_hist = u_hist.at[:, cycle-1].set(u)
+        v_hist = v_hist.at[:, cycle-1].set(v)
+
+        # s1 = -J^-1 g1
+        s1  =  (1 - damp) * g1
+        s1 -= np.dot(u_hist, np.dot(v_hist.T, g1))
+
+        # reset u and v if s1 is large
+        rescale = np.where(np.linalg.norm(s1) > np.linalg.norm(q1), 0., 1.0)
+        u_hist *= rescale
+        v_hist *= rescale
+
+        s1 = s1 * rescale + g1 * (1 - rescale) * (1 - damp)
+        q2 = normalize_tot_charge(mol, q1 + s1)
+
+        # --- new fock from new q ---
+        vhf = mf.get_veff(mol=mol, s1e=s1e, q=q2)
+        fock = h1e + vhf.vxc
+
+        return cycle+1, de, norm_gorb, q2, s1, g1, dm, vhf, fock, e_tot, u_hist, v_hist
 
     # first cycle only does damping
     dm_last = dm
     last_hf_e = e_tot
-    fock = mf.get_fock(h1e, s1e, vhf, dm)
+    fock = h1e + vhf.vxc
     mo_energy, mo_coeff = mf.eig(fock, s1e)
     mo_occ = mf.get_occ(mo_energy, mo_coeff)
     dm = mf.make_rdm1(mo_coeff, mo_occ)
-
     # FIXME possible to avoid fock build when computing energy?
     vhf = mf.get_veff(dm=dm, s1e=s1e)
     e_tot = mf.energy_tot(dm=dm, h1e=h1e, vhf=vhf)
-    q1 = mf.get_q(mol=mol, dm=dm, s1e=s1e)
-    dq0 = q1 - q
-
-    q1 = normalize_tot_charge(mol, diis_damp * q + (1 - diis_damp) * q1)
+    g0 = mf.get_q(mol=mol, dm=dm, s1e=s1e) - q
+    q1 = normalize_tot_charge(mol, q + (1 - damp) * g0)
+    s0 = q1 - q
     vhf = mf.get_veff(mol=mol, s1e=s1e, q=q1)
-    fock = mf.get_fock(h1e, s1e, vhf, dm)
+    fock = h1e + vhf.vxc
     norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
     de = e_tot - last_hf_e
     log.info("cycle= %d E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g",
@@ -128,8 +133,8 @@ def _scf_q_broyden(
     u_hist = np.zeros((n_dim, mf.max_cycle))
     v_hist = np.zeros((n_dim, mf.max_cycle))
 
-    init_val = (1, de, norm_gorb, q1, dq0, dm, vhf, fock, e_tot, u_hist, v_hist)
-    cycle, _, _, q, dq, dm, vhf, fock, e_tot, _, _ = while_loop(
+    init_val = (1, de, norm_gorb, q1, s0, g0, dm, vhf, fock, e_tot, u_hist, v_hist)
+    cycle, _, _, q, dq, _, dm, vhf, fock, e_tot, _, _ = while_loop(
         cond_fun, body_fun, init_val)
 
     del log
