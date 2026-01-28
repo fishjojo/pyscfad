@@ -66,7 +66,7 @@ def _scf_q_broyden(
         # get q from dm
         g1 = mf.get_q(mol=mol, dm=dm, s1e=s1e) - q1
 
-        fock = h1e + vhf.vxc
+        fock = mf.get_fock(h1e=h1e, vhf=vhf)
         norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
         de = e_tot - last_hf_e
         log.info("cycle= %d E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g",
@@ -105,14 +105,14 @@ def _scf_q_broyden(
 
         # --- new fock from new q ---
         vhf = mf.get_veff(mol=mol, s1e=s1e, q=q2)
-        fock = h1e + vhf.vxc
+        fock = mf.get_fock(h1e=h1e, vhf=vhf)
 
         return cycle+1, de, norm_gorb, q2, s1, g1, dm, vhf, fock, e_tot, u_hist, v_hist
 
     # first cycle only does damping
     dm_last = dm
     last_hf_e = e_tot
-    fock = h1e + vhf.vxc
+    fock = mf.get_fock(h1e=h1e, vhf=vhf)
     mo_energy, mo_coeff = mf.eig(fock, s1e)
     mo_occ = mf.get_occ(mo_energy, mo_coeff)
     dm = mf.make_rdm1(mo_coeff, mo_occ)
@@ -123,7 +123,7 @@ def _scf_q_broyden(
     q1 = normalize_tot_charge(mol, q + (1 - damp) * g0)
     s0 = q1 - q
     vhf = mf.get_veff(mol=mol, s1e=s1e, q=q1)
-    fock = h1e + vhf.vxc
+    fock = mf.get_fock(h1e=h1e, vhf=vhf)
     norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
     de = e_tot - last_hf_e
     log.info("cycle= %d E= %.15g  delta_E= %4.3g  |g|= %4.3g  |ddm|= %4.3g",
