@@ -291,7 +291,7 @@ def _estimate_rcut(alpha, l, c, precision=1e-8):
     a1 = (alpha * 2)**-.5
     norm_ang = (2*l+1)/(4*numpy.pi)
     fac = norm_ang * (.5*numpy.pi/alpha)**1.5 / precision
-    r0 = 20
+    r0 = 20.
     r0 = (numpy.log(fac * (r0*.5+a1)**(2*l)) / theta)**.5
     r0 = (numpy.log(fac * (r0*.5+a1)**(2*l)) / theta)**.5
     return r0

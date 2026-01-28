@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from packaging.version import Version
 import pytest
 import numpy
 import jax
 from jax import numpy as jnp
+import pyscf
 from pyscf.pbc import gto as pyscf_gto
 from pyscf.pbc import scf as pyscf_scf
 from pyscf.pbc import grad as pyscf_grad
@@ -81,6 +83,10 @@ def get_cellm_ref():
     cell.build()
     return cell
 
+@pytest.mark.skipif(
+    Version(pyscf.__version__) >= Version("2.12.0"),
+    reason="Gradient of the nonlocal part of the pp is excluded since pyscf 2.12.0."
+)
 def test_get_hcore(get_cell, get_cell_ref):
     cell = get_cell
     kpts = cell.make_kpts([2,1,1])
