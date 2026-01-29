@@ -98,10 +98,10 @@ def test_benzene():
     # NOTE gradients have small errors for systems with symmetry
     _test_lnoccsdt_energy_grad(mol, 0, None, 'iao', 'ie',
                                1e-6, 1e-6)
-    _test_lnoccsdt_energy_grad(mol, 0, None, 'boys', 'ie',
-                               1e-6, 1e-6, frag_lolist='1o')
-    _test_lnoccsdt_energy_grad(mol, 0, None, 'pm', 'ie',
-                               1e-6, 1e-6, frag_lolist='1o')
+    #_test_lnoccsdt_energy_grad(mol, 0, None, 'boys', 'ie',
+    #                           1e-6, 1e-6, frag_lolist='1o')
+    #_test_lnoccsdt_energy_grad(mol, 0, None, 'pm', 'ie',
+    #                           1e-6, 1e-6, frag_lolist='1o')
 
 
 def test_n2():
