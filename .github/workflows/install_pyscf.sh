@@ -5,4 +5,4 @@ pip install wheel
 pip install pytest
 pip install pytest-cov
 pip install jax
-pip install pyscf
+pip install 'pyscf<2.12.0'
