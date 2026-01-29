@@ -9,7 +9,7 @@ import numpy
 from pyscfad import gto, scf, mp
 from pyscfad.cc import dfccsd
 from pyscfad import config
-from pyscfad.lno import MPI_LNOCCSD
+from pyscfad.lno.ccsd_mpi import LNOCCSD
 
 config.update('pyscfad_moleintor_opt', True)
 config.update('pyscfad_scf_implicit_diff', True)
@@ -31,7 +31,7 @@ def energy(mol):
     mf = scf.RHF(mol).density_fit()
     ehf = mf.kernel()
 
-    mfcc = MPI_LNOCCSD(mf, frozen=frozen)
+    mfcc = LNOCCSD(mf, frozen=frozen)
     mfcc.thresh_occ = thresh_occ
     mfcc.thresh_vir = thresh_vir
     mfcc.lo_type = 'iao'

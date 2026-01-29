@@ -17,5 +17,3 @@ LNO methods
 """
 from pyscfad.lno.mp2 import LNOMP2
 from pyscfad.lno.ccsd import LNOCCSD, LNOCCSD_T
-from pyscfad.lno.mp2_mpi import LNOMP2 as MPI_LNOMP2
-from pyscfad.lno.ccsd_mpi import LNOCCSD as MPI_LNOCCSD
