@@ -235,7 +235,7 @@ class QMMM:
 
         if len(coords2) > self.max_nn:
             r2 = -numpy.sum((coords1[:, None, :] - coords2[None])**2, axis=-1)
-            _, neighbors = jax.lax.stop_gradient(jax.lax.top_k(r2, k=self.max_nn), axis=-1)
+            _, neighbors = jax.lax.stop_gradient(jax.lax.top_k(r2, k=self.max_nn, axis=-1))
         else:
             neighbors = numpy.array([numpy.arange(len(coords2))] * len(coords1))
 
