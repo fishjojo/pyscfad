@@ -203,8 +203,8 @@ class QMMM:
             self.max_nn = max(256, int(1024 * (self.rcut / 18.)**3))
 
         e = precision
-        Q = numpy.sum(self.mm_charges**2) + \
-            numpy.sum(self.mol.atom_charges()**2)
+        Q = numpy.sum(numpy.abs(self.mm_charges)) * \
+            numpy.sum(numpy.abs(self.mol.atom_charges()))
         eta = stop_gradient(
             1 / self.rcut * numpy.sqrt(
                 1.5 *
@@ -256,6 +256,8 @@ class QMMM:
         r = numpy.sqrt(numpy.where(r2 < 1e-20, numpy.inf, r2))
 
         # TODO raise warning if max(r) < self.rcut
+        if numpy.max(r) < self.rcut:
+            jax.debug.print("max(r) = {} rcut = {}", numpy.max(r), self.rcut)
 
         # difference between MM gaussain charges and MM point charges
         expnts = 2. / (1 / (param.gam*param.lgam)
