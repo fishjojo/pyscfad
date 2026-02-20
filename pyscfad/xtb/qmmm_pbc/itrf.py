@@ -17,16 +17,18 @@ import jax
 from jax.lax import stop_gradient, scan
 from typing import Tuple
 
-from pyscf import lib, gto
+from pyscf import lib
 from pyscf.gto.mole import is_au
 
-from pyscfad import numpy, ops
+from pyscfad import numpy
 from pyscfad.pbc.gto import cell
 from pyscfad.xtb.xtb import mulliken_charge, util
 from pyscfad.dft.rks import VXC
 from pyscfad.lib import logger
 
-from pyscfad.scipy.special import erf, erfc
+from pyscfad.scipy.special import erfc
+
+from pyscf.lib.logger import DEBUG
 
 @functools.partial(jax.custom_jvp, nondiff_argnums=(1, 2))
 def lambertw(
@@ -256,13 +258,17 @@ class QMMM:
         r = numpy.sqrt(numpy.where(r2 < 1e-20, numpy.inf, r2))
 
         # TODO raise warning if max(r) < self.rcut
-        if numpy.max(r) < self.rcut:
-            jax.debug.print("max(r) = {} rcut = {}", numpy.max(r), self.rcut)
+        if log.verbose >= DEBUG:
+            jax.debug.print("max(r) = {} rcut = {}", numpy.max(r, axis=-1).min(), self.rcut)
 
         # difference between MM gaussain charges and MM point charges
+        # TODO since Ewald rcut and the following expnts are fixed,
+        # need to check if max_nn can give desired ewald_precision
         expnts = 2. / (1 / (param.gam*param.lgam)
                        [:, None] + mm_radii[atom_to_bas])
         Tij = erfc(expnts * r[atom_to_bas]) / r[atom_to_bas]
+        if log.verbose >= DEBUG:
+            jax.debug.print("min(Tij) = {}", numpy.abs(Tij).min(axis=-1).max())
         ewovrl0 -= numpy.einsum('ij,ij->i', Tij, mm_charges[atom_to_bas])
         if param.dipgam is not None:
             expnts = 2. / (1 / param.dipgam[:, None] + mm_radii)
@@ -270,6 +276,8 @@ class QMMM:
             Tij = erfc(expnts * r) / r
             invr3 = (Tij + 2/numpy.sqrt(numpy.pi) * expnts * ekR) / r**2
             Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
+            if log.verbose >= DEBUG:
+                jax.debug.print("min(Tija) = {}", numpy.abs(Tija).min(axis=-2).max())
             ewovrl1 -= numpy.einsum('ij,ija->ia', mm_charges, Tija)
         if param.quadgam is not None:
             expnts = 2. / (1 / param.quadgam[:, None] + mm_radii)
@@ -284,6 +292,8 @@ class QMMM:
             Tijab = numpy.einsum('ijab,ij->ijab', Tijab, invr5)
             Tijab += numpy.einsum('ij,ij,ab->ijab', expnts **
                                   3, 4/3/numpy.sqrt(numpy.pi)*ekR, numpy.eye(3))
+            if log.verbose >= DEBUG:
+                jax.debug.print("min(Tijab) = {}", numpy.abs(Tijab).min(axis=-3).max())
             ewovrl2 -= numpy.einsum('ij,ijab->iab', mm_charges, Tijab) / 3
 
         # ewald real-space sum; treat MM as point charges
