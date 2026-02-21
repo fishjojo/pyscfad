@@ -30,6 +30,7 @@ from pyscfad.scipy.special import erfc
 
 from pyscf.lib.logger import DEBUG
 
+
 @functools.partial(jax.custom_jvp, nondiff_argnums=(1, 2))
 def lambertw(
     z: numpy.ndarray, tol: float = 1e-8, max_iter: int = 100
@@ -144,6 +145,184 @@ def _structural_factor(Gv, coord_batches, charge_batches):
     return scan(body_fun, init_carry, (coord_batches, charge_batches))[0]
 
 
+def _bspline(u, order=6):
+    '''
+    B-splines evaluated on integer grids
+    Distribute unity onto grids [x]-order//2+1, [x]-order//2+2, ..., [x]+order//2, depending on u = x - [x]
+
+    Args:
+        u: float
+            real number in [0, 1]
+        order: int
+            B-spline order
+    
+    Returns:
+        numpy.ndarray
+            B-spline B(x, order) evaluated at u+order-1, u+order-2, ..., u
+    '''
+    if order == 4:
+        u2 = u**2
+        u3 = u2*u
+        outputs = [
+            1/6 - u/2 + u2/2 - u3/6,
+            2/3 - u2 + u3/2,
+            1/6 + u/2 + u2/2 - u3/2,
+            u3/6
+        ]
+        return numpy.asarray(outputs)
+    elif order == 6:
+        u2 = u**2
+        u3 = u2*u
+        u4 = u3*u
+        u5 = u4*u
+        outputs = [
+            1/120 - u/24 + u2/12 - u3/12 + u4/24 - u5/120,
+            13/60 - (5*u)/12 + u2/6 + u3/6 - u4/6 + u5/24,
+            11/20 - u2/2 + u4/4 - u5/12,
+            13/60 + (5*u)/12 + u2/6 - u3/6 - u4/6 + u5/12,
+            1/120 + u/24 + u2/12 + u3/12 + u4/24 - u5/24,
+            u5/120
+        ]
+        return numpy.asarray(outputs)
+    else:
+        raise NotImplementedError
+
+
+def _bspline_deriv(u, order=6):
+    '''
+    _bspline first derivative
+    '''
+    if order == 4:
+        u2 = u**2
+        outputs = [
+            -(1/2) + u - u2/2,
+            -2*u + (3*u2)/2,
+            1/2 + u - (3*u2)/2,
+            u2/2
+        ]
+        return numpy.asarray(outputs)
+    elif order == 6:
+        u2 = u**2
+        u3 = u2*u
+        u4 = u3*u
+        outputs = [
+            -(1/24) + u/6 - u2/4 + u3/6 - u4/24,
+            -(5/12) + u/3 + u2/2 - (2*u3)/3 + (5*u4)/24,
+            -u + u3 - (5*u4)/12,
+            5/12 + u/3 - u2/2 - (2*u3)/3 + (5*u4)/12,
+            1/24 + u/6 + u2/4 + u3/6 - (5*u4)/24,
+            u4/24
+        ]
+        return numpy.asarray(outputs)
+    else:
+        raise NotImplementedError
+
+
+def _bspline_deriv2(u, order=6):
+    '''
+    _bspline second derivative
+    '''
+    if order == 4:
+        outputs = [
+            1 - u,
+            -2 + 3 * u,
+            1 - 3 * u,
+            u
+        ]
+        return numpy.asarray(outputs)
+    elif order == 6:
+        u2 = u**2
+        u3 = u2*u
+        outputs = [
+            1/6 - u/2 + u2/2 - u3/6,
+            1/3 + u - 2*u2 + (5*u3)/6,
+            -1 + 3*u2 - (5*u3)/3,
+            1/3 - u - 2*u2 + (5*u3)/3,
+            1/6 + u/2 + u2/2 - (5*u3)/6,
+            u3/6
+        ]
+    else:
+        raise NotImplementedError
+
+
+def _get_pme_mesh_indices(u, mesh, order=6):
+    '''
+    Compute grid indices and weights for PME
+    
+    Args:
+        u: (N, 3)
+            fractional coordinate(s) measured in unit cell
+        mesh:  (3, )
+    '''
+
+    scaled = u * mesh  # (N, 3)
+    idx_floor = numpy.floor(scaled).astype(int)
+    du = scaled - idx_floor
+
+    # weights: 3 x (N, order)
+    wx = numpy.stack(_bspline(du[:, 0], order), axis=-1)
+    wy = numpy.stack(_bspline(du[:, 1], order), axis=-1)
+    wz = numpy.stack(_bspline(du[:, 2], order), axis=-1)
+
+    # indices: 3 x (N, order)
+    # offset for order 4: -1, 0, 1, 2
+    # offset for order 6: -2, -1, 0, 1, 2, 3
+    offsets = numpy.arange(-order//2+1, order//2+1)
+    idx_x = (idx_floor[:, 0:1] + offsets) % mesh[0]
+    idx_y = (idx_floor[:, 1:2] + offsets) % mesh[1]
+    idx_z = (idx_floor[:, 2:3] + offsets) % mesh[2]
+
+    return (idx_x, idx_y, idx_z), (wx, wy, wz)
+
+
+def _get_pme_mesh_indices_deriv(u, mesh, order=6):
+    scaled = u * mesh
+    idx_floor = numpy.floor(scaled).astype(int)
+    du = scaled - idx_floor
+
+    dwx = numpy.stack(_bspline_deriv(du[:, 0], order), axis=-1)
+    dwy = numpy.stack(_bspline_deriv(du[:, 1], order), axis=-1)
+    dwz = numpy.stack(_bspline_deriv(du[:, 2], order), axis=-1)
+
+    offsets = numpy.arange(-1, order-1)
+    idx_x = (idx_floor[:, 0:1] + offsets) % mesh[0]
+    idx_y = (idx_floor[:, 1:2] + offsets) % mesh[1]
+    idx_z = (idx_floor[:, 2:3] + offsets) % mesh[2]
+    return (idx_x, idx_y, idx_z), (dwx, dwy, dwz)
+
+
+def _get_pme_mesh_indices_hess(u, mesh, order=6):
+    scaled = u * mesh
+    idx_floor = numpy.floor(scaled).astype(int)
+    du = scaled - idx_floor
+
+    d2wx = numpy.stack(_bspline_deriv2(du[:, 0], order), axis=-1)
+    d2wy = numpy.stack(_bspline_deriv2(du[:, 1], order), axis=-1)
+    d2wz = numpy.stack(_bspline_deriv2(du[:, 2], order), axis=-1)
+
+    offsets = numpy.arange(-1, order-1)
+    idx_x = (idx_floor[:, 0:1] + offsets) % mesh[0]
+    idx_y = (idx_floor[:, 1:2] + offsets) % mesh[1]
+    idx_z = (idx_floor[:, 2:3] + offsets) % mesh[2]
+    return (idx_x, idx_y, idx_z), (d2wx, d2wy, d2wz)
+
+
+def _get_pme_correction(mesh, order=6):
+    def get_b(ng):
+        m = numpy.arange(ng)
+        vals = _bspline(1., order=order)[1:]
+        args = 2 * numpy.pi * 1j * m[:, None] * numpy.arange(order-1)[None, :] / ng  # (Ng, order-1)
+        denom = numpy.sum(vals * numpy.exp(args), axis=-1)
+        numer = numpy.exp(2 * numpy.pi * 1j * (order - 1) * m / ng)
+        b = numer / denom
+        return numpy.abs(b)
+
+    bx = get_b(mesh[0])
+    by = get_b(mesh[1])
+    bz = get_b(mesh[2])
+    return (bx, by, bz)
+
+
 class QMMM:
     def __init__(self, method, mm_coords, a, mm_charges, mm_radii, pbcqm=True, ewald_precision=1e-6, max_nn=None, rcut=None, mesh=None):
         '''
@@ -237,21 +416,23 @@ class QMMM:
 
         if len(coords2) > self.max_nn:
             r2 = -numpy.sum((coords1[:, None, :] - coords2[None])**2, axis=-1)
-            _, neighbors = jax.lax.stop_gradient(jax.lax.top_k(r2, k=self.max_nn, axis=-1))
+            _, neighbors = jax.lax.stop_gradient(
+                jax.lax.top_k(r2, k=self.max_nn, axis=-1))
         else:
-            neighbors = numpy.array([numpy.arange(len(coords2))] * len(coords1))
+            neighbors = numpy.array(
+                [numpy.arange(len(coords2))] * len(coords1))
 
-        coords2 = coords2[neighbors] # shape = Nqm, max_nn, 3
+        coords2 = coords2[neighbors]  # shape = Nqm, max_nn, 3
         mm_charges = self.mm_charges[neighbors]
         mm_radii = self.mm_radii[neighbors]
 
         atom_to_bas = util.atom_to_bas_indices(self.mol)
 
         (ewovrl0, ewovrl1, ewovrl2) = (
-                numpy.zeros_like(param.gam),
-                numpy.zeros((len(coords1), 3)),
-                numpy.zeros((len(coords1), 3, 3))
-            )
+            numpy.zeros_like(param.gam),
+            numpy.zeros((len(coords1), 3)),
+            numpy.zeros((len(coords1), 3, 3))
+        )
 
         R = coords1[:, None, :] - coords2
         r2 = numpy.sum(R * R, axis=-1)
@@ -259,7 +440,8 @@ class QMMM:
 
         # TODO raise warning if max(r) < self.rcut
         if log.verbose >= DEBUG:
-            jax.debug.print("max(r) = {} rcut = {}", numpy.max(r, axis=-1).min(), self.rcut)
+            jax.debug.print("max(r) = {} rcut = {}",
+                            numpy.max(r, axis=-1).min(), self.rcut)
 
         # difference between MM gaussain charges and MM point charges
         # TODO since Ewald rcut and the following expnts are fixed,
@@ -277,7 +459,8 @@ class QMMM:
             invr3 = (Tij + 2/numpy.sqrt(numpy.pi) * expnts * ekR) / r**2
             Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
             if log.verbose >= DEBUG:
-                jax.debug.print("min(Tija) = {}", numpy.abs(Tija).min(axis=-2).max())
+                jax.debug.print("min(Tija) = {}", numpy.abs(
+                    Tija).min(axis=-2).max())
             ewovrl1 -= numpy.einsum('ij,ija->ia', mm_charges, Tija)
         if param.quadgam is not None:
             expnts = 2. / (1 / param.quadgam[:, None] + mm_radii)
@@ -293,7 +476,8 @@ class QMMM:
             Tijab += numpy.einsum('ij,ij,ab->ijab', expnts **
                                   3, 4/3/numpy.sqrt(numpy.pi)*ekR, numpy.eye(3))
             if log.verbose >= DEBUG:
-                jax.debug.print("min(Tijab) = {}", numpy.abs(Tijab).min(axis=-3).max())
+                jax.debug.print("min(Tijab) = {}", numpy.abs(
+                    Tijab).min(axis=-3).max())
             ewovrl2 -= numpy.einsum('ij,ijab->iab', mm_charges, Tijab) / 3
 
         # ewald real-space sum; treat MM as point charges
@@ -320,8 +504,173 @@ class QMMM:
                 numpy.einsum('ij,ab->ijab', ekR, numpy.eye(3))
             ewovrl2 += numpy.einsum('ijxy,ij->ixy', Tijab, mm_charges/3)
 
-
         cput1 = log.timer('MM Ewald Real-Space')
+
+        # g-space sum (using FFT)
+#        ewg0, ewg1, ewg2 = self._get_mm_ewald_g_fft(
+        ewg0, ewg1, ewg2 = self._get_mm_ewald_g_direct(
+            param, mesh, ew_eta, coords1, self.mm_coords, self.mm_charges)
+
+        cput1 = log.timer('MM Ewald G-Space', *cput1)
+        del log
+        return ewovrl0+ewg0[atom_to_bas], ewovrl1+ewg1, ewovrl2+ewg2
+
+    def _get_mm_ewald_g_fft(self, param, mesh, ew_eta, qm_coords, mm_coords, mm_charges):
+        coords1 = qm_coords
+        coords2 = mm_coords
+        charges2 = mm_charges
+
+        # 1. Spread MM charges to grid
+        inv_a = numpy.linalg.inv(self.a)
+        frac_coords2 = numpy.dot(coords2, inv_a)
+        frac_coords2 = frac_coords2 % 1.0
+
+        (idx_x, idx_y, idx_z), (wx, wy, wz) = _get_pme_mesh_indices(frac_coords2, mesh)
+
+        # Tensor product of weights
+        # w: (N, 4, 4, 4)
+        w = numpy.einsum('ni,nj,nk->nijk', wx, wy, wz)
+
+        # Scatter add to grid
+        # grid_idx: (N, 4, 4, 4, 3)
+        grid_idx_x = idx_x[:, :, None, None]
+        grid_idx_y = idx_y[:, None, :, None]
+        grid_idx_z = idx_z[:, None, None, :]
+
+        # Flatten for scatter
+        q_spread = (charges2[:, None, None, None] * w).ravel()
+        idx_flat_x = numpy.broadcast_to(grid_idx_x, w.shape).ravel()
+        idx_flat_y = numpy.broadcast_to(grid_idx_y, w.shape).ravel()
+        idx_flat_z = numpy.broadcast_to(grid_idx_z, w.shape).ravel()
+
+        grid = numpy.zeros(mesh, dtype=charges2.dtype)
+        grid = grid.at[idx_flat_x, idx_flat_y, idx_flat_z].add(q_spread)
+
+        # 2. FFT
+        grid_k = numpy.fft.fftn(grid)
+
+        # 3. Multiply by kernel
+        # Construct G vectors
+        freq_x = numpy.fft.fftfreq(mesh[0], d=1./mesh[0])
+        freq_y = numpy.fft.fftfreq(mesh[1], d=1./mesh[1])
+        freq_z = numpy.fft.fftfreq(mesh[2], d=1./mesh[2])
+
+        # k_frac = (n1, n2, n3)
+        # G = 2pi * k_frac @ reciprocal_vectors / (2pi) ?
+        # reciprocal_vectors returns b where a.b = 2pi
+        # G = k_frac @ b
+        b = self.reciprocal_vectors()
+        # Gv: (Nx, Ny, Nz, 3)
+        Gv0 = numpy.einsum('x,i->xi', freq_x, b[0])
+        Gv1 = numpy.einsum('x,i->xi', freq_y, b[1])
+        Gv2 = numpy.einsum('x,i->xi', freq_z, b[2])
+        Gv = Gv0[:, None, None, :] + \
+            Gv1[None, :, None, :] + Gv2[None, None, :, :]
+
+        absG2 = numpy.sum(Gv**2, axis=-1)
+        # Avoid division by zero at G=0
+        absG2 = numpy.where(absG2 == 0, 1e200, absG2)
+
+        B_correction = _get_pme_correction(mesh)
+        kernel = 4 * numpy.pi / absG2 * numpy.exp(-absG2 / (4 * ew_eta**2))
+        kernel *= B_correction
+        # Exclude G=0
+        kernel = kernel.at[0, 0, 0].set(0)
+
+        pot_k = grid_k * kernel
+
+        # 4. IFFT
+        pot_grid = numpy.fft.ifftn(pot_k).real
+
+        # 5. Interpolate at QM atoms
+        frac_coords1 = numpy.dot(coords1, inv_a)
+        # Don't wrap QM coords, assume they are close or handle periodicity via indices
+        # PME handles periodicity via grid indices modulo mesh
+
+        (idx_x, idx_y, idx_z), (wx, wy, wz) = _get_pme_mesh_indices(frac_coords1, mesh)
+
+        # Gather potential
+        # val: (N, 4, 4, 4)
+        # We need to gather from pot_grid using advanced indexing
+        # idx arrays are (N, 4). Broadcast to (N, 4, 4, 4)
+        g_idx_x = idx_x[:, :, None, None]
+        g_idx_y = idx_y[:, None, :, None]
+        g_idx_z = idx_z[:, None, None, :]
+
+        val = pot_grid[g_idx_x, g_idx_y, g_idx_z]
+
+        # Interpolate potential
+        w = numpy.einsum('ni,nj,nk->nijk', wx, wy, wz)
+        ewg0 = numpy.sum(val * w, axis=(1, 2, 3))
+
+        # Interpolate field and gradient
+        # Need derivatives of B-splines
+        (_, _, _), (dwx, dwy, dwz) = _get_pme_mesh_indices_deriv(frac_coords1, mesh)
+
+        if param.dipgam is not None:
+            # Gradient w.r.t fractional coordinates u
+            # dV/du_x = sum V_grid * dwx * wy * wz
+            dV_dux = numpy.sum(
+                val * numpy.einsum('ni,nj,nk->nijk', dwx, wy, wz), axis=(1, 2, 3))
+            dV_duy = numpy.sum(
+                val * numpy.einsum('ni,nj,nk->nijk', wx, dwy, wz), axis=(1, 2, 3))
+            dV_duz = numpy.sum(
+                val * numpy.einsum('ni,nj,nk->nijk', wx, wy, dwz), axis=(1, 2, 3))
+    
+            dV_du = numpy.stack([dV_dux, dV_duy, dV_duz], axis=-1)
+    
+            # Transform to Cartesian gradient: dV/dr = dV/du * du/dr
+            # u = r @ inv_a * mesh
+            # du/dr = inv_a * mesh
+            # dV/dr_alpha = sum_beta dV/du_beta * (inv_a)_beta,alpha * mesh_beta
+            # inv_a is (3, 3) -> (beta, alpha) if r is row vector?
+            # r_frac = r_cart @ inv_a. r_frac_i = r_cart_j * inv_a_ji.
+            # u_i = r_frac_i * mesh_i.
+            # du_i / dr_cart_j = inv_a_ji * mesh_i.
+    
+            # dV_dr: (N, 3)
+            # dV_dr_j = sum_i dV_du_i * inv_a_ji * mesh_i
+            metric = inv_a * mesh[:, None]  # (i, j)
+            ewg1 = numpy.einsum('ni,ij->nj', dV_du, metric)
+
+        if param.quadgam is not None:
+            # Hessian
+            # d2V/du2
+            (_, _, _), (d2wx, d2wy, d2wz) = _get_pme_mesh_indices_hess(frac_coords1, mesh)
+
+            # xx
+            d2V_duxx = numpy.sum(
+                val * numpy.einsum('ni,nj,nk->nijk', d2wx, wy, wz), axis=(1, 2, 3))
+            # yy
+            d2V_duyy = numpy.sum(
+                val * numpy.einsum('ni,nj,nk->nijk', wx, d2wy, wz), axis=(1, 2, 3))
+            # zz
+            d2V_duzz = numpy.sum(
+                val * numpy.einsum('ni,nj,nk->nijk', wx, wy, d2wz), axis=(1, 2, 3))
+            # xy
+            d2V_duxy = numpy.sum(
+                val * numpy.einsum('ni,nj,nk->nijk', dwx, dwy, wz), axis=(1, 2, 3))
+            # xz
+            d2V_duxz = numpy.sum(
+                val * numpy.einsum('ni,nj,nk->nijk', dwx, wy, dwz), axis=(1, 2, 3))
+            # yz
+            d2V_duyz = numpy.sum(
+                val * numpy.einsum('ni,nj,nk->nijk', wx, dwy, dwz), axis=(1, 2, 3))
+
+            d2V_du2 = numpy.zeros((len(coords1), 3, 3))
+            d2V_du2 = d2V_du2.at[:, 0, 0].set(d2V_duxx)
+            d2V_du2 = d2V_du2.at[:, 1, 1].set(d2V_duyy)
+            d2V_du2 = d2V_du2.at[:, 2, 2].set(d2V_duzz)
+            d2V_du2 = d2V_du2.at[:, 0, 1].set(d2V_duxy).at[:, 1, 0].set(d2V_duxy)
+            d2V_du2 = d2V_du2.at[:, 0, 2].set(d2V_duxz).at[:, 2, 0].set(d2V_duxz)
+            d2V_du2 = d2V_du2.at[:, 1, 2].set(d2V_duyz).at[:, 2, 1].set(d2V_duyz)
+
+            ewg2 = numpy.einsum('ji,njk,kl->nil', metric, d2V_du2, metric)
+
+        return ewg0, ewg1, ewg2
+
+    def _get_mm_ewald_g_direct(self, param, mesh, ew_eta, qm_coords, mm_coords, mm_charges):
+        coords1 = qm_coords
 
         # g-space sum (using g grid)
         Gv, Gvbase, weights = self.get_Gv_weights(mesh)
@@ -333,8 +682,8 @@ class QMMM:
         # NOTE Gpref is actually Gpref*2
         Gpref = numpy.exp(-absG2/(4*ew_eta**2)) * coulG
 
-        coord2_batches = _chunkize(self.mm_coords)
-        mm_charge_batches = _chunkize(self.mm_charges)
+        coord2_batches = _chunkize(mm_coords)
+        mm_charge_batches = _chunkize(mm_charges)
 
         zcosGvR2, zsinGvR2 = _structural_factor(
             Gv, coord2_batches, mm_charge_batches)
@@ -345,7 +694,7 @@ class QMMM:
         # qm pc - mm pc
         ewg0 = numpy.einsum('ig,g,g->i', cosGvR1, zcosGvR2, Gpref)
         ewg0 += numpy.einsum('ig,g,g->i', sinGvR1, zsinGvR2, Gpref)
-        ewg0 = ewg0[atom_to_bas]
+        ewg0 = ewg0
         # qm dip - mm pc
         if param.dipgam is not None:
             p = [(2, 3), (0, 2), (0, 1)]
@@ -365,10 +714,7 @@ class QMMM:
             ewg2 /= 3
         else:
             ewg2 = 0.
-
-        cput1 = log.timer('MM Ewald G-Space', *cput1)
-        del log
-        return ewovrl0+ewg0, ewovrl1+ewg1, ewovrl2+ewg2
+        return ewg0, ewg1, ewg2
 
     def get_qm_ewald_hess(self):
         log = logger.new_logger(self)
