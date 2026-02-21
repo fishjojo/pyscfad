@@ -292,11 +292,12 @@ def kernel(
     return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 class SCF(SCFBase):
-    diss = None
+    diis = None
     use_sp2 = False
     conv_tol_dm = None
     sigma = None
     smearing_method = "fermi"
+    veff_with_ecoul = False
 
     def __init__(
         self,
@@ -313,10 +314,10 @@ class SCF(SCFBase):
         self._eri = None
         self.scf_summary = {}
 
-    def dump_flags(self, verbose=None):
+    def dump_flags(self, verbose: int | None = None):
         pass
 
-    def build(self, mol=None):
+    def build(self, mol: Mole | None = None):
         pass
 
     @property
@@ -402,8 +403,8 @@ class SCF(SCFBase):
 
     def get_grad(self, mo_coeff, mo_occ, fock=None):
         if fock is None:
-            dm1 = self.make_rdm1(mo_coeff, mo_occ)
-            fock = self.get_hcore(self.mol) + self.get_veff(self.mol, dm1)
+            dm = self.make_rdm1(mo_coeff, mo_occ)
+            fock = self.get_fock(dm=dm)
         return get_grad(mo_coeff, mo_occ, fock)
 
     def dip_moment(
@@ -455,11 +456,36 @@ class SCF(SCFBase):
         del log
         return mol_dip
 
+    def energy_elec(
+        self,
+        dm: Array | None = None,
+        h1e: Array | None = None,
+        vhf: Array | None = None,
+    ) -> tuple[float, float]:
+        if dm is None:
+            dm = self.make_rdm1()
+        if h1e is None:
+            h1e = self.get_hcore(self.mol)
+        if vhf is None or (self.veff_with_ecoul and getattr(vhf, "ecoul", None) is None):
+            vhf = self.get_veff(self.mol, dm)
+
+        e1 = np.einsum("ij,ji", h1e, dm).real
+        if hasattr(vhf, "ecoul"):
+            ecoul = vhf.ecoul.real
+        else:
+            ecoul = np.einsum('ij,ji->', vhf, dm).real * .5
+
+        self.scf_summary["e1"] = e1
+        self.scf_summary["e2"] = ecoul
+        logger.debug(self, "E1 = %s  E_coul = %s", e1, ecoul)
+        return e1+ecoul, ecoul
+
     get_init_guess = hf.SCF.get_init_guess
     get_jk = hf.SCF.get_jk
     get_veff = hf.SCF.get_veff
-    energy_elec = hf.SCF.energy_elec
     energy_nuc = hf.SCF.energy_nuc
     _eigh = hf.SCF._eigh
     get_occ = get_occ
     get_homo_lumo_energy = get_homo_lumo_energy
+
+SCFLite = SCF

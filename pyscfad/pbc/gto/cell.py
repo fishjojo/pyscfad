@@ -342,8 +342,9 @@ def estimate_rcut(cell, precision=None):
         return 0.01
     if precision is None:
         precision = cell.precision
-    if cell.use_loose_rcut:
-        return cell.rcut_by_shells(precision).max()
+    if getattr(cell, "use_loose_rcut", None):
+        raise NotImplementedError
+    #    return cell.rcut_by_shells(precision).max()
 
     env = stop_grad(cell._env)
     return ops.pure_callback(
@@ -403,6 +404,7 @@ class Cell(mole.Mole, pyscf_cell.Cell):
             raise NotImplementedError
         if trace_lattice_vectors:
             self.abc = np.asarray(self.lattice_vectors())
+        return self
 
     @property
     def vol(self):

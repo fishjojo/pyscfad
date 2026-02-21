@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any
 from functools import partial
-
-import numpy
-
 import ctypes
+import numpy
+from jax.custom_derivatives import SymbolicZero
+
 from pyscf import lib
 from pyscf.gto.mole import PTR_COORD
+from pyscf.gto.mole import conc_env
 from pyscf.pbc.gto._pbcintor import libpbc
 
+from pyscfad.typing import Array, ArrayLike
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.gto.moleintor_lite import (
@@ -39,8 +40,6 @@ from pyscfad.gto._pyscf_moleintor import (
 )
 from pyscfadlib import libcgto_vjp as libcgto
 
-Array = Any
-
 def _atom_coords(atm, env):
     ptr = atm[:,PTR_COORD]
     c = env[ptr[:,None] + numpy.arange(3)]
@@ -49,31 +48,40 @@ def _atom_coords(atm, env):
 def _get_scaled_atom_coords(coords, a):
     return numpy.dot(coords, numpy.linalg.inv(a))
 
-def _get_lattice_Ls(rcut, atm, env, a):
-    # NOTE assume pbc in three dimensions
-    coords = _atom_coords(atm, env)
-    scaled_atom_coords = _get_scaled_atom_coords(coords, a)
-    atom_boundary_max = scaled_atom_coords.max(axis=0)
-    atom_boundary_min = scaled_atom_coords.min(axis=0)
-    ovlp_penalty = numpy.maximum(abs(atom_boundary_max), abs(atom_boundary_min))
+def _get_lattice_Ls(rcut, atm, env, a, dimension):
+    if dimension == 0:
+        Ls = scaled_Ls = numpy.zeros((1,3))
+        return Ls, scaled_Ls
 
-    def find_boundary(aR):
-        r = numpy.linalg.qr(aR.T)[1]
-        ub = (rcut + abs(r[2,3:]).sum()) / abs(r[2,2])
-        return ub
+    r = _atom_coords(atm, env)
 
-    xb = find_boundary(a[[1,2,0]])
-    yb = find_boundary(a[[2,0,1]])
-    zb = find_boundary(a)
-    bounds = numpy.asarray([xb, yb, zb]) + ovlp_penalty
+    shifts = [[1,0,0],[-1,0,0]]
+    if dimension > 1:
+        shifts += [[0,1,0],[0,-1,0]]
+    if dimension > 2:
+        shifts += [[0,0,1],[0,0,-1]]
+    shifts = numpy.asarray(shifts) * rcut
+
+    r1 = (r[None,:,:] + shifts[:,None,:]).reshape(-1,3)
+    scaled_r1 = numpy.dot(r1, numpy.linalg.inv(a))
+    bounds = abs(scaled_r1).max(axis=0)
     bounds = numpy.ceil(bounds).astype(int)
-    Ts = lib.cartesian_prod((numpy.arange(-bounds[0], bounds[0]+1),
-                             numpy.arange(-bounds[1], bounds[1]+1),
-                             numpy.arange(-bounds[2], bounds[2]+1)))
 
-    Ls = numpy.dot(Ts, a)
-    rcut_penalty = numpy.linalg.norm(numpy.dot(atom_boundary_max - atom_boundary_min, a))
-    Ls_mask = numpy.where(numpy.linalg.norm(Ls, axis=1) < rcut + rcut_penalty)[0]
+    if dimension == 1:
+        Ts = numpy.arange(-bounds[0], bounds[0]+1).reshape(-1,1)
+    elif dimension == 2:
+        Ts = lib.cartesian_prod((numpy.arange(-bounds[0], bounds[0]+1),
+                                 numpy.arange(-bounds[1], bounds[1]+1)))
+    elif dimension == 3:
+        Ts = lib.cartesian_prod((numpy.arange(-bounds[0], bounds[0]+1),
+                                 numpy.arange(-bounds[1], bounds[1]+1),
+                                 numpy.arange(-bounds[2], bounds[2]+1)))
+
+    Ls = numpy.dot(Ts[:,:dimension], a[:dimension])
+
+    rr = r[:,None] - r
+    dist_max = numpy.linalg.norm(rr, axis=2).max()
+    Ls_mask = numpy.linalg.norm(Ls, axis=1) < (rcut + dist_max)
     Ls = Ls[Ls_mask]
     scaled_Ls = Ts[Ls_mask]
     return Ls, scaled_Ls
@@ -93,24 +101,26 @@ def _get_lattice_Ls(rcut, atm, env, a):
         "trace_coords",
         "trace_basis",
         "aoslices",
+        "dimension",
     ),
 )
 def _pbc_intor(
     intor_name: str,
-    a: Array,
-    kpts: Array,
+    a: ArrayLike,
+    kpts: ArrayLike,
     rcut: float,
-    atm: Array,
-    bas: Array,
-    env: Array,
+    atm: ArrayLike,
+    bas: ArrayLike,
+    env: ArrayLike,
     shls_slice: tuple[int, ...] | None = None,
     comp: int | None = None,
     hermi: int = 0,
-    ao_loc: Array | None = None,
+    ao_loc: ArrayLike | None = None,
     trace_coords: bool = False,
     trace_basis: bool = False,
-    aoslices: Array | None = None, # for padding
-):
+    aoslices: ArrayLike | None = None, # for padding
+    dimension: int = 3,
+) -> Array:
     shape = _get_shape(
         intor_name,
         bas,
@@ -125,23 +135,14 @@ def _pbc_intor(
     out = ops.pure_callback(
         partial(_pbc_intor_impl_cpu, intor_name),
         result_shape_dtypes,
-        a, kpts, rcut, atm, bas, env, shls_slice, comp, hermi, ao_loc,
+        a, kpts, rcut, atm, bas, env, shls_slice, comp, hermi, ao_loc, dimension,
         vmap_method="sequential",
     )
     return out
 
 def _pbc_intor_impl_cpu(
-    intor_name: str,
-    a: Array,
-    kpts: Array,
-    rcut: float,
-    atm: Array,
-    bas: Array,
-    env: Array,
-    shls_slice: tuple[int, ...] | None = None,
-    comp: int | None = None,
-    hermi: int = 0,
-    ao_loc: Array | None = None,
+    intor_name, a, kpts, rcut, atm, bas, env,
+    shls_slice=None, comp=None, hermi=0, ao_loc=None, dimension=3,
 ):
     intor_name, comp = _get_intor_and_comp(intor_name, comp)
     kpts = numpy.asarray(kpts).reshape(-1,3)
@@ -151,19 +152,29 @@ def _pbc_intor_impl_cpu(
     atm = numpy.asarray(atm, dtype=numpy.int32, order="C")
     bas = numpy.asarray(bas, dtype=numpy.int32, order="C")
     env = numpy.asarray(env, dtype=numpy.float64, order="C")
-    natm = atm.shape[0]
     nbas = bas.shape[0]
 
+    Ls = _get_lattice_Ls(rcut, atm, env, a, dimension)[0]
+    expkL = numpy.asarray(numpy.exp(1j*numpy.dot(kpts, Ls.T)), order="C")
+
+    atm, bas, env = conc_env(atm, bas, env, atm, bas, env)
     if shls_slice is None:
         shls_slice = (0, nbas, 0, nbas)
     else:
         assert (shls_slice[1] <= nbas and shls_slice[3] <= nbas)
 
+    i0, i1, j0, j1 = shls_slice[:4]
+    j0 += nbas
+    j1 += nbas
+
     if ao_loc is None:
         ao_loc = make_loc(bas, intor_name)
+    else:
+        # The input ao_loc is for single mol object,
+        # need to concatenate it.
+        raise NotImplementedError
     ao_loc = numpy.asarray(ao_loc, dtype=numpy.int32, order="C")
 
-    i0, i1, j0, j1 = shls_slice[:4]
     naoi = ao_loc[i1] - ao_loc[i0]
     naoj = ao_loc[j1] - ao_loc[j0]
 
@@ -178,18 +189,15 @@ def _pbc_intor_impl_cpu(
     fintor = getattr(libcgto, intor_name)
     cintopt = lib.c_null_ptr()
 
-    Ls = _get_lattice_Ls(rcut, atm, env, a)[0]
-    expkL = numpy.asarray(numpy.exp(1j*numpy.dot(kpts, Ls.T)), order="C")
     drv = libpbc.PBCnr2c_drv
-
     drv(fintor, fill, out.ctypes.data_as(ctypes.c_void_p),
         ctypes.c_int(nkpts), ctypes.c_int(comp), ctypes.c_int(len(Ls)),
         Ls.ctypes.data_as(ctypes.c_void_p),
         expkL.ctypes.data_as(ctypes.c_void_p),
         (ctypes.c_int*4)(i0, i1, j0, j1),
         ao_loc.ctypes.data_as(ctypes.c_void_p), cintopt,
-        atm.ctypes.data_as(ctypes.c_void_p), ctypes.c_int(natm),
-        bas.ctypes.data_as(ctypes.c_void_p), ctypes.c_int(nbas),
+        atm.ctypes.data_as(ctypes.c_void_p), ctypes.c_int(len(atm)),
+        bas.ctypes.data_as(ctypes.c_void_p), ctypes.c_int(len(bas)),
         env.ctypes.data_as(ctypes.c_void_p), ctypes.c_int(env.size),
     )
 
@@ -207,22 +215,9 @@ def _pbc_intor_impl_cpu(
     return numpy.asarray(mat, dtype=numpy.complex128)
 
 def _gen_int1e_jvp_r0(
-    intor_a: str,
-    intor_b: str,
-    a: Array,
-    kpts: Array,
-    rcut: float,
-    atm: Array,
-    bas: Array,
-    env: Array,
-    env_dot: Array,
-    shls_slice: tuple[int, ...] | None,
-    comp: int | None,
-    hermi: int,
-    ao_loc: Array | None,
-    trace_coords: bool,
-    trace_basis: bool,
-    aoslices: Array | None = None,
+    intor_a, intor_b, a, kpts, rcut, atm, bas, env, env_dot,
+    shls_slice, comp, hermi, ao_loc,
+    trace_coords, trace_basis, aoslices=None, dimension=3,
 ):
     kpts = kpts.reshape(-1,3)
     nkpts = kpts.shape[0]
@@ -231,20 +226,10 @@ def _gen_int1e_jvp_r0(
         comp = comp * 3
 
     s1a = -_pbc_intor(
-        intor_a,
-        a,
-        kpts,
-        rcut,
-        atm,
-        bas,
-        env,
-        shls_slice=shls_slice,
-        comp=comp,
-        hermi=0,
-        ao_loc=ao_loc,
-        trace_coords=trace_coords,
-        trace_basis=trace_basis,
-        aoslices=aoslices,
+        intor_a, a, kpts, rcut, atm, bas, env,
+        shls_slice=shls_slice, comp=comp, hermi=0, ao_loc=ao_loc,
+        trace_coords=trace_coords, trace_basis=trace_basis,
+        aoslices=aoslices, dimension=dimension,
     )
 
     naoi, naoj = s1a.shape[-2:]
@@ -269,20 +254,10 @@ def _gen_int1e_jvp_r0(
     if hermi == 0:
         order_a = int1e_get_dr_order(intor_b)[0]
         s1b = -_pbc_intor(
-            intor_b,
-            a,
-            kpts,
-            rcut,
-            atm,
-            bas,
-            env,
-            shls_slice=shls_slice,
-            comp=comp,
-            hermi=0,
-            ao_loc=ao_loc,
-            trace_coords=trace_coords,
-            trace_basis=trace_basis,
-            aoslices=aoslices,
+            intor_b, a, kpts, rcut, atm, bas, env,
+            shls_slice=shls_slice, comp=comp, hermi=0, ao_loc=ao_loc,
+            trace_coords=trace_coords, trace_basis=trace_basis,
+            aoslices=aoslices, dimension=dimension,
         )
         s1b = s1b.reshape(nkpts,3**order_a,3,-1,naoi,naoj)
         s1b = s1b.transpose(0,2,1,3,4,5).reshape(nkpts,3,-1,naoi,naoj)
@@ -303,39 +278,20 @@ def _gen_int1e_fill_jvp_r0(ints, coords_t, aoslices, aoidx):
     return jvp
 
 def _pbc_intor_jvp(
-    intor_name,
-    rcut,
-    atm,
-    bas,
-    shls_slice,
-    comp,
-    hermi,
-    ao_loc,
-    trace_coords,
-    trace_basis,
-    aoslices,
-    primals,
-    tangents,
+    intor_name, rcut, atm, bas,
+    shls_slice, comp, hermi, ao_loc,
+    trace_coords, trace_basis,
+    aoslices, dimension,
+    primals, tangents,
 ):
-    from jax.custom_derivatives import SymbolicZero
     a, kpts, env = primals
     a_dot, kpts_dot, env_dot = tangents
 
     primal_out = _pbc_intor(
-        intor_name,
-        a,
-        kpts,
-        rcut,
-        atm,
-        bas,
-        env,
-        shls_slice=shls_slice,
-        comp=comp,
-        hermi=hermi,
-        ao_loc=ao_loc,
-        trace_coords=trace_coords,
-        trace_basis=trace_basis,
-        aoslices=aoslices,
+        intor_name, a, kpts, rcut, atm, bas, env,
+        shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
+        trace_coords=trace_coords, trace_basis=trace_basis,
+        aoslices=aoslices, dimension=dimension,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -344,33 +300,22 @@ def _pbc_intor_jvp(
     intor_ip_bra = intor_ip_ket = None
     intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor_name)
 
-    if not isinstance(env_dot, SymbolicZero) and trace_coords and (intor_ip_bra or intor_ip_ket):
-        tangent_out += _gen_int1e_jvp_r0(
-            intor_ip_bra,
-            intor_ip_ket,
-            a,
-            kpts,
-            rcut,
-            atm,
-            bas,
-            env,
-            env_dot,
-            shls_slice,
-            comp,
-            hermi,
-            ao_loc,
-            trace_coords,
-            trace_basis,
-            aoslices,
-        ).reshape(tangent_out.shape)
+    if not isinstance(env_dot, SymbolicZero):
+        if trace_coords and (intor_ip_bra or intor_ip_ket):
+            tangent_out += _gen_int1e_jvp_r0(
+                intor_ip_bra, intor_ip_ket,
+                a, kpts, rcut, atm, bas, env, env_dot,
+                shls_slice, comp, hermi, ao_loc,
+                trace_coords, trace_basis,
+                aoslices, dimension,
+            ).reshape(tangent_out.shape)
+        if trace_basis:
+            raise NotImplementedError
 
     if not isinstance(a_dot, SymbolicZero):
         raise NotImplementedError
 
     if not isinstance(kpts_dot, SymbolicZero):
-        raise NotImplementedError
-
-    if trace_basis:
         raise NotImplementedError
 
     return primal_out, tangent_out

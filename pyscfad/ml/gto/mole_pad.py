@@ -32,6 +32,7 @@ from pyscf.gto.mole import (
 
 from pyscfad import numpy as np
 from pyscfad import ops
+from pyscfad.gto import moleintor_lite
 from pyscfad.gto.mole_lite import MoleLite
 from pyscfad.ml.gto.basis_array import BasisArray
 
@@ -160,7 +161,8 @@ class Mole(MoleLite):
         shls_slice: tuple[int, ...] | None = None,
         grids: Array | None = None,
     ) -> Array:
-        from pyscfad.gto import moleintor_lite
+        del out, grids
+
         intor_name = self._add_suffix(intor_name)
         if "ECP" in intor_name:
             raise NotImplementedError
@@ -180,7 +182,6 @@ class Mole(MoleLite):
             hermi=hermi,
             aosym=aosym,
             ao_loc=ao_loc,
-            out=out,
             trace_coords=self.trace_coords,
             trace_basis=self.trace_basis,
             aoslices=aoslices,

@@ -86,12 +86,8 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
     if dimension == 0 or cell.natm == 0:
         return np.zeros((1, 3))
 
-    def find_boundary(aR):
-        r = np.linalg.qr(aR.T)[1]
-        ub = (rcut + abs(r[2,3:]).sum()) / abs(r[2,2])
-        return ub
-
     a = cell.lattice_vectors()
+    r = cell.atom_coords()
 
     if nimgs is not None:
         if np.isscalar(nimgs):
@@ -103,37 +99,37 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
         if rcut is None:
             rcut = cell.rcut
 
-        _a = stop_grad(a)
-        scaled_atom_coords = cell.get_scaled_atom_coords(_a)
-        atom_boundary_max = scaled_atom_coords[:,:dimension].max(axis=0)
-        atom_boundary_min = scaled_atom_coords[:,:dimension].min(axis=0)
-        ovlp_penalty = np.maximum(abs(atom_boundary_max), abs(atom_boundary_min))
-
-        xb = find_boundary(_a[np.array([1,2,0])])
+        shifts = [[1,0,0],[-1,0,0]]
         if dimension > 1:
-            yb = find_boundary(_a[np.array([2,0,1])])
-        else:
-            yb = 0
+            shifts += [[0,1,0],[0,-1,0]]
         if dimension > 2:
-            zb = find_boundary(a)
-        else:
-            zb = 0
+            shifts += [[0,0,1],[0,0,-1]]
+        shifts = np.asarray(shifts) * rcut
 
-        bounds = np.asarray([xb, yb, zb]) + ovlp_penalty
+        r1 = (r[None,:,:] + shifts[:,None,:]).reshape(-1,3)
+        scaled_r1 = stop_grad(np.dot(r1, np.linalg.inv(a)))
+        bounds = abs(scaled_r1).max(axis=0)
         bounds = np.ceil(bounds).astype(int)
 
-    Ts = cartesian_prod((np.arange(-bounds[0], bounds[0]+1),
-                         np.arange(-bounds[1], bounds[1]+1),
-                         np.arange(-bounds[2], bounds[2]+1)))
+    # FIXME np.arange requires concrete bounds
+    if dimension == 1:
+        Ts = np.arange(-bounds[0], bounds[0]+1).reshape(-1,1)
+    elif dimension == 2:
+        Ts = cartesian_prod((np.arange(-bounds[0], bounds[0]+1),
+                             np.arange(-bounds[1], bounds[1]+1)))
+    elif dimension == 3:
+        Ts = cartesian_prod((np.arange(-bounds[0], bounds[0]+1),
+                             np.arange(-bounds[1], bounds[1]+1),
+                             np.arange(-bounds[2], bounds[2]+1)))
 
     Ls = np.dot(Ts[:,:dimension], a[:dimension])
 
     if nimgs is None and discard:
-        rcut_penalty = np.linalg.norm(np.dot(atom_boundary_max - atom_boundary_min, _a))
-        Ls_mask = np.where(np.linalg.norm(Ls, axis=1) < rcut + rcut_penalty)[0]
+        rr = r[:,None] - r
+        dist_max = np.linalg.norm(rr, axis=2).max()
+        Ls_mask = np.linalg.norm(Ls, axis=1) < (rcut + dist_max)
         Ls = Ls[Ls_mask]
     return Ls
-
 
 @wraps(pyscf_pbctools.get_coulG)
 def get_coulG(cell, k=numpy.zeros(3), exx=False, mf=None, mesh=None, Gv=None,

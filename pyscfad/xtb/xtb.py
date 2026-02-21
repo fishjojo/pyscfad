@@ -25,7 +25,7 @@ from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.gto.mole import inter_distance
 from pyscfad.gto.mole_lite import MoleLite as Mole
-from pyscfad.scf import hf_lite as hf
+from pyscfad.scf.hf_lite import SCFLite
 from pyscfad.dft.rks import VXC
 
 from pyscfad.xtb import util
@@ -42,19 +42,21 @@ def tot_valence_electrons(mol: Mole, charge: int | None = None, nkpts: int = 1) 
     n = numpy.sum(nelecs) * nkpts - charge
     return n
 
-class XTB(ABC, hf.SCF):
+class XTB(ABC, SCFLite):
     """Base class for XTB methods.
     """
     init_guess = "refocc"
+    veff_with_ecoul = True
 
-    def __init__(self, mol: Mole, param: Any | None = None):
-        super().__init__(mol)
+    def __init__(self, mol: Mole, param: Any | None = None, **kwargs):
         if hasattr(param, "to_mol_param"):
             self.param = param.to_mol_param(mol)
         else:
             self.param = param
         self._enuc = None
         self._gamma = None
+
+        super().__init__(mol, **kwargs)
 
     def build(self, mol: Mole | None = None):
         # cache quantities that are computed only once
@@ -119,34 +121,6 @@ class XTB(ABC, hf.SCF):
         if self._gamma is None:
             self._gamma = self._get_gamma()
         return self._gamma
-
-    def energy_elec(
-        self,
-        dm: Array | None = None,
-        h1e: Array | None = None,
-        vhf: Array | None = None,
-    ) -> tuple[float, float]:
-        if dm is None:
-            dm = self.make_rdm1()
-        if h1e is None:
-            h1e = self.get_hcore(self.mol)
-        if vhf is None or getattr(vhf, "ecoul", None) is None:
-            vhf = self.get_veff(self.mol, dm)
-
-        e1 = np.einsum("ij,ji", h1e, dm)
-        ecoul = vhf.ecoul
-        tot_e = e1 + ecoul
-        return tot_e.real, ecoul
-
-    def energy_tot(
-        self,
-        dm: Array | None = None,
-        h1e: Array | None = None,
-        vhf: Array | None = None,
-    ) -> float:
-        nuc = self.energy_nuc()
-        e_tot = self.energy_elec(dm, h1e, vhf)[0] + nuc
-        return e_tot
 
     def scf(self, dm0: Array | None = None, q0: Array | None = None, **kwargs) -> float:
         if self.diis == "qbroyden":

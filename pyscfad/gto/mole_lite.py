@@ -47,10 +47,9 @@ from pyscf.gto.mole import (
 )
 
 from pyscfad import numpy as np
-#from pyscfad import pytree
 from pyscfad import ops
-#from pyscfad.ops import jit
 from pyscfad.gto.mole import energy_nuc
+from pyscfad.gto import moleintor_lite
 
 Array = Any
 
@@ -92,12 +91,13 @@ class Mole(MoleBase):
     Parameters
     ----------
     symbols : tuple of str
-        Atomic symbols.
+        Atomic symbols (mutually exclusive with ``numbers``).
     coords : array
         Atomic coordinates (in Bohr).
     basis : dict or str
-        Atom-centered contracted Gaussian basis set parameters
-        (including exponents and contraction coefficients).
+        A string indicating the Gaussian basis set to use, or
+        a dictionary including the basis set parameters
+        (exponents and contraction coefficients).
     numbers : tuple of ints
         Atomic numbers (mutually exclusive with ``symbols``).
     charge : int
@@ -106,10 +106,18 @@ class Mole(MoleBase):
         2S (number of alpha electrons minus number of beta electrons).
     cart : bool
         Whether to use Cartesian Gaussian basis.
+    verbose : int
+        Printing level.
     trace_coords : bool
         Whether to trace atomic coordinates for gradient calculations.
     trace_basis : bool
         Whether to trace basis set parameters for gradient calculations.
+
+    Notes
+    -----
+    The molecular composition (i.e., ``symbols`` or ``numbers``)
+    must be static as input. For dynamic molecular composition,
+    refer to :class:`pyscfad.ml.gto.MolePad`.
     """
     def __init__(
         self,
@@ -127,7 +135,6 @@ class Mole(MoleBase):
         if numbers is not None:
             if symbols is not None:
                 raise KeyError("Only one of 'symbols' and 'numbers' can be specified.")
-            #numbers = numpy.asarray(numbers, dtype=int)
             self.symbols = tuple(_symbol(i) for i in numbers)
         else:
             self.symbols = _format_symbols(symbols)
@@ -187,7 +194,7 @@ class Mole(MoleBase):
         return newmol
 
     def build(self, *args, **kwargs):
-        pass
+        return self
 
     def intor(
         self,
@@ -199,7 +206,8 @@ class Mole(MoleBase):
         shls_slice: tuple[int, ...] | None = None,
         grids: Array | None = None,
     ) -> Array:
-        from pyscfad.gto import moleintor_lite
+        del out, grids
+
         intor_name = self._add_suffix(intor_name)
         if "ECP" in intor_name:
             raise NotImplementedError
@@ -215,7 +223,6 @@ class Mole(MoleBase):
             comp=comp,
             hermi=hermi,
             aosym=aosym,
-            out=out,
             trace_coords=self.trace_coords,
             trace_basis=self.trace_basis,
         )
@@ -309,6 +316,7 @@ class Mole(MoleBase):
             charge=mol.charge,
             spin=mol.spin,
             cart=mol.cart,
+            verbose=mol.verbose,
             trace_coords=trace_coords,
             trace_basis=trace_basis,
         )
@@ -316,7 +324,6 @@ class Mole(MoleBase):
 
     def to_pyscf(
         self,
-        verbose: int | None = None,
         output: str | None = None,
         max_memory: int | None = None,
     ) -> MoleBase:
@@ -336,7 +343,7 @@ class Mole(MoleBase):
             spin=self.spin,
             cart=self.cart,
             unit="AU",
-            verbose=verbose,
+            verbose=self.verbose,
             output=output,
             max_memory=max_memory,
             dump_input=False,
