@@ -24,11 +24,8 @@ from pyscfad import numpy
 from pyscfad.pbc.gto import cell
 from pyscfad.xtb.xtb import mulliken_charge, util
 from pyscfad.dft.rks import VXC
-from pyscfad.lib import logger
 
 from pyscfad.scipy.special import erfc
-
-from pyscf.lib.logger import DEBUG
 
 
 @functools.partial(jax.custom_jvp, nondiff_argnums=(1, 2))
@@ -480,7 +477,6 @@ class QMMM:
         return eta, mesh
 
     def get_mm_ewald_pot(self, param=None):
-        log = logger.new_logger(self, self.verbose)
         if param is None:
             param = self.param
         ew_eta, mesh = self.mm_ew_eta, self.mm_ew_mesh
@@ -513,9 +509,6 @@ class QMMM:
         r = numpy.sqrt(numpy.where(r2 < 1e-20, numpy.inf, r2))
 
         # TODO raise warning if max(r) < self.ew_rcut
-        if log.verbose >= DEBUG:
-            jax.debug.print("max(r) = {} ew_rcut = {}",
-                            numpy.max(r, axis=-1).min(), self.mm_ew_rcut)
 
         # difference between MM gaussain charges and MM point charges
         # TODO since Ewald rcut and the following expnts are fixed,
@@ -523,8 +516,6 @@ class QMMM:
         expnts = 2. / (1 / (param.gam*param.lgam)
                        [:, None] + mm_radii[atom_to_bas])
         Tij = erfc(expnts * r[atom_to_bas]) / r[atom_to_bas]
-        if log.verbose >= DEBUG:
-            jax.debug.print("min(Tij) = {}", numpy.abs(Tij).min(axis=-1).max())
         ewovrl0 -= numpy.einsum('ij,ij->i', Tij, mm_charges[atom_to_bas])
         if param.dipgam is not None:
             expnts = 2. / (1 / param.dipgam[:, None] + mm_radii)
@@ -532,9 +523,6 @@ class QMMM:
             Tij = erfc(expnts * r) / r
             invr3 = (Tij + 2/numpy.sqrt(numpy.pi) * expnts * ekR) / r**2
             Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
-            if log.verbose >= DEBUG:
-                jax.debug.print("min(Tija) = {}", numpy.abs(
-                    Tija).min(axis=-2).max())
             ewovrl1 -= numpy.einsum('ij,ija->ia', mm_charges, Tija)
         if param.quadgam is not None:
             expnts = 2. / (1 / param.quadgam[:, None] + mm_radii)
@@ -549,9 +537,6 @@ class QMMM:
             Tijab = numpy.einsum('ijab,ij->ijab', Tijab, invr5)
             Tijab += numpy.einsum('ij,ij,ab->ijab', expnts **
                                   3, 4/3/numpy.sqrt(numpy.pi)*ekR, numpy.eye(3))
-            if log.verbose >= DEBUG:
-                jax.debug.print("min(Tijab) = {}", numpy.abs(
-                    Tijab).min(axis=-3).max())
             ewovrl2 -= numpy.einsum('ij,ijab->iab', mm_charges, Tijab) / 3
 
         # ewald real-space sum; treat MM as point charges
@@ -578,14 +563,10 @@ class QMMM:
                 numpy.einsum('ij,ab->ijab', ekR, numpy.eye(3))
             ewovrl2 += numpy.einsum('ijxy,ij->ixy', Tijab, mm_charges/3)
 
-        cput1 = log.timer('MM Ewald Real-Space')
-
         # g-space sum (using FFT)
         ewg0, ewg1, ewg2 = self.get_mm_ewald_g_fft(
             param, mesh, ew_eta, coords1, self.mm_coords, self.mm_charges)
 
-        cput1 = log.timer('MM Ewald G-Space', *cput1)
-        del log
         return ewovrl0+ewg0[atom_to_bas], ewovrl1+ewg1, ewovrl2+ewg2
 
     def get_mm_ewald_g_fft(self, param, mesh, ew_eta, qm_coords, mm_coords, mm_charges):
@@ -731,8 +712,6 @@ class QMMM:
 
             ewg2 = numpy.einsum('ji,njk,kl->nil', metric, d2V_du2, metric) / 3
 
-        jax.debug.print("fft |ewg0| = {} |ewg1| = {} |ewg2| = {}",
-                        numpy.linalg.norm(ewg0), numpy.linalg.norm(ewg1), numpy.linalg.norm(ewg2))
         return ewg0, ewg1, ewg2
 
     def get_mm_ewald_g_direct(self, param, mesh, ew_eta, qm_coords, mm_coords, mm_charges):
@@ -780,12 +759,9 @@ class QMMM:
             ewg2 /= 3
         else:
             ewg2 = 0.
-        jax.debug.print("direct |ewg0| = {} |ewg1| = {} |ewg2| = {}",
-                        numpy.linalg.norm(ewg0), numpy.linalg.norm(ewg1), numpy.linalg.norm(ewg2))
         return ewg0, ewg1, ewg2
 
     def get_qm_ewald_hess(self):
-        log = logger.new_logger(self)
         ew_eta, mesh = self.qm_ew_eta, self.qm_ew_mesh
 
         coords1 = self.mol.atom_coords()
@@ -841,8 +817,6 @@ class QMMM:
         ewself11 += -numpy.einsum('ij,ab->ijab', eye, numpy.eye(3)) \
             * 4 * ew_eta**3 / 3 / numpy.sqrt(numpy.pi)
 
-        cput1 = log.timer('QM Ewald Real-Space')
-
         # g-space sum (using g grid)
         Gv, Gvbase, weights = self.get_Gv_weights(mesh)
         absG2 = numpy.einsum('gx,gx->g', Gv, Gv)
@@ -874,9 +848,6 @@ class QMMM:
         ewg02 += -numpy.einsum('gx,gy,ig,jg,g->ijxy', Gv,
                                Gv, sinGvR, sinGvR, Gpref)
         ewg02 /= 3
-
-        cput1 = log.timer('QM Ewald G-Space', *cput1)
-        del log
 
         return (ewself00 + ewg00)[util.atom_to_bas_indices_2d(self.mol)], \
             (ewself01 + ewg01)[util.atom_to_bas_indices(self.mol)], \
@@ -936,7 +907,6 @@ class QMMM:
         where Rv is center of AO v
         '''
         if self.s1r is None:
-            log = logger.new_logger(self)
             self.s1r = list()
             mol = self.mol
             atm_to_ao_id = util.atom_to_ao_indices(mol)
@@ -946,8 +916,6 @@ class QMMM:
                 mol.atom_coords()[atm_to_ao_id],
                 self.get_ovlp()
             )
-            log.timer("get_s1r")
-            del log
         return self.s1r
 
     def get_qm_dipoles(self, dm, s1r=None):
@@ -963,7 +931,6 @@ class QMMM:
         \int phi_u phi_v [3(r-Rc)\otimes(r-Rc) - |r-Rc|^2] /2 dr
         '''
         if self.s1rr is None:
-            log = logger.new_logger(self)
             mol = self.mol
             nao = mol.nao_nr()
             atm_to_ao_id = util.atom_to_ao_indices(mol)
@@ -979,8 +946,6 @@ class QMMM:
                 + 0.5 * numpy.einsum('vx,vx,uv->uv', Rv, Rv, s1)
             self.s1rr += numpy.einsum('xy,uv->xyuv', numpy.eye(3), scalar)
             self.s1rr -= 1.5 * numpy.einsum('vx,vy,uv->xyuv', Rv, Rv, s1)
-            log.timer("get_s1rr")
-            del log
         return self.s1rr
 
     def get_qm_quadrupoles(self, dm, s1rr=None):
@@ -1032,7 +997,6 @@ class QMMM:
                  + d D_Ix / d dm_uv ewald_pot[1]_Ix 
                  + d O_Ixy / d dm_uv ewald_pot[2]_Ixy
         '''
-        log = logger.new_logger(self)
         ovlp = self.get_ovlp()
         vdiff = -ewald_pot[0][util.bas_to_ao_indices(mol)] * ovlp
         atm_to_ao_id = util.atom_to_ao_indices(mol)
@@ -1053,8 +1017,6 @@ class QMMM:
                 s1rr
             )
         vdiff = (vdiff + vdiff.T) / 2
-        log.timer("get_vdiff")
-        del log
         return numpy.asarray(vdiff)
 
     def get_veff(self, mol=None, dm=None, dm_last=0,
