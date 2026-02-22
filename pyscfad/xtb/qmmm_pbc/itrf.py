@@ -94,26 +94,6 @@ def _lambertw_jvp(
     return w, pz * dz
 
 
-def add_mm_charges(xtb_method, mm_coords, a, mm_charges, mm_radii,
-                   ew_precision=1e-6, max_nn=None, ew_rcut=None, mesh=None, pbcqm=True, pme_order=10, unit=None):
-    if unit is None:
-        unit = xtb_method.mol.unit
-    if not is_au(unit):
-        mm_coords = mm_coords / lib.param.BOHR
-        a = a / lib.param.BOHR
-        mm_radii = mm_radii / lib.param.BOHR
-        rcut = rcut / lib.param.BOHR
-    xtbqmmm = QMMM(xtb_method,
-                   mm_coords=mm_coords, a=a, mm_charges=mm_charges, mm_radii=mm_radii,
-                   ew_precision=ew_precision,
-                   max_nn=max_nn,
-                   ew_rcut=ew_rcut, mesh=mesh,
-                   pbcqm=pbcqm,
-                   pme_order=pme_order,
-                   )
-    return lib.set_class(xtbqmmm, (QMMM, xtb_method.__class__))
-
-
 def _chunkize(data, chunk_size=1024):
     '''
     reshape data into (data.shape[0] / chunk_size, chunk_size, ...)
@@ -237,7 +217,7 @@ def _bspline_deriv(u, order=6):
         return numpy.asarray(outputs)
     elif order == 10:
         outputs = [
-            -0.0000248015873015873 + u*(0.0001984126984126984 + u*(-0.0006944444444444445 + u*(0.001388888888888889 + u*(-0.001736111111111111 + u*(0.001388888888888889 + u*(-0.0006944444444444445 + (0.0001984126984126984 - u/40320.)*u)))))),
+            -(1-u)**8/40320.,
             -0.006101190476190476 + u*(0.023412698412698413 + u*(-0.0375 + u*(0.030555555555555555 + u*(-0.010416666666666666 + u*(-0.002777777777777778 + u*(0.004166666666666667 + (-0.0015873015873015873 + u/4480.)*u)))))),
             -0.10034722222222223 + u*(0.18888888888888888 + u*(-0.09305555555555556 + u*(-0.044444444444444446 + u*(0.059027777777777776 + u*(-0.011111111111111112 + u*(-0.009722222222222222 + (0.005555555555555556 - u/1120.)*u)))))),
             -0.2809027777777778 + u*(0.030555555555555555 + u*(0.3013888888888889 + u*(-0.11944444444444445 + u*(-0.0798611111111111 + u*(0.04722222222222222 + u*(0.009722222222222222 + (-0.011111111111111112 + u/480.)*u)))))),
@@ -279,7 +259,7 @@ def _bspline_deriv2(u, order=6):
         return numpy.asarray(outputs)
     elif order == 10:
         outputs = [
-            0.0001984126984126984 + u*(-0.001388888888888889 + u*(0.004166666666666667 + u*(-0.006944444444444444 + u*(0.006944444444444444 + u*(-0.004166666666666667 + (0.001388888888888889 - u/5040.)*u))))),
+            (1-u)**7/5040.,
             0.023412698412698413 + u*(-0.075 + u*(0.09166666666666666 + u*(-0.041666666666666664 + u*(-0.013888888888888888 + u*(0.025 + (-0.011111111111111112 + u/560.)*u))))),
             0.18888888888888888 + u*(-0.18611111111111112 + u*(-0.13333333333333333 + u*(0.2361111111111111 + u*(-0.05555555555555555 + u*(-0.058333333333333334 + (0.03888888888888889 - u/140.)*u))))),
             0.030555555555555555 + u*(0.6027777777777777 + u*(-0.35833333333333334 + u*(-0.3194444444444444 + u*(0.2361111111111111 + u*(0.058333333333333334 + (-0.07777777777777778 + u/60.)*u))))),
@@ -374,8 +354,33 @@ def _get_pme_correction(mesh, order=6):
     return numpy.einsum('x,y,z->xyz', bx, by, bz)
 
 
+def add_mm_charges(xtb_method, mm_coords, a, mm_charges, mm_radii,
+                   mm_ew_eta=None, mm_ew_rcut=None, mm_ew_mesh=None, mm_pme_order=10,  max_mm_nbr=None,
+                   qm_ew_mesh=None, pbcqm=True,
+                   ew_precision=1e-6, unit=None):
+    if unit is None:
+        unit = xtb_method.mol.unit
+    if not is_au(unit):
+        mm_coords = mm_coords / lib.param.BOHR
+        a = a / lib.param.BOHR
+        mm_radii = mm_radii / lib.param.BOHR
+        rcut = rcut / lib.param.BOHR
+    xtbqmmm = QMMM(xtb_method,
+                   mm_coords=mm_coords, a=a, mm_charges=mm_charges, mm_radii=mm_radii,
+                   ew_precision=ew_precision,
+                   max_mm_nbr=max_mm_nbr,
+                   mm_ew_eta=mm_ew_eta, mm_ew_rcut=mm_ew_rcut, mm_ew_mesh=mm_ew_mesh, qm_ew_mesh=qm_ew_mesh,
+                   pbcqm=pbcqm,
+                   mm_pbe_order=mm_pme_order,
+                   )
+    return lib.set_class(xtbqmmm, (QMMM, xtb_method.__class__))
+
+
 class QMMM:
-    def __init__(self, method, mm_coords, a, mm_charges, mm_radii, pbcqm=True, ew_precision=1e-6, max_nn=None, ew_rcut=None, mesh=None, pme_order=6):
+    def __init__(self, method, mm_coords, a, mm_charges, mm_radii,
+                 mm_ew_eta=None, mm_ew_rcut=None, mm_ew_mesh=None, mm_pbe_order=10, max_mm_nbr=None,
+                 qm_ew_mesh=None, pbcqm=True,
+                 ew_precision=1e-6):
         '''
         pbcqm: whether compute electronic qm-qm PBC interactions
         '''
@@ -393,12 +398,52 @@ class QMMM:
         self.mm_radii = mm_radii
 
         self.ew_precision = ew_precision
-        self.max_nn = max_nn
-        self.ew_rcut = ew_rcut
-        self.mesh = mesh
+        self.max_mm_nbr = max_mm_nbr
+        self.mm_ew_eta = mm_ew_eta
+        self.mm_ew_rcut = mm_ew_rcut
+        self.mm_ew_mesh = mm_ew_mesh
+        self.qm_ew_mesh = qm_ew_mesh
 
-        self.pme_order = pme_order
+        self.mm_pbe_order = mm_pbe_order
         self.dimension = 3
+
+        # determine rcut as the mininum distance from unit cell boundaries
+        a1, a2, a3 = self.a
+        area_1 = numpy.linalg.norm(numpy.cross(a2, a3))
+        area_2 = numpy.linalg.norm(numpy.cross(a1, a3))
+        area_3 = numpy.linalg.norm(numpy.cross(a1, a2))
+        widths = self.vol / numpy.asarray([area_1, area_2, area_3])
+        coords = self.mol.atom_coords()
+        coords -= numpy.mean(coords, axis=0)
+        coords += numpy.dot(numpy.array([0.5] * 3),  self.a)
+        reduce_coords = numpy.linalg.solve(self.a.T, coords.T).T
+        dist0 = reduce_coords * widths[None]  # n x 3, 3 -> n x 3
+        dist1 = (1.0 - reduce_coords) * widths[None]
+        max_ew_rcut = numpy.min(numpy.hstack([dist0, dist1]))
+
+        # Direct Ewald parameters for QM and QM
+        Q = numpy.sum(numpy.abs(self.mol.atom_charges()))**2
+        self.qm_ew_eta, qm_ew_mesh = self.get_ewald_params(Q, ew_rcut=max_ew_rcut)
+        if self.qm_ew_mesh is None:
+            self.qm_ew_mesh = qm_ew_mesh
+
+        # PME parameters for QM and MM
+        if self.mm_ew_rcut is None:
+            self.mm_ew_rcut = max_ew_rcut
+        else:
+            # TODO raise warn if ew_rcut larger than max_ew_rcut
+            pass
+        if self.max_mm_nbr is None:
+            self.max_mm_nbr = max(256, int(1024 * (self.mm_ew_rcut / 18.)**3))
+        Q = numpy.sum(numpy.abs(self.mm_charges)) * \
+            numpy.sum(numpy.abs(self.mol.atom_charges()))
+        mm_ew_eta, mm_ew_mesh = self.get_ewald_params(Q, ew_rcut=self.mm_ew_rcut)
+        if self.mm_ew_eta is None:
+            self.mm_ew_eta = mm_ew_eta
+        if self.mm_ew_mesh is None:
+            self.mm_ew_mesh = mm_ew_mesh
+
+        # TODO print out the Ewald error estimate for both QM-QM and QM-MM
 
     @property
     def vol(self):
@@ -410,51 +455,27 @@ class QMMM:
     def lattice_vectors(self):
         return self.a
 
-    def get_ewald_params(self, precision=None):
+    def get_ewald_params(self, Q, ew_rcut=None, precision=None):
         if precision is None:
             precision = self.ew_precision
-
-        if self.ew_rcut is None:
-            # determine rcut as the mininum distance from unit cell boundaries
-            a1, a2, a3 = self.a
-            area_1 = numpy.linalg.norm(numpy.cross(a2, a3))
-            area_2 = numpy.linalg.norm(numpy.cross(a1, a3))
-            area_3 = numpy.linalg.norm(numpy.cross(a1, a2))
-            widths = self.vol / numpy.asarray([area_1, area_2, area_3])
-            coords = self.mol.atom_coords()
-            coords -= numpy.mean(coords, axis=0)
-            coords += numpy.dot(numpy.array([0.5] * 3),  self.a)
-            reduce_coords = numpy.linalg.solve(self.a.T, coords.T).T
-            dist0 = reduce_coords * widths[None]  # n x 3, 3 -> n x 3
-            dist1 = (1.0 - reduce_coords) * widths[None]
-            self.ew_rcut = numpy.min(numpy.hstack([dist0, dist1]))
-        else:
-            # TODO raise warn if ew_rcut larger than half box size
-            pass
-
-        if self.max_nn is None:
-            self.max_nn = max(256, int(1024 * (self.ew_rcut / 18.)**3))
+        if ew_rcut is None:
+            ew_rcut = self.ew_rcut
 
         e = precision
-        Q = numpy.sum(numpy.abs(self.mm_charges)) * \
-            numpy.sum(numpy.abs(self.mol.atom_charges()))
         eta = stop_gradient(
-            1 / self.ew_rcut * numpy.sqrt(
+            1 / ew_rcut * numpy.sqrt(
                 1.5 *
                 lambertw(
-                    2/3 * (4/e*Q/self.ew_rcut/self.vol)**(2/3) *
-                    self.ew_rcut**2
+                    2/3 * (4/e*Q/ew_rcut/self.vol)**(2/3) *
+                    ew_rcut**2
                 ).real
             )
         )
-        if self.mesh is None:
-            L = self.vol**(1/3)
-            kmax = 1.73205081*eta/2/numpy.pi * numpy.sqrt(
-                lambertw(4*Q**(2/3)/3/numpy.pi**(2/3)/L**2/eta**(2/3) / e**(4/3)).real)
-            mesh = stop_gradient(numpy.asarray(numpy.ceil(
-                numpy.diag(self.a) * kmax) * 2 + 1, dtype=int))
-        else:
-            mesh = self.mesh
+        L = self.vol**(1/3)
+        kmax = 1.73205081*eta/2/numpy.pi * numpy.sqrt(
+            lambertw(4*Q**(2/3)/3/numpy.pi**(2/3)/L**2/eta**(2/3) / e**(4/3)).real)
+        mesh = stop_gradient(numpy.asarray(numpy.ceil(
+            numpy.diag(self.a) * kmax) * 2 + 1, dtype=int))
 
         return eta, mesh
 
@@ -462,20 +483,20 @@ class QMMM:
         log = logger.new_logger(self, self.verbose)
         if param is None:
             param = self.param
-        ew_eta, mesh = self.get_ewald_params()
+        ew_eta, mesh = self.mm_ew_eta, self.mm_ew_mesh
 
         coords1 = self.mol.atom_coords()
         coords2 = self.mm_coords
 
-        if len(coords2) > self.max_nn:
+        if len(coords2) > self.max_mm_nbr:
             r2 = -numpy.sum((coords1[:, None, :] - coords2[None])**2, axis=-1)
             _, neighbors = jax.lax.stop_gradient(
-                jax.lax.top_k(r2, k=self.max_nn, axis=-1))
+                jax.lax.top_k(r2, k=self.max_mm_nbr, axis=-1))
         else:
             neighbors = numpy.array(
                 [numpy.arange(len(coords2))] * len(coords1))
 
-        coords2 = coords2[neighbors]  # shape = Nqm, max_nn, 3
+        coords2 = coords2[neighbors]  # shape = Nqm, max_mm_nbr, 3
         mm_charges = self.mm_charges[neighbors]
         mm_radii = self.mm_radii[neighbors]
 
@@ -494,11 +515,11 @@ class QMMM:
         # TODO raise warning if max(r) < self.ew_rcut
         if log.verbose >= DEBUG:
             jax.debug.print("max(r) = {} ew_rcut = {}",
-                            numpy.max(r, axis=-1).min(), self.ew_rcut)
+                            numpy.max(r, axis=-1).min(), self.mm_ew_rcut)
 
         # difference between MM gaussain charges and MM point charges
         # TODO since Ewald rcut and the following expnts are fixed,
-        # need to check if max_nn can give desired ewald precision
+        # need to check if max_mm_nbr can give desired ewald precision
         expnts = 2. / (1 / (param.gam*param.lgam)
                        [:, None] + mm_radii[atom_to_bas])
         Tij = erfc(expnts * r[atom_to_bas]) / r[atom_to_bas]
@@ -560,21 +581,14 @@ class QMMM:
         cput1 = log.timer('MM Ewald Real-Space')
 
         # g-space sum (using FFT)
-        ewg0, ewg1, ewg2 = self._get_mm_ewald_g_fft(
+        ewg0, ewg1, ewg2 = self.get_mm_ewald_g_fft(
             param, mesh, ew_eta, coords1, self.mm_coords, self.mm_charges)
-        # @@@@@@@
-#        ewg0, ewg1, ewg2 = self._get_mm_ewald_g_direct(
-#            param, mesh, ew_eta, coords1, self.mm_coords, self.mm_charges)
-#        jax.debug.print("ewg0 diff = {} ewg1 diff = {} ewg2 diff = {}",
-#                        numpy.linalg.norm(ewg0-ewg0_),
-#                        numpy.linalg.norm(ewg1-ewg1_),
-#                        numpy.linalg.norm(ewg2-ewg2_))
 
         cput1 = log.timer('MM Ewald G-Space', *cput1)
         del log
         return ewovrl0+ewg0[atom_to_bas], ewovrl1+ewg1, ewovrl2+ewg2
 
-    def _get_mm_ewald_g_fft(self, param, mesh, ew_eta, qm_coords, mm_coords, mm_charges):
+    def get_mm_ewald_g_fft(self, param, mesh, ew_eta, qm_coords, mm_coords, mm_charges):
         coords1 = qm_coords
         coords2 = mm_coords
         charges2 = mm_charges
@@ -585,7 +599,7 @@ class QMMM:
         frac_coords2 = frac_coords2 % 1.0
 
         (idx_x, idx_y, idx_z), (wx, wy, wz) = _get_pme_mesh_indices(
-            frac_coords2, mesh, order=self.pme_order)
+            frac_coords2, mesh, order=self.mm_pbe_order)
 
         # Tensor product of weights
         # w: (Natom, order, order, order)
@@ -620,7 +634,7 @@ class QMMM:
         kernel = kernel * numpy.exp(-absG2/(4*ew_eta**2))
         kernel = kernel.reshape(*mesh)
 
-        B = _get_pme_correction(mesh)
+        B = _get_pme_correction(mesh, order=self.mm_pbe_order)
         kernel *= B
         # Exclude G=0
         kernel = kernel.at[0, 0, 0].set(0)
@@ -631,7 +645,7 @@ class QMMM:
         # 5. Interpolate at QM atoms
         frac_coords1 = numpy.dot(coords1, inv_a)
         (idx_x, idx_y, idx_z), (wx, wy, wz) = _get_pme_mesh_indices(
-            frac_coords1, mesh, order=self.pme_order)
+            frac_coords1, mesh, order=self.mm_pbe_order)
 
         # Gather potential
         # val: (N, order, order, order)
@@ -650,7 +664,7 @@ class QMMM:
         # Interpolate dipole and quadrupole potential
         if param.dipgam is not None or param.quadgam is not None:
             (_, _, _), (dwx, dwy, dwz) = _get_pme_mesh_indices_deriv(
-                frac_coords1, mesh, order=self.pme_order)
+                frac_coords1, mesh, order=self.mm_pbe_order)
 
             # Transform to Cartesian gradient: dV/dr = dV/du * du/dr
             # u = r @ inv_a * mesh
@@ -683,7 +697,7 @@ class QMMM:
             # Hessian
             # d2V/du2
             (_, _, _), (d2wx, d2wy, d2wz) = _get_pme_mesh_indices_hess(
-                frac_coords1, mesh, order=self.pme_order)
+                frac_coords1, mesh, order=self.mm_pbe_order)
 
             # xx
             d2V_duxx = numpy.sum(
@@ -721,7 +735,7 @@ class QMMM:
                         numpy.linalg.norm(ewg0), numpy.linalg.norm(ewg1), numpy.linalg.norm(ewg2))
         return ewg0, ewg1, ewg2
 
-    def _get_mm_ewald_g_direct(self, param, mesh, ew_eta, qm_coords, mm_coords, mm_charges):
+    def get_mm_ewald_g_direct(self, param, mesh, ew_eta, qm_coords, mm_coords, mm_charges):
         coords1 = qm_coords
 
         # g-space sum (using g grid)
@@ -772,7 +786,7 @@ class QMMM:
 
     def get_qm_ewald_hess(self):
         log = logger.new_logger(self)
-        ew_eta, mesh = self.get_ewald_params()
+        ew_eta, mesh = self.qm_ew_eta, self.qm_ew_mesh
 
         coords1 = self.mol.atom_coords()
 
@@ -1114,8 +1128,7 @@ class QMMM:
             ewald_pot = mm_ewald_pot[2] + qm_ewald_pot[2] / 2
             e += numpy.einsum('ixy,ixy->', ewald_pot, quad)
         # energy correction for non zero total charge
-        eta, _ = self.get_ewald_params()
-        e += -.5 * numpy.sum(mono)**2 * numpy.pi/(eta**2 * self.vol)
+        e += -.5 * numpy.sum(mono)**2 * numpy.pi/(self.qm_ew_eta**2 * self.vol)
         e += -1. * numpy.sum(mono) * \
-            numpy.sum(self.mm_charges) * numpy.pi/(eta**2 * self.vol)
+            numpy.sum(self.mm_charges) * numpy.pi/(self.mm_ew_eta**2 * self.vol)
         return e
