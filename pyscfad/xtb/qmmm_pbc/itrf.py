@@ -692,6 +692,8 @@ class QMMM:
             dV_du = numpy.stack([dV_dux, dV_duy, dV_duz], axis=-1)
 
             ewg1 = numpy.einsum('ni,ij->nj', dV_du, metric)
+        else:
+            ewg1 = 0
 
         if param.quadgam is not None:
             # Hessian
@@ -730,6 +732,8 @@ class QMMM:
                 d2V_duyz).at[:, 2, 1].set(d2V_duyz)
 
             ewg2 = numpy.einsum('ji,njk,kl->nil', metric, d2V_du2, metric) / 3
+        else:
+            ewg2 = 0
 
         return ewg0, ewg1, ewg2
 
