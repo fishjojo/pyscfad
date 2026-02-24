@@ -10,8 +10,18 @@ import sys
 import warnings
 import inspect
 
+# Workaround to avoid expanding type aliases. Copied from jax
+from typing import ForwardRef
+def _do_not_evaluate(
+    self, globalns, *args, _evaluate=ForwardRef._evaluate, **kwargs,
+):
+  if globalns.get('__name__', '').startswith('pyscfad'):
+    return self
+  return _evaluate(self, globalns, *args, **kwargs)
+ForwardRef._evaluate = _do_not_evaluate
+
 project = "pyscfad"
-copyright = "2021-2025, Xing Zhang"
+copyright = "2021-2026, Xing Zhang"
 author = "Xing Zhang"
 
 import pyscfad
@@ -27,11 +37,13 @@ extensions = [
 #    "IPython.sphinxext.ipython_directive",
 #    "IPython.sphinxext.ipython_console_highlighting",
     "matplotlib.sphinxext.plot_directive",
-    "numpydoc",
+#    "numpydoc",
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon", # if using Google/NumPy docstrings
+    #"sphinx_autodoc_typehints",
     "sphinx.ext.coverage",
     "sphinx.ext.doctest",
     "sphinx.ext.extlinks",
@@ -56,11 +68,22 @@ exclude_patterns = [
 ]
 
 autosummary_generate = True
-autodoc_typehints = "none"
 
-numpydoc_show_class_members = False
-numpydoc_show_inherited_class_members = False
-numpydoc_attributes_as_param_list = False
+napolean_use_rtype = False
+autodoc_typehints_format = "short"
+
+autodoc_typehints = "description"
+autodoc_typehints_description_target = "all"
+autodoc_type_aliases = {
+    'ArrayLike': 'pyscfad.typing.ArrayLike',
+}
+
+#always_document_param_types = True
+#set_type_checking_flag = True
+
+#numpydoc_show_class_members = False
+#numpydoc_show_inherited_class_members = False
+#numpydoc_attributes_as_param_list = False
 
 pygments_style = "sphinx"
 

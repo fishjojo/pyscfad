@@ -25,8 +25,9 @@ from pyscf.scf.hf import (
     TIGHT_GRAD_CONV_TOL,
 )
 
+from pyscfad.typing import ArrayLike, Array
 from pyscfad import numpy as np
-from pyscfad.gto.mole_lite import Mole
+from pyscfad.gto import MoleLite
 from pyscfad import lib
 from pyscfad.lib import logger
 from pyscfad.scf import hf
@@ -35,12 +36,10 @@ from pyscfad.scf.anderson import Anderson
 from pyscfad.scipy.sparse.linalg import gmres_const_atol
 from pyscfad.scf import addons
 
-Array = Any
-
 def get_occ(
     mf: SCF,
-    mo_energy: Array | None = None,
-    mo_coeff: Array | None = None,
+    mo_energy: ArrayLike | None = None,
+    mo_coeff: ArrayLike | None = None,
 ) -> Array:
     """Get MO occupations.
     """
@@ -73,8 +72,8 @@ def get_occ(
 
 def get_homo_lumo_energy(
     mf: SCF,
-    mo_energy: Array | None = None,
-    mo_coeff: Array | None = None,
+    mo_energy: ArrayLike | None = None,
+    mo_coeff: ArrayLike | None = None,
 ) -> tuple[float, float]:
     """Get HOMO and LUMO energies.
     """
@@ -96,7 +95,7 @@ def get_homo_lumo_energy(
         logger.debug(mf, "  HOMO = %.15g  LUMO = %.15g", e_homo, e_lumo)
     return e_homo, e_lumo
 
-def get_grad(mo_coeff, mo_occ, fock_ao):
+def get_grad(mo_coeff: ArrayLike, mo_occ: ArrayLike, fock_ao: ArrayLike) -> Array:
     fock_mo = mo_coeff.conj().T @ fock_ao @ mo_coeff
     occ_mask = np.where(mo_occ > 0, 1, 0)
     vir_mask = 1 - occ_mask
@@ -105,13 +104,13 @@ def get_grad(mo_coeff, mo_occ, fock_ao):
 
 def update_dm(
     mf: SCF,
-    h1e: Array,
-    s1e: Array,
-    vhf: Array,
-    dm: Array,
+    h1e: ArrayLike,
+    s1e: ArrayLike,
+    vhf: ArrayLike,
+    dm: ArrayLike,
     cycle: int,
     diis: Any,
-    fock: Array,
+    fock: ArrayLike,
     e_tot: float,
 ) -> tuple[float, float, Array, Array, Array, float, Any]:
     """Single SCF step updating the density matrix.
@@ -147,10 +146,10 @@ def update_dm(
 
 def _scf(
     mf: SCF,
-    dm: Array,
-    h1e: Array,
-    s1e: Array,
-    vhf: Array,
+    dm: ArrayLike,
+    h1e: ArrayLike,
+    s1e: ArrayLike,
+    vhf: ArrayLike,
     e_tot: float,
     conv_tol: float,
     conv_tol_grad: float,
@@ -181,10 +180,10 @@ def _scf(
 
 def _scf_implicit(
     mf: SCF,
-    dm: Array,
-    h1e: Array,
-    s1e: Array,
-    vhf: Array,
+    dm: ArrayLike,
+    h1e: ArrayLike,
+    s1e: ArrayLike,
+    vhf: ArrayLike,
     e_tot: float,
     conv_tol: float,
     conv_tol_grad: float,
@@ -222,7 +221,7 @@ def kernel(
     mf: SCF,
     conv_tol: float = 1e-10,
     conv_tol_grad: float = None,
-    dm0: Array | None = None,
+    dm0: ArrayLike | None = None,
 ) -> tuple[bool, float, Array, Array, Array]:
     log = logger.new_logger(mf)
     #cput0 = log.get_t0()
@@ -292,6 +291,13 @@ def kernel(
     return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 class SCF(SCFBase):
+    """Molecular SCF (mean-field) methods.
+
+    Parameters
+    ----------
+    mol
+        Molecular information.
+    """
     diis = None
     use_sp2 = False
     conv_tol_dm = None
@@ -301,7 +307,7 @@ class SCF(SCFBase):
 
     def __init__(
         self,
-        mol: Mole,
+        mol: MoleLite,
         **kwargs,
     ):
         self.mol = mol
@@ -317,14 +323,14 @@ class SCF(SCFBase):
     def dump_flags(self, verbose: int | None = None):
         pass
 
-    def build(self, mol: Mole | None = None):
+    def build(self, mol: MoleLite | None = None):
         pass
 
     @property
-    def tot_electrons(self):
+    def tot_electrons(self) -> int:
         return self.mol.tot_electrons()
 
-    def scf(self, dm0=None, **kwargs):
+    def scf(self, dm0: ArrayLike | None = None, **kwargs) -> float:
         self.dump_flags()
         self.build(self.mol)
         if self.max_cycle > 0 or self.mo_coeff is None:
@@ -344,12 +350,22 @@ class SCF(SCFBase):
                                 dm0=dm0, **kwargs)[1]
         return self.e_tot
 
-    def kernel(self, dm0=None, **kwargs):
+    def kernel(self, dm0: ArrayLike | None = None, **kwargs) -> float:
         return self.scf(dm0=dm0, **kwargs)
 
-    def get_fock(self, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
-             diis_start_cycle=None, level_shift_factor=None, damp_factor=None,
-             fock_last=None):
+    def get_fock(
+        self,
+        h1e: ArrayLike | None = None,
+        s1e: ArrayLike | None = None,
+        vhf: ArrayLike | None = None,
+        dm: ArrayLike | None = None,
+        cycle: int = -1,
+        diis: Any | None = None,
+        diis_start_cycle: int | None = None,
+        level_shift_factor: float | None = None,
+        damp_factor: float | None = None,
+        fock_last: ArrayLike | None = None,
+    ) -> Array:
         if h1e is None:
             h1e = self.get_hcore()
         if vhf is None:
@@ -370,10 +386,15 @@ class SCF(SCFBase):
 
         return f
 
-    def get_hcore(self, mol=None, **kwargs):
+    def get_hcore(self, mol: MoleLite | None = None, **kwargs) -> Array:
         return super().get_hcore(mol)
 
-    def make_rdm1(self, mo_coeff=None, mo_occ=None, **kwargs):
+    def make_rdm1(
+        self,
+        mo_coeff: ArrayLike | None = None,
+        mo_occ: ArrayLike | None = None,
+        **kwargs,
+    ) -> Array:
         if mo_coeff is None:
             mo_coeff = self.mo_coeff
         if mo_occ is None:
@@ -384,8 +405,8 @@ class SCF(SCFBase):
 
     def mo_mask(
         self,
-        mo_energy: Array | None = None,
-        mo_coeff: Array | None = None,
+        mo_energy: ArrayLike | None = None,
+        mo_coeff: ArrayLike | None = None,
     ) -> Array:
         """MO masks.
 
@@ -393,15 +414,18 @@ class SCF(SCFBase):
 
         Returns
         -------
-        mask : array
-            Mask array where elements with ``True`` values
-            indicate real MOs.
+        mask : Mask array where elements with ``True`` values indicate real MOs.
         """
         if mo_energy is None:
             mo_energy = self.mo_energy
         return np.ones(mo_energy.size, dtype=bool)
 
-    def get_grad(self, mo_coeff, mo_occ, fock=None):
+    def get_grad(
+        self,
+        mo_coeff: ArrayLike,
+        mo_occ: ArrayLike,
+        fock: ArrayLike | None = None,
+    ) -> Array:
         if fock is None:
             dm = self.make_rdm1(mo_coeff, mo_occ)
             fock = self.get_fock(dm=dm)
@@ -409,18 +433,18 @@ class SCF(SCFBase):
 
     def dip_moment(
         self,
-        mol: Mole | None = None,
-        dm: Array | None = None,
+        mol: MoleLite | None = None,
+        dm: ArrayLike | None = None,
         unit: str = "Debye",
-        origin: Array | None = None,
+        origin: ArrayLike | None = None,
         verbose: int | None = None,
-        charges: Array | None = None,
+        charges: ArrayLike | None = None,
     ) -> Array:
         """Molecular dipole moment.
 
         Parameters
         ----------
-        charges : array, optional
+        charges
             Nuclear charges.
         """
         if mol is None:
@@ -458,9 +482,9 @@ class SCF(SCFBase):
 
     def energy_elec(
         self,
-        dm: Array | None = None,
-        h1e: Array | None = None,
-        vhf: Array | None = None,
+        dm: ArrayLike | None = None,
+        h1e: ArrayLike | None = None,
+        vhf: ArrayLike | None = None,
     ) -> tuple[float, float]:
         if dm is None:
             dm = self.make_rdm1()

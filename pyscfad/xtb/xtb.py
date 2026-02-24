@@ -23,8 +23,8 @@ from pyscf.gto.mole import ANG_OF
 
 from pyscfad import numpy as np
 from pyscfad import ops
+from pyscfad.gto import MoleLite
 from pyscfad.gto.mole import inter_distance
-from pyscfad.gto.mole_lite import MoleLite as Mole
 from pyscfad.scf.hf_lite import SCFLite
 from pyscfad.dft.rks import VXC
 
@@ -34,7 +34,7 @@ from pyscfad.xtb.data.elements import N_VALENCE
 
 Array = Any
 
-def tot_valence_electrons(mol: Mole, charge: int | None = None, nkpts: int = 1) -> int:
+def tot_valence_electrons(mol: MoleLite, charge: int | None = None, nkpts: int = 1) -> int:
     if charge is None:
         charge = mol.charge
 
@@ -48,7 +48,7 @@ class XTB(ABC, SCFLite):
     init_guess = "refocc"
     veff_with_ecoul = True
 
-    def __init__(self, mol: Mole, param: Any | None = None, **kwargs):
+    def __init__(self, mol: MoleLite, param: Any | None = None, **kwargs):
         if hasattr(param, "to_mol_param"):
             self.param = param.to_mol_param(mol)
         else:
@@ -58,7 +58,7 @@ class XTB(ABC, SCFLite):
 
         super().__init__(mol, **kwargs)
 
-    def build(self, mol: Mole | None = None):
+    def build(self, mol: MoleLite | None = None):
         # cache quantities that are computed only once
         _ = self.energy_nuc(mol)
         _ = self.gamma
@@ -67,7 +67,7 @@ class XTB(ABC, SCFLite):
     @abstractmethod
     def get_hcore(
         self,
-        mol: Mole | None = None,
+        mol: MoleLite | None = None,
         s1e: Array | None = None,
     ) -> Array:
         raise NotImplementedError
@@ -75,7 +75,7 @@ class XTB(ABC, SCFLite):
     @abstractmethod
     def get_veff(
         self,
-        mol: Mole | None = None,
+        mol: MoleLite | None = None,
         dm: Array | None = None,
         dm_last: Array = np.array(0.),
         vhf_last: Array = np.array(0.),
@@ -89,17 +89,17 @@ class XTB(ABC, SCFLite):
     @abstractmethod
     def get_init_guess(
         self,
-        mol: Mole | None = None,
+        mol: MoleLite | None = None,
         key: str = "refocc",
         **kwargs
     ) -> Array:
         raise NotImplementedError
 
     @abstractmethod
-    def _energy_nuc(self, mol: Mole | None = None, **kwargs) -> float:
+    def _energy_nuc(self, mol: MoleLite | None = None, **kwargs) -> float:
         raise NotImplementedError
 
-    def energy_nuc(self, mol: Mole | None = None) -> float:
+    def energy_nuc(self, mol: MoleLite | None = None) -> float:
         if self._enuc is None:
             self._enuc = self._energy_nuc(mol)
         return self._enuc
@@ -107,7 +107,7 @@ class XTB(ABC, SCFLite):
     @abstractmethod
     def _get_EHT_factor(
         self,
-        mol: Mole | None = None,
+        mol: MoleLite | None = None,
         s1e: Array | None = None,
     ) -> Array:
         raise NotImplementedError
@@ -152,7 +152,7 @@ class XTB(ABC, SCFLite):
 
     def dip_moment(
         self,
-        mol: Mole | None = None,
+        mol: MoleLite | None = None,
         dm: Array | None = None,
         unit: str = "Debye",
         origin: Array | None = None,
@@ -168,7 +168,7 @@ class XTB(ABC, SCFLite):
 
     def shell_charges(
         self,
-        mol: Mole | None = None,
+        mol: MoleLite | None = None,
         dm: Array | None = None,
         s1e: Array | None = None,
         method: str = "mulliken"

@@ -15,21 +15,21 @@
 """
 SCF with k-point sampling
 """
-from typing import Any
+from __future__ import annotations
 import numpy
 
+from pyscfad.typing import ArrayLike, Array
 from pyscfad import numpy as np
 from pyscfad.ops import vmap
 from pyscfad.lib import logger
 from pyscfad.scf.hf_lite import SCFLite
+from pyscfad.dft.rks import VXC
 from pyscfad.pbc.gto import CellLite as Cell
-
-Array = Any
 
 def get_occ(
     mf: KSCF,
-    mo_energy_kpts: Array | None = None,
-    mo_coeff_kpts: Array | None = None,
+    mo_energy_kpts: ArrayLike | None = None,
+    mo_coeff_kpts: ArrayLike | None = None,
 ) -> Array:
     if mf.sigma is not None and mf.sigma > 0:
         raise NotImplementedError
@@ -66,7 +66,7 @@ class KSCF(SCFLite):
     def __init__(
         self,
         cell: Cell,
-        kpts: Array | None = None,
+        kpts: ArrayLike | None = None,
         **kwargs,
     ):
         if kpts is None:
@@ -82,7 +82,7 @@ class KSCF(SCFLite):
     def get_ovlp(
         self,
         cell: Cell | None = None,
-        kpts: Array | None = None,
+        kpts: ArrayLike | None = None,
     ) -> Array:
         if cell is None:
             cell = self.cell
@@ -92,8 +92,8 @@ class KSCF(SCFLite):
 
     def make_rdm1(
         self,
-        mo_coeff: Array | None = None,
-        mo_occ: Array | None = None,
+        mo_coeff: ArrayLike | None = None,
+        mo_occ: ArrayLike | None = None,
         **kwargs,
     ) -> Array:
         if mo_coeff is None:
@@ -102,14 +102,14 @@ class KSCF(SCFLite):
             mo_occ = self.mo_occ
         return vmap(super().make_rdm1)(mo_coeff, mo_occ)
 
-    def _eigh(self, h: Array, s: Array) -> tuple[float, Array]:
+    def _eigh(self, h: ArrayLike, s: ArrayLike) -> tuple[Array, Array]:
         return vmap(super()._eigh)(h, s)
 
     def get_grad(
         self,
-        mo_coeff: Array,
-        mo_occ: Array,
-        fock: Array | None = None,
+        mo_coeff: ArrayLike,
+        mo_occ: ArrayLike,
+        fock: ArrayLike | None = None,
     ) -> Array:
         if fock is None:
             dm = self.make_rdm1(mo_coeff, mo_occ)
@@ -118,9 +118,9 @@ class KSCF(SCFLite):
 
     def energy_elec(
         self,
-        dm: Array | None = None,
-        h1e: Array | None = None,
-        vhf: Array | VXC | None = None,
+        dm: ArrayLike | None = None,
+        h1e: ArrayLike | None = None,
+        vhf: ArrayLike | VXC | None = None,
     ) -> tuple[float, float]:
         if dm is None:
             dm = self.make_rdm1()

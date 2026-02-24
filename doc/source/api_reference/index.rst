@@ -26,3 +26,4 @@ All classes and functions exposed in pyscfad.* namespace are public.
    tdscf
    tools
    util
+   ml

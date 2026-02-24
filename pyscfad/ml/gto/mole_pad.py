@@ -33,7 +33,7 @@ from pyscf.gto.mole import (
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.gto import moleintor_lite
-from pyscfad.gto.mole_lite import MoleLite
+from pyscfad.gto import MoleLite
 from pyscfad.ml.gto.basis_array import BasisArray
 
 Array = Any
@@ -46,7 +46,7 @@ def tot_electrons(mol):
     return nelectron_int
 
 
-class Mole(MoleLite):
+class MolePad(MoleLite):
     """Molecular information with padding.
 
     Parameters
@@ -138,7 +138,7 @@ class Mole(MoleLite):
     def copy(
         self,
         deep: bool = True,
-    ) -> Mole:
+    ) -> MolePad:
         import copy
         newmol = self.view(self.__class__)
         if not deep:
@@ -208,8 +208,6 @@ class Mole(MoleLite):
     from_pyscf = NotImplemented
     to_pyscf = NotImplemented
 
-MolePad = Mole
-
 def make_atm_env(
     coords: Array,
     numbers: Array,
@@ -237,7 +235,7 @@ def make_atm_env(
     return _atm, _env
 
 def make_env(
-    mol: Mole,
+    mol: MolePad,
     bas0: Array = None,
     env0: Array = None,
 ) -> tuple[Array, Array, Array]:

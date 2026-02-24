@@ -202,7 +202,7 @@ def main():
         "command", nargs="?", default="html", help=f"command to run: {joined}"
     )
     argparser.add_argument(
-        "--num-jobs", default="auto", help="number of jobs used by sphinx-build"
+        "--num-jobs", default="1", help="number of jobs used by sphinx-build"
     )
     argparser.add_argument(
         "--python-path", type=str, default=os.path.dirname(DOC_PATH), help="path"

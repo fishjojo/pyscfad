@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from .basis_array import make_basis_array, BasisArray
-from .mole_pad import MolePad
+"""
+Molecular sturcture and Gaussian type orbital integrals
+"""
+from pyscfad.ml.gto.basis_array import make_basis_array, BasisArray
+from pyscfad.ml.gto.mole_pad import MolePad
