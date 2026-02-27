@@ -3,7 +3,6 @@ jinja2
 sphinx
 numpydoc
 sphinx_copybutton
-sphinx-autodoc-typehints
 matplotlib
 sphinx_design
 nbsphinx

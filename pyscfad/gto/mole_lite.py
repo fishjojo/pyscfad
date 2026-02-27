@@ -11,10 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-Lightweight ``mole`` module.
-"""
 
+"""
+Lightweight :mod:`~pyscfad.gto.mole` module.
+"""
 from __future__ import annotations
 from collections.abc import Callable
 import contextlib
@@ -212,12 +212,12 @@ class MoleLite(MoleBase):
                 `0` (no symmetry), `1` (hermitian), and `2` (anti-hermitian).
             aosym: Permutation symmetry of 2e integrals, can be
                 `s1`, `s2`, `s4`, and `s8`.
-            out: Not used.
+            out: Unused.
             shls_slice: Label the start-stop shells for each index in the integral.
                 For example, the 8-element tuple for the 2e integral
                 tensor ``(ij|kl) = intor('int2e')`` are specified as
                 ``(i0, i1, j0, j1, k0, k1, l0, l1)``.
-            grids: Not used.
+            grids: Unused.
 
         Returns:
             Computed integral as an array.
@@ -311,7 +311,7 @@ class MoleLite(MoleBase):
         trace_coords: bool = False,
         trace_basis: bool = False,
     ) -> MoleLite:
-        """Initialize from :class:`pyscf.gto.Mole` object.
+        """Initialize from the pyscf :class:`~pyscf.gto.mole.Mole` object.
         """
         if not mol._built:
             raise KeyError(f"{mol} not built")
@@ -348,7 +348,7 @@ class MoleLite(MoleBase):
         output: str | None = None,
         max_memory: int | None = None,
     ) -> MoleBase:
-        """Convert to :class:`pyscf.gto.Mole` object.
+        """Convert to the pyscf :class:`~pyscf.gto.mole.Mole` object.
         """
         coords = ops.to_numpy(self.coords)
         atom = [[a, tuple(x.tolist())] for a, x in zip(self.symbols, coords)]
@@ -382,6 +382,7 @@ def gaussian_int(
     alpha: ArrayLike,
 ) -> Array:
     r"""Gaussian integral.
+
     Computes :math:`\int_0^\infty x^n exp(-\alpha x^2) dx`.
     """
     from pyscfad.scipy.special import gamma
@@ -457,7 +458,7 @@ def make_env(
     mol: MoleLite,
 ) -> tuple[numpy.ndarray, numpy.ndarray, Array]:
     """Make ``_atm``, ``_bas``, and ``_env`` for
-    interfacing with libcint.
+    interfacing with ``libcint``.
     """
     pre_env = np.zeros(PTR_ENV_START)
     _env = [pre_env]

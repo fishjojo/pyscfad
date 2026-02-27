@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Lightweight :mod:`~pyscfad.scf.hf` module.
+"""
 from __future__ import annotations
 from typing import Any
 from functools import partial
@@ -115,9 +118,8 @@ def update_dm(
 ) -> tuple[float, float, Array, Array, Array, float, Any]:
     """Single SCF step updating the density matrix.
 
-    Notes
-    -----
-    This function generally has side effects to ``diis``.
+    Notes:
+        This function generally has side effects to ``diis``.
     """
     log = logger.new_logger(mf)
 
@@ -291,19 +293,26 @@ def kernel(
     return scf_conv, e_tot, mo_energy, mo_coeff, mo_occ
 
 class SCF(SCFBase):
-    """Molecular SCF (mean-field) methods.
+    r"""Molecular SCF (mean-field) methods.
 
-    Parameters
-    ----------
-    mol
-        Molecular information.
+    Args:
+        mol: Molecular information.
+
+    Attributes:
+        diis: SCF solver. Default uses the Anderson mixing.
+        use_sp2: Whether to use the SP2 density purification solver.
+        conv_tol_dm: Convergence threshold used for the SP2 solver.
+        sigma: Smearning temperature :math:`k_B T` in Eh.
+        smearing_method: Smearning method.
+            Only Fermi-Dirac (``fermi``) distribution is supported.
+        veff_with_ecoul: Whether ``get_veff`` returns a :class:`~pyscfad.dft.rks.VXC` object.
     """
-    diis = None
-    use_sp2 = False
-    conv_tol_dm = None
-    sigma = None
-    smearing_method = "fermi"
-    veff_with_ecoul = False
+    diis: Any | None = None
+    use_sp2: bool = False
+    conv_tol_dm: float | None = None
+    sigma: float | None = None
+    smearing_method: str = "fermi"
+    veff_with_ecoul: bool = False
 
     def __init__(
         self,
@@ -412,9 +421,8 @@ class SCF(SCFBase):
 
         Useful for e.g. padding, where there are fake MOs.
 
-        Returns
-        -------
-        mask : Mask array where elements with ``True`` values indicate real MOs.
+        Returns:
+            mask: Mask array where elements with ``True`` values indicate real MOs.
         """
         if mo_energy is None:
             mo_energy = self.mo_energy
@@ -442,10 +450,8 @@ class SCF(SCFBase):
     ) -> Array:
         """Molecular dipole moment.
 
-        Parameters
-        ----------
-        charges
-            Nuclear charges.
+        Parameters:
+            charges: Nuclear charges.
         """
         if mol is None:
             mol = self.mol

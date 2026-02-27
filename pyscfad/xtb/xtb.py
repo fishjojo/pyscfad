@@ -13,14 +13,16 @@
 # limitations under the License.
 
 """
-XTB
+Molecular XTB models.
 """
+from __future__ import annotations
 from typing import Any
 from abc import ABC, abstractmethod
 
 import numpy
 from pyscf.gto.mole import ANG_OF
 
+from pyscfad.typing import ArrayLike, Array
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.gto import MoleLite
@@ -31,8 +33,6 @@ from pyscfad.dft.rks import VXC
 from pyscfad.xtb import util
 from pyscfad.xtb.data.radii import ATOMIC as ATOMIC_RADII
 from pyscfad.xtb.data.elements import N_VALENCE
-
-Array = Any
 
 def tot_valence_electrons(mol: MoleLite, charge: int | None = None, nkpts: int = 1) -> int:
     if charge is None:
@@ -68,7 +68,7 @@ class XTB(ABC, SCFLite):
     def get_hcore(
         self,
         mol: MoleLite | None = None,
-        s1e: Array | None = None,
+        s1e: ArrayLike | None = None,
     ) -> Array:
         raise NotImplementedError
 
@@ -76,12 +76,12 @@ class XTB(ABC, SCFLite):
     def get_veff(
         self,
         mol: MoleLite | None = None,
-        dm: Array | None = None,
-        dm_last: Array = np.array(0.),
-        vhf_last: Array = np.array(0.),
+        dm: ArrayLike | None = None,
+        dm_last: ArrayLike = np.array(0.),
+        vhf_last: ArrayLike = np.array(0.),
         hermi: int = 1,
-        s1e: Array | None = None,
-        q: Array | None = None,
+        s1e: ArrayLike | None = None,
+        q: ArrayLike | None = None,
         **kwargs,
     ) -> Array:
         raise NotImplementedError
@@ -108,7 +108,7 @@ class XTB(ABC, SCFLite):
     def _get_EHT_factor(
         self,
         mol: MoleLite | None = None,
-        s1e: Array | None = None,
+        s1e: ArrayLike | None = None,
     ) -> Array:
         raise NotImplementedError
 
@@ -122,7 +122,7 @@ class XTB(ABC, SCFLite):
             self._gamma = self._get_gamma()
         return self._gamma
 
-    def scf(self, dm0: Array | None = None, q0: Array | None = None, **kwargs) -> float:
+    def scf(self, dm0: ArrayLike | None = None, q0: ArrayLike | None = None, **kwargs) -> float:
         if self.diis == "qbroyden":
             from pyscfad.xtb import qbroyden
 
@@ -153,11 +153,11 @@ class XTB(ABC, SCFLite):
     def dip_moment(
         self,
         mol: MoleLite | None = None,
-        dm: Array | None = None,
+        dm: ArrayLike | None = None,
         unit: str = "Debye",
-        origin: Array | None = None,
+        origin: ArrayLike | None = None,
         verbose: int | None = None,
-        charges: Array | None = None,
+        charges: ArrayLike | None = None,
     ) -> Array:
         if mol is None:
             mol = self.mol
@@ -169,10 +169,10 @@ class XTB(ABC, SCFLite):
     def shell_charges(
         self,
         mol: MoleLite | None = None,
-        dm: Array | None = None,
-        s1e: Array | None = None,
+        dm: ArrayLike | None = None,
+        s1e: ArrayLike | None = None,
         method: str = "mulliken"
-    ):
+    ) -> Array:
         if mol is None:
             mol = self.mol
         if dm is None:
