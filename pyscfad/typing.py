@@ -18,6 +18,7 @@ Type annotations.
 Placeholder for PySCFAD type annotations.
 Currently, JAX types are used.
 """
+# pylint: skip-file
 from jax import Array as Array
 from jax.typing import (
     ArrayLike as ArrayLike,

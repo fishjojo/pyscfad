@@ -503,7 +503,7 @@ class SCF(SCFBase):
         if hasattr(vhf, "ecoul"):
             ecoul = vhf.ecoul.real
         else:
-            ecoul = np.einsum('ij,ji->', vhf, dm).real * .5
+            ecoul = np.einsum("ij,ji->", vhf, dm).real * .5
 
         self.scf_summary["e1"] = e1
         self.scf_summary["e2"] = ecoul

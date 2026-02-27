@@ -342,7 +342,7 @@ def estimate_rcut(cell, precision=None):
         return 0.01
     if precision is None:
         precision = cell.precision
-    if getattr(cell, "use_loose_rcut", None):
+    if getattr(cell, 'use_loose_rcut', None):
         raise NotImplementedError
     #    return cell.rcut_by_shells(precision).max()
 

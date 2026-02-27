@@ -60,16 +60,16 @@ def _pbc_intor(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
     out = numpy.empty((nkpts,comp,ni,nj), dtype=numpy.complex128)
 
     if hermi == 0:
-        aosym = 's1'
+        aosym = "s1"
     else:
-        aosym = 's2'
-    fill = getattr(libpbc, 'PBCnr2c_fill_k'+aosym)
+        aosym = "s2"
+    fill = getattr(libpbc, "PBCnr2c_fill_k"+aosym)
     fintor = getattr(moleintor.libcgto, intor)
     cintopt = lib.c_null_ptr()
 
     rcut = max(cell1.rcut, cell2.rcut)
-    Ls = numpy.asarray(cell1.get_lattice_Ls(rcut=rcut), order='C')
-    expkL = numpy.asarray(numpy.exp(1j*numpy.dot(kpts_lst, Ls.T)), order='C')
+    Ls = numpy.asarray(cell1.get_lattice_Ls(rcut=rcut), order="C")
+    expkL = numpy.asarray(numpy.exp(1j*numpy.dot(kpts_lst, Ls.T)), order="C")
     drv = libpbc.PBCnr2c_drv
 
     drv(fintor, fill, out.ctypes.data_as(ctypes.c_void_p),

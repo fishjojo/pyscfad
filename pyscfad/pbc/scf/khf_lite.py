@@ -134,7 +134,7 @@ class KSCF(SCFLite):
         if hasattr(vhf, "ecoul"):
             ecoul = vhf.ecoul.real
         else:
-            ecoul = weight * np.einsum('kij,kji', vhf, dm).real * 0.5
+            ecoul = weight * np.einsum("kij,kji", vhf, dm).real * 0.5
 
         self.scf_summary["e1"] = e1
         self.scf_summary["e2"] = ecoul
