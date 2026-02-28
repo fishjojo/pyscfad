@@ -354,8 +354,6 @@ def estimate_rcut(cell, precision=None):
         vmap_method='sequential',
     )
 
-# FIXME monkey patch
-pyscf_cell.estimate_rcut = estimate_rcut
 
 class Cell(mole.Mole, pyscf_cell.Cell):
     """Subclass of :class:`pyscf.pbc.gto.Cell` with traceable attributes.

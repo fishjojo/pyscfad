@@ -19,6 +19,7 @@ All classes and functions exposed in pyscfad.* namespace are public.
    geomopt
    gto
    gw
+   ml
    mp
    pbc
    prop
@@ -26,4 +27,4 @@ All classes and functions exposed in pyscfad.* namespace are public.
    tdscf
    tools
    util
-   ml
+   xtb

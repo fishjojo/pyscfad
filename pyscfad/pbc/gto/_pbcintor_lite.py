@@ -170,7 +170,7 @@ def _pbc_intor_impl_cpu(
     if ao_loc is None:
         ao_loc = make_loc(bas, intor_name)
     else:
-        # The input ao_loc is for single mol object,
+        # TODO The input ao_loc is for single mol object,
         # need to concatenate it.
         raise NotImplementedError
     ao_loc = numpy.asarray(ao_loc, dtype=numpy.int32, order="C")

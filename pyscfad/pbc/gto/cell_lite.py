@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+Lightweight :mod:`~pyscfad.pbc.gto.cell` module
+"""
 from pyscfad.typing import Array, ArrayLike
 from pyscfad import numpy as np
 from pyscfad.gto import MoleLite
@@ -21,16 +23,15 @@ from pyscfad.pbc.gto.cell import estimate_rcut
 class Cell(MoleLite):
     """Unit cell information.
 
-    Attributes
-    ----------
-    a : The lattice vectors.
-    precision : The integral precision.
-    rcut : The cutoff radius for lattice sum.
-    dimension : PBC dimensions.
-        0: no PBC.
-        1: PBC along ``a[0]``.
-        2: PBC along ``a[0]`` and ``a[1]``.
-        3: PBC along ``a[0]``, ``a[1]``, and ``a[2]``.
+    Args:
+        a: The lattice vectors.
+        precision: The integral precision.
+        rcut: The cutoff radius for lattice sum.
+        dimension: PBC dimensions.
+            0: no PBC.
+            1: PBC along ``a[0]``.
+            2: PBC along ``a[0]`` and ``a[1]``.
+            3: PBC along ``a[0]``, ``a[1]``, and ``a[2]``.
     """
     def __init__(
         self,
@@ -64,14 +65,12 @@ class Cell(MoleLite):
     ) -> Array:
         """Periodic one-electron integrals.
 
-        See Also
-        --------
-        :func:`pyscf.pbc.gto.Cell.pbc_intor`
+        See Also:
+            :func:`~pyscf.pbc.gto.Cell.pbc_intor`
 
-        Notes
-        -----
-        Unlike the PySCF version, the argument ``kpt`` is not supported,
-        and the returned array always contains one dimension for the k-points.
+        Notes:
+            Unlike pyscf, the argument ``kpt`` is not supported,
+            and the returned array always contains one dimension for the k-points.
         """
         from pyscfad.pbc.gto._pbcintor_lite import _pbc_intor
 
