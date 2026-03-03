@@ -13,28 +13,30 @@
 # limitations under the License.
 
 """
-XTB
+Molecular XTB models.
 """
+from __future__ import annotations
 from typing import Any
 from abc import ABC, abstractmethod
 
 import numpy
 from pyscf.gto.mole import ANG_OF
 
+from pyscfad.typing import ArrayLike, Array
 from pyscfad import numpy as np
 from pyscfad import ops
+from pyscfad.gto import MoleLite
 from pyscfad.gto.mole import inter_distance
-from pyscfad.gto.mole_lite import MoleLite as Mole
-from pyscfad.scf import hf_lite as hf
+from pyscfad.scf.hf_lite import SCFLite
 from pyscfad.dft.rks import VXC
 
 from pyscfad.xtb import util
 from pyscfad.xtb.data.radii import ATOMIC as ATOMIC_RADII
 from pyscfad.xtb.data.elements import N_VALENCE
 
-Array = Any
+from pyscfad.xtb.param import GFN1MolParam
 
-def tot_valence_electrons(mol: Mole, charge: int | None = None, nkpts: int = 1) -> int:
+def tot_valence_electrons(mol: MoleLite, charge: int | None = None, nkpts: int = 1) -> int:
     if charge is None:
         charge = mol.charge
 
@@ -42,13 +44,13 @@ def tot_valence_electrons(mol: Mole, charge: int | None = None, nkpts: int = 1) 
     n = numpy.sum(nelecs) * nkpts - charge
     return n
 
-class XTB(ABC, hf.SCF):
+class XTB(ABC, SCFLite):
     """Base class for XTB methods.
     """
     init_guess = "refocc"
+    veff_with_ecoul = True
 
-    def __init__(self, mol: Mole, param: Any | None = None):
-        super().__init__(mol)
+    def __init__(self, mol: MoleLite, param: Any | None = None, **kwargs):
         if hasattr(param, "to_mol_param"):
             self.param = param.to_mol_param(mol)
         else:
@@ -56,7 +58,9 @@ class XTB(ABC, hf.SCF):
         self._enuc = None
         self._gamma = None
 
-    def build(self, mol: Mole | None = None):
+        super().__init__(mol, **kwargs)
+
+    def build(self, mol: MoleLite | None = None) -> XTB:
         # cache quantities that are computed only once
         _ = self.energy_nuc(mol)
         _ = self.gamma
@@ -65,39 +69,39 @@ class XTB(ABC, hf.SCF):
     @abstractmethod
     def get_hcore(
         self,
-        mol: Mole | None = None,
-        s1e: Array | None = None,
+        mol: MoleLite | None = None,
+        s1e: ArrayLike | None = None,
     ) -> Array:
         raise NotImplementedError
 
     @abstractmethod
     def get_veff(
         self,
-        mol: Mole | None = None,
-        dm: Array | None = None,
-        dm_last: Array = np.array(0.),
-        vhf_last: Array = np.array(0.),
+        mol: MoleLite | None = None,
+        dm: ArrayLike | None = None,
+        dm_last: ArrayLike = np.array(0.),
+        vhf_last: ArrayLike = np.array(0.),
         hermi: int = 1,
-        s1e: Array | None = None,
-        q: Array | None = None,
+        s1e: ArrayLike | None = None,
+        q: ArrayLike | None = None,
         **kwargs,
-    ) -> Array:
+    ) -> VXC:
         raise NotImplementedError
 
     @abstractmethod
     def get_init_guess(
         self,
-        mol: Mole | None = None,
+        mol: MoleLite | None = None,
         key: str = "refocc",
         **kwargs
     ) -> Array:
         raise NotImplementedError
 
     @abstractmethod
-    def _energy_nuc(self, mol: Mole | None = None, **kwargs) -> float:
+    def _energy_nuc(self, mol: MoleLite | None = None, **kwargs) -> float:
         raise NotImplementedError
 
-    def energy_nuc(self, mol: Mole | None = None) -> float:
+    def energy_nuc(self, mol: MoleLite | None = None) -> float:
         if self._enuc is None:
             self._enuc = self._energy_nuc(mol)
         return self._enuc
@@ -105,8 +109,8 @@ class XTB(ABC, hf.SCF):
     @abstractmethod
     def _get_EHT_factor(
         self,
-        mol: Mole | None = None,
-        s1e: Array | None = None,
+        mol: MoleLite | None = None,
+        s1e: ArrayLike | None = None,
     ) -> Array:
         raise NotImplementedError
 
@@ -120,35 +124,7 @@ class XTB(ABC, hf.SCF):
             self._gamma = self._get_gamma()
         return self._gamma
 
-    def energy_elec(
-        self,
-        dm: Array | None = None,
-        h1e: Array | None = None,
-        vhf: Array | None = None,
-    ) -> tuple[float, float]:
-        if dm is None:
-            dm = self.make_rdm1()
-        if h1e is None:
-            h1e = self.get_hcore(self.mol)
-        if vhf is None or getattr(vhf, "ecoul", None) is None:
-            vhf = self.get_veff(self.mol, dm)
-
-        e1 = np.einsum("ij,ji", h1e, dm)
-        ecoul = vhf.ecoul
-        tot_e = e1 + ecoul
-        return tot_e.real, ecoul
-
-    def energy_tot(
-        self,
-        dm: Array | None = None,
-        h1e: Array | None = None,
-        vhf: Array | None = None,
-    ) -> float:
-        nuc = self.energy_nuc()
-        e_tot = self.energy_elec(dm, h1e, vhf)[0] + nuc
-        return e_tot
-
-    def scf(self, dm0: Array | None = None, q0: Array | None = None, **kwargs) -> float:
+    def scf(self, dm0: ArrayLike | None = None, q0: ArrayLike | None = None, **kwargs) -> float:
         if self.diis == "qbroyden":
             from pyscfad.xtb import qbroyden
 
@@ -178,12 +154,12 @@ class XTB(ABC, hf.SCF):
 
     def dip_moment(
         self,
-        mol: Mole | None = None,
-        dm: Array | None = None,
+        mol: MoleLite | None = None,
+        dm: ArrayLike | None = None,
         unit: str = "Debye",
-        origin: Array | None = None,
+        origin: ArrayLike | None = None,
         verbose: int | None = None,
-        charges: Array | None = None,
+        charges: ArrayLike | None = None,
     ) -> Array:
         if mol is None:
             mol = self.mol
@@ -194,11 +170,11 @@ class XTB(ABC, hf.SCF):
 
     def shell_charges(
         self,
-        mol: Mole | None = None,
-        dm: Array | None = None,
-        s1e: Array | None = None,
+        mol: MoleLite | None = None,
+        dm: ArrayLike | None = None,
+        s1e: ArrayLike | None = None,
         method: str = "mulliken"
-    ):
+    ) -> Array:
         if mol is None:
             mol = self.mol
         if dm is None:
@@ -213,7 +189,7 @@ class XTB(ABC, hf.SCF):
         return q
     get_q = shell_charges
 
-def EHT_X_GFN1(mol, param):
+def EHT_X_GFN1(mol: MoleLite, param: GFN1MolParam) -> Array:
     kEN = param.kEN
     EN = param.EN
 
@@ -226,7 +202,7 @@ def EHT_X_GFN1(mol, param):
 def EHT_Y_GFN1(*args, **kwargs):
     return 1
 
-def EHT_Hdiag_GFN1(mol, param):
+def EHT_Hdiag_GFN1(mol: MoleLite, param: GFN1MolParam) -> Array:
     selfenergy = param.selfenergy
     kcn = param.kcn
     CN = param.CN[util.atom_to_bas_indices(mol)]
@@ -234,7 +210,11 @@ def EHT_Hdiag_GFN1(mol, param):
     Hdiag = selfenergy - kcn * CN
     return .5 * (Hdiag[:,None] + Hdiag[None,:])
 
-def EHT_PI_GFN1(mol, param, atomic_radii=ATOMIC_RADII):
+def EHT_PI_GFN1(
+    mol: MoleLite,
+    param: GFN1MolParam,
+    atomic_radii: ArrayLike = ATOMIC_RADII,
+) -> Array:
     shpoly = param.shpoly
 
     rr = inter_distance(mol)
@@ -254,13 +234,18 @@ def EHT_PI_GFN1(mol, param, atomic_radii=ATOMIC_RADII):
     PI = (1 + shpoly[:,None] * RR) * (1 + shpoly[None,:] * RR)
     return PI
 
-def mulliken_charge(mol, param, s1e, dm):
+def mulliken_charge(
+    mol: MoleLite,
+    param: GFN1MolParam,
+    s1e: ArrayLike,
+    dm: ArrayLike,
+) -> Array:
     SP = np.einsum("pq,pq->p", s1e, dm)
     occs = np.zeros(mol.nbas)
     occs = ops.index_add(occs, ops.index[util.bas_to_ao_indices(mol)], SP)
     return param.refocc - occs
 
-def sum_shell_charges(mol, partial_charges):
+def sum_shell_charges(mol: MoleLite, partial_charges: ArrayLike) -> Array:
     atm_charges = np.zeros(mol.natm)
     atm_charges = ops.index_add(
                         atm_charges,
@@ -268,7 +253,7 @@ def sum_shell_charges(mol, partial_charges):
                         partial_charges)
     return atm_charges
 
-def gamma_GFN1(mol, param):
+def gamma_GFN1(mol: MoleLite, param: GFN1MolParam) -> Array:
     eta = 1. / (param.lgam * param.gam)
     eta = 2. / (eta[:,None] + eta[None,:])
 
@@ -286,14 +271,14 @@ class GFN1XTB(XTB):
     def _get_gamma(self):
         return gamma_GFN1(self.mol, self.param)
 
-    def get_hcore(self, mol=None, s1e=None):
+    def get_hcore(self, mol: MoleLite | None = None, s1e: ArrayLike | None = None) -> Array:
         if mol is None:
             mol = self.mol
         if s1e is None:
             s1e = self.get_ovlp()
         return s1e * self._get_EHT_factor(mol, s1e)
 
-    def _get_EHT_factor(self, mol=None, s1e=None):
+    def _get_EHT_factor(self, mol: MoleLite | None = None, s1e: ArrayLike | None = None) -> Array:
         if mol is None:
             mol = self.mol
         if s1e is None:
@@ -313,9 +298,17 @@ class GFN1XTB(XTB):
                       hdiag)
         return h1[util.bas_to_ao_indices_2d(mol)]
 
-    def get_veff(self, mol=None, dm=None, dm_last=np.array(0.),
-                 vhf_last=np.array(0.), hermi=1, s1e=None, q=None,
-                 **kwargs):
+    def get_veff(
+        self,
+        mol: MoleLite | None = None,
+        dm: ArrayLike | None = None,
+        dm_last: ArrayLike = np.array(0.),
+        vhf_last: ArrayLike = np.array(0.),
+        hermi: int = 1,
+        s1e: ArrayLike | None = None,
+        q: ArrayLike | None = None,
+        **kwargs,
+    ) -> VXC:
         del dm_last, vhf_last
         if mol is None:
             mol = self.mol
@@ -343,7 +336,7 @@ class GFN1XTB(XTB):
         vj = -.5 * s1e * phi
         return VXC(vxc=vj, ecoul=ecoul)
 
-    def _energy_nuc(self, mol=None, **kwargs):
+    def _energy_nuc(self, mol: MoleLite | None = None, **kwargs) -> float:
         if mol is None:
             mol = self.mol
 
@@ -362,7 +355,7 @@ class GFN1XTB(XTB):
         enuc = .5 * np.sum(z_ab * damp * r_inv)
         return enuc
 
-    def get_init_guess(self, mol=None, key="refocc", **kwargs):
+    def get_init_guess(self, mol: MoleLite | None = None, key: str = "refocc", **kwargs) -> Array:
         if key != "refocc":
             raise NotImplementedError(f"Unsupported initial guess type {key}")
 

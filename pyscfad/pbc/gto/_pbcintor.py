@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2025 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,79 @@ from pyscfad.gto._moleintor_jvp import _int1e_fill_jvp_r0_s2
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
 def _pbc_intor(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
                shls_slice=None):
-    return Cell.pbc_intor(mol.view(Cell), intor, comp, hermi, kpts, kpt, shls_slice)
+    import ctypes
+    from pyscf.gto import moleintor
+    from pyscf import lib
+    from pyscf.gto.mole import conc_env
+    from pyscf.pbc.gto import _pbcintor
+    libpbc = _pbcintor.libpbc
+
+    cell1 = cell2 = mol
+    intor, comp = moleintor._get_intor_and_comp(cell1._add_suffix(intor), comp)
+
+    if kpts is None:
+        if kpt is not None:
+            kpts_lst = numpy.reshape(kpt, (1,3))
+        else:
+            kpts_lst = numpy.zeros((1,3))
+    else:
+        kpts_lst = numpy.reshape(kpts, (-1,3))
+    nkpts = len(kpts_lst)
+
+    pcell = cell1.copy(deep=False)
+    pcell.precision = min(cell1.precision, cell2.precision)
+    pcell._atm, pcell._bas, pcell._env = \
+            atm, bas, env = conc_env(cell1._atm, cell1._bas, cell1._env,
+                                     cell2._atm, cell2._bas, cell2._env)
+
+    if shls_slice is None:
+        shls_slice = (0, cell1.nbas, 0, cell2.nbas)
+    i0, i1, j0, j1 = shls_slice[:4]
+    j0 += cell1.nbas
+    j1 += cell1.nbas
+    ao_loc = moleintor.make_loc(bas, intor)
+    ni = ao_loc[i1] - ao_loc[i0]
+    nj = ao_loc[j1] - ao_loc[j0]
+    out = numpy.empty((nkpts,comp,ni,nj), dtype=numpy.complex128)
+
+    if hermi == 0:
+        aosym = "s1"
+    else:
+        aosym = "s2"
+    fill = getattr(libpbc, "PBCnr2c_fill_k"+aosym)
+    fintor = getattr(moleintor.libcgto, intor)
+    cintopt = lib.c_null_ptr()
+
+    rcut = max(cell1.rcut, cell2.rcut)
+    Ls = numpy.asarray(cell1.get_lattice_Ls(rcut=rcut), order="C")
+    expkL = numpy.asarray(numpy.exp(1j*numpy.dot(kpts_lst, Ls.T)), order="C")
+    drv = libpbc.PBCnr2c_drv
+
+    drv(fintor, fill, out.ctypes.data_as(ctypes.c_void_p),
+        ctypes.c_int(nkpts), ctypes.c_int(comp), ctypes.c_int(len(Ls)),
+        Ls.ctypes.data_as(ctypes.c_void_p),
+        expkL.ctypes.data_as(ctypes.c_void_p),
+        (ctypes.c_int*4)(i0, i1, j0, j1),
+        ao_loc.ctypes.data_as(ctypes.c_void_p), cintopt,
+        atm.ctypes.data_as(ctypes.c_void_p), ctypes.c_int(pcell.natm),
+        bas.ctypes.data_as(ctypes.c_void_p), ctypes.c_int(pcell.nbas),
+        env.ctypes.data_as(ctypes.c_void_p), ctypes.c_int(env.size))
+
+    mat = []
+    for k, kpt in enumerate(kpts_lst):
+        v = out[k]
+        if hermi != 0:
+            for ic in range(comp):
+                lib.hermi_triu(v[ic], hermi=hermi, inplace=True)
+        if comp == 1:
+            v = v[0]
+        if abs(kpt).sum() < 1e-9:  # gamma_point
+            v = v.real
+        mat.append(v)
+
+    if kpts is None or numpy.shape(kpts) == (3,):  # A single k-point
+        mat = mat[0]
+    return mat
 
 @_pbc_intor.defjvp
 def _pbc_intor_jvp(intor, comp, hermi, kpts, kpt, shls_slice,
@@ -74,6 +146,7 @@ def _int1e_jvp_r0(mol, mol_t, intor, hermi, kpts, kpt, shls_slice):
         tangent_out = tangent_out[0]
     return tangent_out
 
+# FIXME use pyscfad's Ls
 @partial(custom_vjp, nondiff_argnums=tuple(range(1,7)))
 def _pbc_intor_rev(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
                    shls_slice=None):

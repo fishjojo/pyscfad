@@ -13,10 +13,10 @@
 # limitations under the License.
 
 from typing import Any
-import warnings
 from functools import partial
 import numpy
 
+from jax.custom_derivatives import SymbolicZero
 from pyscf.gto.mole import (
     ATOM_OF,
     PTR_COORD,
@@ -161,8 +161,6 @@ def _get_shape(
         "hermi",
         "aosym",
         "ao_loc",
-        "cintopt",
-        "out",
         "trace_coords",
         "trace_basis",
         "aoslices",
@@ -178,15 +176,11 @@ def getints(
     hermi: int = 0,
     aosym: str = "s1",
     ao_loc: Array | None = None,
-    cintopt: Any | None = None,
-    out: Any | None = None,
     trace_coords: bool = False,
     trace_basis: bool = False,
     aoslices: Array | None = None, # for padding
 ):
     from pyscfad.gto._pyscf_moleintor import getints as callback
-    if out is not None:
-        warnings.warn("Pre-allocated 'out' is not used")
 
     shape = _get_shape(
         intor_name,
@@ -211,8 +205,6 @@ def getints(
         comp=comp,
         hermi=hermi,
         ao_loc=ao_loc,
-        cintopt=cintopt,
-        out=None,
     )
     return out
 
@@ -226,8 +218,6 @@ def getints_jvp(
     hermi,
     aosym,
     ao_loc,
-    cintopt,
-    out,
     trace_coords,
     trace_basis,
     aoslices,
@@ -250,8 +240,6 @@ def getints_jvp(
         hermi=hermi,
         aosym=aosym,
         ao_loc=ao_loc,
-        cintopt=cintopt,
-        out=out,
         trace_coords=trace_coords,
         trace_basis=trace_basis,
         aoslices=aoslices,
@@ -262,34 +250,35 @@ def getints_jvp(
     intor_ip_bra = intor_ip_ket = None
     intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor_name)
 
-    if trace_coords and (intor_ip_bra or intor_ip_ket):
-        if intor_name.startswith("int1e_rinv"):
-            rc_deriv = PTR_RINV_ORIG
-        elif intor_name.startswith("int1e_r"):
-            rc_deriv = PTR_COMMON_ORIG
-        else:
-            rc_deriv = None
+    if not isinstance(env_dot, SymbolicZero):
+        if trace_coords and (intor_ip_bra or intor_ip_ket):
+            if intor_name.startswith("int1e_rinv"):
+                rc_deriv = PTR_RINV_ORIG
+            elif intor_name.startswith("int1e_r"):
+                rc_deriv = PTR_COMMON_ORIG
+            else:
+                rc_deriv = None
 
-        tangent_out += _gen_int1e_jvp_r0(
-            intor_ip_bra,
-            intor_ip_ket,
-            atm,
-            bas,
-            env,
-            env_dot,
-            shls_slice,
-            comp,
-            hermi,
-            aosym,
-            ao_loc,
-            trace_coords,
-            trace_basis,
-            aoslices,
-            rc_deriv,
-        ).reshape(tangent_out.shape)
+            tangent_out += _gen_int1e_jvp_r0(
+                intor_ip_bra,
+                intor_ip_ket,
+                atm,
+                bas,
+                env,
+                env_dot,
+                shls_slice,
+                comp,
+                hermi,
+                aosym,
+                ao_loc,
+                trace_coords,
+                trace_basis,
+                aoslices,
+                rc_deriv,
+            ).reshape(tangent_out.shape)
 
-    if trace_basis:
-        raise NotImplementedError("basis set parameter derivative not supported")
+        if trace_basis:
+            raise NotImplementedError("basis set parameter derivative not supported")
     return primal_out, tangent_out
 
 
@@ -323,8 +312,6 @@ def _gen_int1e_jvp_r0(
         hermi=0,
         aosym=aosym,
         ao_loc=ao_loc,
-        cintopt=None,
-        out=None,
         trace_coords=trace_coords,
         trace_basis=trace_basis,
         aoslices=aoslices,
@@ -364,8 +351,6 @@ def _gen_int1e_jvp_r0(
             hermi=0,
             aosym=aosym,
             ao_loc=ao_loc,
-            cintopt=None,
-            out=None,
             trace_coords=trace_coords,
             trace_basis=trace_basis,
             aoslices=aoslices,

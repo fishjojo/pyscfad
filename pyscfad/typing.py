@@ -1,4 +1,4 @@
-# Copyright 2021-2025 The PySCFAD Authors
+# Copyright 2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,8 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """
-Molecular sturcture and Gaussian type orbital integrals
+Type annotations.
+
+Placeholder for PySCFAD type annotations.
+Currently, JAX types are used.
 """
-from pyscfad.ml.gto.basis_array import make_basis_array, BasisArray
-from pyscfad.ml.gto.mole_pad import MolePad
+# pylint: skip-file
+from jax import Array as Array
+from jax.typing import (
+    ArrayLike as ArrayLike,
+    DTypeLike as DTypeLike,
+)

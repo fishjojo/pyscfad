@@ -6,7 +6,7 @@ sphinx_copybutton
 matplotlib
 sphinx_design
 nbsphinx
-sphinxemoji
+sphinxemoji>=0.3.2
 pydata-sphinx-theme
 jupytext
 myst-nb

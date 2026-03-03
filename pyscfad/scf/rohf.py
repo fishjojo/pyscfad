@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+Restricted open-shell Hartree-Fock
+"""
 from functools import reduce, wraps
 import numpy
 from pyscf.scf import rohf as pyscf_rohf

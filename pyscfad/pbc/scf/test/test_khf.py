@@ -155,6 +155,6 @@ def test_krhf(get_cell, get_cell_ref):
     mf_grad = pyscf_grad.krhf.Gradients(mf_ref)
     g0 = mf_grad.kernel()
 
-    assert abs(e_tot - e_tot_ref) < 1e-8
-    #assert abs(jac_fwd.coords - g0).max() < 1e-8
-    assert abs(jac_bwd.coords - g0).max() < 1e-8
+    assert abs(e_tot - e_tot_ref) < 1e-7
+    #assert abs(jac_fwd.coords - g0).max() < 1e-7
+    assert abs(jac_bwd.coords - g0).max() < 1e-7

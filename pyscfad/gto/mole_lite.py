@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Lightweight :mod:`~pyscfad.gto.mole` module.
+"""
 from __future__ import annotations
-from typing import Any
 from collections.abc import Callable
 import contextlib
 
@@ -46,13 +48,11 @@ from pyscf.gto.mole import (
     is_au,
 )
 
+from pyscfad.typing import ArrayLike, Array
 from pyscfad import numpy as np
-#from pyscfad import pytree
 from pyscfad import ops
-#from pyscfad.ops import jit
 from pyscfad.gto.mole import energy_nuc
-
-Array = Any
+from pyscfad.gto import moleintor_lite
 
 def _format_basis(basis, uniq_symbols):
     if isinstance(basis, dict):
@@ -86,35 +86,32 @@ def _format_symbols(symbols):
         symbols = [symbols,]
     return tuple(_atom_symbol(symb) for symb in symbols)
 
-class Mole(MoleBase):
-    """Molecular information.
+class MoleLite(MoleBase):
+    """Molecular information (lightweight version).
 
-    Parameters
-    ----------
-    symbols : tuple of str
-        Atomic symbols.
-    coords : array
-        Atomic coordinates (in Bohr).
-    basis : dict or str
-        Atom-centered contracted Gaussian basis set parameters
-        (including exponents and contraction coefficients).
-    numbers : tuple of ints
-        Atomic numbers (mutually exclusive with ``symbols``).
-    charge : int
-        Total charge.
-    spin : int
-        2S (number of alpha electrons minus number of beta electrons).
-    cart : bool
-        Whether to use Cartesian Gaussian basis.
-    trace_coords : bool
-        Whether to trace atomic coordinates for gradient calculations.
-    trace_basis : bool
-        Whether to trace basis set parameters for gradient calculations.
+    Parameters:
+        symbols: Atomic symbols (mutually exclusive with ``numbers``).
+        coords: Atomic coordinates (in Bohr).
+        basis: A string indicating the Gaussian basis set to use, or
+            a dictionary including the basis set parameters
+            (exponents and contraction coefficients).
+        numbers: Atomic numbers (mutually exclusive with ``symbols``).
+        charge: Total charge.
+        spin: 2S (number of alpha electrons minus number of beta electrons).
+        cart: Whether to use Cartesian Gaussian basis.
+        verbose: Printing level.
+        trace_coords: Whether to trace atomic coordinates for gradient calculations.
+        trace_basis: Whether to trace basis set parameters for gradient calculations.
+
+    Notes:
+        The molecular composition (i.e., ``symbols`` or ``numbers``)
+        must be static as input. For dynamic molecular composition,
+        refer to :class:`~pyscfad.ml.gto.mole_pad.MolePad`.
     """
     def __init__(
         self,
         symbols: tuple[str, ...] | None = None,
-        coords: Array | None = None,
+        coords: ArrayLike | None = None,
         basis: dict | str | None = None,
         numbers: tuple[int, ...] | None = None,
         charge: int = 0,
@@ -127,7 +124,6 @@ class Mole(MoleBase):
         if numbers is not None:
             if symbols is not None:
                 raise KeyError("Only one of 'symbols' and 'numbers' can be specified.")
-            #numbers = numpy.asarray(numbers, dtype=int)
             self.symbols = tuple(_symbol(i) for i in numbers)
         else:
             self.symbols = _format_symbols(symbols)
@@ -164,7 +160,12 @@ class Mole(MoleBase):
     def atom_coords(
         self,
         unit: str = "Bohr",
-    ):
+    ) -> Array:
+        """Atom coordinates.
+
+        Parameters:
+            unit: Units of returned coordinates, can be ``Bohr`` or ``Angstrom``.
+        """
         if not is_au(unit):
             return self.coords * BOHR
         else:
@@ -173,7 +174,7 @@ class Mole(MoleBase):
     def copy(
         self,
         deep: bool = True,
-    ) -> Mole:
+    ) -> MoleLite:
         import copy
         newmol = self.view(self.__class__)
         if not deep:
@@ -186,8 +187,11 @@ class Mole(MoleBase):
         newmol._env = np.copy(self._env)
         return newmol
 
-    def build(self, *args, **kwargs):
-        pass
+    def build(self, *args, **kwargs) -> MoleLite:
+        """Placeholder for post-init processing.
+        Can be used for caching one-time computed quantities.
+        """
+        return self
 
     def intor(
         self,
@@ -195,11 +199,34 @@ class Mole(MoleBase):
         comp: int | None = None,
         hermi: int = 0,
         aosym: str = "s1",
-        out: Array | None = None,
+        out: ArrayLike | None = None,
         shls_slice: tuple[int, ...] | None = None,
-        grids: Array | None = None,
+        grids: ArrayLike | None = None,
     ) -> Array:
-        from pyscfad.gto import moleintor_lite
+        """Integral generator.
+
+        Parameters:
+            intor_name: Name of the integral.
+            comp: Components of the integrals, e.g. ``int1e_ovlp_dr10`` has 3 components.
+            hermi: Hermitian symmetry of 1e integrals, can be
+                `0` (no symmetry), `1` (hermitian), and `2` (anti-hermitian).
+            aosym: Permutation symmetry of 2e integrals, can be
+                `s1`, `s2`, `s4`, and `s8`.
+            out: Unused.
+            shls_slice: Label the start-stop shells for each index in the integral.
+                For example, the 8-element tuple for the 2e integral
+                tensor ``(ij|kl) = intor('int2e')`` are specified as
+                ``(i0, i1, j0, j1, k0, k1, l0, l1)``.
+            grids: Unused.
+
+        Returns:
+            Computed integral as an array.
+
+        See also:
+            :func:`pyscf.gto.Mole.intor`
+        """
+        del out, grids
+
         intor_name = self._add_suffix(intor_name)
         if "ECP" in intor_name:
             raise NotImplementedError
@@ -215,7 +242,6 @@ class Mole(MoleBase):
             comp=comp,
             hermi=hermi,
             aosym=aosym,
-            out=out,
             trace_coords=self.trace_coords,
             trace_basis=self.trace_basis,
         )
@@ -223,8 +249,8 @@ class Mole(MoleBase):
 
     def set_common_origin(
         self,
-        coord: Array,
-    ) -> Mole:
+        coord: ArrayLike,
+    ) -> MoleLite:
         if self._env is None:
             raise RuntimeError("{self}._env is not initialized, "
                                "possibly because basis is not set.")
@@ -238,15 +264,15 @@ class Mole(MoleBase):
 
     def with_common_origin(
         self,
-        coord: Array,
+        coord: ArrayLike,
     ):
         coord0 = np.copy(self._env[PTR_COMMON_ORIG:PTR_COMMON_ORIG+3])
         return self._TemporaryMoleContext(self.set_common_origin, (coord,), (coord0,))
 
     def set_rinv_origin(
         self,
-        coord: Array,
-    ) -> Mole:
+        coord: ArrayLike,
+    ) -> MoleLite:
         if self._env is None:
             raise RuntimeError("{self}._env is not initialized, "
                                "possibly because basis is not set.")
@@ -260,7 +286,7 @@ class Mole(MoleBase):
 
     def with_rinv_origin(
         self,
-        coord: Array,
+        coord: ArrayLike,
     ):
         coord0 = np.copy(self._env[PTR_RINV_ORIG:PTR_RINV_ORIG+3])
         return self._TemporaryMoleContext(self.set_rinv_origin, (coord,), (coord0,))
@@ -284,7 +310,9 @@ class Mole(MoleBase):
         mol: MoleBase,
         trace_coords: bool = False,
         trace_basis: bool = False,
-    ) -> Mole:
+    ) -> MoleLite:
+        """Initialize from the pyscf :class:`~pyscf.gto.mole.Mole` object.
+        """
         if not mol._built:
             raise KeyError(f"{mol} not built")
         if mol.ecp or mol.pseudo:
@@ -309,6 +337,7 @@ class Mole(MoleBase):
             charge=mol.charge,
             spin=mol.spin,
             cart=mol.cart,
+            verbose=mol.verbose,
             trace_coords=trace_coords,
             trace_basis=trace_basis,
         )
@@ -316,10 +345,11 @@ class Mole(MoleBase):
 
     def to_pyscf(
         self,
-        verbose: int | None = None,
         output: str | None = None,
         max_memory: int | None = None,
     ) -> MoleBase:
+        """Convert to the pyscf :class:`~pyscf.gto.mole.Mole` object.
+        """
         coords = ops.to_numpy(self.coords)
         atom = [[a, tuple(x.tolist())] for a, x in zip(self.symbols, coords)]
 
@@ -336,7 +366,7 @@ class Mole(MoleBase):
             spin=self.spin,
             cart=self.cart,
             unit="AU",
-            verbose=verbose,
+            verbose=self.verbose,
             output=output,
             max_memory=max_memory,
             dump_input=False,
@@ -346,14 +376,14 @@ class Mole(MoleBase):
 
     energy_nuc = energy_nuc
 
-MoleLite = Mole
 
 def gaussian_int(
     n: int | numpy.ndarray,
-    alpha: Array,
+    alpha: ArrayLike,
 ) -> Array:
     r"""Gaussian integral.
-    Computes :math:`\int_0^\infty x^n exp(-alpha x^2) dx`.
+
+    Computes :math:`\int_0^\infty x^n exp(-\alpha x^2) dx`.
     """
     from pyscfad.scipy.special import gamma
     n1 = (n + 1) * .5
@@ -362,7 +392,7 @@ def gaussian_int(
 @with_doc(pyscf.gto.mole.gto_norm.__doc__)
 def gto_norm(
     l: int | numpy.ndarray,
-    expnt: Array,
+    expnt: ArrayLike,
 ) -> Array:
     assert numpy.all(l >= 0)
     return 1. / np.sqrt(gaussian_int(l*2+2, 2*expnt))
@@ -425,10 +455,10 @@ def make_bas_env(
     return _bas, _env
 
 def make_env(
-    mol: Mole,
+    mol: MoleLite,
 ) -> tuple[numpy.ndarray, numpy.ndarray, Array]:
     """Make ``_atm``, ``_bas``, and ``_env`` for
-    interfacing with libcint.
+    interfacing with ``libcint``.
     """
     pre_env = np.zeros(PTR_ENV_START)
     _env = [pre_env]

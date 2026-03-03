@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Machine learning XTB
+XTB
 """
 from .xtb_pad import GFN1XTB
 from .param import make_param_array
