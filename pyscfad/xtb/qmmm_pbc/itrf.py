@@ -451,7 +451,7 @@ class QMMM:
         if self.max_mm_nbr is None:
             self.max_mm_nbr = max(256, int(1024 * (self.mm_ew_rcut / 18.)**3))
         Q = numpy.sum(numpy.abs(self.mm_charges)) * \
-            numpy.sum(numpy.abs(self.mol.atom_charges()))
+            numpy.sum(numpy.abs(self.mol.atom_charges())) + 1.
         mm_ew_eta, mm_ew_mesh = self.get_ewald_params(
             Q, ew_rcut=self.mm_ew_rcut)
         if self.mm_ew_eta is None:
@@ -537,14 +537,16 @@ class QMMM:
         Tij = erfc(expnts * r[atom_to_bas]) / r[atom_to_bas]
         ewovrl0 -= numpy.einsum('ij,ij->i', Tij, mm_charges[atom_to_bas])
         if param.dipgam is not None:
-            expnts = 2. / (1 / param.dipgam[:, None] + mm_radii)
+            gam_inv = numpy.where(numpy.abs(param.dipgam) < 1e-12, 1e-12, 1 / param.dipgam)
+            expnts = 2. / (gam_inv[:, None] + mm_radii)
             ekR = numpy.exp(-expnts**2 * r**2)
             Tij = erfc(expnts * r) / r
             invr3 = (Tij + 2/numpy.sqrt(numpy.pi) * expnts * ekR) / r**2
             Tija = -numpy.einsum('ijx,ij->ijx', R, invr3)
             ewovrl1 -= numpy.einsum('ij,ija->ia', mm_charges, Tija)
         if param.quadgam is not None:
-            expnts = 2. / (1 / param.quadgam[:, None] + mm_radii)
+            gam_inv = numpy.where(numpy.abs(param.quadgam) < 1e-12, 1e-12, 1 / param.quadgam)
+            expnts = 2. / (gam_inv[:, None] + mm_radii)
             ekR = numpy.exp(-expnts**2 * r**2)
             Tij = erfc(expnts * r) / r
             invr3 = (Tij + 2/numpy.sqrt(numpy.pi) * expnts * ekR) / r**2

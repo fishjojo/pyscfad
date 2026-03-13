@@ -349,7 +349,8 @@ class GFN1XTB(XTB):
         r_inv = 1. / np.where(r>1e-6, r, np.inf)
 
         z_ab = zeff[:,None] * zeff[None,:]
-        arep_ab = np.sqrt(arep[:,None] * arep[None,:])
+        arep_ab = arep[:,None] * arep[None,:]
+        arep_ab = np.where(np.abs(arep_ab) < 1e-14, 0., np.sqrt(arep))
 
         damp = np.where(r>1e-6, np.exp(-arep_ab * r**kf), 0)
         enuc = .5 * np.sum(z_ab * damp * r_inv)
