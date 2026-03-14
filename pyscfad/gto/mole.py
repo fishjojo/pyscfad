@@ -50,7 +50,8 @@ def inter_distance(mol=None, coords=None, Ls=None):
         Ls = Ls.reshape(-1, 3)
         rij = rij[None,...] + Ls[:,None,None,:]
     r2 = np.sum(rij * rij, axis=-1)
-    r = np.sqrt(np.where(r2>1e-12, r2, 0))
+    safe_r2 = np.where(r2>1e-12, r2, 1.0)
+    r = np.where(r2>1e-12, np.sqrt(safe_r2), 0.0)
     return r
 
 @wraps(pyscf_mole.classical_coulomb_energy)
@@ -164,4 +165,3 @@ class Mole(pytree.PytreeNode, pyscf_mole.Mole):
         del mol.ctr_coeff
         del mol.r0
         return mol
-

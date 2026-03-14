@@ -228,7 +228,9 @@ def EHT_PI_GFN1(
         rr = np.where(mask, rr, 0.)
         RAB = np.where(mask, RAB, np.inf)
 
-    rr = np.sqrt(rr / RAB)
+    rr_RAB = rr / RAB
+    safe_rr_RAB = np.where(rr_RAB < 1e-20, 1.0, rr_RAB)
+    rr = np.where(rr_RAB < 1e-20, 0., np.sqrt(safe_rr_RAB))
 
     RR = rr[util.atom_to_bas_indices_2d(mol)]
     PI = (1 + shpoly[:,None] * RR) * (1 + shpoly[None,:] * RR)
@@ -346,13 +348,15 @@ class GFN1XTB(XTB):
         arep = param.arep
 
         r = inter_distance(mol)
-        r_inv = 1. / np.where(r>1e-6, r, np.inf)
+        r_safe = np.where(r>1e-6, r, 1.0)
+        r_inv = np.where(r>1e-6, 1. / r_safe, 0.)
 
         z_ab = zeff[:,None] * zeff[None,:]
         arep_ab = arep[:,None] * arep[None,:]
-        arep_ab = np.where(np.abs(arep_ab) < 1e-14, 0., np.sqrt(arep))
+        arep_ab_safe = np.where(np.abs(arep_ab)>1e-14, arep_ab, 1.0)
+        arep_ab = np.where(np.abs(arep_ab)>1e-14, np.sqrt(arep_ab_safe), 0.0)
 
-        damp = np.where(r>1e-6, np.exp(-arep_ab * r**kf), 0)
+        damp = np.where(r>1e-6, np.exp(-arep_ab * r_safe**kf), 0.)
         enuc = .5 * np.sum(z_ab * damp * r_inv)
         return enuc
 
