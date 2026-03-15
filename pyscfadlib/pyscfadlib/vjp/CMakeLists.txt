@@ -3,6 +3,7 @@ add_library(cgto_vjp SHARED
   gto/fill_int2c_vjp.c
   gto/fill_int2e_vjp.c
   gto/fill_nr_3c_vjp.c
+  gto/fill_int2c_lat.c
 )
 set_target_properties(cgto_vjp PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}

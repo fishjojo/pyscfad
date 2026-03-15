@@ -36,7 +36,7 @@ from pyscfad.xtb.data.elements import N_VALENCE
 
 from pyscfad.xtb.param import GFN1MolParam
 
-def tot_valence_electrons(mol: MoleLite, charge: int | None = None, nkpts: int = 1) -> int:
+def tot_valence_electrons(mol: MoleLite, charge: int | None = None, nkpts: int = 1) -> Array:
     if charge is None:
         charge = mol.charge
 
@@ -236,7 +236,7 @@ def EHT_PI_GFN1(
 
 def mulliken_charge(
     mol: MoleLite,
-    param: GFN1MolParam,
+    param: Any,
     s1e: ArrayLike,
     dm: ArrayLike,
 ) -> Array:
@@ -268,7 +268,7 @@ def gamma_GFN1(mol: MoleLite, param: GFN1MolParam) -> Array:
 class GFN1XTB(XTB):
     """GFN1-XTB
     """
-    def _get_gamma(self):
+    def _get_gamma(self) -> Array:
         return gamma_GFN1(self.mol, self.param)
 
     def get_hcore(self, mol: MoleLite | None = None, s1e: ArrayLike | None = None) -> Array:

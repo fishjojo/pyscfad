@@ -64,7 +64,7 @@ def _scf_q_broyden(
         vhf = mf.get_veff(dm=dm, s1e=s1e)
         e_tot = mf.energy_tot(dm=dm, h1e=h1e, vhf=vhf)
         # get q from dm
-        g1 = mf.get_q(mol=mol, dm=dm, s1e=s1e) - q1
+        g1 = mf.get_q(mol, dm=dm, s1e=s1e) - q1
 
         fock = mf.get_fock(h1e=h1e, vhf=vhf)
         norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
@@ -104,7 +104,7 @@ def _scf_q_broyden(
         q2 = normalize_tot_charge(mol, q1 + s1)
 
         # --- new fock from new q ---
-        vhf = mf.get_veff(mol=mol, s1e=s1e, q=q2)
+        vhf = mf.get_veff(mol, s1e=s1e, q=q2)
         fock = mf.get_fock(h1e=h1e, vhf=vhf)
 
         return cycle+1, de, norm_gorb, q2, s1, g1, dm, vhf, fock, e_tot, u_hist, v_hist
@@ -119,10 +119,10 @@ def _scf_q_broyden(
     # FIXME possible to avoid fock build when computing energy?
     vhf = mf.get_veff(dm=dm, s1e=s1e)
     e_tot = mf.energy_tot(dm=dm, h1e=h1e, vhf=vhf)
-    g0 = mf.get_q(mol=mol, dm=dm, s1e=s1e) - q
+    g0 = mf.get_q(mol, dm=dm, s1e=s1e) - q
     q1 = normalize_tot_charge(mol, q + (1 - damp) * g0)
     s0 = q1 - q
-    vhf = mf.get_veff(mol=mol, s1e=s1e, q=q1)
+    vhf = mf.get_veff(mol, s1e=s1e, q=q1)
     fock = mf.get_fock(h1e=h1e, vhf=vhf)
     norm_gorb = np.linalg.norm(mf.get_grad(mo_coeff, mo_occ, fock))
     de = e_tot - last_hf_e
@@ -160,7 +160,7 @@ def _scf_implicit_q(
         mo_energy, mo_coeff = mf.eig(fock, s1e)
         mo_occ = mf.get_occ(mo_energy, mo_coeff)
         dm_new = mf.make_rdm1(mo_coeff, mo_occ)
-        q_new = mf.get_q(mol=mf.mol, dm=dm_new, s1e=s1e)
+        q_new = mf.get_q(mf.mol, dm=dm_new, s1e=s1e)
         return q_new - q
 
     solver = partial(gmres_const_atol,
@@ -199,12 +199,12 @@ def scf(
         dm = dm0
 
     if q0 is None:
-        q = mf.get_q(mol=mol, dm=dm, s1e=s1e)
+        q = mf.get_q(mol, dm=dm, s1e=s1e)
     else:
         q = q0
 
     h1e = mf.get_hcore(mol, s1e=s1e)
-    vhf = mf.get_veff(mol=mol, s1e=s1e, q=q)
+    vhf = mf.get_veff(mol, s1e=s1e, q=q)
     e_tot = mf.energy_tot(dm, h1e, vhf)
     log.info("init E= %.15g", e_tot)
 
@@ -229,7 +229,7 @@ def scf(
         conv_tol_grad,
     )
 
-    vhf = mf.get_veff(mol=mol, s1e=s1e, q=q)
+    vhf = mf.get_veff(mol, s1e=s1e, q=q)
     fock = mf.get_fock(h1e, s1e, vhf, dm)
     mo_energy, mo_coeff = mf.eig(fock, s1e)
     mo_occ = mf.get_occ(mo_energy, mo_coeff)
