@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+Restricted Hartree-Fock
+"""
 from functools import partial
 import numpy
 
@@ -164,7 +166,8 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
     if config.scf_implicit_diff:
         e_tot = ops.stop_grad(e_tot)
         vhf = ops.stop_grad(vhf)
-        mf_diis.Corth = ops.stop_grad(mf_diis.Corth)
+        if mf_diis is not None:
+            mf_diis.Corth = ops.stop_grad(mf_diis.Corth)
     # NOTE if use implicit differentiation, only dm will have gradient.
     dm, scf_conv, e_tot, mo_energy, mo_coeff, mo_occ = _scf_wrapped(
         dm, mf, s1e, h1e,
@@ -342,6 +345,14 @@ def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
     return f
 
 
+def energy_tot(mf, dm=None, h1e=None, vhf=None):
+    nuc = mf.energy_nuc()
+    mf.scf_summary['nuc'] = nuc.real
+
+    e_tot = mf.energy_elec(dm, h1e, vhf)[0] + nuc
+    return e_tot
+
+
 class SCF(pytree.PytreeNode, pyscf_hf.SCF):
     """Subclass of :class:`pyscf.scf.hf.SCF` with traceable attributes.
 
@@ -411,9 +422,6 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
     def _eigh(self, h, s):
         return eigh(h, s)
 
-    def eig(self, h, s):
-        return self._eigh(h, s)
-
     def energy_grad(self, dm0=None, mode='rev'):
         """Computing energy gradients w.r.t AO parameters.
 
@@ -444,7 +452,7 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
         """
         import jax
         import warnings
-        warnings.warn('f{self.__class__.__name__}.energy_grad is deprecated, '
+        warnings.warn(f'{self.__class__.__name__}.energy_grad is deprecated, '
                       'and will be removed in the future.',
                       FutureWarning, stacklevel=2)
         if dm0 is None:
@@ -519,6 +527,7 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
 
     make_rdm1 = module_method(make_rdm1, absences=['mo_coeff', 'mo_occ'])
     energy_elec = energy_elec
+    energy_tot = energy_tot
     get_fock = get_fock
     to_pyscf = util.to_pyscf
 

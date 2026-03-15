@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,3 +17,4 @@ Lattice cells and crystalline GTOs
 """
 from pyscfad.pbc.gto import cell
 from pyscfad.pbc.gto.cell import *
+from pyscfad.pbc.gto.cell_lite import CellLite

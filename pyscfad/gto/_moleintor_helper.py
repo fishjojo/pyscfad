@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2025 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -146,10 +146,10 @@ def int1e_dr1_name(intor):
     fname = intor.replace('_sph', '').replace('_cart', '')
 
     # special cases first
-    if fname == 'int1e_r':
-        intor_ip_bra = None
-        intor_ip_ket = 'int1e_irp' + suffix
-    elif fname[-4:-2] == 'dr':
+    #if fname == 'int1e_r':
+    #    intor_ip_bra = None
+    #    intor_ip_ket = 'int1e_irp' + suffix
+    if fname[-4:-2] == 'dr':
         orders = [int(fname[-2]), int(fname[-1])]
         intor_ip_bra = fname[:-2] + str(orders[0]+1) + str(orders[1]) + suffix
         intor_ip_ket = fname[:-2] + str(orders[0]) + str(orders[1]+1) + suffix

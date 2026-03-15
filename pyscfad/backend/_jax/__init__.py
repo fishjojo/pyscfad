@@ -30,6 +30,7 @@ from jax import (
     custom_jvp,
     jit,
     pure_callback,
+    ShapeDtypeStruct,
 )
 from jax.lax import (
     stop_gradient,
@@ -78,6 +79,7 @@ backend._cache['stop_gradient'] = stop_gradient
 backend._cache['custom_jvp'] = custom_jvp
 backend._cache['jit'] = jit
 backend._cache['pure_callback'] = pure_callback
+backend._cache['ShapeDtypeStruct'] = ShapeDtypeStruct
 backend._cache['vmap'] = vmap
 backend._cache['while_loop'] = while_loop
 backend._cache['index'] = index

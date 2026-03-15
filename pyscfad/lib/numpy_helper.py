@@ -33,6 +33,7 @@ __all__ = [
     'unpack_triu',
     'unpack_tril',
     'pack_tril',
+    'hermi_triu',
     'cartesian_prod',
 ]
 
@@ -129,9 +130,31 @@ def pack_tril(a, axis=-1, out=None):
             tril = vmap(fn, -1, signature='(m,m)->(n)')(a)
         else:
             raise KeyError
+    elif a.ndim == 2:
+        tril = fn(a)
     else:
         raise NotImplementedError
     return tril
+
+@partial(jit, static_argnums=1)
+def hermi_triu(a, hermi=HERMITIAN):
+    '''Batched :func:`~pyscf.lib.numpy_helper.hermi_triu`.
+    '''
+    assert hermi in (HERMITIAN, ANTIHERMI), f'hermi={hermi} not supported'
+    shape = a.shape
+    n, m = shape[-2], shape[-1]
+    assert n == m, f'n ({n}) != m ({m})'
+
+    triu_idx = np.triu_indices(n, 1)
+    def fn(mat):
+        if hermi == HERMITIAN:
+            triu = np.tril(mat, -1).T.conj()
+        elif hermi == ANTIHERMI:
+            triu = -np.tril(mat, -1).T.conj()
+        return ops.index_update(mat, triu_idx, triu[triu_idx])
+
+    out = vmap(fn, signature='(n,n)->(n,n)')(a.reshape(-1,n,n))
+    return out.reshape(shape)
 
 @jit
 def cartesian_prod(arrays):

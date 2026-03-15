@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
+
 def stop_gradient(x):
     return x
 
@@ -68,3 +70,10 @@ def index_mul(x, idx, y):
     x[idx] *= y
     return x
 
+class ShapeDtypeStruct:
+    def __init__(self, shape, dtype, **kwargs):
+        self.shape = shape
+        self.dtype = dtype
+
+    size = property(lambda self: math.prod(self.shape))
+    ndim = property(lambda self: len(self.shape))

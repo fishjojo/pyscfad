@@ -13,6 +13,9 @@
 # limitations under the License.
 
 # pylint: disable = unused-import
+from pyscfad.backend._jax.scipy.sparse.linalg import (
+    gmres as gmres_const_atol, # this is only a temporary fix
+)
 from pyscfad._src.scipy.sparse.linalg import (
     gmres,
     gmres_safe,

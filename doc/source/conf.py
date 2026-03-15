@@ -10,8 +10,30 @@ import sys
 import warnings
 import inspect
 
+# Workaround to avoid expanding type aliases. Copied from jax
+from typing import ForwardRef
+def _do_not_evaluate(
+    self, globalns, *args, _evaluate=ForwardRef._evaluate, **kwargs,
+):
+  if globalns.get('__name__', '').startswith('pyscfad'):
+    return self
+  return _evaluate(self, globalns, *args, **kwargs)
+ForwardRef._evaluate = _do_not_evaluate
+
+# Workaround for class attributes
+from sphinx.ext.napoleon.docstring import GoogleDocstring
+def _parse_attributes_section(self, section):
+    fields = []
+    for _name, _type, _desc in self._consume_fields():
+        if not _type:
+            _type = self._lookup_annotation(_name)
+        fields.append((_name, _type, _desc))
+    return self._format_fields('Attributes', fields)
+GoogleDocstring._parse_attributes_section = _parse_attributes_section
+
+
 project = "pyscfad"
-copyright = "2021-2025, Xing Zhang"
+copyright = "2021-2026, Xing Zhang"
 author = "Xing Zhang"
 
 import pyscfad
@@ -27,11 +49,12 @@ extensions = [
 #    "IPython.sphinxext.ipython_directive",
 #    "IPython.sphinxext.ipython_console_highlighting",
     "matplotlib.sphinxext.plot_directive",
-    "numpydoc",
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
+#    "numpydoc",
+    "sphinx.ext.napoleon",
     "sphinx.ext.coverage",
     "sphinx.ext.doctest",
     "sphinx.ext.extlinks",
@@ -45,6 +68,13 @@ extensions = [
     "myst_nb",
 ]
 
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'scipy': ('https://scipy.github.io/devdocs/', None),
+    'pyscf': ('https://pyscf.org/', None),
+}
+
 templates_path = ["_templates"]
 source_suffix = ['.rst', '.ipynb', '.md']
 source_encoding = "utf-8"
@@ -56,11 +86,23 @@ exclude_patterns = [
 ]
 
 autosummary_generate = True
-autodoc_typehints = "none"
 
-numpydoc_show_class_members = False
-numpydoc_show_inherited_class_members = False
-numpydoc_attributes_as_param_list = False
+napolean_use_rtype = False
+napoleon_use_ivar = False
+
+autodoc_typehints_format = "short"
+autodoc_typehints = "description"
+autodoc_typehints_description_target = "all"
+autodoc_type_aliases = {
+    'ArrayLike': 'pyscfad.typing.ArrayLike',
+}
+
+#always_document_param_types = True
+#set_type_checking_flag = True
+
+#numpydoc_show_class_members = False
+#numpydoc_show_inherited_class_members = False
+#numpydoc_attributes_as_param_list = False
 
 pygments_style = "sphinx"
 

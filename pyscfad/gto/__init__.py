@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2025 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,3 +18,4 @@ Molecular sturcture and Gaussian type orbital integrals
 
 from pyscfad.gto import mole
 from pyscfad.gto.mole import Mole
+from pyscfad.gto.mole_lite import MoleLite

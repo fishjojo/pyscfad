@@ -164,7 +164,7 @@ disable=abstract-method,
         invalid-unary-operand-type,
         unnecessary-lambda-assignment,
         unbalanced-tuple-unpacking,
-
+	too-many-positional-arguments,
 
 [REPORTS]
 
