@@ -45,4 +45,7 @@ pyscfad.pbc.scf
    khf
    
    
+   khf_lite
+   
+   
 

@@ -35,7 +35,13 @@ pyscfad.gto
    mole
    
    
+   mole_lite
+   
+   
    moleintor
+   
+   
+   moleintor_lite
    
    
 

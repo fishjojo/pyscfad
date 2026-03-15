@@ -43,6 +43,9 @@ pyscfad.scf
    addons
    
    
+   anderson
+   
+   
    chkfile
    
    
@@ -55,7 +58,13 @@ pyscfad.scf
    hf
    
    
+   hf_lite
+   
+   
    rohf
+   
+   
+   sp2
    
    
    uhf

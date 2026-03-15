@@ -29,6 +29,9 @@ pyscfad.dft
    :recursive:
 
    
+   autoxc
+   
+   
    libxc
    
    

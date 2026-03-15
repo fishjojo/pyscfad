@@ -24,6 +24,8 @@ pyscfad.dft.rks.KohnShamDFT
          
          
          
+           ~KohnShamDFT.do_nlc
+         
          
          
            ~KohnShamDFT.initialize_grids
