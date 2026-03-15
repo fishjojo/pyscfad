@@ -30,9 +30,11 @@ def normalize_tot_charge(mol, q):
     tot = mol.charge
     nbas = mol.nbas
     shl_mask = getattr(mol, "shl_mask", np.ones(nbas, dtype=bool))
+    mask_sum = np.sum(shl_mask)
+    safe_mask_sum = np.where(mask_sum > 0, mask_sum, 1.0)
+    shift = np.where(mask_sum > 0, (np.sum(q[:nbas]) - tot) / safe_mask_sum, 0.0)
     return q.at[:nbas].set(
-        np.where(shl_mask, q[:nbas] -
-                 (np.sum(q[:nbas]) - tot) / np.sum(shl_mask), 0.)
+        np.where(shl_mask, q[:nbas] - shift , 0.)
     )
 
 def _scf_q_broyden(
@@ -80,10 +82,10 @@ def _scf_q_broyden(
         s0h =  -(1 - damp) * s0
         s0h += np.dot(np.dot(s0, u_hist), v_hist.T)
         norm = np.dot(s0h, y0)
-        inv_norm = np.where(norm < 1e-12, 0., 1 / np.sqrt(norm))
-        v    = s0h * inv_norm
+        inv_norm = np.where(np.abs(norm) < 1e-12, 0., 1. / norm)
+        v    = s0h
 
-        # u_new = s0 - J^-1 y0
+        # u_new = (s0 - J^-1 y0) / (s0^T J^-1 y0)
         hy0 =  -(1 - damp) * y0
         hy0 += np.dot(u_hist, np.dot(v_hist.T , y0))
         u   = (s0 - hy0) * inv_norm

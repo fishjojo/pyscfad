@@ -436,7 +436,7 @@ class QMMM:
         max_ew_rcut = numpy.min(numpy.hstack([dist0, dist1]))
 
         # Direct Ewald parameters for QM and QM
-        Q = numpy.sum(numpy.abs(self.mol.atom_charges()))**2
+        Q = numpy.sum(numpy.abs(self.mol.atom_charges()))**2 + 1.0
         self.qm_ew_eta, qm_ew_mesh = self.get_ewald_params(
             Q, ew_rcut=max_ew_rcut)
         if self.qm_ew_mesh is None:
