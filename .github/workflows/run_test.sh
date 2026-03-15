@@ -7,7 +7,7 @@ export OMP_NUM_THREADS=1
 
 coverage erase
 
-MODULES=("scipy" "gto" "cc" "fci" "gw" "mp" "tdscf" "lo" "pbc")
+MODULES=("scipy" "gto" "cc" "fci" "gw" "mp" "tdscf" "lo" "pbc" "lno")
 
 FAILED=0
 
