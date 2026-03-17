@@ -280,7 +280,17 @@ def get_coulG(cell, k=numpy.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
     return coulG
 
 get_monkhorst_pack_size = stop_trace(pyscf_pbctools.get_monkhorst_pack_size)
-cutoff_to_mesh = stop_trace(pyscf_pbctools.cutoff_to_mesh)
+
+def cutoff_to_mesh(a, cutoff):
+    # Search the minimal x,y,z requiring |x*b[0]+y*b[1]+z*b[2]|^2 > 2 * cutoff
+    b = 2 * np.pi * np.linalg.inv(a.T)
+    rx = np.linalg.qr(b[np.array([1,2,0])].T)[1][2,2]
+    ry = np.linalg.qr(b[np.array([2,0,1])].T)[1][2,2]
+    rz = np.linalg.qr(b.T)[1][2,2]
+
+    Gmax = (2*cutoff)**.5 / np.abs(np.array([rx, ry, rz]))
+    mesh = np.ceil(Gmax).astype(int) * 2 + 1
+    return stop_grad(mesh)
 
 def madelung(cell, kpts, omega=None):
     Nk = get_monkhorst_pack_size(cell, kpts)

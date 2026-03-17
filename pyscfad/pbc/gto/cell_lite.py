@@ -56,7 +56,7 @@ class Cell(MoleLite):
         self.rcut = rcut
         if nimgs is None and self.rcut is not None:
             Ls = self.get_lattice_Ls()
-            scaled_Ls = self.get_scaled_atom_coords(a=self.a)
+            scaled_Ls = np.dot(Ls, np.linalg.inv(self.a))
             scaled_Ls = np.rint(scaled_Ls).astype(int)
             nimgs = abs(scaled_Ls).max(axis=0)
         self.nimgs = nimgs

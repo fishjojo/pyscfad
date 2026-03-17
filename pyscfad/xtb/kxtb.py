@@ -153,7 +153,7 @@ def _gamma_ewald(
         )
         mesh = cell.cutoff_to_mesh(ke_cutoff)
     else:
-        mesh = np.asarray(ewald_mesh, dtype=int)
+        mesh = ewald_mesh
     Gv, _, weights = cell.get_Gv_weights(mesh)
     absG2 = np.einsum("gi,gi->g", Gv, Gv)
     absG2 = np.where(absG2==0., np.inf, absG2)
