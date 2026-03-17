@@ -145,19 +145,20 @@ def _pbc_intor_impl_cpu(
     shls_slice=None, comp=None, hermi=0, ao_loc=None, dimension=3,
 ):
     intor_name, comp = _get_intor_and_comp(intor_name, comp)
-    kpts = numpy.asarray(kpts).reshape(-1,3)
-    nkpts = kpts.shape[0]
-    a = numpy.asarray(a).reshape(3,3)
-
-    atm = numpy.asarray(atm, dtype=numpy.int32, order="C")
-    bas = numpy.asarray(bas, dtype=numpy.int32, order="C")
-    env = numpy.asarray(env, dtype=numpy.float64, order="C")
     nbas = bas.shape[0]
 
+    kpts = numpy.asarray(kpts).reshape(-1,3)
+    nkpts = kpts.shape[0]
+
+    a = numpy.asarray(a).reshape(3,3)
     Ls = _get_lattice_Ls(rcut, atm, env, a, dimension)[0]
     expkL = numpy.asarray(numpy.exp(1j*numpy.dot(kpts, Ls.T)), order="C")
 
     atm, bas, env = conc_env(atm, bas, env, atm, bas, env)
+    atm = numpy.asarray(atm, dtype=numpy.int32, order="C")
+    bas = numpy.asarray(bas, dtype=numpy.int32, order="C")
+    env = numpy.asarray(env, dtype=numpy.float64, order="C")
+
     if shls_slice is None:
         shls_slice = (0, nbas, 0, nbas)
     else:

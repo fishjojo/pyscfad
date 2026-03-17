@@ -1,0 +1,53 @@
+# Copyright 2026 The PySCFAD Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import pytest
+import jax
+from pyscfad import numpy as np
+from pyscfad.gto import MoleLite as Mole
+from pyscfad.xtb import basis as xtb_basis
+from pyscfad.xtb import GFN1XTB
+from pyscfad.xtb.param import GFN1Param
+from pyscfad.pbc.gto import CellLite as Cell
+from pyscfad.xtb.kxtb import GFN1KXTB
+
+@pytest.fixture
+def setup():
+    basis = xtb_basis.get_basis_filename()
+    param = GFN1Param()
+    yield basis, param
+
+def test_gfn1_kxtb_energy_force(setup, H2O_GFN1_ref):
+    basis, param = setup
+    numbers, coords, *_ = H2O_GFN1_ref
+
+    def mol_energy(coords, diis):
+        mol = Mole(numbers=numbers, coords=coords, basis=basis, trace_coords=True)
+        mf = GFN1XTB(mol, param=param)
+        mf.diis = diis
+        return mf.kernel()
+
+    def cell_energy(coords, diis):
+        cell = Cell(numbers=numbers, coords=coords, a=np.eye(3)*20., rcut=22.,
+                    basis=basis, precision=1e-6, trace_coords=True)
+        mf = GFN1KXTB(cell, param=param)
+        mf.diis = diis
+        return mf.kernel()
+
+    for diis in ("anderson", "qbroyden"):
+        e0, g0 = jax.value_and_grad(mol_energy)(coords, diis)
+        e1, g1 = jax.value_and_grad(cell_energy)(coords, diis)
+
+        assert abs(e1 - e0) < 1e-3
+        assert abs(g1 - g0).max() < 1e-3

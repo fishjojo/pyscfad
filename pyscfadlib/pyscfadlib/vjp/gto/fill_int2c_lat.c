@@ -154,10 +154,12 @@ static int _nr2c_fill(int (*intor)(), void (*sort2c)(), double *out,
         msh1 = ishloc[m+1];
         dimax = ao_loc[msh1] - ao_loc[msh0];
         dmjc = dj * dimax * comp;
-        cache  = buf + dmjc;
+        cache = buf + dmjc;
 
-        pbuf = buf;
-        for (jL = 0; jL < nimgs && Ls_mask[jL]; jL++) {
+        for (jL = 0; jL < nimgs; jL++) {
+            if (!Ls_mask[jL]) continue;
+
+            pbuf = buf;
             shift_bas(env_loc, env, Ls, jptrxyz, jL);
             for (ish = msh0; ish < msh1; ish++) {
                 shls[0] = ish;
