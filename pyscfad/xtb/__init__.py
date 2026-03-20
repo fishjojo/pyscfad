@@ -15,4 +15,5 @@
 """
 XTB
 """
-from .xtb import XTB, GFN1XTB
+from pyscfad.xtb.xtb import XTB, GFN1XTB
+from pyscfad.xtb.kxtb import KXTB, GFN1KXTB

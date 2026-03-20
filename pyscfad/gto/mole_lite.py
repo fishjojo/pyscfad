@@ -16,7 +16,7 @@
 Lightweight :mod:`~pyscfad.gto.mole` module.
 """
 from __future__ import annotations
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 import contextlib
 
 import numpy
@@ -48,11 +48,14 @@ from pyscf.gto.mole import (
     is_au,
 )
 
-from pyscfad.typing import ArrayLike, Array
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.gto.mole import energy_nuc
-from pyscfad.gto import moleintor_lite
+from pyscfad.gto.moleintor_lite import getints
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pyscfad.typing import ArrayLike, Array
 
 def _format_basis(basis, uniq_symbols):
     if isinstance(basis, dict):
@@ -233,7 +236,7 @@ class MoleLite(MoleBase):
         if "_grids" in intor_name:
             raise NotImplementedError
 
-        out = moleintor_lite.getints(
+        out = getints(
             intor_name,
             self._atm,
             self._bas,
@@ -480,10 +483,10 @@ def make_env(
     for ia, symb in enumerate(mol.symbols):
         if symb in _basdic:
             b = _basdic[symb].copy()
+            b[:,ATOM_OF] = ia
+            _bas.append(b)
         #else:
         #    raise RuntimeError(f"Basis for '{symb}' not found")
-        b[:,ATOM_OF] = ia
-        _bas.append(b)
 
     _bas = numpy.vstack(_bas)
     _env = np.hstack(_env)

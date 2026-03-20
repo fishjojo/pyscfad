@@ -248,7 +248,7 @@ def _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0t
     return tangent_out
 
 def _eval_gto_jvp_cs(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc):
-    from pyscfad.gto.mole import nao_nr_range
+    from pyscfad.gto.mole import nao_nr_range # pylint: disable=cyclic-import
     ctr_coeff = mol.ctr_coeff
     ctr_coeff_t = mol_t.ctr_coeff
 

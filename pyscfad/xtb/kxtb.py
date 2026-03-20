@@ -15,17 +15,15 @@
 """
 XTB with k-point sampling
 """
-from typing import Any
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
-import numpy
 from jax.scipy.special import erfc
 
-from pyscfad.typing import ArrayLike, Array
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.lib import hermi_triu
 from pyscfad.gto.mole import inter_distance
-from pyscfad.pbc.gto import CellLite as Cell
 from pyscfad.pbc.scf.khf_lite import KSCFLite
 from pyscfad.dft.rks import VXC
 from pyscfad.pbc.tools import nimgs_to_lattice_Ls
@@ -34,11 +32,18 @@ from pyscfad.xtb import xtb
 from pyscfad.xtb import util
 from pyscfad.xtb.data.radii import ATOMIC as ATOMIC_RADII
 
-from pyscfad.xtb.param import GFN1MolParam
+if TYPE_CHECKING:
+    from typing import Any
+    from pyscfad.typing import ArrayLike, Array
+    from pyscfad.pbc.gto import CellLite as Cell
+    from pyscfad.xtb.param import GFN1MolParam
 
-
-def EHT_PI_GFN1(cell, param, atomic_radii=ATOMIC_RADII,
-                Ls=numpy.zeros((1,3))):
+def EHT_PI_GFN1(
+    cell: Cell,
+    param: Any,
+    atomic_radii: ArrayLike = ATOMIC_RADII,
+    Ls: ArrayLike = np.zeros((1,3)),
+):
     shpoly = param.shpoly
 
     rr = inter_distance(cell, Ls=Ls)
@@ -63,13 +68,14 @@ def mulliken_charge(
 ) -> Array:
     assert s1e.ndim == 3
     assert dm.ndim == 3
+
     nkpts = s1e.shape[0]
+    weights = 1. / nkpts
 
-    SP = np.einsum("kpq,kpq->p", s1e, dm).real
+    PS = np.einsum("kpq,kqp->p", dm, s1e).real
     occs = np.zeros(cell.nbas)
-    occs = ops.index_add(occs, ops.index[util.bas_to_ao_indices(cell)], SP)
-
-    occs /= nkpts
+    occs = ops.index_add(occs, ops.index[util.bas_to_ao_indices(cell)], PS)
+    occs *= weights
     return param.refocc - occs
 
 def gamma_GFN1(
@@ -83,7 +89,7 @@ def gamma_GFN1(
     gamma = gamma_sr + gamma_ewald
     return gamma
 
-def _gamma_sr_GFN1(cell: Cell, param: GFN1MolParam) -> Array:
+def _gamma_sr_GFN1(cell: Cell, param: GFN1MolParam, rsmooth: float = 1.0) -> Array:
     eta = 1. / (param.lgam * param.gam)
     eta = 2. / (eta[:,None] + eta[None,:])
 
@@ -94,9 +100,15 @@ def _gamma_sr_GFN1(cell: Cell, param: GFN1MolParam) -> Array:
     r = r[:,i,j]
     r_inv = r_inv[:,i,j]
 
+    rcut = cell.rcut
+    _val = np.sqrt(1./(r**2 + 1./eta**2)) - r_inv
+    r1 = r - (rcut - rsmooth)
+    x = r1 / rsmooth
+    fcut = -6. * x**5 + 15. * x**4 - 10. * x**3 + 1.
+
     gamma_latt = np.where(
-        r < cell.rcut,
-        np.sqrt(1./(r**2 + 1./eta**2)) - r_inv,
+        r < rcut,
+        np.where(r<rcut-rsmooth, _val, fcut*_val),
         0,
     )
     gamma = np.sum(gamma_latt, axis=0)
@@ -198,7 +210,7 @@ class KXTB(xtb.XTB, KSCFLite):
         if dm is None:
             dm = self.make_rdm1()
         if s1e is None:
-            s1e = self.get_ovlp()
+            s1e = self.get_ovlp(cell)
 
         if method.lower() == "mulliken":
             q = mulliken_charge(cell, self.param, s1e, dm)
@@ -312,12 +324,14 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
         kpts_band: ArrayLike | None = None,
         q: ArrayLike | None = None,
         **kwargs,
-    ) -> Array:
+    ) -> VXC:
         del dm_last, vhf_last
         if cell is None:
             cell = self.cell
+        if kpts is None:
+            kpts = self.kpts
         if s1e is None:
-            s1e = self.get_ovlp()
+            s1e = self.get_ovlp(cell, kpts=kpts) #pylint: disable=E1123
         if q is None:
             q = self.get_q(cell=cell, dm=dm, s1e=s1e)
 
@@ -327,11 +341,11 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
         phi = np.dot(self.gamma, mono)
         ecoul = .5 * np.dot(mono, phi)
 
-        # TODO charged system
         if cell.charge != 0:
-            raise NotImplementedError
-        #ecoul += -.5 * np.pi/(ew_eta**2 * cell.vol) * np.sum(mono)**2
-        #phi += -np.pi/(ew_eta**2 * cell.vol) * np.sum(mono)
+            Q = cell.charge / len(kpts)
+            #Q = np.sum(mono)
+            ecoul += -.5 * np.pi/(self.ewald_alpha**2 * cell.vol) * Q**2
+            #phi += -np.pi/(self.ewald_alpha**2 * cell.vol) * Q
 
         # Third-order term
         atm_charge = xtb.sum_shell_charges(cell, mono)

@@ -16,15 +16,19 @@
 SCF with k-point sampling
 """
 from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import numpy
 
-from pyscfad.typing import ArrayLike, Array
 from pyscfad import numpy as np
 from pyscfad.ops import vmap
 from pyscfad.lib import logger
 from pyscfad.scf.hf_lite import SCFLite
-from pyscfad.dft.rks import VXC
-from pyscfad.pbc.gto import CellLite as Cell
+
+if TYPE_CHECKING:
+    from pyscfad.typing import ArrayLike, Array
+    from pyscfad.pbc.gto import CellLite as Cell
+    from pyscfad.dft.rks import VXC
 
 def get_occ(
     mf: KSCF,

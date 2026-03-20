@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from functools import partial
 import numpy
 
@@ -26,14 +27,15 @@ from pyscf.gto.mole import (
 
 from pyscfad import ops
 from pyscfad import numpy as np
-from ._pyscf_moleintor import make_loc
-from ._moleintor_helper import (
+from pyscfad.gto._pyscf_moleintor import make_loc, _get_intor_and_comp
+from pyscfad.gto._moleintor_helper import (
     int1e_get_dr_order,
     int1e_dr1_name,
 )
-from ._moleintor_jvp import _gen_int1e_fill_jvp_r0
+from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
 
-Array = Any
+if TYPE_CHECKING:
+    from pyscfad.typing import ArrayLike, Array
 
 def _get_shape_ints2c(
     intor_name: str,
@@ -136,7 +138,6 @@ def _get_shape(
     aosym: str,
     ao_loc: numpy.ndarray | None,
 ) -> tuple[int, ...]:
-    from pyscfad.gto._pyscf_moleintor import _get_intor_and_comp
     intor_name, comp = _get_intor_and_comp(intor_name, comp)
     if (intor_name.startswith("int1e") or
         intor_name.startswith("ECP") or
@@ -168,18 +169,18 @@ def _get_shape(
 )
 def getints(
     intor_name: str,
-    atm: Array,
-    bas: Array,
-    env: Array,
+    atm: ArrayLike,
+    bas: ArrayLike,
+    env: ArrayLike,
     shls_slice: tuple[int, ...] | None = None,
     comp: int | None = None,
     hermi: int = 0,
     aosym: str = "s1",
-    ao_loc: Array | None = None,
+    ao_loc: ArrayLike | None = None,
     trace_coords: bool = False,
     trace_basis: bool = False,
-    aoslices: Array | None = None, # for padding
-):
+    aoslices: ArrayLike | None = None, # for padding
+) -> Array:
     from pyscfad.gto._pyscf_moleintor import getints as callback
 
     shape = _get_shape(
@@ -285,20 +286,20 @@ def getints_jvp(
 def _gen_int1e_jvp_r0(
     intor_a: str,
     intor_b: str,
-    atm: Array,
-    bas: Array,
-    env: Array,
-    env_dot: Array,
+    atm: ArrayLike,
+    bas: ArrayLike,
+    env: ArrayLike,
+    env_dot: ArrayLike,
     shls_slice: tuple[int, ...] | None,
     comp: int | None,
     hermi: int,
     aosym: str,
-    ao_loc: Array | None,
+    ao_loc: ArrayLike | None,
     trace_coords: bool,
     trace_basis: bool,
-    aoslices: Array | None = None,
+    aoslices: ArrayLike | None = None,
     rc_deriv: int | None = None,
-):
+) -> Array:
     if comp is not None:
         comp = comp * 3
 

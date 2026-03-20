@@ -16,7 +16,7 @@
 Lightweight :mod:`~pyscfad.scf.hf` module.
 """
 from __future__ import annotations
-from typing import Any
+from typing import TYPE_CHECKING
 from functools import partial
 
 import numpy
@@ -28,9 +28,7 @@ from pyscf.scf.hf import (
     TIGHT_GRAD_CONV_TOL,
 )
 
-from pyscfad.typing import ArrayLike, Array
 from pyscfad import numpy as np
-from pyscfad.gto import MoleLite
 from pyscfad import lib
 from pyscfad.lib import logger
 from pyscfad.scf import hf
@@ -38,6 +36,11 @@ from pyscfad.scf.anderson import Anderson
 #from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.scipy.sparse.linalg import gmres_const_atol
 from pyscfad.scf import addons
+
+if TYPE_CHECKING:
+    from typing import Any
+    from pyscfad.typing import ArrayLike, Array
+    from pyscfad.gto import MoleLite
 
 def get_occ(
     mf: SCF,
