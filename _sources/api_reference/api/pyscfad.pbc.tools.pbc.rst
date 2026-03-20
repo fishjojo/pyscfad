@@ -19,6 +19,7 @@ pyscfad.pbc.tools.pbc
       :toctree: functions/
 
    
+      cutoff_to_mesh
       get_lattice_Ls
       get_nimgs
       madelung

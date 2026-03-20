@@ -53,12 +53,12 @@
     <link rel="icon" href="../../_static/pyscfad_logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="pyscfad.pbc.tools.pbc.get_lattice_Ls" href="functions/pyscfad.pbc.tools.pbc.get_lattice_Ls.html" />
+    <link rel="next" title="pyscfad.pbc.tools.pbc.cutoff_to_mesh" href="functions/pyscfad.pbc.tools.pbc.cutoff_to_mesh.html" />
     <link rel="prev" title="pyscfad.pbc.tools" href="pyscfad.pbc.tools.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.2.0" />
-    <meta name="docbuild:last-update" content="Mar 15, 2026"/>
+    <meta name="docbuild:last-update" content="Mar 20, 2026"/>
   </head>
   
   
@@ -962,16 +962,19 @@
 <p class="rubric">Functions</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.pbc.tools.pbc.get_lattice_Ls.html#pyscfad.pbc.tools.pbc.get_lattice_Ls" title="pyscfad.pbc.tools.pbc.get_lattice_Ls"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_lattice_Ls</span></code></a>(cell[, nimgs, rcut, ...])</p></td>
-<td><p>Get the lattice translation vectors for lattice sum.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.pbc.tools.pbc.get_nimgs.html#pyscfad.pbc.tools.pbc.get_nimgs" title="pyscfad.pbc.tools.pbc.get_nimgs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_nimgs</span></code></a>(cell[, rcut, dimension])</p></td>
-<td><p>Get the number of periodic images given the cutoff radius.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.pbc.tools.pbc.madelung.html#pyscfad.pbc.tools.pbc.madelung" title="pyscfad.pbc.tools.pbc.madelung"><code class="xref py py-obj docutils literal notranslate"><span class="pre">madelung</span></code></a>(cell, kpts[, omega])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.pbc.tools.pbc.cutoff_to_mesh.html#pyscfad.pbc.tools.pbc.cutoff_to_mesh" title="pyscfad.pbc.tools.pbc.cutoff_to_mesh"><code class="xref py py-obj docutils literal notranslate"><span class="pre">cutoff_to_mesh</span></code></a>(a, cutoff)</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.pbc.tools.pbc.nimgs_to_lattice_Ls.html#pyscfad.pbc.tools.pbc.nimgs_to_lattice_Ls" title="pyscfad.pbc.tools.pbc.nimgs_to_lattice_Ls"><code class="xref py py-obj docutils literal notranslate"><span class="pre">nimgs_to_lattice_Ls</span></code></a>(cell[, nimgs, dimension])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.pbc.tools.pbc.get_lattice_Ls.html#pyscfad.pbc.tools.pbc.get_lattice_Ls" title="pyscfad.pbc.tools.pbc.get_lattice_Ls"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_lattice_Ls</span></code></a>(cell[, nimgs, rcut, ...])</p></td>
+<td><p>Get the lattice translation vectors for lattice sum.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.pbc.tools.pbc.get_nimgs.html#pyscfad.pbc.tools.pbc.get_nimgs" title="pyscfad.pbc.tools.pbc.get_nimgs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_nimgs</span></code></a>(cell[, rcut, dimension])</p></td>
+<td><p>Get the number of periodic images given the cutoff radius.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.pbc.tools.pbc.madelung.html#pyscfad.pbc.tools.pbc.madelung" title="pyscfad.pbc.tools.pbc.madelung"><code class="xref py py-obj docutils literal notranslate"><span class="pre">madelung</span></code></a>(cell, kpts[, omega])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.pbc.tools.pbc.nimgs_to_lattice_Ls.html#pyscfad.pbc.tools.pbc.nimgs_to_lattice_Ls" title="pyscfad.pbc.tools.pbc.nimgs_to_lattice_Ls"><code class="xref py py-obj docutils literal notranslate"><span class="pre">nimgs_to_lattice_Ls</span></code></a>(cell[, nimgs, dimension])</p></td>
 <td><p>Get the lattice translation vectors given the number of periodic images.</p></td>
 </tr>
 </tbody>
@@ -999,11 +1002,11 @@
       </div>
     </a>
     <a class="right-next"
-       href="functions/pyscfad.pbc.tools.pbc.get_lattice_Ls.html"
+       href="functions/pyscfad.pbc.tools.pbc.cutoff_to_mesh.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">pyscfad.pbc.tools.pbc.get_lattice_Ls</p>
+        <p class="prev-next-title">pyscfad.pbc.tools.pbc.cutoff_to_mesh</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
