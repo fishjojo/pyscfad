@@ -33,7 +33,7 @@ def eval_gto(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
 def eval_gto_diff_full(cell, eval_name, coords, comp=None, kpts=None, kpt=None,
                        shls_slice=None, non0tab=None, ao_loc=None, out=None):
     from pyscfad.gto import mole
-    from pyscfad.pbc.gto.cell import shift_bas_center
+    from pyscfad.pbc.gto.cell import shift_bas_center # pylint: disable=cyclic-import
     if eval_name[:3] == 'PBC':  # PBCGTOval_xxx
         eval_name_mol, comp = _get_intor_and_comp(cell, eval_name[3:], comp)
     else:

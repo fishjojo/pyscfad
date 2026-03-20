@@ -73,6 +73,7 @@ def spatial2spin(tx, orbspin=None):
         idxvbb = idxvb[:,None] * nvir + idxvb
         t2aa = t2aa.reshape(nocc_a*nocc_a,nvir_a*nvir_a)
         t2ab = t2ab.reshape(nocc_a*nocc_b,nvir_a*nvir_b)
+        #pylint: disable=used-before-assignment
         t2bb = t2bb.reshape(nocc_b*nocc_b,nvir_b*nvir_b)
         t2 = t2.at[idxoaa.ravel()[:,None],idxvaa.ravel()].add(t2aa)
         t2 = t2.at[idxobb.ravel()[:,None],idxvbb.ravel()].add(t2bb)

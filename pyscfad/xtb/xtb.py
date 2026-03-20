@@ -16,25 +16,26 @@
 Molecular XTB models.
 """
 from __future__ import annotations
-from typing import Any
+from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
 
 import numpy
 from pyscf.gto.mole import ANG_OF
 
-from pyscfad.typing import ArrayLike, Array
 from pyscfad import numpy as np
 from pyscfad import ops
-from pyscfad.gto import MoleLite
 from pyscfad.gto.mole import inter_distance
 from pyscfad.scf.hf_lite import SCFLite
 from pyscfad.dft.rks import VXC
-
 from pyscfad.xtb import util
 from pyscfad.xtb.data.radii import ATOMIC as ATOMIC_RADII
 from pyscfad.xtb.data.elements import N_VALENCE
 
-from pyscfad.xtb.param import GFN1MolParam
+if TYPE_CHECKING:
+    from typing import Any
+    from pyscfad.typing import ArrayLike, Array
+    from pyscfad.gto import MoleLite
+    from pyscfad.xtb.param import GFN1MolParam
 
 def tot_valence_electrons(mol: MoleLite, charge: int | None = None, nkpts: int = 1) -> Array:
     if charge is None:
@@ -240,9 +241,9 @@ def mulliken_charge(
     s1e: ArrayLike,
     dm: ArrayLike,
 ) -> Array:
-    SP = np.einsum("pq,pq->p", s1e, dm)
+    PS = np.einsum("pq,qp->p", dm, s1e)
     occs = np.zeros(mol.nbas)
-    occs = ops.index_add(occs, ops.index[util.bas_to_ao_indices(mol)], SP)
+    occs = ops.index_add(occs, ops.index[util.bas_to_ao_indices(mol)], PS)
     return param.refocc - occs
 
 def sum_shell_charges(mol: MoleLite, partial_charges: ArrayLike) -> Array:

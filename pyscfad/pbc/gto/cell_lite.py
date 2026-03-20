@@ -14,12 +14,17 @@
 """
 Lightweight :mod:`~pyscfad.pbc.gto.cell` module
 """
-from pyscfad.typing import Array, ArrayLike
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 from pyscfad import numpy as np
 from pyscfad.gto import MoleLite
 from pyscfad.pbc.gto import cell
 from pyscfad.pbc.gto.cell import estimate_rcut
 from pyscfad.pbc.tools import get_lattice_Ls
+
+if TYPE_CHECKING:
+    from pyscfad.typing import Array, ArrayLike
 
 class Cell(MoleLite):
     """Unit cell information.

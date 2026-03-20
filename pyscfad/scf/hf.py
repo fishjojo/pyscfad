@@ -29,7 +29,6 @@ from pyscfad import util
 from pyscfad import ops
 from pyscfad import lib
 from pyscfad.lib import logger
-from pyscfad.df import df_jk
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.scf import _vhf
 from pyscfad.scf import chkfile
@@ -480,6 +479,7 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
             return jac.mol
 
     def density_fit(self, auxbasis=None, with_df=None, only_dfj=False):
+        from pyscfad.df import df_jk # pylint: disable=cyclic-import
         return df_jk.density_fit(self, auxbasis, with_df, only_dfj)
 
     @with_doc(pyscf_hf.SCF.get_veff.__doc__)

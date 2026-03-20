@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
-from typing import Any
+from typing import TYPE_CHECKING
 
 import numpy
 from pyscf.gto.mole import (
@@ -34,12 +34,12 @@ from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.gto import moleintor_lite
 from pyscfad.gto import MoleLite
-from pyscfad.ml.gto.basis_array import BasisArray
 
-Array = Any
+if TYPE_CHECKING:
+    from pyscfad.typing import ArrayLike, Array
+    from pyscfad.ml.gto.basis_array import BasisArray
 
-
-def tot_electrons(mol):
+def tot_electrons(mol: MolePad) -> Array:
     nelectron = mol.atom_charges().sum()
     nelectron -= mol.charge
     nelectron_int = np.round(nelectron).astype(np.int32)
@@ -71,8 +71,8 @@ class MolePad(MoleLite):
     """
     def __init__(
         self,
-        numbers: Array,
-        coords: Array,
+        numbers: ArrayLike,
+        coords: ArrayLike,
         basis: BasisArray | None = None,
         charge: int = 0,
         spin: int = 0,
@@ -80,8 +80,8 @@ class MolePad(MoleLite):
         verbose: int = 3,
         trace_coords: bool = False,
         trace_basis: bool = False,
-        bas0: Array = None,
-        env0: Array = None,
+        bas0: ArrayLike = None,
+        env0: ArrayLike = None,
     ):
         self.numbers = np.asarray(numbers, dtype=np.int32)
         self.coords = np.asarray(coords, dtype=np.float64)
@@ -112,27 +112,27 @@ class MolePad(MoleLite):
         self._ecpbas = numpy.zeros((0,8), dtype=numpy.int32)
         self._built = True
 
-    def atom_charges(self):
+    def atom_charges(self) -> Array:
         return self.numbers
 
-    def atom_nshells(self, atm_id):
+    def atom_nshells(self, atm_id: int) -> int:
         del atm_id
         return self.basis.nbas
 
     @property
-    def nao(self):
+    def nao(self) -> int:
         if self._nao is None:
             return self.nao_nr()
         else:
             return self._nao
 
-    def nao_nr(self, cart=None):
+    def nao_nr(self, cart: bool | None = None) -> int:
         if cart is None:
             cart = self.cart
         return self.basis.nao_nr(cart=cart) * self.natm
 
     @property
-    def natm(self):
+    def natm(self) -> int:
         return len(self.numbers)
 
     def copy(
@@ -157,9 +157,9 @@ class MolePad(MoleLite):
         comp: int | None = None,
         hermi: int = 0,
         aosym: str = "s1",
-        out: Array | None = None,
+        out: ArrayLike | None = None,
         shls_slice: tuple[int, ...] | None = None,
-        grids: Array | None = None,
+        grids: ArrayLike | None = None,
     ) -> Array:
         del out, grids
 
@@ -188,7 +188,7 @@ class MolePad(MoleLite):
         )
         return out
 
-    def ao_loc_nr(self):
+    def ao_loc_nr(self) -> Array:
         if self.cart:
             key = "cart"
         else:
@@ -198,7 +198,7 @@ class MolePad(MoleLite):
     ao_loc = property(ao_loc_nr)
     ao_loc_2c = NotImplemented
 
-    def aoslice_by_atom(self, ao_loc=None):
+    def aoslice_by_atom(self, ao_loc: ArrayLike | None = None) -> Array:
         if ao_loc is None:
             ao_loc = self.ao_loc
         return self.basis.aoslice_by_atom(self.natm, ao_loc=ao_loc)
@@ -209,8 +209,8 @@ class MolePad(MoleLite):
     to_pyscf = NotImplemented
 
 def make_atm_env(
-    coords: Array,
-    numbers: Array,
+    coords: ArrayLike,
+    numbers: ArrayLike,
     ptr: int = 0,
     nuclear_model: int = NUC_POINT,
     nucprop: dict | None = None,
@@ -236,8 +236,8 @@ def make_atm_env(
 
 def make_env(
     mol: MolePad,
-    bas0: Array = None,
-    env0: Array = None,
+    bas0: ArrayLike = None,
+    env0: ArrayLike = None,
 ) -> tuple[Array, Array, Array]:
     """Make ``_atm``, ``_bas``, and ``_env`` for
     interfacing with libcint.
@@ -267,28 +267,3 @@ def make_env(
     _env = np.hstack([_env, env0])
     return _atm, _bas, _env
 
-
-if __name__ == "__main__":
-    import jax
-    from pyscfad.xtb import basis as xtb_basis
-    from pyscfad.ml.gto.basis_array import make_basis_array
-
-    basis = make_basis_array(xtb_basis.get_basis_filename(), max_number=8)
-
-    numbers = np.array([8, 1, 1], dtype=np.int32)
-    coords = np.array(
-        [
-            [0.00000,  0.00000,  0.00000],
-            [1.43355,  0.00000, -0.95296],
-            [1.43355,  0.00000,  0.95296],
-        ]
-    )
-
-    def foo(numbers, coords, bas0=None, env0=None):
-        mol = MolePad(numbers=numbers, coords=coords, basis=basis,
-                      bas0=bas0, env0=env0, trace_coords=True)
-        s = mol.intor("int1e_ovlp")
-        return np.linalg.norm(s)
-
-    e, g = jax.jit(jax.value_and_grad(foo, 1))(numbers, coords)
-    print(e, g)

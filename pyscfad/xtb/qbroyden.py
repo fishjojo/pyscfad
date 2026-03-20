@@ -14,17 +14,21 @@
 
 """Broyden's method for charge self-consistency
 """
-from typing import Any
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from functools import partial
+
 import numpy
 from jax.lax import while_loop, custom_root
 from pyscf.scf.hf import TIGHT_GRAD_CONV_TOL
+
 from pyscfad import numpy as np
 from pyscfad.lib import logger
-from pyscfad.xtb import XTB
 from pyscfad.scipy.sparse.linalg import gmres_const_atol
 
-Array = Any
+if TYPE_CHECKING:
+    from pyscfad.typing import ArrayLike, Array
+    from pyscfad.xtb import XTB
 
 def normalize_tot_charge(mol, q):
     tot = mol.charge
@@ -35,17 +39,7 @@ def normalize_tot_charge(mol, q):
                  (np.sum(q[:nbas]) - tot) / np.sum(shl_mask), 0.)
     )
 
-def _scf_q_broyden(
-    mf: XTB,
-    q: Array,
-    dm: Array,
-    h1e: Array,
-    s1e: Array,
-    vhf: Array,
-    e_tot: float,
-    conv_tol: float,
-    conv_tol_grad: float,
-) -> tuple[Array, tuple[Array, Array, float]]:
+def _scf_q_broyden(mf, q, dm, h1e, s1e, vhf, e_tot, conv_tol, conv_tol_grad):
     log = logger.new_logger(mf)
     mol = mf.mol
     damp = mf.diis_damp
@@ -140,17 +134,7 @@ def _scf_q_broyden(
     del log
     return q, (dm, dq, fock, e_tot)
 
-def _scf_implicit_q(
-    mf: XTB,
-    q: Array,
-    dm: Array,
-    h1e: Array,
-    s1e: Array,
-    vhf: Array,
-    e_tot: float,
-    conv_tol: float,
-    conv_tol_grad: float,
-) -> tuple[Array, tuple[Array, Array, float]]:
+def _scf_implicit_q(mf, q, dm, h1e, s1e, vhf, e_tot, conv_tol, conv_tol_grad):
     oracle = lambda fn, q0: _scf_q_broyden(mf, q0, dm, h1e, s1e, vhf, e_tot,
                                            conv_tol, conv_tol_grad)
 
@@ -182,8 +166,8 @@ def scf(
     mf: XTB,
     conv_tol: float = 1e-10,
     conv_tol_grad: float = None,
-    dm0: Array | None = None,
-    q0: Array | None = None,
+    dm0: ArrayLike | None = None,
+    q0: ArrayLike | None = None,
 ) -> tuple[bool, float, Array, Array, Array]:
     log = logger.new_logger(mf)
     if conv_tol_grad is None:

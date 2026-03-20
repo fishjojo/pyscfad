@@ -44,8 +44,8 @@ class BasisArray:
     data: jax.Array
     mask_shl: jax.Array
     mask_ctr: jax.Array
-    ls: numpy.ndarray = dataclasses.field(metadata=dict(static=True))
-    l_loc: numpy.ndarray = dataclasses.field(metadata=dict(static=True))
+    ls: numpy.ndarray = dataclasses.field(metadata={"static": True})
+    l_loc: numpy.ndarray = dataclasses.field(metadata={"static": True})
 
     def make_bas_env(self, ptr: int=0):
         return make_bas_env(self, ptr=ptr)
@@ -259,21 +259,21 @@ def make_basis_array(
                       ls=ls, l_loc=l_loc)
 
 
-if __name__ == "__main__":
-    from pyscfad.xtb import basis as xtb_basis
-
-    basis = xtb_basis.get_basis_filename()
-    b = make_basis_array(basis, max_number=9)
-
-    @jax.jit
-    def foo(b, idx):
-        data = b.data[idx]
-        mask_shl = b.mask_shl[idx]
-        mask_ctr = b.mask_ctr[idx]
-        mask_ao = b.make_ao_mask(mask_shl, mask_ctr)
-        return data, mask_shl, mask_ctr, mask_ao
-
-    data, mask_shl, mask_ctr, mask_ao = foo(b, jnp.array([8,1,1,0]))
-    print(mask_shl)
-    print(mask_ctr)
-    print(mask_ao)
+#if __name__ == "__main__":
+#    from pyscfad.xtb import basis as xtb_basis
+#
+#    basis = xtb_basis.get_basis_filename()
+#    b = make_basis_array(basis, max_number=9)
+#
+#    @jax.jit
+#    def foo(b, idx):
+#        data = b.data[idx]
+#        mask_shl = b.mask_shl[idx]
+#        mask_ctr = b.mask_ctr[idx]
+#        mask_ao = b.make_ao_mask(mask_shl, mask_ctr)
+#        return data, mask_shl, mask_ctr, mask_ao
+#
+#    data, mask_shl, mask_ctr, mask_ao = foo(b, jnp.array([8,1,1,0]))
+#    print(mask_shl)
+#    print(mask_ctr)
+#    print(mask_ao)

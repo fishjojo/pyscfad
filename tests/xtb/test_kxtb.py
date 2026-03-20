@@ -14,6 +14,7 @@
 
 import pytest
 import jax
+from pyscf.data.nist import BOHR
 from pyscfad import numpy as np
 from pyscfad.gto import MoleLite as Mole
 from pyscfad.xtb import basis as xtb_basis
@@ -51,3 +52,26 @@ def test_gfn1_kxtb_energy_force(setup, H2O_GFN1_ref):
 
         assert abs(e1 - e0) < 1e-3
         assert abs(g1 - g0).max() < 1e-3
+
+def test_gfn1_kxtb_energy_force_with_kpts_sample(setup):
+    numbers = [14,14]
+    coords = np.asarray([[0.0, 0.0, 0.0],
+                         [1.3467560987, 1.3467560987, 1.3467560987]]) / BOHR
+    a = np.asarray([[0.0, 2.6935121974, 2.6935121974],
+                    [2.6935121974, 0.0, 2.6935121974],
+                    [2.6935121974, 2.6935121974, 0.0]]) / BOHR
+    basis, param = setup
+
+    def cell_energy(coords):
+        cell = Cell(numbers=numbers, coords=coords, a=a,
+                    basis=basis, precision=1e-6, trace_coords=True)
+        mf = GFN1KXTB(cell, param=param, kpts=cell.make_kpts([2,]*3))
+        mf.diis = "anderson"
+        return mf.kernel()
+
+    e0 = -3.81064113210415
+    g0 = np.array([[-0.00073464,]*3, [0.00073464,]*3])
+
+    e1, g1 = jax.value_and_grad(cell_energy)(coords)
+    assert abs(e1 - e0) < 1e-6
+    assert abs(g1 - g0).max() < 1e-6

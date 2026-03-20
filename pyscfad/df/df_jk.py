@@ -50,7 +50,7 @@ def get_jk_gen(dfobj, dm, hermi=1, with_j=True, with_k=True, direct_scf_tol=1e-1
 def density_fit(mf, auxbasis=None, with_df=None, only_dfj=False):
     # pylint: disable=import-outside-toplevel
     from pyscfad import scf
-    from .df import DF
+    from .df import DF # pylint: disable=cyclic-import
     assert isinstance(mf, scf.hf.SCF)
 
     if with_df is None:
