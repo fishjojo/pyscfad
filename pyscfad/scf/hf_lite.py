@@ -42,6 +42,11 @@ if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
     from pyscfad.gto import MoleLite
 
+if TYPE_CHECKING:
+    from typing import Any
+    from pyscfad.typing import ArrayLike, Array
+    from pyscfad.gto import MoleLite
+
 def get_occ(
     mf: SCF,
     mo_energy: ArrayLike | None = None,
