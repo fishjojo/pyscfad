@@ -75,3 +75,33 @@ def test_gfn1_kxtb_energy_force_with_kpts_sample(setup):
     e1, g1 = jax.value_and_grad(cell_energy)(coords)
     assert abs(e1 - e0) < 1e-6
     assert abs(g1 - g0).max() < 1e-6
+
+def test_gfn1_kxtb_smearing(setup):
+    basis, param = setup
+    numbers = [29, 29]
+    coords = np.asarray(
+        [[0.        , 0.        , 0.        ],
+         [2.40522868, 2.40522868, 3.40150702],]
+    )
+    a = np.asarray(
+        [[4.81045737, 0.        , 0.        ],
+         [0.        , 4.81045737, 0.        ],
+         [0.        , 0.        , 6.80301405],]
+    )
+
+    def cell_energy(coords):
+        cell = Cell(numbers=numbers, coords=coords, a=a,
+                    basis=basis, precision=1e-6, trace_coords=True)
+        mf = GFN1KXTB(cell, param=param, kpts=cell.make_kpts([2,]*3))
+        mf.sigma = 0.001
+        mf.diis = "anderson"
+        mf.diis_damp = .5
+        mf.diis_space = 6
+        return mf.kernel()
+
+    e0 = -9.222835240828761
+    g0 = np.zeros((2,3))
+
+    e1, g1 = jax.value_and_grad(cell_energy)(coords)
+    assert abs(e1 - e0) < 1e-6
+    assert abs(g1 - g0).max() < 1e-6

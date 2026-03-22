@@ -35,7 +35,7 @@ from pyscfad.scf import hf
 from pyscfad.scf.anderson import Anderson
 #from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.scipy.sparse.linalg import gmres_const_atol
-from pyscfad.scf import addons
+from pyscfad.scf.addons import get_occ_smearing
 
 if TYPE_CHECKING:
     from typing import Any
@@ -60,7 +60,7 @@ def get_occ(
     nocc = mf.tot_electrons // 2
 
     if mf.sigma is not None and mf.sigma > 0:
-        mo_occ = addons.get_occ_smearing(mo_energy, nocc, mf.sigma, mask, method=mf.smearing_method)
+        mo_occ = get_occ_smearing(mo_energy, nocc, mf.sigma, mask, method=mf.smearing_method)
         mo_occ *= 2
     else:
         pick = (np.cumsum(mask) <= nocc) & mask
