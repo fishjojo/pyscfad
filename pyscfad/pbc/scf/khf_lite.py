@@ -24,6 +24,7 @@ from pyscfad import numpy as np
 from pyscfad.ops import vmap
 from pyscfad.lib import logger
 from pyscfad.scf.hf_lite import SCFLite
+from pyscfad.scf.addons import get_occ_smearing
 
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
@@ -35,25 +36,35 @@ def get_occ(
     mo_energy_kpts: ArrayLike | None = None,
     mo_coeff_kpts: ArrayLike | None = None,
 ) -> Array:
-    if mf.sigma is not None and mf.sigma > 0:
-        raise NotImplementedError
-
     if mo_energy_kpts is None:
         mo_energy_kpts = mf.mo_energy
 
+    nkpts = len(mf.kpts)
     nocc = mf.tot_electrons // 2
 
-    mo_energy = np.sort(np.hstack(mo_energy_kpts))
-    fermi = mo_energy[nocc-1]
-    mo_occ_kpts = np.where(mo_energy_kpts <= fermi, 2., 0.)
+    _moe = np.hstack(mo_energy_kpts)
+    sort_idx = np.argsort(_moe)
+    inverse_idx = np.argsort(sort_idx)
+
+    mo_energy = _moe[sort_idx]
+    _mask = mf.mo_mask(mo_energy_kpts, mo_coeff_kpts).ravel()
+    mask = _mask[sort_idx]
+
+    if mf.sigma is not None and mf.sigma > 0:
+        mo_occ = get_occ_smearing(mo_energy, nocc, mf.sigma, mask, method=mf.smearing_method)
+        mo_occ *= 2
+        mo_occ_kpts = mo_occ[inverse_idx].reshape(nkpts,-1)
+    else:
+        pick = (np.cumsum(mask) <= nocc) & mask
+        mo_occ = np.where(pick, 2., 0.)
+        mo_occ_kpts = mo_occ[inverse_idx].reshape(nkpts,-1)
+
+        if mf.verbose >= logger.DEBUG:
+            e_homo = np.max(np.where(pick, mo_energy, -np.inf))
+            e_lumo = np.min(np.where(mask & ~pick, mo_energy, np.inf))
+            logger.debug(mf, "  HOMO = %.15g  LUMO = %.15g", e_homo, e_lumo)
 
     if mf.verbose >= logger.DEBUG:
-        if nocc < mo_energy.size:
-            logger.debug(mf, "HOMO = %.12g  LUMO = %.12g",
-                        mo_energy[nocc-1], mo_energy[nocc])
-        else:
-            logger.debug(mf, "HOMO = %.12g", mo_energy[nocc-1])
-
         numpy.set_printoptions(threshold=len(mo_energy))
         logger.debug(mf, "     k-point                  mo_energy")
         for k, kpt in enumerate(mf.cell.get_scaled_kpts(mf.kpts)):
