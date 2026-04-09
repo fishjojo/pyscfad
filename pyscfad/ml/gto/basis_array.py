@@ -44,6 +44,7 @@ class BasisArray:
     data: jax.Array
     mask_shl: jax.Array
     mask_ctr: jax.Array
+    mask_data: jax.Array
     ls: numpy.ndarray = dataclasses.field(metadata={"static": True})
     l_loc: numpy.ndarray = dataclasses.field(metadata={"static": True})
 
@@ -198,10 +199,12 @@ def make_basis_array(
 ) -> BasisArray:
     """Construct a padded array to represent a GTO basis set.
 
-    Parameters
-    ----------
-    basis : Raw basis set.
-    max_number : Maximum atomic number.
+    Parameters:
+        basis: Raw basis set.
+        max_number: Maximum atomic number.
+
+    Notes:
+        Padded atoms have atomic numbers as zeros.
     """
     if isinstance(basis, str):
         symbols = [_symbol(z) for z in range(max_number+1)]
@@ -240,6 +243,7 @@ def make_basis_array(
     a[:,:,:,0] = 1e12 # preset exponents to a large number
     mask_shl = numpy.zeros([max_number+1, len(ls)], dtype=bool)
     mask_ctr = numpy.zeros([max_number+1, max_nc1-1], dtype=bool)
+    mask_data = numpy.zeros_like(a, dtype=bool)
     for z in range(max_number+1):
         if z == 0: # dummy atom
             continue
@@ -252,10 +256,12 @@ def make_basis_array(
                 a[z, l_idx, :nexp, :nc1] = b
                 mask_shl[z, l_idx] = True
                 mask_ctr[z, :nc1-1] = True
+                mask_data[z, l_idx, :nexp, :nc1] = True
 
     return BasisArray(data=jnp.asarray(a),
                       mask_shl=jnp.asarray(mask_shl),
                       mask_ctr=jnp.asarray(mask_ctr),
+                      mask_data=jnp.asarray(mask_data),
                       ls=ls, l_loc=l_loc)
 
 
