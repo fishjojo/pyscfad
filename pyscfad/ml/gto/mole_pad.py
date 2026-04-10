@@ -1,4 +1,4 @@
-# Copyright 2021-2025 The PySCFAD Authors
+# Copyright 2025-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -47,27 +47,18 @@ def tot_electrons(mol: MolePad) -> Array:
 
 
 class MolePad(MoleLite):
-    """Molecular information with padding.
+    """Molecular information with padding (for batched calculations).
 
-    Parameters
-    ----------
-    numbers : array
-        Atomic numbers.
-    coords : array
-        Atomic coordinates (in Bohr).
-    basis : BasisArray
-        Atom-centered contracted Gaussian basis set parameters
-        (including exponents and contraction coefficients).
-    charge : int
-        Total charge.
-    spin : int
-        2S (number of alpha electrons minus number of beta electrons).
-    cart : bool
-        Whether to use Cartesian Gaussian basis.
-    trace_coords : bool
-        Whether to trace atomic coordinates for gradient calculations.
-    trace_basis : bool
-        Whether to trace basis set parameters for gradient calculations.
+    Parameters:
+        numbers: Atomic numbers.
+        coords: Atomic coordinates (in Bohr).
+        basis: Atom-centered contracted Gaussian basis set parameters
+            (including exponents and contraction coefficients).
+        charge: Total charge.
+        spin: 2S (number of alpha electrons minus number of beta electrons).
+        cart: Whether to use Cartesian Gaussian basis.
+        trace_coords: Whether to trace atomic coordinates for gradient calculations.
+        trace_basis: Whether to trace basis set parameters for gradient calculations.
     """
     def __init__(
         self,
@@ -188,7 +179,7 @@ class MolePad(MoleLite):
         )
         return out
 
-    def ao_loc_nr(self) -> Array:
+    def ao_loc_nr(self) -> numpy.ndarray:
         if self.cart:
             key = "cart"
         else:
@@ -198,7 +189,7 @@ class MolePad(MoleLite):
     ao_loc = property(ao_loc_nr)
     ao_loc_2c = NotImplemented
 
-    def aoslice_by_atom(self, ao_loc: ArrayLike | None = None) -> Array:
+    def aoslice_by_atom(self, ao_loc: ArrayLike | None = None) -> numpy.ndarray:
         if ao_loc is None:
             ao_loc = self.ao_loc
         return self.basis.aoslice_by_atom(self.natm, ao_loc=ao_loc)
@@ -236,8 +227,8 @@ def make_atm_env(
 
 def make_env(
     mol: MolePad,
-    bas0: ArrayLike = None,
-    env0: ArrayLike = None,
+    bas0: ArrayLike | None = None,
+    env0: ArrayLike | None = None,
 ) -> tuple[Array, Array, Array]:
     """Make ``_atm``, ``_bas``, and ``_env`` for
     interfacing with libcint.
