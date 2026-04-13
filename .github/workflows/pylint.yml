@@ -7,15 +7,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: 3.12
       - name: install pyscf
         run: ./.github/workflows/install_pyscf.sh
       - name: build pyscfadlib
         run: ./.github/workflows/build_pyscfadlib.sh
       - name: install pylint
-        run: pip install 'pylint==2.17.7'
+        run: pip install 'pylint<5.0'
       - name: style check
         run: ./.github/workflows/lint.sh

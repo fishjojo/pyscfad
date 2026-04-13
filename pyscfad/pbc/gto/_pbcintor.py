@@ -83,6 +83,7 @@ def _pbc_intor(mol, intor, comp=None, hermi=0, kpts=None, kpt=None,
         env.ctypes.data_as(ctypes.c_void_p), ctypes.c_int(env.size))
 
     mat = []
+    # pylint: disable=redefined-argument-from-local
     for k, kpt in enumerate(kpts_lst):
         v = out[k]
         if hermi != 0:

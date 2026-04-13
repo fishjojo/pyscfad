@@ -16,7 +16,7 @@
 Lightweight :mod:`~pyscfad.scf.hf` module.
 """
 from __future__ import annotations
-from typing import Any
+from typing import TYPE_CHECKING
 from functools import partial
 
 import numpy
@@ -28,16 +28,19 @@ from pyscf.scf.hf import (
     TIGHT_GRAD_CONV_TOL,
 )
 
-from pyscfad.typing import ArrayLike, Array
 from pyscfad import numpy as np
-from pyscfad.gto import MoleLite
 from pyscfad import lib
 from pyscfad.lib import logger
 from pyscfad.scf import hf
 from pyscfad.scf.anderson import Anderson
 #from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.scipy.sparse.linalg import gmres_const_atol
-from pyscfad.scf import addons
+from pyscfad.scf.addons import get_occ_smearing
+
+if TYPE_CHECKING:
+    from typing import Any
+    from pyscfad.typing import ArrayLike, Array
+    from pyscfad.gto import MoleLite
 
 def get_occ(
     mf: SCF,
@@ -57,7 +60,7 @@ def get_occ(
     nocc = mf.tot_electrons // 2
 
     if mf.sigma is not None and mf.sigma > 0:
-        mo_occ = addons.get_occ_smearing(mo_energy, nocc, mf.sigma, mask, method=mf.smearing_method)
+        mo_occ = get_occ_smearing(mo_energy, nocc, mf.sigma, mask, method=mf.smearing_method)
         mo_occ *= 2
     else:
         pick = (np.cumsum(mask) <= nocc) & mask

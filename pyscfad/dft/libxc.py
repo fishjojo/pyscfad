@@ -45,7 +45,7 @@ def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=Non
             vxc = (None,) * 9
     elif deriv == 1:
         vxc = _eval_xc_comp(rho, xc_code, spin, relativity, deriv=1, omega=omega, verbose=verbose)
-    return exc, vxc, None, None
+    return exc, vxc, None, None # pylint: disable=used-before-assignment
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
 def _eval_xc_comp(rho, xc_code, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
@@ -353,7 +353,7 @@ def _eval_xc_comp_jvp(xc_code, spin, relativity, deriv, omega, verbose,
 
                 jvp = (frho_jvp, frhosig_jvp, fsigma_jvp) + (None,) * 42
 
-    return val, jvp
+    return val, jvp # pylint: disable=used-before-assignment
 
 @partial(jit, static_argnames=['xctype'])
 def _exc_partial_deriv(rho, exc, vxc, xctype='LDA'):

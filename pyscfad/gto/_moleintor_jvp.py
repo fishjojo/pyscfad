@@ -42,7 +42,7 @@ from ._moleintor_helper import (
     get_bas_label,
     promote_xyz,
 )
-from pyscfad.gto import _pyscf_moleintor as moleintor
+from pyscfad.gto._pyscf_moleintor import make_loc, getints
 
 SET_RC = ['rinv',]
 _S_NORM = 0.282094791773878143 # normalization factor for s orbital
@@ -281,7 +281,7 @@ def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b,
                       rc_deriv=None, hermi=0, shls_slice=None):
     if shls_slice is None:
         shls_slice = (0, mol.nbas, 0, mol.nbas)
-    ao_loc = moleintor.make_loc(mol._bas, intor_a)
+    ao_loc = make_loc(mol._bas, intor_a)
     i0, i1, j0, j1 = shls_slice[:4]
     if hermi == 1:
         assert (i0 == j0 and i1 == j1)
@@ -375,7 +375,7 @@ def _gen_int1e_nuc_jvp_rc(mol, mol_t, intor_a, intor_b,
                           hermi=0, shls_slice=None):
     if shls_slice is None:
         shls_slice = (0, mol.nbas, 0, mol.nbas)
-    ao_loc = moleintor.make_loc(mol._bas, intor_a)
+    ao_loc = make_loc(mol._bas, intor_a)
     i0, i1, j0, j1 = shls_slice[:4]
     if hermi == 1:
         assert (i0 == j0 and i1 == j1)
@@ -434,7 +434,7 @@ def _int1e_jvp_cs(mol, mol_t, intor, shls_slice, comp, hermi):
 
     def _fill_grad_bra():
         shls_slice = (0, nbas1, nbas1, nbas1+nbas)
-        s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
+        s = getints(intor, atmc, basc, envc, shls_slice)
         s = s.reshape(comp, nao1, nao)
         grad = numpy.zeros((comp,len(ctr_coeff),nao,nao), dtype=s.dtype)
 
@@ -458,7 +458,7 @@ def _int1e_jvp_cs(mol, mol_t, intor, shls_slice, comp, hermi):
 
     def _fill_grad_ket():
         shls_slice = (nbas1, nbas1+nbas, 0, nbas1)
-        s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
+        s = getints(intor, atmc, basc, envc, shls_slice)
         s = s.reshape(comp, nao, nao1)
         grad = numpy.zeros((comp,len(ctr_coeff),nao,nao), dtype=s.dtype)
 
@@ -528,7 +528,7 @@ def _int1e_jvp_exp(mol, mol_t, intor, shls_slice, comp, hermi):
 
     def _fill_grad_bra():
         shls_slice = (0, nbas1, nbas1, nbas1+nbas)
-        s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
+        s = getints(intor, atmc, basc, envc, shls_slice)
         s = s.reshape(comp, -1, nao)
         grad = numpy.zeros((comp,len(es),nao,nao), dtype=s.dtype)
 
@@ -569,7 +569,7 @@ def _int1e_jvp_exp(mol, mol_t, intor, shls_slice, comp, hermi):
 
     def _fill_grad_ket():
         shls_slice = (nbas1, nbas1+nbas, 0, nbas1)
-        s = moleintor.getints(intor, atmc, basc, envc, shls_slice)
+        s = getints(intor, atmc, basc, envc, shls_slice)
         s = s.reshape(comp, nao, -1)
         grad = numpy.zeros((comp,len(es),nao,nao), dtype=s.dtype)
 
@@ -649,7 +649,7 @@ def _gen_int2e_jvp_r0(mol, mol_t, intors, shls_slice=None):
     nbas = mol.nbas
     if shls_slice is None:
         shls_slice = (0, nbas, 0, nbas, 0, nbas, 0, nbas)
-    ao_loc = moleintor.make_loc(mol._bas, intor_a)
+    ao_loc = make_loc(mol._bas, intor_a)
     i0, i1, j0, j1, k0, k1, l0, l1 = shls_slice[:]
     naoi = ao_loc[i1] - ao_loc[i0]
     naoj = ao_loc[j1] - ao_loc[j0]
@@ -748,7 +748,7 @@ def _int2e_jvp_cs(mol, mol_t, intor, shls_slice, comp):
                       nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas)
-        eri = moleintor.getints(intor, atmc, basc, envc, shls_slice, comp)
+        eri = getints(intor, atmc, basc, envc, shls_slice, comp)
         eri = eri.reshape(comp, nao1, nao, nao, nao)
         grad = numpy.zeros((comp,len(ctr_coeff),nao,nao,nao,nao), dtype=eri.dtype)
 
@@ -775,7 +775,7 @@ def _int2e_jvp_cs(mol, mol_t, intor, shls_slice, comp):
                       0, nbas1,
                       nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas)
-        eri = moleintor.getints(intor, atmc, basc, envc, shls_slice, comp)
+        eri = getints(intor, atmc, basc, envc, shls_slice, comp)
         eri = eri.reshape(comp, nao, nao1, nao, nao)
         grad = numpy.zeros((comp,len(ctr_coeff),nao,nao,nao,nao), dtype=eri.dtype)
 
@@ -803,7 +803,7 @@ def _int2e_jvp_cs(mol, mol_t, intor, shls_slice, comp):
                       nbas1, nbas1+nbas,
                       0, nbas1,
                       nbas1, nbas1+nbas)
-        eri = moleintor.getints(intor, atmc, basc, envc, shls_slice, comp)
+        eri = getints(intor, atmc, basc, envc, shls_slice, comp)
         eri = eri.reshape(comp, nao, nao, nao1, nao)
         grad = numpy.zeros((comp,len(ctr_coeff),nao,nao,nao,nao), dtype=eri.dtype)
 
@@ -831,7 +831,7 @@ def _int2e_jvp_cs(mol, mol_t, intor, shls_slice, comp):
                       nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas,
                       0, nbas1)
-        eri = moleintor.getints(intor, atmc, basc, envc, shls_slice, comp)
+        eri = getints(intor, atmc, basc, envc, shls_slice, comp)
         eri = eri.reshape(comp, nao, nao, nao, nao1)
         grad = numpy.zeros((comp,len(ctr_coeff),nao,nao,nao,nao), dtype=eri.dtype)
 
@@ -896,7 +896,7 @@ def _int2e_jvp_exp(mol, mol_t, intor, shls_slice, comp):
                       nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas)
-        eri = moleintor.getints(intor, atmc, basc, envc, shls_slice)
+        eri = getints(intor, atmc, basc, envc, shls_slice)
         eri = eri.reshape(comp, -1, nao, nao, nao)
         grad = numpy.zeros((comp, len(es), nao, nao, nao, nao), dtype=eri.dtype)
 
@@ -940,7 +940,7 @@ def _int2e_jvp_exp(mol, mol_t, intor, shls_slice, comp):
                       0, nbas1,
                       nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas)
-        eri = moleintor.getints(intor, atmc, basc, envc, shls_slice)
+        eri = getints(intor, atmc, basc, envc, shls_slice)
         eri = eri.reshape(comp, nao, -1, nao, nao)
         grad = numpy.zeros((comp, len(es), nao, nao, nao, nao), dtype=eri.dtype)
 
@@ -985,7 +985,7 @@ def _int2e_jvp_exp(mol, mol_t, intor, shls_slice, comp):
                       nbas1, nbas1+nbas,
                       0, nbas1,
                       nbas1, nbas1+nbas)
-        eri = moleintor.getints(intor, atmc, basc, envc, shls_slice)
+        eri = getints(intor, atmc, basc, envc, shls_slice)
         eri = eri.reshape(comp, nao, nao, -1, nao)
         grad = numpy.zeros((comp, len(es), nao, nao, nao, nao), dtype=eri.dtype)
 
@@ -1030,7 +1030,7 @@ def _int2e_jvp_exp(mol, mol_t, intor, shls_slice, comp):
                       nbas1, nbas1+nbas,
                       nbas1, nbas1+nbas,
                       0, nbas1)
-        eri = moleintor.getints(intor, atmc, basc, envc, shls_slice)
+        eri = getints(intor, atmc, basc, envc, shls_slice)
         eri = eri.reshape(comp, nao, nao, nao, -1)
         grad = numpy.zeros((comp, len(es), nao, nao, nao, nao), dtype=eri.dtype)
 

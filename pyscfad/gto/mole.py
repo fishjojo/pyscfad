@@ -17,9 +17,9 @@ from pyscf.gto import mole as pyscf_mole
 from pyscf.lib import logger, param
 from pyscfad import numpy as np
 from pyscfad import pytree
-from pyscfad.gto import moleintor
+from pyscfad.gto.moleintor import intor_cross, intor #pylint: disable=unused-import
 from pyscfad.gto.eval_gto import eval_gto
-from ._mole_helper import setup_exp, setup_ctr_coeff
+from pyscfad.gto._mole_helper import setup_exp, setup_ctr_coeff
 
 Traced_Attributes = ['coords', 'exp', 'ctr_coeff', 'r0']
 Exclude_Aux_Names = ('verbose',)
@@ -48,7 +48,7 @@ def inter_distance(mol=None, coords=None, Ls=None):
     rij = coords[:,None,:] - coords[None,:,:]
     if Ls is not None:
         Ls = Ls.reshape(-1, 3)
-        rij = rij[None,...] + Ls[:,None,None,:]
+        rij = rij[None,...] - Ls[:,None,None,:]
     r2 = np.sum(rij * rij, axis=-1)
     safe_r2 = np.where(r2>1e-12, r2, 1.0)
     r = np.where(r2>1e-12, np.sqrt(safe_r2), 0.0)
@@ -66,10 +66,6 @@ def classical_coulomb_energy(mol, charges=None, coords=None):
     return enuc
 
 energy_nuc = classical_coulomb_energy
-
-@wraps(pyscf_mole.intor_cross)
-def intor_cross(intor, mol1, mol2, comp=None, grids=None):
-    return moleintor.intor_cross(intor, mol1, mol2, comp=comp, grids=grids)
 
 def nao_nr_range(mol, bas_id0, bas_id1):
     from pyscf.gto.moleintor import make_loc
@@ -149,14 +145,13 @@ class Mole(pytree.PytreeNode, pyscf_mole.Mole):
     eval_ao = eval_gto = eval_gto
 
     @wraps(pyscf_mole.Mole.intor)
-    def intor(self, intor, comp=None, hermi=0, aosym='s1', out=None,
+    def intor(self, intor_name, comp=None, hermi=0, aosym='s1', out=None,
               shls_slice=None, grids=None):
         if not self._built:
             logger.warn(self, 'intor envs of %s not initialized.', self)
-        intor = self._add_suffix(intor)
-        return moleintor.intor(self, intor, comp=comp, hermi=hermi,
-                               aosym=aosym, out=out, shls_slice=shls_slice,
-                               grids=grids)
+        intor_name = self._add_suffix(intor_name)
+        return intor(self, intor_name, comp=comp, hermi=hermi,
+                     aosym=aosym, out=out, shls_slice=shls_slice, grids=grids)
 
     def to_pyscf(self):
         mol = self.view(pyscf_mole.Mole)

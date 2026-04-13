@@ -57,24 +57,86 @@ def fftk(f, mesh, expmikr):
 def ifftk(g, mesh, expikr):
     return ifft(g, mesh) * expikr
 
-def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
-    """Get the lattice translation vectors for lattice sum.
+def get_nimgs(cell, rcut=None, dimension=None):
+    """Get the number of periodic images given the cutoff radius.
+    """
+    if dimension is None:
+        if cell.dimension < 2 or cell.low_dim_ft_type == 'inf_vacuum':
+            dimension = cell.dimension
+        else:
+            dimension = 3
 
-    Same as :func:`pyscf.pbc.tools.get_lattice_Ls`,
-    but gives slightly fewer periodic images.
+    if dimension == 0 or cell.natm == 0:
+        return 0
+
+    if rcut is None:
+        rcut = cell.rcut
+    assert rcut is not None, "'rcut' not set."
+
+    shifts = [[1,0,0],[-1,0,0]]
+    if dimension > 1:
+        shifts += [[0,1,0],[0,-1,0]]
+    if dimension > 2:
+        shifts += [[0,0,1],[0,0,-1]]
+    shifts = np.asarray(shifts) * rcut
+
+    a = cell.lattice_vectors()
+    r = cell.atom_coords()
+    r1 = (r[None,:,:] + shifts[:,None,:]).reshape(-1,3)
+    scaled_r1 = stop_grad(np.dot(r1, np.linalg.inv(a)))
+    bounds = abs(scaled_r1).max(axis=0)
+    bounds = np.ceil(bounds).astype(int)
+    return bounds
+
+def nimgs_to_lattice_Ls(cell, nimgs=None, dimension=None):
+    """Get the lattice translation vectors given the number of
+    periodic images.
 
     Parameters
     ----------
-    nimgs: int or array
+    nimgs: int or tuple
         Number of periodic images in each dimension.
-        Can be a number or a sequence of size 3.
-        Default is ``None``, which means to use ``rcut`` to determine
-        the number of periodic images.
+        Can be a number or a sequence of int.
+    """
+    if nimgs is None:
+        nimgs = cell.nimgs
+    assert nimgs is not None, "'nimgs' not set"
+
+    if dimension is None:
+        dimension = cell.dimension
+
+    if np.isscalar(nimgs):
+        bounds = (nimgs,) * dimension
+    else:
+        assert len(nimgs) <= 3
+        bounds = nimgs
+
+    if dimension == 1:
+        Ts = np.arange(-bounds[0], bounds[0]+1).reshape(-1,1)
+    elif dimension == 2:
+        Ts = cartesian_prod((np.arange(-bounds[0], bounds[0]+1),
+                             np.arange(-bounds[1], bounds[1]+1)))
+    elif dimension == 3:
+        Ts = cartesian_prod((np.arange(-bounds[0], bounds[0]+1),
+                             np.arange(-bounds[1], bounds[1]+1),
+                             np.arange(-bounds[2], bounds[2]+1)))
+
+    a = cell.lattice_vectors()
+    Ls = np.dot(Ts[:,:dimension], a[:dimension])
+    return Ls
+
+def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
+    """Get the lattice translation vectors for lattice sum.
+
+    Same as pyscf :func:`~pyscf.pbc.tools.get_lattice_Ls`,
+    but gives slightly fewer periodic images.
 
     Notes
     -----
-    This function is not jit compatible unless static ``nimgs`` is set.
+    This function is not jit compatible.
     """
+    del nimgs
+
     if dimension is None:
         # For atoms near the boundary of the cell, it is necessary (even in low-
         # dimensional systems) to include lattice translations in all 3 dimensions.
@@ -86,45 +148,15 @@ def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
     if dimension == 0 or cell.natm == 0:
         return np.zeros((1, 3))
 
-    a = cell.lattice_vectors()
-    r = cell.atom_coords()
+    if rcut is None:
+        rcut = cell.rcut
+    assert rcut is not None, "'rcut' not set."
 
-    if nimgs is not None:
-        if np.isscalar(nimgs):
-            bounds = np.repeat(nimgs, 3)
-        else:
-            assert len(nimgs) == 3
-            bounds = np.asarray(nimgs, dtype=int)
-    else:
-        if rcut is None:
-            rcut = cell.rcut
+    bounds = get_nimgs(cell, rcut=rcut, dimension=dimension)
+    Ls = nimgs_to_lattice_Ls(cell, nimgs=bounds, dimension=dimension)
 
-        shifts = [[1,0,0],[-1,0,0]]
-        if dimension > 1:
-            shifts += [[0,1,0],[0,-1,0]]
-        if dimension > 2:
-            shifts += [[0,0,1],[0,0,-1]]
-        shifts = np.asarray(shifts) * rcut
-
-        r1 = (r[None,:,:] + shifts[:,None,:]).reshape(-1,3)
-        scaled_r1 = stop_grad(np.dot(r1, np.linalg.inv(a)))
-        bounds = abs(scaled_r1).max(axis=0)
-        bounds = np.ceil(bounds).astype(int)
-
-    # FIXME np.arange requires concrete bounds
-    if dimension == 1:
-        Ts = np.arange(-bounds[0], bounds[0]+1).reshape(-1,1)
-    elif dimension == 2:
-        Ts = cartesian_prod((np.arange(-bounds[0], bounds[0]+1),
-                             np.arange(-bounds[1], bounds[1]+1)))
-    elif dimension == 3:
-        Ts = cartesian_prod((np.arange(-bounds[0], bounds[0]+1),
-                             np.arange(-bounds[1], bounds[1]+1),
-                             np.arange(-bounds[2], bounds[2]+1)))
-
-    Ls = np.dot(Ts[:,:dimension], a[:dimension])
-
-    if nimgs is None and discard:
+    if discard:
+        r = cell.atom_coords()
         rr = r[:,None] - r
         dist_max = np.linalg.norm(rr, axis=2).max()
         Ls_mask = np.linalg.norm(Ls, axis=1) < (rcut + dist_max)
@@ -248,7 +280,17 @@ def get_coulG(cell, k=numpy.zeros(3), exx=False, mf=None, mesh=None, Gv=None,
     return coulG
 
 get_monkhorst_pack_size = stop_trace(pyscf_pbctools.get_monkhorst_pack_size)
-cutoff_to_mesh = stop_trace(pyscf_pbctools.cutoff_to_mesh)
+
+def cutoff_to_mesh(a, cutoff):
+    # Search the minimal x,y,z requiring |x*b[0]+y*b[1]+z*b[2]|^2 > 2 * cutoff
+    b = 2 * np.pi * np.linalg.inv(a.T)
+    rx = np.linalg.qr(b[np.array([1,2,0])].T)[1][2,2]
+    ry = np.linalg.qr(b[np.array([2,0,1])].T)[1][2,2]
+    rz = np.linalg.qr(b.T)[1][2,2]
+
+    Gmax = (2*cutoff)**.5 / np.abs(np.array([rx, ry, rz]))
+    mesh = np.ceil(Gmax).astype(int) * 2 + 1
+    return stop_grad(mesh)
 
 def madelung(cell, kpts, omega=None):
     Nk = get_monkhorst_pack_size(cell, kpts)

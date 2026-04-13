@@ -18,6 +18,7 @@ from pyscf.data.elements import NUC
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.lib import unpack_tril
+from pyscfad.gto.mole import inter_distance
 
 ANG_MOMENT = {
   -20: "2S", # H 2s
@@ -286,23 +287,55 @@ def mask_atom_pairs(mol, exclude_diag=True):
         mask = np.fill_diagonal(mask, False, inplace=False)
     return mask
 
-def rcut_erfc(alpha, q, precision=1e-8):
-    r"""Cutoff radius for :math:`E = q^2 erfc(\alpha r)/r`.
+def rcut_erfc_over_r(alpha, precision=1e-8):
+    r"""Cutoff radius for :math:`E = erfc(\alpha r)/r`.
 
     .. math::
 
-        4\pi q^2 \int_{r_0}^{\infty} r erfc(\alpha r) dr < \epsilon
+        4\pi \int_{r_0}^{\infty} r erfc(\alpha r) dr < \epsilon
     """
-    alpha = ops.to_numpy(alpha)
-    q = ops.to_numpy(q)
-    q = numpy.maximum(q, 0.1) #small charge cause divergence
-    q2 = q * q
-    a2 = alpha * alpha
-    a3 = a2 * alpha
-    fac = precision / numpy.sqrt(numpy.pi) / q2
+    a  = np.min(alpha)
+    a2 = a * a
+    a3 = a2 * a
+    fac = precision / np.sqrt(np.pi)
 
-    r0 = 20.
-    r0 = numpy.sqrt(-numpy.log(a3 * r0 * fac) / a2)
-    r0 = numpy.sqrt(-numpy.log(a3 * r0 * fac) / a2)
-    return r0
+    r = 20.
+    r = np.sqrt(-np.log(a3 * r * fac) / a2)
+    r = np.sqrt(-np.log(a3 * r * fac) / a2)
+    return ops.stop_grad(r)
+
+def rcut_enuc_GFN1(kf, zeff, arep, precision=1e-8):
+    r"""Cutoff radius for GFN1 nuclear repulsion energy.
+
+    .. math::
+
+        q^2 exp(-\alpha r^k) / r < \epsilon
+    """
+    zeff = zeff.max()
+    arep = arep.min()
+
+    r = 20.
+    r = (-np.log(r * precision / zeff**2) / arep) ** (1/kf)
+    r = (-np.log(r * precision / zeff**2) / arep) ** (1/kf)
+    return ops.stop_grad(r)
+
+def ke_cutoff_ewald(a, precision=1e-8):
+    r"""Kinetic energy cutoff for Ewald summation.
+
+    .. math::
+
+        \int_{G_0}^{\infty} dG 4\pi G^2 \frac{4\pi}{G^2} e^{-\frac{G^2}{4a^2}} < \epsilon
+    """
+    a = np.max(a)
+    fac = precision / (32 * np.pi**2 * a**2)
+    G = 1.
+    G = np.sqrt(-np.log(fac * G)) * 2 * a
+    G = np.sqrt(-np.log(fac * G)) * 2 * a
+    return ops.stop_grad(G**2 / 2)
+
+
+def r_and_inv_r(mol, coords=None, Ls=None):
+    r = inter_distance(mol, coords=coords, Ls=Ls)
+    r_inv = 1. / np.where(r>1e-6, r, np.inf)
+    return r, r_inv
 

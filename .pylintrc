@@ -10,11 +10,11 @@
 # Files or directories to be skipped. They should be base names, not paths.
 ignore=test,
        backend,
-       ml,
+#       ml,
 
 # Files or directories matching the regex patterns are skipped. The regex
 # matches against base names, not paths.
-ignore-patterns=
+ignore-patterns=test_*
 
 # Pickle collected data for later comparisons.
 persistent=no
@@ -164,7 +164,8 @@ disable=abstract-method,
         invalid-unary-operand-type,
         unnecessary-lambda-assignment,
         unbalanced-tuple-unpacking,
-	too-many-positional-arguments,
+        too-many-positional-arguments,
+        possibly-used-before-assignment,
 
 [REPORTS]
 

@@ -5,5 +5,5 @@ pip install wheel
 pip install pytest
 pip install pytest-cov
 pip install 'numpy<2.4'
-pip install jax
-pip install pyscf
+pip install 'jax<0.10'
+pip install 'pyscf<2.12.0'

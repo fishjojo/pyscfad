@@ -1054,7 +1054,7 @@ class QMMM:
         if s1e is None:
             s1e = self.get_ovlp()
         if q is None:
-            q = self.get_q(mol=mol, dm=dm, s1e=s1e)
+            q = self.get_q(mol, dm=dm, s1e=s1e)
 
         if mm_ewald_pot is None:
             if self.mm_ewald_pot is not None:
@@ -1078,7 +1078,7 @@ class QMMM:
         ediff = self.energy_ewald_fromq(
             q, mm_ewald_pot=mm_ewald_pot, qm_ewald_pot=qm_ewald_pot)
 
-        veff = super().get_veff(mol=mol, s1e=s1e, q=q)
+        veff = super().get_veff(mol, s1e=s1e, q=q)
         return VXC(vxc=veff.vxc+vdiff, ecoul=veff.ecoul+ediff)
 
     def energy_ewald(self, dm=None, mm_ewald_pot=None, qm_ewald_pot=None):
@@ -1093,7 +1093,7 @@ class QMMM:
         if qm_ewald_pot is None:
             qm_ewald_pot = self.get_qm_ewald_pot(
                 self.mol, dm, self.qm_ewald_hess)
-        q = self.get_q(mol=self.mol, dm=dm)
+        q = self.get_q(self.mol, dm=dm)
         return self.energy_ewald_fromq(q, mm_ewald_pot, qm_ewald_pot)
 
     def energy_ewald_fromq(self, q, mm_ewald_pot=None, qm_ewald_pot=None):

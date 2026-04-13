@@ -166,15 +166,15 @@ def get_ewald_params(cell, precision=None, mesh=None):
     if (cell.dimension < 2 or
           (cell.dimension == 2 and cell.low_dim_ft_type == 'inf_vacuum')):
         ew_cut = cell.rcut
-        ew_eta = numpy.sqrt(max(numpy.log(4*numpy.pi*ew_cut**2/precision)/ew_cut**2, .1))
+        ew_eta = np.sqrt(max(np.log(4*np.pi*ew_cut**2/precision)/ew_cut**2, .1))
     elif cell.dimension == 2:
-        a = ops.to_numpy(cell.lattice_vectors())
+        a = ops.stop_grad(cell.lattice_vectors())
         ew_cut = a[2,2] / 2
         # ewovrl ~ erfc(eta*rcut) / rcut ~ e^{(-eta**2 rcut*2)} < precision
-        log_precision = numpy.log(precision / (cell.atom_charges().sum()*16*numpy.pi**2))
+        log_precision = np.log(precision / (cell.atom_charges().sum()*16*np.pi**2))
         ew_eta = (-log_precision)**.5 / ew_cut
     else:  # dimension == 3
-        ew_eta = 1./ops.to_numpy(cell.vol)**(1./6)
+        ew_eta = 1./ops.stop_grad(cell.vol)**(1./6)
         ew_cut = _estimate_rcut(ew_eta**2, 0, 1., precision)
     return ew_eta, ew_cut
 
@@ -338,6 +338,7 @@ def estimate_rcut(cell, precision=None):
     """Same as :func:`pyscf.pbc.gto.cell.estimate_rcut`,
     but gives slightly different cutoff radius.
     """
+    assert cell._bas is not None, 'cell._bas not initialized'
     if cell.nbas == 0:
         return 0.01
     if precision is None:

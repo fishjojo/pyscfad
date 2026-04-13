@@ -202,10 +202,3 @@ class GFN1MoleParam(MoleParam):
     dipgam: jax.Array | None = None
     quadgam: jax.Array | None = None
 
-if __name__ == "__main__":
-    from pyscfad.xtb import basis as xtb_basis
-    from pyscfad.ml.gto.basis_array import make_basis_array
-
-    basis = make_basis_array(xtb_basis.get_basis_filename(), 10)
-    param = make_param_array(basis, 10)
-    print(param.gam)

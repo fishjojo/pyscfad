@@ -14,11 +14,17 @@
 """
 Lightweight :mod:`~pyscfad.pbc.gto.cell` module
 """
-from pyscfad.typing import Array, ArrayLike
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 from pyscfad import numpy as np
 from pyscfad.gto import MoleLite
 from pyscfad.pbc.gto import cell
 from pyscfad.pbc.gto.cell import estimate_rcut
+from pyscfad.pbc.tools import get_lattice_Ls
+
+if TYPE_CHECKING:
+    from pyscfad.typing import Array, ArrayLike
 
 class Cell(MoleLite):
     """Unit cell information.
@@ -27,27 +33,38 @@ class Cell(MoleLite):
         a: The lattice vectors.
         precision: The integral precision.
         rcut: The cutoff radius for lattice sum.
+        nimgs: Number of periodic images.
         dimension: PBC dimensions.
             0: no PBC.
             1: PBC along ``a[0]``.
             2: PBC along ``a[0]`` and ``a[1]``.
             3: PBC along ``a[0]``, ``a[1]``, and ``a[2]``.
     """
+    low_dim_ft_type = None
+
     def __init__(
         self,
         a: ArrayLike = np.zeros((3,3)),
         precision: float = 1e-8,
         rcut: float | None = None,
+        nimgs: int | tuple[int, ...] | None = None,
         dimension: int = 3,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.a = np.asarray(a, dtype=float).reshape(3,3)
         self.precision = precision
-        if rcut is None:
-            rcut = estimate_rcut(self, self.precision)
-        self.rcut = rcut
         self.dimension = dimension
+
+        if rcut is None and self._bas is not None:
+            rcut = estimate_rcut(self, precision)
+        self.rcut = rcut
+        if nimgs is None and self.rcut is not None:
+            Ls = self.get_lattice_Ls()
+            scaled_Ls = np.dot(Ls, np.linalg.inv(self.a))
+            scaled_Ls = np.rint(scaled_Ls).astype(int)
+            nimgs = abs(scaled_Ls).max(axis=0)
+        self.nimgs = nimgs
 
     def lattice_vectors(self) -> Array:
         """Unit cell lattice vectors.
@@ -92,9 +109,39 @@ class Cell(MoleLite):
         )
         return out
 
+    def lattice_intor(
+        self,
+        intor_name: str,
+        comp: int | None = None,
+        hermi: int = 0,
+        Ls: ArrayLike | None = None,
+        shls_slice: tuple[int, ...] | None = None,
+    ) -> Array:
+        """Lattice one-electron integrals.
+        """
+        from pyscfad.pbc.gto._latintor import _lattice_intor
+        if Ls is None:
+            Ls = self.get_lattice_Ls()
+
+        intor_name = self._add_suffix(intor_name)
+
+        out = _lattice_intor(
+            intor_name, self.rcut, Ls,
+            self._atm, self._bas, self._env,
+            shls_slice=shls_slice, comp=comp, hermi=hermi,
+            trace_coords=self.trace_coords, trace_basis=self.trace_basis,
+        )
+        return out
+
     make_kpts = cell.Cell.make_kpts
     get_scaled_kpts = cell.Cell.get_scaled_kpts
     get_abs_kpts = cell.Cell.get_abs_kpts
     reciprocal_vectors = cell.Cell.reciprocal_vectors
+    get_ewald_params = cell.Cell.get_ewald_params
+    vol = cell.Cell.vol
+    cutoff_to_mesh = cell.Cell.cutoff_to_mesh
+    get_Gv_weights = cell.Cell.get_Gv_weights
+    get_scaled_atom_coords = cell.Cell.get_scaled_atom_coords
+    get_lattice_Ls = get_lattice_Ls
 
 CellLite = Cell

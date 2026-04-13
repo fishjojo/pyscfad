@@ -15,7 +15,7 @@
 from functools import lru_cache
 import numpy
 from pyscf.gto import mole as pyscf_mole
-from pyscfad.gto import _pyscf_moleintor as moleintor
+from pyscfad.gto._pyscf_moleintor import getints
 
 def _intor_impl(mol, intor_name, comp=None, hermi=0, aosym='s1', out=None,
                 shls_slice=None, grids=None):
@@ -34,7 +34,7 @@ def _intor_impl(mol, intor_name, comp=None, hermi=0, aosym='s1', out=None,
         env[pyscf_mole.NGRIDS] = grids.shape[0]
         env[pyscf_mole.PTR_GRIDS] = env.size - grids.size
 
-    out = moleintor.getints(intor_name, mol._atm, bas, env,
+    out = getints(intor_name, mol._atm, bas, env,
                             shls_slice, comp, hermi, aosym, out=out)
     return out
 
@@ -53,15 +53,15 @@ def _intor_cross_impl(intor, mol1, mol2, comp=None, grids=None):
 
     if (intor.endswith('_sph') or intor.startswith('cint') or
         intor.endswith('_spinor') or intor.endswith('_cart')):
-        return moleintor.getints(intor, atmc, basc, envc, shls_slice, comp, 0)
+        return getints(intor, atmc, basc, envc, shls_slice, comp, 0)
     elif mol1.cart == mol2.cart:
         intor = mol1._add_suffix(intor)
-        return moleintor.getints(intor, atmc, basc, envc, shls_slice, comp, 0)
+        return getints(intor, atmc, basc, envc, shls_slice, comp, 0)
     elif mol1.cart:
-        mat = moleintor.getints(intor+'_cart', atmc, basc, envc, shls_slice, comp, 0)
+        mat = getints(intor+'_cart', atmc, basc, envc, shls_slice, comp, 0)
         return numpy.dot(mat, mol2.cart2sph_coeff())
     else:
-        mat = moleintor.getints(intor+'_cart', atmc, basc, envc, shls_slice, comp, 0)
+        mat = getints(intor+'_cart', atmc, basc, envc, shls_slice, comp, 0)
         return numpy.dot(mol1.cart2sph_coeff().T, mat)
 
 def get_bas_label(l):
