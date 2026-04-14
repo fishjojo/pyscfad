@@ -30,6 +30,7 @@ py_binary(
     ] + if_cuda([
         "//pyscfadlib:version.py",
         "//pyscfadlib/cuda:_solver",
+        "//pyscfadlib/cuint:_cuint",
         "//plugins/cuda:plugin_pyproject.toml",
         "//plugins/cuda:plugin_setup.py",
     ]),
