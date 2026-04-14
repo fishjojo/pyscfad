@@ -20,3 +20,19 @@ if _cusolver:
             platform="CUDA",
             api_version=(1 if _name.endswith("_ffi") else 0),
         )
+
+try:
+    _cuint = importlib.import_module(
+        "._cuint", package="pyscfad_cuda12_plugin",
+    )
+except ImportError:
+    _cuint = None
+
+if _cuint:
+    for _name, _value in _cuint.registrations().items():
+        ffi.register_ffi_target(
+            _name,
+            _value,
+            platform="CUDA",
+            api_version=1,
+        )

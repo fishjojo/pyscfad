@@ -1,0 +1,21 @@
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+
+filegroup(
+    name = "all_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//visibility:public"],
+)
+
+cmake(
+    name = "cuint",
+    lib_source = ":all_srcs",
+    cache_entries = {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
+    },
+    out_static_libs = [
+        "libcuint.a",
+    ],
+    visibility = ["//visibility:public"],
+)

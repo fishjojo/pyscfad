@@ -98,6 +98,7 @@ def prepare_wheel_cuda(
       dst_dir=plugin_dir,
       src_files=[
           f"__main__/pyscfadlib/cuda/_solver.{pyext}",
+          f"__main__/pyscfadlib/cuint/_cuint.{pyext}",
           "__main__/pyscfadlib/version.py",
       ],
   )
