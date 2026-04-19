@@ -54,9 +54,10 @@ try:
             "._cuint", package="pyscfad_cuda12_plugin",
     )
 except ImportError as e:
-    raise ImportError(
-        "Failed to import '_cuint' from 'pyscfad_cuda12_plugin'. "
-    ) from e
+    #raise ImportError(
+    #    "Failed to import '_cuint' from 'pyscfad_cuda12_plugin'. "
+    #) from e
+    pass
 
 if _cuint:
     for _name, _value in _cuint.registrations().items():
