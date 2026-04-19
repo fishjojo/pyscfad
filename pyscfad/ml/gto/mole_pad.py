@@ -34,6 +34,7 @@ from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.gto import moleintor_lite
 from pyscfad.gto import MoleLite
+from pyscfad.experimental import moleintor_cuint
 
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
@@ -151,6 +152,7 @@ class MolePad(MoleLite):
         out: ArrayLike | None = None,
         shls_slice: tuple[int, ...] | None = None,
         grids: ArrayLike | None = None,
+        cuint_plan: moleintor_cuint.CuintPlan | None = None,
     ) -> Array:
         del out, grids
 
@@ -163,20 +165,37 @@ class MolePad(MoleLite):
         ao_loc = self.ao_loc
         aoslices = self.aoslice_by_atom(ao_loc=ao_loc)[:,2:4]
 
-        out = moleintor_lite.getints(
-            intor_name,
-            self._atm,
-            self._bas,
-            self._env,
-            shls_slice=shls_slice,
-            comp=comp,
-            hermi=hermi,
-            aosym=aosym,
-            ao_loc=ao_loc,
-            trace_coords=self.trace_coords,
-            trace_basis=self.trace_basis,
-            aoslices=aoslices,
-        )
+        if cuint_plan is not None:
+            out = moleintor_cuint.getints(
+                intor_name,
+                self._atm,
+                self._bas,
+                self._env,
+                cuint_plan,
+                shls_slice=shls_slice,
+                comp=comp,
+                hermi=hermi,
+                aosym=aosym,
+                ao_loc=ao_loc,
+                trace_coords=self.trace_coords,
+                trace_basis=self.trace_basis,
+                aoslices=aoslices,
+            )
+        else:
+            out = moleintor_lite.getints(
+                intor_name,
+                self._atm,
+                self._bas,
+                self._env,
+                shls_slice=shls_slice,
+                comp=comp,
+                hermi=hermi,
+                aosym=aosym,
+                ao_loc=ao_loc,
+                trace_coords=self.trace_coords,
+                trace_basis=self.trace_basis,
+                aoslices=aoslices,
+            )
         return out
 
     def ao_loc_nr(self) -> numpy.ndarray:

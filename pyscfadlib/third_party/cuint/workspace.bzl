@@ -1,7 +1,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-CUINT_COMMIT = "aa9f6ada7550cbe5f4f79eb22540066fa6a1aacc"
-CUINT_SHA256 = "1b51db98edf532684a11784985a81092b7f215b41ab25ff5a2342f88870d3d94"
+CUINT_COMMIT = "efbdeb1d4380f49805aeafd686d936a048c7b7e5"
+CUINT_SHA256 = "86930bfc5bb931f005d3bfed6f855d53390b42bb2ad2e35c8f9a263450632e1c"
 
 def repo():
     http_archive(

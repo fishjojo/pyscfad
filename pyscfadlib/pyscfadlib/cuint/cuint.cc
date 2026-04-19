@@ -17,8 +17,8 @@ nb::dict Registrations() {
     dict["cuint_dipole_ffi"] = EncapsulateFfiHandler(DipoleFfi);
     dict["cuint_dipole_gradient_ffi"] = EncapsulateFfiHandler(DipoleGradientFfi);
 
-    dict["cuint_dipole_ffi"] = EncapsulateFfiHandler(QuadrupoleFfi);
-    dict["cuint_dipole_gradient_ffi"] = EncapsulateFfiHandler(QuadrupoleGradientFfi);
+    dict["cuint_quadrupole_ffi"] = EncapsulateFfiHandler(QuadrupoleFfi);
+    dict["cuint_quadrupole_gradient_ffi"] = EncapsulateFfiHandler(QuadrupoleGradientFfi);
     return dict;
 }
 
