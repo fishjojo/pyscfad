@@ -21,6 +21,8 @@ from jax import numpy as jnp
 
 from pyscf.lib.exceptions import BasisNotFoundError
 from pyscf.gto import basis as pyscf_basis
+from pyscf.gto.basis import parse_nwchem
+from pyscf.gto.basis.parse_nwchem import search_seg, _parse
 from pyscf.gto.mole import BAS_SLOTS, NORMALIZE_GTO
 from pyscf.data.elements import _symbol
 
@@ -33,6 +35,13 @@ def _load_external(module, filename_or_basisname, symb, **kwargs):
     except BasisNotFoundError:
         return [[0, [0., 0.],],]
 pyscf_basis._load_external = _load_external
+
+def load(basisfile, symb, optimize=True):
+    raw_basis = search_seg(basisfile, symb)
+    if not raw_basis:
+        return [[0, [0., 0.],],]
+    return _parse(raw_basis, optimize)
+parse_nwchem.load = load
 
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
@@ -47,6 +56,7 @@ class BasisArray:
     mask_data: jax.Array
     ls: numpy.ndarray = dataclasses.field(metadata={"static": True})
     l_loc: numpy.ndarray = dataclasses.field(metadata={"static": True})
+    nctr: numpy.int32 = dataclasses.field(metadata={"static": True})
 
     def make_bas_env(self, ptr: int=0):
         return make_bas_env(self, ptr=ptr)
@@ -65,9 +75,9 @@ class BasisArray:
         """
         ls = self.ls
         if cart:
-            return numpy.sum((ls+1)*(ls+2)//2, dtype=numpy.int32)
+            return numpy.sum((ls+1)*(ls+2)//2) * self.nctr
         else:
-            return numpy.sum(2*ls+1, dtype=numpy.int32)
+            return numpy.sum(2*ls+1) * self.nctr
 
     @property
     def nbas(self):
@@ -262,7 +272,7 @@ def make_basis_array(
                       mask_shl=jnp.asarray(mask_shl),
                       mask_ctr=jnp.asarray(mask_ctr),
                       mask_data=jnp.asarray(mask_data),
-                      ls=ls, l_loc=l_loc)
+                      ls=ls, l_loc=l_loc, nctr=numpy.int32(max_nc1-1))
 
 
 #if __name__ == "__main__":

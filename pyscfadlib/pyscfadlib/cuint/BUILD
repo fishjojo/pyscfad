@@ -14,6 +14,7 @@ cc_library(
     hdrs = ["//pyscfadlib/cuint:ovlp.h"],
     deps = [
         "//pyscfadlib/cuda:cuda_vendor",
+        "//pyscfadlib:ffi_helpers",
         "@local_config_cuda//cuda:cuda_headers",
         "@xla//xla/ffi/api:ffi",
         "@xla//xla/tsl/cuda:cudart",
@@ -27,6 +28,7 @@ cc_library(
     hdrs = ["//pyscfadlib/cuint:dipole.h"],
     deps = [
         "//pyscfadlib/cuda:cuda_vendor",
+        "//pyscfadlib:ffi_helpers",
         "@local_config_cuda//cuda:cuda_headers",
         "@xla//xla/ffi/api:ffi",
         "@xla//xla/tsl/cuda:cudart",
@@ -40,6 +42,7 @@ cc_library(
     hdrs = ["//pyscfadlib/cuint:quadrupole.h"],
     deps = [
         "//pyscfadlib/cuda:cuda_vendor",
+        "//pyscfadlib:ffi_helpers",
         "@local_config_cuda//cuda:cuda_headers",
         "@xla//xla/ffi/api:ffi",
         "@xla//xla/tsl/cuda:cudart",
