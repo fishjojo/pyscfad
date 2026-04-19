@@ -1,4 +1,5 @@
 import numpy as np
+from packaging import version
 
 import jax
 try:
@@ -32,7 +33,7 @@ def prepare_lapack_call(fn_base, dtype):
     except KeyError:
         raise NotImplementedError(f"Unsupported dtype {dtype}")
 
-if jax.__version__ < "0.8":
+if version.parse(jax.__version__) < version.parse("0.8"):
     import jaxlib.mlir.ir as ir
     import jaxlib.mlir.dialects.stablehlo as hlo
     from jaxlib.hlo_helpers import (
