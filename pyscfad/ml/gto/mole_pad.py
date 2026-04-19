@@ -72,6 +72,7 @@ class MolePad(MoleLite):
         verbose: int = 3,
         trace_coords: bool = False,
         trace_basis: bool = False,
+        cuint_plan: moleintor_cuint.CuintPlan | None = None,
         bas0: ArrayLike = None,
         env0: ArrayLike = None,
     ):
@@ -84,6 +85,7 @@ class MolePad(MoleLite):
         self.verbose = verbose
         self.trace_coords = trace_coords
         self.trace_basis = trace_basis
+        self.cuint_plan = cuint_plan
 
         self.atom_mask = np.greater(self.numbers, 0)
         self.shl_mask = None
@@ -164,6 +166,9 @@ class MolePad(MoleLite):
 
         ao_loc = self.ao_loc
         aoslices = self.aoslice_by_atom(ao_loc=ao_loc)[:,2:4]
+
+        if cuint_plan is None:
+            cuint_plan = self.cuint_plan
 
         if cuint_plan is not None:
             out = moleintor_cuint.getints(
