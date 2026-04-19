@@ -106,6 +106,7 @@ class MoleLite(MoleBase):
         verbose: Printing level.
         trace_coords: Whether to trace atomic coordinates for gradient calculations.
         trace_basis: Whether to trace basis set parameters for gradient calculations.
+        cuint_plan: Plan for using the cuint backend.
 
     Notes:
         The molecular composition (i.e., ``symbols`` or ``numbers``)
@@ -124,6 +125,7 @@ class MoleLite(MoleBase):
         verbose: int = 3,
         trace_coords: bool = False,
         trace_basis: bool = False,
+        cuint_plan: moleintor_cuint.CuintPlan | None = None,
     ):
         if numbers is not None:
             if symbols is not None:
@@ -153,6 +155,8 @@ class MoleLite(MoleBase):
         if self.basis is not None:
             self._atm, self._bas, self._env = make_env(self)
             self._nao = None
+
+        self.cuint_plan = cuint_plan
 
         self._built = True
 
@@ -239,6 +243,9 @@ class MoleLite(MoleBase):
             raise NotImplementedError
         if "_grids" in intor_name:
             raise NotImplementedError
+
+        if cuint_plan is None:
+            cuint_plan = self.cuint_plan
 
         if cuint_plan is not None:
             out = moleintor_cuint.getints(
