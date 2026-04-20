@@ -6,8 +6,8 @@ Package overview
 
 pyscfad is an extension package to pyscf, which is meant to serve as
 a framework for differentiable quantum chemistry calculations.
-As of version 0.1.4, pyscfad uses jax as its backend to perform
-automatic differentiation. However, a pytorch backend will be
+As of version 0.3, pyscfad uses jax as its backend to perform
+automatic differentiation. However, a pytorch backend may be
 added in future releases.
 
 Purpose
