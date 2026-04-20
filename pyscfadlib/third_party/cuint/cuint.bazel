@@ -13,7 +13,12 @@ cmake(
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
+        # CMake's CUDA compiler probe fails when CUDA_ARCHITECTURES is unset.
+        # Keep this aligned with the baseline architectures in .bazelrc.
+        "CMAKE_CUDA_ARCHITECTURES": "50;60;70;80;90",
+        "CMAKE_INSTALL_LIBDIR": "lib",
     },
+    out_lib_dir = "lib",
     out_static_libs = [
         "libcuint.a",
     ],
