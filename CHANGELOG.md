@@ -1,5 +1,10 @@
 # Change log
 
+## pyscfad 0.3.1 (April 20, 2026)
+
+* Changes
+  * Fix 0.3.0 wheel (add missing data files)
+
 ## pyscfad 0.3.0 (April 19, 2026)
 
 * Changes
