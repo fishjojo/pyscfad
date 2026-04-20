@@ -1,5 +1,17 @@
 # Change log
 
+## pyscfad 0.3.0 (April 19, 2026)
+
+* Changes
+  * Add GFN1-XTB (molecular and PBC, with batching, no dispersion or halogen corrections).
+  * Add QM/MM for XTB.
+  * Add interface to [cuint](https://github.com/fishjojo/cuint).
+  * Add SP2 SCF solver.
+  * Add Anderson SCF solve.
+  * Add Broyden charge self-consistency solver.
+  * Add light version Mole/Cell class.
+  * Add light version SCF/KSCF class.
+
 ## pyscfad 0.2.0 (December 18, 2025)
 
 * Changes
