@@ -31,6 +31,7 @@ pyscfad.ml.gto.basis\_array
       aoslice_by_atom
       gaussian_int
       gto_norm
+      load
       make_ao_mask
       make_bas_env
       make_basis_array
