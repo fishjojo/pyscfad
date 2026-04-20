@@ -80,8 +80,22 @@ jobs:
             "$IMAGE" \
             bash -lc "
               yum install -y curl
+              if [ \"$ARCH\" = \"x86_64\" ]; then
+                CUDA_REPO_ARCH=x86_64
+              else
+                CUDA_REPO_ARCH=sbsa
+              fi
+              curl -Lo /etc/yum.repos.d/cuda-rhel8.repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/\${CUDA_REPO_ARCH}/cuda-rhel8.repo
+              rpm --import https://developer.download.nvidia.com/compute/cuda/repos/rhel8/\${CUDA_REPO_ARCH}/D42D0685.pub
+              yum clean all
+              yum install -y gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ cuda-nvcc-12-3 cuda-cudart-devel-12-3
+
               curl -Lo /usr/local/bin/bazel $BAZEL_URL
               chmod +x /usr/local/bin/bazel
+              export CUDA_HOME=/usr/local/cuda-12.3
+              export PATH=/usr/local/cuda-12.3/bin:\$PATH
+              export GCC_HOST_COMPILER_PATH=/opt/rh/gcc-toolset-12/root/usr/bin/gcc
+              export PATH=/opt/rh/gcc-toolset-12/root/usr/bin:\$PATH
 
               /opt/python/cp${TAG}-cp${TAG}/bin/pip install --no-cache-dir --upgrade pip setuptools wheel auditwheel
               ln -sf /opt/python/cp${TAG}-cp${TAG}/bin/python3 /usr/local/bin/python3
