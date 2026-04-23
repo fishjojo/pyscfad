@@ -72,14 +72,14 @@ def _scf_q_broyden(mf, q, dm, h1e, s1e, vhf, e_tot, conv_tol, conv_tol_grad):
         # ref: https://math.leidenuniv.nl/reports/files/2003-06.pdf
         y0 = g1 - g0
 
-        # v_new = s0^T J^-1 / (s0^T J^-1 y0)
+        # v_new = s0^T J^-1 / sqrt(s0^T J^-1 y0)
         s0h =  -(1 - damp) * s0
         s0h += np.dot(np.dot(s0, u_hist), v_hist.T)
         norm = np.dot(s0h, y0)
-        inv_norm = np.where(np.abs(norm) < 1e-12, 0., 1. / norm)
-        v    = s0h
+        inv_norm = np.where(norm < 1e-12, 0., 1 / np.sqrt(norm))
+        v    = s0h * inv_norm
 
-        # u_new = (s0 - J^-1 y0) / (s0^T J^-1 y0)
+        # u_new = (s0 - J^-1 y0) / sqrt(s0^T J^-1 y0)
         hy0 =  -(1 - damp) * y0
         hy0 += np.dot(u_hist, np.dot(v_hist.T , y0))
         u   = (s0 - hy0) * inv_norm
