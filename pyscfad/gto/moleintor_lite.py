@@ -209,7 +209,6 @@ def getints(
     )
     return out
 
-@getints.defjvp
 def getints_jvp(
     intor_name,
     atm,
@@ -247,7 +246,6 @@ def getints_jvp(
     )
 
     tangent_out = np.zeros_like(primal_out)
-    fname = intor_name.replace("_sph", "").replace("_cart", "")
     intor_ip_bra = intor_ip_ket = None
     intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor_name)
 
@@ -282,6 +280,7 @@ def getints_jvp(
             raise NotImplementedError("basis set parameter derivative not supported")
     return primal_out, tangent_out
 
+getints.defjvp(getints_jvp, symbolic_zeros=True)
 
 def _gen_int1e_jvp_r0(
     intor_a: str,

@@ -1,4 +1,4 @@
-# Copyright 2021-2025 The PySCFAD Authors
+# Copyright 2025-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.gto import moleintor_lite
 from pyscfad.gto import MoleLite
+from pyscfad.experimental import moleintor_cuint
 
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
@@ -47,27 +48,18 @@ def tot_electrons(mol: MolePad) -> Array:
 
 
 class MolePad(MoleLite):
-    """Molecular information with padding.
+    """Molecular information with padding (for batched calculations).
 
-    Parameters
-    ----------
-    numbers : array
-        Atomic numbers.
-    coords : array
-        Atomic coordinates (in Bohr).
-    basis : BasisArray
-        Atom-centered contracted Gaussian basis set parameters
-        (including exponents and contraction coefficients).
-    charge : int
-        Total charge.
-    spin : int
-        2S (number of alpha electrons minus number of beta electrons).
-    cart : bool
-        Whether to use Cartesian Gaussian basis.
-    trace_coords : bool
-        Whether to trace atomic coordinates for gradient calculations.
-    trace_basis : bool
-        Whether to trace basis set parameters for gradient calculations.
+    Parameters:
+        numbers: Atomic numbers.
+        coords: Atomic coordinates (in Bohr).
+        basis: Atom-centered contracted Gaussian basis set parameters
+            (including exponents and contraction coefficients).
+        charge: Total charge.
+        spin: 2S (number of alpha electrons minus number of beta electrons).
+        cart: Whether to use Cartesian Gaussian basis.
+        trace_coords: Whether to trace atomic coordinates for gradient calculations.
+        trace_basis: Whether to trace basis set parameters for gradient calculations.
     """
     def __init__(
         self,
@@ -80,6 +72,7 @@ class MolePad(MoleLite):
         verbose: int = 3,
         trace_coords: bool = False,
         trace_basis: bool = False,
+        cuint_plan: moleintor_cuint.CuintPlan | None = None,
         bas0: ArrayLike = None,
         env0: ArrayLike = None,
     ):
@@ -92,6 +85,7 @@ class MolePad(MoleLite):
         self.verbose = verbose
         self.trace_coords = trace_coords
         self.trace_basis = trace_basis
+        self.cuint_plan = cuint_plan
 
         self.atom_mask = np.greater(self.numbers, 0)
         self.shl_mask = None
@@ -160,6 +154,7 @@ class MolePad(MoleLite):
         out: ArrayLike | None = None,
         shls_slice: tuple[int, ...] | None = None,
         grids: ArrayLike | None = None,
+        cuint_plan: moleintor_cuint.CuintPlan | None = None,
     ) -> Array:
         del out, grids
 
@@ -172,23 +167,43 @@ class MolePad(MoleLite):
         ao_loc = self.ao_loc
         aoslices = self.aoslice_by_atom(ao_loc=ao_loc)[:,2:4]
 
-        out = moleintor_lite.getints(
-            intor_name,
-            self._atm,
-            self._bas,
-            self._env,
-            shls_slice=shls_slice,
-            comp=comp,
-            hermi=hermi,
-            aosym=aosym,
-            ao_loc=ao_loc,
-            trace_coords=self.trace_coords,
-            trace_basis=self.trace_basis,
-            aoslices=aoslices,
-        )
+        if cuint_plan is None:
+            cuint_plan = self.cuint_plan
+
+        if cuint_plan is not None:
+            out = moleintor_cuint.getints(
+                intor_name,
+                self._atm,
+                self._bas,
+                self._env,
+                cuint_plan,
+                shls_slice=shls_slice,
+                comp=comp,
+                hermi=hermi,
+                aosym=aosym,
+                ao_loc=ao_loc,
+                trace_coords=self.trace_coords,
+                trace_basis=self.trace_basis,
+                aoslices=aoslices,
+            )
+        else:
+            out = moleintor_lite.getints(
+                intor_name,
+                self._atm,
+                self._bas,
+                self._env,
+                shls_slice=shls_slice,
+                comp=comp,
+                hermi=hermi,
+                aosym=aosym,
+                ao_loc=ao_loc,
+                trace_coords=self.trace_coords,
+                trace_basis=self.trace_basis,
+                aoslices=aoslices,
+            )
         return out
 
-    def ao_loc_nr(self) -> Array:
+    def ao_loc_nr(self) -> numpy.ndarray:
         if self.cart:
             key = "cart"
         else:
@@ -198,7 +213,7 @@ class MolePad(MoleLite):
     ao_loc = property(ao_loc_nr)
     ao_loc_2c = NotImplemented
 
-    def aoslice_by_atom(self, ao_loc: ArrayLike | None = None) -> Array:
+    def aoslice_by_atom(self, ao_loc: ArrayLike | None = None) -> numpy.ndarray:
         if ao_loc is None:
             ao_loc = self.ao_loc
         return self.basis.aoslice_by_atom(self.natm, ao_loc=ao_loc)
@@ -236,8 +251,8 @@ def make_atm_env(
 
 def make_env(
     mol: MolePad,
-    bas0: ArrayLike = None,
-    env0: ArrayLike = None,
+    bas0: ArrayLike | None = None,
+    env0: ArrayLike | None = None,
 ) -> tuple[Array, Array, Array]:
     """Make ``_atm``, ``_bas``, and ``_env`` for
     interfacing with libcint.

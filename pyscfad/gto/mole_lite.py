@@ -51,7 +51,8 @@ from pyscf.gto.mole import (
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.gto.mole import energy_nuc
-from pyscfad.gto.moleintor_lite import getints
+from pyscfad.gto import moleintor_lite
+from pyscfad.experimental import moleintor_cuint
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -105,6 +106,7 @@ class MoleLite(MoleBase):
         verbose: Printing level.
         trace_coords: Whether to trace atomic coordinates for gradient calculations.
         trace_basis: Whether to trace basis set parameters for gradient calculations.
+        cuint_plan: Plan for using the cuint backend.
 
     Notes:
         The molecular composition (i.e., ``symbols`` or ``numbers``)
@@ -123,6 +125,7 @@ class MoleLite(MoleBase):
         verbose: int = 3,
         trace_coords: bool = False,
         trace_basis: bool = False,
+        cuint_plan: moleintor_cuint.CuintPlan | None = None,
     ):
         if numbers is not None:
             if symbols is not None:
@@ -151,6 +154,9 @@ class MoleLite(MoleBase):
         self._atm = self._bas = self._env = None
         if self.basis is not None:
             self._atm, self._bas, self._env = make_env(self)
+            self._nao = None
+
+        self.cuint_plan = cuint_plan
 
         self._built = True
 
@@ -205,6 +211,7 @@ class MoleLite(MoleBase):
         out: ArrayLike | None = None,
         shls_slice: tuple[int, ...] | None = None,
         grids: ArrayLike | None = None,
+        cuint_plan: moleintor_cuint.CuintPlan | None = None,
     ) -> Array:
         """Integral generator.
 
@@ -221,6 +228,7 @@ class MoleLite(MoleBase):
                 tensor ``(ij|kl) = intor('int2e')`` are specified as
                 ``(i0, i1, j0, j1, k0, k1, l0, l1)``.
             grids: Unused.
+            cuint_plan: Plan for using the cuint backend.
 
         Returns:
             Computed integral as an array.
@@ -236,18 +244,36 @@ class MoleLite(MoleBase):
         if "_grids" in intor_name:
             raise NotImplementedError
 
-        out = getints(
-            intor_name,
-            self._atm,
-            self._bas,
-            self._env,
-            shls_slice=shls_slice,
-            comp=comp,
-            hermi=hermi,
-            aosym=aosym,
-            trace_coords=self.trace_coords,
-            trace_basis=self.trace_basis,
-        )
+        if cuint_plan is None:
+            cuint_plan = self.cuint_plan
+
+        if cuint_plan is not None:
+            out = moleintor_cuint.getints(
+                intor_name,
+                self._atm,
+                self._bas,
+                self._env,
+                cuint_plan,
+                shls_slice=shls_slice,
+                comp=comp,
+                hermi=hermi,
+                aosym=aosym,
+                trace_coords=self.trace_coords,
+                trace_basis=self.trace_basis,
+            )
+        else:
+            out = moleintor_lite.getints(
+                intor_name,
+                self._atm,
+                self._bas,
+                self._env,
+                shls_slice=shls_slice,
+                comp=comp,
+                hermi=hermi,
+                aosym=aosym,
+                trace_coords=self.trace_coords,
+                trace_basis=self.trace_basis,
+            )
         return out
 
     def set_common_origin(

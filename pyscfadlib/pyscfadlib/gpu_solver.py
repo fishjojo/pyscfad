@@ -20,3 +20,4 @@ if _cusolver:
             platform="CUDA",
             api_version=(1 if _name.endswith("_ffi") else 0),
         )
+

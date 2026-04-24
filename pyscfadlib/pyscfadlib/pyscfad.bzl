@@ -17,8 +17,8 @@ load("@xla//xla/tsl:tsl.bzl", _pybind_extension = "tsl_pybind_extension_opensour
 nanobind_extension = _pybind_extension
 
 PLATFORM_TAGS_DICT = {
-    ("Linux", "x86_64"): ("manylinux2014", "x86_64"),
-    ("Linux", "aarch64"): ("manylinux2014", "aarch64"),
+    ("Linux", "x86_64"): ("manylinux_2_28", "x86_64"),
+    ("Linux", "aarch64"): ("manylinux_2_28", "aarch64"),
 }
 
 def pytype_strict_library(name, pytype_srcs = [], **kwargs):
