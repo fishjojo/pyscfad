@@ -33,7 +33,7 @@ The dependent C/C++ library `pyscfadlib` can be compiled from source following t
 
 
 `pyscfad` depends on
-`jax>=0.7.1,<0.11`,
+`jax>=0.9.1,<0.11`,
 `pyscfadlib>=0.3`,
 `pyscf>=2.3`, and
 `pyscf-properties`.

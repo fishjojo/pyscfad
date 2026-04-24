@@ -15,7 +15,7 @@ authors = [
 ]
 
 dependencies = [
-  "jax>=0.7.1,<0.11",
+  "jax>=0.9.1,<0.11",
   "pyscfadlib>=0.3.0",
   "pyscf>=2.3",
   "pyscf-properties",
@@ -33,7 +33,7 @@ classifiers = [
 
 [project.optional-dependencies]
 cuda12 = [
-  "jax[cuda12]>=0.7.1,<0.11",
+  "jax[cuda12]>=0.9.1,<0.11",
   "pyscfad-cuda12-plugin[with_cuda]>=0.3.0",
 ]
 

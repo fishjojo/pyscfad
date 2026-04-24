@@ -1,5 +1,10 @@
 # Change log
 
+## pyscfad 0.3.2 (April 24, 2026)
+
+* Changes
+  * Update supported jax version (>=0.9.1)
+
 ## pyscfad 0.3.1 (April 20, 2026)
 
 * Changes
