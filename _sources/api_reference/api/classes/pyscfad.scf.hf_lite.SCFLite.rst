@@ -45,6 +45,8 @@ pyscfad.scf.hf\_lite.SCFLite
          
          
          
+           ~SCFLite.eig
+         
          
            ~SCFLite.energy_elec
          
