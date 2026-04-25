@@ -24,7 +24,7 @@ def cholesky_orth(s):
     return x
 
 class SCF(hf.SCF):
-    def _eigh(self, h, s):
+    def _eigh(self, h, s, **kwargs):
         if s is None:
             return np.linalg.eigh(h)
 

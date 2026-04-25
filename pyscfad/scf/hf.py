@@ -418,8 +418,11 @@ class SCF(pytree.PytreeNode, pyscf_hf.SCF):
 
     kernel = alias(scf, alias_name='kernel')
 
-    def _eigh(self, h, s):
+    def _eigh(self, h, s, **kwargs):
         return eigh(h, s)
+
+    def eig(self, h, s, **kwargs):
+        return self._eigh(h, s, **kwargs)
 
     def energy_grad(self, dm0=None, mode='rev'):
         """Computing energy gradients w.r.t AO parameters.

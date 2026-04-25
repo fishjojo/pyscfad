@@ -147,7 +147,7 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
         del log
         return vj, vk
 
-    def eig(self, h_kpts, s_kpts):
+    def eig(self, h_kpts, s_kpts, **kwargs):
         eig_kpts, mo_coeff_kpts = vmap(self._eigh,
                                        signature='(x,y),(x,y)->(x),(x,y)')(h_kpts, s_kpts)
         return eig_kpts, mo_coeff_kpts
