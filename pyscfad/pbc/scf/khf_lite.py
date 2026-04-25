@@ -117,7 +117,7 @@ class KSCF(SCFLite):
             mo_occ = self.mo_occ
         return vmap(super().make_rdm1)(mo_coeff, mo_occ)
 
-    def _eigh(self, h: ArrayLike, s: ArrayLike) -> tuple[Array, Array]:
+    def _eigh(self, h: ArrayLike, s: ArrayLike, **kwargs) -> tuple[Array, Array]:
         return vmap(super()._eigh)(h, s)
 
     def get_grad(

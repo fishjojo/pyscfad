@@ -518,6 +518,7 @@ class SCF(SCFBase):
     get_veff = hf.SCF.get_veff
     energy_nuc = hf.SCF.energy_nuc
     _eigh = hf.SCF._eigh
+    eig = hf.SCF.eig
     get_occ = get_occ
     get_homo_lumo_energy = get_homo_lumo_energy
 

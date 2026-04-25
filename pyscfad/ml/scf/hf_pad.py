@@ -20,7 +20,7 @@ class SCF(hf.SCF):
     # NOTE too large shift will give large errors
     padding_level_shift = 1e6
 
-    def _eigh(self, h, s):
+    def _eigh(self, h, s, **kwargs):
         ao_mask = self.mol.ao_mask
         mask = np.asarray(1 - ao_mask, dtype=np.int32)
         s = s + np.diag(mask)
