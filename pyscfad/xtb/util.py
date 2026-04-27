@@ -336,6 +336,6 @@ def ke_cutoff_ewald(a, precision=1e-8):
 
 def r_and_inv_r(mol, coords=None, Ls=None):
     r = inter_distance(mol, coords=coords, Ls=Ls)
-    r_inv = 1. / np.where(r>1e-6, r, np.inf)
+    r_inv = np.safe_reciprocal(r, thresh=1e-6, fill_value=0.)
     return r, r_inv
 
