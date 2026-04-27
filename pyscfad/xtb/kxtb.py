@@ -47,13 +47,12 @@ def EHT_PI_GFN1(
     shpoly = param.shpoly
 
     rr = inter_distance(cell, Ls=Ls)
-    #rr = np.where(rr>1e-6, rr, 0)
 
     z = cell.atom_charges()
     cov_radii = atomic_radii[z]
     RAB = cov_radii[:,None] + cov_radii[None,:]
-    #rr = np.where(rr>1e-6, np.sqrt(rr / RAB), 0)
-    rr = np.sqrt(rr / RAB[None,:,:])
+
+    rr = np.safe_sqrt(rr / RAB[None,:,:], thresh=1e-6)
 
     i, j = util.atom_to_bas_indices_2d(cell)
     RR = rr[:,i,j]
@@ -229,13 +228,16 @@ def energy_nuc_GFN1(
 
     Ls = nimgs_to_lattice_Ls(cell)
     r, r_inv = util.r_and_inv_r(cell, Ls=Ls)
+    r_safe = np.where(r>1e-6, r, 1.0)
     rcut = util.rcut_enuc_GFN1(kf, zeff, arep, cell.precision)
 
     z_ab = zeff[:,None] * zeff[None,:]
-    arep_ab = np.sqrt(arep[:,None] * arep[None,:])
+    arep_ab = np.safe_sqrt(arep[:,None] * arep[None,:], thresh=1e-14)
+
+    damp = np.where(r>1e-6, np.exp(-arep_ab[None,...] * r_safe**kf), 0.)
     enuc_ab = np.where(
         r < rcut,
-        z_ab[None,...] * np.exp(-arep_ab[None,...] * r**kf) * r_inv,
+        z_ab[None,...] * damp * r_inv,
         0.,
     )
     enuc = .5 * np.sum(enuc_ab)

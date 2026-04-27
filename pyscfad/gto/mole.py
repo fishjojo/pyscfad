@@ -50,8 +50,7 @@ def inter_distance(mol=None, coords=None, Ls=None):
         Ls = Ls.reshape(-1, 3)
         rij = rij[None,...] - Ls[:,None,None,:]
     r2 = np.sum(rij * rij, axis=-1)
-    safe_r2 = np.where(r2>1e-12, r2, 1.0)
-    r = np.where(r2>1e-12, np.sqrt(safe_r2), 0.0)
+    r = np.safe_sqrt(r2, thresh=1e-12)
     return r
 
 @wraps(pyscf_mole.classical_coulomb_energy)
