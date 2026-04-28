@@ -164,8 +164,6 @@ def intor2c_jvp(intor, comp, hermi, aosym, out, shls_slice, grids,
         intor_ip_bra = intor_ip_ket = intor_ip = None
         if intor.startswith('ECPscalar'):
             intor_ip = intor.replace('ECPscalar', 'ECPscalar_ipnuc')
-        elif fname == 'int1e_r':
-            intor_ip = intor.replace('int1e_r', 'int1e_irp')
         elif fname.startswith('int1e') or fname.startswith('int2c2e'):
             intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor)
         else:
@@ -181,8 +179,6 @@ def intor2c_jvp(intor, comp, hermi, aosym, out, shls_slice, grids,
                 tangent_out += _gen_int1e_nuc_jvp_rc(
                                 mol, mol_t, intor_ip_bra, intor_ip_ket,
                                 hermi=hermi, shls_slice=shls_slice).reshape(tangent_out.shape)
-        elif fname == 'int1e_r':
-            tangent_out += _int1e_r_jvp_r0(mol, mol_t, intor_ip)
         else:
             tangent_out += _int1e_jvp_r0(mol, mol_t, intor_ip)
 
@@ -269,11 +265,7 @@ def _int1e_jvp_r0(mol, mol_t, intor):
 
 @jit
 def _int1e_fill_jvp_r0_s2(ints, coords_t, aoslices, aoidx):
-    def _fill(sl, coord_t):
-        mask = (aoidx >= sl[0]) & (aoidx < sl[1])
-        grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
-        return np.einsum('xij,x->ij', grad, coord_t)
-    jvp = np.sum(vmap(_fill)(aoslices, coords_t), axis=0)
+    jvp = _gen_int1e_fill_jvp_r0(ints, coords_t, aoslices, aoidx)
     jvp += jvp.T.conj()
     return jvp
 
@@ -316,32 +308,13 @@ def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b,
 
 @jit
 def _gen_int1e_fill_jvp_r0(ints, coords_t, aoslices, aoidx):
-    def _fill(sl, coord_t):
-        mask = (aoidx >= sl[0]) & (aoidx < sl[1])
-        grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
-        return np.einsum('xyij,x->yij', grad, coord_t)
-    jvp = np.sum(vmap(_fill)(aoslices, coords_t), axis=0)
+    atom_idx = np.searchsorted(aoslices[:, 1], aoidx, side="right")
+    r_dot = coords_t[atom_idx][0]
+    r_dot = np.moveaxis(r_dot, -1, 0)
+    jvp = np.sum(ints * r_dot, axis=0)
     return jvp
 
-def _int1e_r_jvp_r0(mol, mol_t, intor):
-    coords_t = mol_t.coords
-    atmlst = range(mol.natm)
-    aoslices = mol.aoslice_by_atom()
-    nao = mol.nao
-    s1 = -intor2c(mol, intor).reshape(-1,3,nao,nao)
-    grad = [numpy.zeros_like(s1) for ia in atmlst]
-    grad = numpy.asarray(grad)
-    for k, ia in enumerate(atmlst):
-        p0, p1 = aoslices [ia,2:]
-        grad[k,...,p0:p1] = s1[...,p0:p1]
-    tangent_out = _int1e_r_dot_grad_tangent_r0(grad, coords_t)
-    return tangent_out
-
-@jit
-def _int1e_r_dot_grad_tangent_r0(grad, tangent):
-    tangent_out = np.einsum('npxij,nx->pij', grad, tangent)
-    tangent_out += tangent_out.transpose(0,2,1)
-    return tangent_out
+_gen_int2e_fill_jvp_r0 = _gen_int1e_fill_jvp_r0
 
 def _int1e_nuc_jvp_rc(mol, mol_t, intor):
     coords_t = mol_t.coords
@@ -628,16 +601,12 @@ def _int1e_jvp_exp(mol, mol_t, intor, shls_slice, comp, hermi):
 def _int2e_jvp_r0(mol, mol_t, intor):
     eri1 = -intor4c(mol, intor, comp=None, aosym='s1')
     aoslices = mol.aoslice_by_atom()[:,2:4]
-    idx = np.arange(mol.nao)[:,None,None,None]
+    idx = np.arange(mol.nao)[None,:,None,None,None]
     return _int2e_fill_jvp_r0_s4(eri1, mol_t.coords, aoslices, idx)
 
 @jit
 def _int2e_fill_jvp_r0_s4(ints, coords_t, aoslices, aoidx):
-    def _fill(sl, coord_t):
-        mask = (aoidx >= sl[0]) & (aoidx < sl[1])
-        grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
-        return np.einsum('xijkl,x->ijkl', grad, coord_t)
-    jvp = np.sum(vmap(_fill)(aoslices, coords_t), axis=0)
+    jvp = _gen_int2e_fill_jvp_r0(ints, coords_t, aoslices, aoidx)
     jvp += jvp.transpose(1,0,2,3)
     jvp += jvp.transpose(2,3,0,1)
     return jvp
@@ -702,15 +671,6 @@ def _gen_int2e_jvp_r0(mol, mol_t, intors, shls_slice=None):
     else:
         jvp += jvp_c.transpose(0,1,2,4,3)
 
-    return jvp
-
-@jit
-def _gen_int2e_fill_jvp_r0(ints, coords_t, aoslices, aoidx):
-    def _fill(sl, coord_t):
-        mask = (aoidx >= sl[0]) & (aoidx < sl[1])
-        grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
-        return np.einsum('xyijkl,x->yijkl', grad, coord_t)
-    jvp = np.sum(vmap(_fill)(aoslices, coords_t), axis=0)
     return jvp
 
 @jit
