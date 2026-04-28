@@ -24,7 +24,6 @@ from pyscfad import numpy as np
 from pyscfad.ops import (
     custom_jvp,
     jit,
-    vmap,
 )
 from ._mole_helper import (
     setup_exp,
@@ -295,7 +294,17 @@ def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b,
         order_a = int1e_get_dr_order(intor_b)[0]
         s1b = -getints2c_rc(mol, intor_b, hermi=0, rc_deriv=rc_deriv,
                             shls_slice=shls_slice)
-        s1b = s1b.reshape(3**order_a,3,-1,naoi,naoj).transpose(1,0,2,3,4).reshape(3,-1,naoi,naoj)
+
+        # TODO make it general
+        if 'int1e_r_' in intor_b or intor_b == 'int1e_r':
+            s1b = s1b.reshape(3**order_a,3,3,-1,naoi,naoj)
+            s1b = s1b.transpose(2,0,1,3,4,5).reshape(3,-1,naoi,naoj)
+        elif 'int1e_rr_' in intor_b or intor_b == 'int1e_rr':
+            s1b = s1b.reshape(3**order_a,9,3,-1,naoi,naoj)
+            s1b = s1b.transpose(2,0,1,3,4,5).reshape(3,-1,naoi,naoj)
+        else:
+            s1b = s1b.reshape(3**order_a,3,-1,naoi,naoj)
+            s1b = s1b.transpose(1,0,2,3,4).reshape(3,-1,naoi,naoj)
 
         aoslices = mol.aoslice_by_atom()[:,2:4] - ao_loc[j0]
         aoidx = np.arange(naoj)
@@ -308,7 +317,7 @@ def _gen_int1e_jvp_r0(mol, mol_t, intor_a, intor_b,
 
 @jit
 def _gen_int1e_fill_jvp_r0(ints, coords_t, aoslices, aoidx):
-    atom_idx = np.searchsorted(aoslices[:, 1], aoidx, side="right")
+    atom_idx = np.searchsorted(aoslices[:, 1], aoidx, side='right')
     r_dot = coords_t[atom_idx][0]
     r_dot = np.moveaxis(r_dot, -1, 0)
     jvp = np.sum(ints * r_dot, axis=0)

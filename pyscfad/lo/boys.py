@@ -121,7 +121,7 @@ def dipole_integral(mol, mo_coeff):
     # otherwise, will need to compute charge center response
     charge_center = numpy.zeros(3)
     with mol.with_common_origin(charge_center):
-        r = mol.intor('int1e_r')
+        r = mol.intor_symmetric('int1e_r')
         dip = np.einsum('ui,xuv,vj->xij', mo_coeff.conj(), r, mo_coeff)
     return dip
 
