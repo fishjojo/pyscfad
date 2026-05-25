@@ -18,6 +18,7 @@ Hartree-Fock theory
 from pyscfad.scf import hf
 from pyscfad.scf import uhf
 from pyscfad.scf import rohf
+from pyscfad.scf import ghf
 
 def RHF(mol, **kwargs):
     return hf.RHF(mol, **kwargs)
@@ -27,3 +28,6 @@ def UHF(mol, **kwargs):
 
 def ROHF(mol, **kwargs):
     return rohf.ROHF(mol, **kwargs)
+
+def GHF(mol, **kwargs):
+    return ghf.GHF(mol, **kwargs)
