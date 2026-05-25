@@ -71,11 +71,11 @@ def get_jk(mol, dm, hermi=0,
 
     return vj, vk
 
-def dip_moment(mol, dm, unit_symbol="Debye", origin=None, verbose=logger.NOTE):
+def dip_moment(mol, dm, unit="Debye", origin=None, verbose=logger.NOTE):
     nao = mol.nao_nr()
     dma = dm[:nao,:nao]
     dmb = dm[nao:,nao:]
-    return hf.dip_moment(mol, dma+dmb, unit=unit_symbol, verbose=verbose, origin=origin)
+    return hf.dip_moment(mol, dma+dmb, unit=unit, verbose=verbose, origin=origin)
 
 #TODO SOC
 class GHF(hf.SCF):
@@ -140,13 +140,13 @@ class GHF(hf.SCF):
         s = ops.to_numpy(s)
         return pyscf_ghf.spin_square(mo_coeff, s)
 
-    def dip_moment(self, mol=None, dm=None, unit_symbol="Debye",
+    def dip_moment(self, mol=None, dm=None, unit="Debye",
                    origin=None, verbose=logger.NOTE):
         if mol is None:
             mol = self.mol
         if dm is None:
             dm = self.make_rdm1()
-        return dip_moment(mol, dm, unit_symbol, origin=origin, verbose=verbose)
+        return dip_moment(mol, dm, unit=unit, origin=origin, verbose=verbose)
 
     get_grad = pyscf_ghf.GHF.get_grad
     init_guess_by_minao = pyscf_ghf.GHF.init_guess_by_minao

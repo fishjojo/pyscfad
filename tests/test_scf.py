@@ -82,6 +82,16 @@ def test_df_rhf_nuc_grad(mol_H2):
         g1 = jax.grad(df_hf_energy)(mol, scf.RHF).coords
     assert abs(g1 - g0).max() < 1e-6
 
+def test_df_ghf_nuc_grad(mol_H2O):
+    mol = mol_H2O(charge=1, spin=1)
+    g1 = jax.grad(df_hf_energy)(mol, scf.GHF).coords
+    g0 = numpy.array(
+        [[0.,  0.            ,  3.28370507e-03],
+         [0.,  4.31595057e-02, -1.64185254e-03],
+         [0., -4.31595057e-02, -1.64185254e-03],]
+    )
+    assert abs(g1 - g0).max() < 1e-6
+
 def test_to_pyscf(mol_N2):
     ehf = scf.UHF(mol_N2()).density_fit().to_pyscf().kernel()
     assert abs(ehf - -108.867850114325) < 1e-8

@@ -78,17 +78,34 @@ class _DFHF(pytree.PytreeNode, pyscf_df_jk._DFHF):
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
                omega=None):
+        # pylint: disable=import-outside-toplevel
+        from pyscfad import scf
         if dm is None:
             dm = self.make_rdm1()
 
         if not self.with_df:
             return super().get_jk(mol, dm, hermi, with_j, with_k, omega)
 
+        vj = vk = None
         with_dfk = with_k and not self.only_dfj
-
-        #TODO GHF
-        vj, vk = self.with_df.get_jk(dm, hermi, with_j, with_dfk,
-                                     self.direct_scf_tol, omega)
+        if with_j or with_dfk:
+            if isinstance(self, scf.ghf.GHF):
+                def jkbuild(mol, dm, hermi, with_j, with_k, omega):
+                    vj, vk = self.with_df.get_jk(dm.real, hermi, with_j, with_k,
+                                                 self.direct_scf_tol, omega)
+                    if dm.dtype == np.complex128:
+                        vjI, vkI = self.with_df.get_jk(dm.imag, hermi, with_j, with_k,
+                                                       self.direct_scf_tol, omega)
+                        if with_j:
+                            vj = vj + vjI * 1j
+                        if with_k:
+                            vk = vk + vkI * 1j
+                    return vj, vk
+                vj, vk = scf.ghf.get_jk(mol, dm, hermi, with_j, with_dfk,
+                                        jkbuild, omega)
+            else:
+                vj, vk = self.with_df.get_jk(dm, hermi, with_j, with_dfk,
+                                             self.direct_scf_tol, omega)
         if with_k and not with_dfk:
             vk = super().get_jk(mol, dm, hermi, False, True, omega)[1]
         return vj, vk
