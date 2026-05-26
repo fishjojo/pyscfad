@@ -19,6 +19,7 @@ pyscfad.scf
       :toctree: functions/
 
    
+      GHF
       RHF
       ROHF
       UHF
@@ -53,6 +54,9 @@ pyscfad.scf
    
    
    diis
+   
+   
+   ghf
    
    
    hf

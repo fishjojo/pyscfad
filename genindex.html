@@ -26,8 +26,8 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
-<link href="_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+  <link href="_static/styles/theme.css?digest=0790524f97105ba85085" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=0790524f97105ba85085" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -36,10 +36,10 @@
     <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <script defer src="_static/scripts/fontawesome.js?digest=0790524f97105ba85085"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
-<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=0790524f97105ba85085" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=0790524f97105ba85085" />
 
     <script src="_static/documentation_options.js?v=2f2e10e9"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
@@ -56,7 +56,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.2" />
-    <meta name="docbuild:last-update" content="Apr 28, 2026"/>
+    <meta name="docbuild:last-update" content="May 26, 2026"/>
   
     
     <script src="_static/searchtools.js"></script>
@@ -194,11 +194,18 @@
       
         <div class="navbar-item">
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button></div>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
       
         <div class="navbar-item"><ul class="navbar-icon-links"
     aria-label="Icon Links">
@@ -211,8 +218,7 @@
           
           
           
-          <a href="https://github.com/fishjojo/pyscfad" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
-            <span class="sr-only">GitHub</span></a>
+          <a href="https://github.com/fishjojo/pyscfad" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
         <li class="nav-item">
           
@@ -223,8 +229,7 @@
           
           
           
-          <a href="https://pypi.org/project/pyscfad" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-custom fa-pypi fa-lg" aria-hidden="true"></i>
-            <span class="sr-only">PyPI</span></a>
+          <a href="https://pypi.org/project/pyscfad" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-custom fa-lg" data-prefix="fa-custom" data-icon="pypi" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
         </li>
 </ul></div>
       
@@ -311,11 +316,18 @@
         
           <div class="navbar-item">
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button></div>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div></div>
         
           <div class="navbar-item"><ul class="navbar-icon-links"
     aria-label="Icon Links">
@@ -328,8 +340,7 @@
           
           
           
-          <a href="https://github.com/fishjojo/pyscfad" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i>
-            <span class="sr-only">GitHub</span></a>
+          <a href="https://github.com/fishjojo/pyscfad" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-brands fa-square-github fa-lg" aria-hidden="true"></i><span class="visually-hidden">GitHub</span></a>
         </li>
         <li class="nav-item">
           
@@ -340,8 +351,7 @@
           
           
           
-          <a href="https://pypi.org/project/pyscfad" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-custom fa-pypi fa-lg" aria-hidden="true"></i>
-            <span class="sr-only">PyPI</span></a>
+          <a href="https://pypi.org/project/pyscfad" title="PyPI" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fa-custom fa-lg" data-prefix="fa-custom" data-icon="pypi" aria-hidden="true"></i><span class="visually-hidden">PyPI</span></a>
         </li>
 </ul></div>
         
@@ -622,12 +632,16 @@
 </li>
       <li><a href="api_reference/api/classes/pyscfad.scf.diis.DIIS.html#pyscfad.scf.diis.DIIS">DIIS (in module pyscfad.scf.diis)</a>
 </li>
-      <li><a href="api_reference/api/functions/pyscfad.scf.hf.dip_moment.html#pyscfad.scf.hf.dip_moment">dip_moment() (in module pyscfad.scf.hf)</a>
+      <li><a href="api_reference/api/functions/pyscfad.scf.ghf.dip_moment.html#pyscfad.scf.ghf.dip_moment">dip_moment() (in module pyscfad.scf.ghf)</a>
 
       <ul>
+        <li><a href="api_reference/api/functions/pyscfad.scf.hf.dip_moment.html#pyscfad.scf.hf.dip_moment">(in module pyscfad.scf.hf)</a>
+</li>
         <li><a href="api_reference/api/classes/methods/pyscfad.ml.xtb.xtb_pad.GFN1XTB.dip_moment.html#pyscfad.ml.xtb.xtb_pad.GFN1XTB.dip_moment">(pyscfad.ml.xtb.xtb_pad.GFN1XTB method)</a>
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.ml.xtb.xtb_pad.XTB.dip_moment.html#pyscfad.ml.xtb.xtb_pad.XTB.dip_moment">(pyscfad.ml.xtb.xtb_pad.XTB method)</a>
+</li>
+        <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.dip_moment.html#pyscfad.scf.ghf.GHF.dip_moment">(pyscfad.scf.ghf.GHF method)</a>
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.scf.hf.SCF.dip_moment.html#pyscfad.scf.hf.SCF.dip_moment">(pyscfad.scf.hf.SCF method)</a>
 </li>
@@ -640,10 +654,10 @@
       </ul></li>
       <li><a href="api_reference/api/classes/methods/pyscfad.dft.rks.KohnShamDFT.do_nlc.html#pyscfad.dft.rks.KohnShamDFT.do_nlc">do_nlc() (pyscfad.dft.rks.KohnShamDFT method)</a>
 </li>
-      <li><a href="api_reference/api/functions/pyscfad.scf.sp2.dot2.html#pyscfad.scf.sp2.dot2">dot2() (in module pyscfad.scf.sp2)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api_reference/api/functions/pyscfad.scf.sp2.dot2.html#pyscfad.scf.sp2.dot2">dot2() (in module pyscfad.scf.sp2)</a>
+</li>
       <li><a href="api_reference/api/functions/pyscfad.scf.hf.dot_eri_dm.html#pyscfad.scf.hf.dot_eri_dm">dot_eri_dm() (in module pyscfad.scf.hf)</a>
 </li>
       <li><a href="api_reference/api/classes/methods/pyscfad.pbc.scf.hf.SCF.dump_chk.html#pyscfad.pbc.scf.hf.SCF.dump_chk">dump_chk() (pyscfad.pbc.scf.hf.SCF method)</a>
@@ -979,6 +993,8 @@
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.pbc.scf.khf_lite.KSCFLite.get_grad.html#pyscfad.pbc.scf.khf_lite.KSCFLite.get_grad">(pyscfad.pbc.scf.khf_lite.KSCFLite method)</a>
 </li>
+        <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.get_grad.html#pyscfad.scf.ghf.GHF.get_grad">(pyscfad.scf.ghf.GHF method)</a>
+</li>
         <li><a href="api_reference/api/classes/methods/pyscfad.scf.hf_lite.SCF.get_grad.html#pyscfad.scf.hf_lite.SCF.get_grad">(pyscfad.scf.hf_lite.SCF method)</a>
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.scf.hf_lite.SCFLite.get_grad.html#pyscfad.scf.hf_lite.SCFLite.get_grad">(pyscfad.scf.hf_lite.SCFLite method)</a>
@@ -1012,6 +1028,8 @@
         <li><a href="api_reference/api/classes/methods/pyscfad.pbc.scf.hf.SCF.get_hcore.html#pyscfad.pbc.scf.hf.SCF.get_hcore">(pyscfad.pbc.scf.hf.SCF method)</a>
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.pbc.scf.khf.KSCF.get_hcore.html#pyscfad.pbc.scf.khf.KSCF.get_hcore">(pyscfad.pbc.scf.khf.KSCF method)</a>
+</li>
+        <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.get_hcore.html#pyscfad.scf.ghf.GHF.get_hcore">(pyscfad.scf.ghf.GHF method)</a>
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.scf.hf.SCF.get_hcore.html#pyscfad.scf.hf.SCF.get_hcore">(pyscfad.scf.hf.SCF method)</a>
 </li>
@@ -1065,6 +1083,8 @@
       <ul>
         <li><a href="api_reference/api/functions/pyscfad.pbc.df.fft_jk.get_jk.html#pyscfad.pbc.df.fft_jk.get_jk">(in module pyscfad.pbc.df.fft_jk)</a>
 </li>
+        <li><a href="api_reference/api/functions/pyscfad.scf.ghf.get_jk.html#pyscfad.scf.ghf.get_jk">(in module pyscfad.scf.ghf)</a>
+</li>
         <li><a href="api_reference/api/classes/methods/pyscfad.df.df.DF.get_jk.html#pyscfad.df.df.DF.get_jk">(pyscfad.df.df.DF method)</a>
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.pbc.df.fft.FFTDF.get_jk.html#pyscfad.pbc.df.fft.FFTDF.get_jk">(pyscfad.pbc.df.fft.FFTDF method)</a>
@@ -1072,6 +1092,8 @@
         <li><a href="api_reference/api/classes/methods/pyscfad.pbc.scf.hf.SCF.get_jk.html#pyscfad.pbc.scf.hf.SCF.get_jk">(pyscfad.pbc.scf.hf.SCF method)</a>
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.pbc.scf.khf.KSCF.get_jk.html#pyscfad.pbc.scf.khf.KSCF.get_jk">(pyscfad.pbc.scf.khf.KSCF method)</a>
+</li>
+        <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.get_jk.html#pyscfad.scf.ghf.GHF.get_jk">(pyscfad.scf.ghf.GHF method)</a>
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.scf.hf.SCF.get_jk.html#pyscfad.scf.hf.SCF.get_jk">(pyscfad.scf.hf.SCF method)</a>
 </li>
@@ -1119,6 +1141,8 @@
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.pbc.scf.khf_lite.KSCFLite.get_occ.html#pyscfad.pbc.scf.khf_lite.KSCFLite.get_occ">(pyscfad.pbc.scf.khf_lite.KSCFLite method)</a>
 </li>
+        <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.get_occ.html#pyscfad.scf.ghf.GHF.get_occ">(pyscfad.scf.ghf.GHF method)</a>
+</li>
         <li><a href="api_reference/api/classes/methods/pyscfad.scf.hf.SCF.get_occ.html#pyscfad.scf.hf.SCF.get_occ">(pyscfad.scf.hf.SCF method)</a>
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.scf.hf_lite.SCF.get_occ.html#pyscfad.scf.hf_lite.SCF.get_occ">(pyscfad.scf.hf_lite.SCF method)</a>
@@ -1146,6 +1170,8 @@
         <li><a href="api_reference/api/classes/methods/pyscfad.pbc.scf.khf_lite.KSCF.get_ovlp.html#pyscfad.pbc.scf.khf_lite.KSCF.get_ovlp">(pyscfad.pbc.scf.khf_lite.KSCF method)</a>
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.pbc.scf.khf_lite.KSCFLite.get_ovlp.html#pyscfad.pbc.scf.khf_lite.KSCFLite.get_ovlp">(pyscfad.pbc.scf.khf_lite.KSCFLite method)</a>
+</li>
+        <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.get_ovlp.html#pyscfad.scf.ghf.GHF.get_ovlp">(pyscfad.scf.ghf.GHF method)</a>
 </li>
       </ul></li>
       <li><a href="api_reference/api/functions/pyscfad.cc.ccsd_t_slow.get_ovvv.html#pyscfad.cc.ccsd_t_slow.get_ovvv">get_ovvv() (in module pyscfad.cc.ccsd_t_slow)</a>
@@ -1227,6 +1253,8 @@
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.pbc.scf.khf.KSCF.get_veff.html#pyscfad.pbc.scf.khf.KSCF.get_veff">(pyscfad.pbc.scf.khf.KSCF method)</a>
 </li>
+        <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.get_veff.html#pyscfad.scf.ghf.GHF.get_veff">(pyscfad.scf.ghf.GHF method)</a>
+</li>
         <li><a href="api_reference/api/classes/methods/pyscfad.scf.hf.RHF.get_veff.html#pyscfad.scf.hf.RHF.get_veff">(pyscfad.scf.hf.RHF method)</a>
 </li>
         <li><a href="api_reference/api/classes/methods/pyscfad.scf.hf.SCF.get_veff.html#pyscfad.scf.hf.SCF.get_veff">(pyscfad.scf.hf.SCF method)</a>
@@ -1268,6 +1296,10 @@
       </ul></li>
       <li><a href="api_reference/api/classes/pyscfad.ml.xtb.xtb_pad.GFN1XTBQ.html#pyscfad.ml.xtb.xtb_pad.GFN1XTBQ">GFN1XTBQ (class in pyscfad.ml.xtb.xtb_pad)</a>
 </li>
+      <li><a href="api_reference/api/classes/pyscfad.scf.ghf.GHF.html#pyscfad.scf.ghf.GHF">GHF (class in pyscfad.scf.ghf)</a>
+</li>
+      <li><a href="api_reference/api/functions/pyscfad.scf.GHF.html#pyscfad.scf.GHF">GHF() (in module pyscfad.scf)</a>
+</li>
       <li><a href="api_reference/api/classes/pyscfad.tools.linear_solver.GMRESDisp.html#pyscfad.tools.linear_solver.GMRESDisp">GMRESDisp (class in pyscfad.tools.linear_solver)</a>
 </li>
       <li><a href="api_reference/api/functions/pyscfad.gto.mole_lite.gto_norm.html#pyscfad.gto.mole_lite.gto_norm">gto_norm() (in module pyscfad.gto.mole_lite)</a>
@@ -1300,10 +1332,24 @@
         <li><a href="api_reference/api/classes/methods/pyscfad.mp.mp2.RMP2.init_amps.html#pyscfad.mp.mp2.RMP2.init_amps">(pyscfad.mp.mp2.RMP2 method)</a>
 </li>
       </ul></li>
+      <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.init_guess_by_atom.html#pyscfad.scf.ghf.GHF.init_guess_by_atom">init_guess_by_atom() (pyscfad.scf.ghf.GHF method)</a>
+</li>
+      <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.init_guess_by_chkfile.html#pyscfad.scf.ghf.GHF.init_guess_by_chkfile">init_guess_by_chkfile() (pyscfad.scf.ghf.GHF method)</a>
+</li>
+      <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.init_guess_by_huckel.html#pyscfad.scf.ghf.GHF.init_guess_by_huckel">init_guess_by_huckel() (pyscfad.scf.ghf.GHF method)</a>
+</li>
+      <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.init_guess_by_minao.html#pyscfad.scf.ghf.GHF.init_guess_by_minao">init_guess_by_minao() (pyscfad.scf.ghf.GHF method)</a>
+</li>
+      <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.init_guess_by_mod_huckel.html#pyscfad.scf.ghf.GHF.init_guess_by_mod_huckel">init_guess_by_mod_huckel() (pyscfad.scf.ghf.GHF method)</a>
+</li>
+      <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.init_guess_by_sap.html#pyscfad.scf.ghf.GHF.init_guess_by_sap">init_guess_by_sap() (pyscfad.scf.ghf.GHF method)</a>
+</li>
       <li><a href="api_reference/api/classes/methods/pyscfad.scf.anderson.Anderson.init_state.html#pyscfad.scf.anderson.Anderson.init_state">init_state() (pyscfad.scf.anderson.Anderson method)</a>
 </li>
       <li><a href="api_reference/api/classes/methods/pyscfad.dft.rks.KohnShamDFT.initialize_grids.html#pyscfad.dft.rks.KohnShamDFT.initialize_grids">initialize_grids() (pyscfad.dft.rks.KohnShamDFT method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference/api/functions/pyscfad.df.incore.int3c_cross_jvp.html#pyscfad.df.incore.int3c_cross_jvp">int3c_cross_jvp() (in module pyscfad.df.incore)</a>
 </li>
       <li><a href="api_reference/api/functions/pyscfad.gto.mole.inter_distance.html#pyscfad.gto.mole.inter_distance">inter_distance() (in module pyscfad.gto.mole)</a>
@@ -1318,8 +1364,6 @@
         <li><a href="api_reference/api/classes/methods/pyscfad.ml.gto.mole_pad.MolePad.intor.html#pyscfad.ml.gto.mole_pad.MolePad.intor">(pyscfad.ml.gto.mole_pad.MolePad method)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference/api/functions/pyscfad.gto.moleintor.intor_cross.html#pyscfad.gto.moleintor.intor_cross">intor_cross() (in module pyscfad.gto.moleintor)</a>
 
       <ul>
@@ -1743,6 +1787,8 @@
         <li><a href="api_reference/api/pyscfad.scf.cphf.html#module-pyscfad.scf.cphf">pyscfad.scf.cphf</a>
 </li>
         <li><a href="api_reference/api/pyscfad.scf.diis.html#module-pyscfad.scf.diis">pyscfad.scf.diis</a>
+</li>
+        <li><a href="api_reference/api/pyscfad.scf.ghf.html#module-pyscfad.scf.ghf">pyscfad.scf.ghf</a>
 </li>
         <li><a href="api_reference/api/pyscfad.scf.hf.html#module-pyscfad.scf.hf">pyscfad.scf.hf</a>
 </li>
@@ -2517,6 +2563,13 @@
 </li>
       </ul></li>
       <li>
+    pyscfad.scf.ghf
+
+      <ul>
+        <li><a href="api_reference/api/pyscfad.scf.ghf.html#module-pyscfad.scf.ghf">module</a>
+</li>
+      </ul></li>
+      <li>
     pyscfad.scf.hf
 
       <ul>
@@ -2820,8 +2873,12 @@
 </li>
       <li><a href="api_reference/api/functions/pyscfad.cc.gccsd_t.spatial2spin.html#pyscfad.cc.gccsd_t.spatial2spin">spatial2spin() (in module pyscfad.cc.gccsd_t)</a>
 </li>
-      <li><a href="api_reference/api/classes/methods/pyscfad.scf.uhf.UHF.spin_square.html#pyscfad.scf.uhf.UHF.spin_square">spin_square() (pyscfad.scf.uhf.UHF method)</a>
+      <li><a href="api_reference/api/classes/methods/pyscfad.scf.ghf.GHF.spin_square.html#pyscfad.scf.ghf.GHF.spin_square">spin_square() (pyscfad.scf.ghf.GHF method)</a>
+
+      <ul>
+        <li><a href="api_reference/api/classes/methods/pyscfad.scf.uhf.UHF.spin_square.html#pyscfad.scf.uhf.UHF.spin_square">(pyscfad.scf.uhf.UHF method)</a>
 </li>
+      </ul></li>
       <li><a href="api_reference/api/functions/pyscfad.xtb.xtb.sum_shell_charges.html#pyscfad.xtb.xtb.sum_shell_charges">sum_shell_charges() (in module pyscfad.xtb.xtb)</a>
 </li>
   </ul></td>
@@ -3034,8 +3091,8 @@
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
-<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+  <script defer src="_static/scripts/bootstrap.js?digest=0790524f97105ba85085"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=0790524f97105ba85085"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -3073,7 +3130,7 @@
         <div class="footer-item">
 <p class="theme-version">
   <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
-  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.17.1.
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.18.0.
 </p></div>
       
     </div>
