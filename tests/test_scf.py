@@ -49,6 +49,16 @@ def test_rohf_nuc_grad(mol_H2O):
     g0 = hf_nuc_grad(mol, scf.ROHF)
     assert abs(g1 - g0).max() < 1e-6
 
+def test_ghf_nuc_grad(mol_H2O):
+    mol = mol_H2O(charge=1, spin=1)
+    g1 = jax.grad(hf_energy)(mol, scf.GHF).coords
+    g0 = numpy.array(
+        [[0.,  0.            ,  3.27775107e-03],
+         [0.,  4.31591316e-02, -1.63887553e-03],
+         [0., -4.31591316e-02, -1.63887553e-03],]
+    )
+    assert abs(g1 - g0).max() < 1e-6
+
 def test_rhf_nuc_hess(mol_N2):
     mol = mol_N2()
     hess1 = jax.jacrev(jax.grad(hf_energy))(mol, scf.RHF).coords.coords
@@ -70,6 +80,16 @@ def test_df_rhf_nuc_grad(mol_H2):
 
     with config_update('pyscfad_scf_implicit_diff', True):
         g1 = jax.grad(df_hf_energy)(mol, scf.RHF).coords
+    assert abs(g1 - g0).max() < 1e-6
+
+def test_df_ghf_nuc_grad(mol_H2O):
+    mol = mol_H2O(charge=1, spin=1)
+    g1 = jax.grad(df_hf_energy)(mol, scf.GHF).coords
+    g0 = numpy.array(
+        [[0.,  0.            ,  3.28370507e-03],
+         [0.,  4.31595057e-02, -1.64185254e-03],
+         [0., -4.31595057e-02, -1.64185254e-03],]
+    )
     assert abs(g1 - g0).max() < 1e-6
 
 def test_to_pyscf(mol_N2):
