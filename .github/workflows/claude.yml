@@ -44,19 +44,20 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # Gate PR creation on the requester's repo association.
-          # author_association is OWNER / MEMBER / COLLABORATOR for trusted users,
-          # and CONTRIBUTOR / NONE / FIRST_TIME_CONTRIBUTOR for everyone else.
+          # The job-level `if:` already guarantees the requester is a trusted
+          # maintainer (OWNER / MEMBER / COLLABORATOR), so this prompt only needs
+          # to control WHEN a PR is opened: only on an explicit instruction.
           prompt: |
             Follow the instructions in the comment or issue that triggered this run.
 
-            The person who made this request has a repository association of:
-            "${{ github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association }}".
+            By default, respond by posting your findings, answer, or a suggested
+            patch as a comment. Do NOT create branches, push commits, or open a
+            pull request unless the triggering comment EXPLICITLY instructs you to
+            do so (for example: "open a PR", "submit a PR", "fix this and open a
+            pull request", "implement and push a branch").
 
-            You may create a branch, push commits, and open a pull request ONLY if
-            that association is exactly OWNER, MEMBER, or COLLABORATOR. For any other
-            association, do not push branches or open a PR — instead investigate the
-            request and post your findings or a suggested patch as a comment only.
+            If the request is ambiguous about whether a PR is wanted, comment only
+            and ask for confirmation rather than opening a PR.
 
           # Allow Claude to create branches, commit, and open PRs
           claude_args: '--allowed-tools "Bash(git:*),Bash(gh pr:*),Bash(gh issue:*)"'
