@@ -13,15 +13,19 @@ on:
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
+               github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association) &&
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      )
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write        # create branches and push commits
+      pull-requests: write   # open the PR
+      issues: write          # comment back on the issue
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
@@ -40,11 +44,20 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
+          # Gate PR creation on the requester's repo association.
+          # author_association is OWNER / MEMBER / COLLABORATOR for trusted users,
+          # and CONTRIBUTOR / NONE / FIRST_TIME_CONTRIBUTOR for everyone else.
+          prompt: |
+            Follow the instructions in the comment or issue that triggered this run.
 
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
+            The person who made this request has a repository association of:
+            "${{ github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association }}".
+
+            You may create a branch, push commits, and open a pull request ONLY if
+            that association is exactly OWNER, MEMBER, or COLLABORATOR. For any other
+            association, do not push branches or open a PR — instead investigate the
+            request and post your findings or a suggested patch as a comment only.
+
+          # Allow Claude to create branches, commit, and open PRs
+          claude_args: '--allowed-tools "Bash(git:*),Bash(gh pr:*),Bash(gh issue:*)"'
 
