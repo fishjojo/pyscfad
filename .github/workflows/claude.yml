@@ -60,5 +60,5 @@ jobs:
             and ask for confirmation rather than opening a PR.
 
           # Allow Claude to create branches, commit, and open PRs
-          claude_args: '--allowed-tools "Bash(git:*),Bash(gh pr:*),Bash(gh issue:*)"'
+          claude_args: '--model claude-opus-4-8 --allowed-tools "Bash(git:*),Bash(gh pr:*),Bash(gh issue:*)"'
 
