@@ -12,11 +12,14 @@ on:
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+    # Review PRs from humans and bots alike, but never review Claude's own
+    # changes (avoids a self-review loop). Check both the PR author and the
+    # triggering actor: on a `synchronize` event the PR author stays the
+    # original human while github.actor is claude[bot] for Claude's pushes.
+    # See also `allowed_bots` below.
+    if: >-
+      github.event.pull_request.user.login != 'claude[bot]' &&
+      github.actor != 'claude[bot]'
 
     runs-on: ubuntu-latest
     permissions:
@@ -37,6 +40,11 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: '--model claude-opus-4-8'
+          # Run the review for PRs opened by humans AND by bots (e.g.
+          # dependabot, renovate). By default the action skips bot actors;
+          # '*' allows all bots. Claude's own PRs are excluded via the
+          # job-level `if` above.
+          allowed_bots: '*'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
