@@ -30,20 +30,22 @@ jobs:
           allowed_non_write_users: "*" # Required for issue triage workflow, if users without repo write access create issues
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # If triage decided this is a bug, kick off the verify-fix-PR workflow.
-      # The label was applied with GITHUB_TOKEN, which does NOT trigger the
-      # `issues: labeled` event downstream — so dispatch claude-fix-bug.yml
-      # explicitly (workflow_dispatch is the documented exception that
-      # GITHUB_TOKEN is allowed to trigger). Requires actions: write above.
-      - name: Trigger bug fix when labeled bug
+      # If triage decided this is a bug, kick off the (read-only) verification
+      # workflow, which decides whether a fix is needed and, only then, dispatches
+      # the write-capable fix workflow. The label was applied with GITHUB_TOKEN,
+      # which does NOT trigger the `issues: labeled` event downstream — so
+      # dispatch claude-verify-bug.yml explicitly (workflow_dispatch is the
+      # documented exception that GITHUB_TOKEN is allowed to trigger). Requires
+      # actions: write above.
+      - name: Trigger bug verification when labeled bug
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE: ${{ github.event.issue.number }}
           REPO: ${{ github.repository }}
         run: |
           if gh issue view "$ISSUE" --repo "$REPO" --json labels --jq '.labels[].name' | grep -qx 'bug'; then
-            echo "Issue #$ISSUE is labeled 'bug'; dispatching claude-fix-bug.yml"
-            gh workflow run claude-fix-bug.yml --repo "$REPO" -f issue_number="$ISSUE"
+            echo "Issue #$ISSUE is labeled 'bug'; dispatching claude-verify-bug.yml"
+            gh workflow run claude-verify-bug.yml --repo "$REPO" -f issue_number="$ISSUE"
           else
-            echo "Issue #$ISSUE is not labeled 'bug'; skipping bug-fix dispatch"
+            echo "Issue #$ISSUE is not labeled 'bug'; skipping verification dispatch"
           fi
