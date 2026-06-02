@@ -251,6 +251,19 @@ def test_eig_eigvec_grad_stopped():
 
     assert float(jax.grad(vec_obj)(0.05)) == 0.0
 
+    # An otherwise gauge-invariant spectral projector X @ Y^H is also built from
+    # the stopped vectors, so its gradient is zero too: documented limitation
+    # (use a dense decomposition for non-Hermitian projector derivatives).
+    def proj_obj(p):
+        A = A0 + p * B
+        _, X, Y = eig(lambda Z: A @ Z, aopT=lambda Z: A.T @ Z, nroots=k,
+                      adiag=jnp.diag(A), max_space=8, tol=1e-12,
+                      return_left=True)
+        P = X @ Y.conj().T
+        return jnp.vdot(c, P @ c).real
+
+    assert float(jax.grad(proj_obj)(0.05)) == 0.0
+
     def val_obj(p):
         A = A0 + p * B
         w, _ = eig(lambda Z: A @ Z, aopT=lambda Z: A.T @ Z, nroots=k,

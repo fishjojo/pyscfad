@@ -283,9 +283,13 @@ def eig(aop, aopT=None, x0=None, *, nroots=1, adiag=None, precond=None,
         ``Y^H X = 1`` invariant); the forward solver pins it with the unit-norm
         normalization of :func:`jax.numpy.linalg.eig`, whose phase is not a
         smooth function of the operator. Their derivatives are therefore not
-        well-defined w.r.t. the returned vectors and are stopped (return zero).
-        Differentiate gauge-invariant quantities (eigenvalues, or spectral
-        projectors built from biorthonormal pairs) instead.
+        well-defined w.r.t. the returned vectors, so both ``X`` and ``Y`` are
+        returned with :func:`jax.lax.stop_gradient`. Consequently **any** result
+        built from the returned ``X``/``Y`` -- including an otherwise
+        gauge-invariant spectral projector ``X @ Y^H`` -- differentiates to
+        exactly zero. Differentiate only the eigenvalues ``w``; if you need
+        eigenvector or projector derivatives for a non-Hermitian operator, use a
+        dense decomposition (e.g. :func:`jax.numpy.linalg.eig`) instead.
 
     Args:
         aop: Linear operator ``aop(V) -> A @ V``.
@@ -413,6 +417,9 @@ def eig(aop, aopT=None, x0=None, *, nroots=1, adiag=None, precond=None,
     # vectors. The eigenvalues ``w`` are gauge invariant and differentiate
     # correctly. Stop gradients on the vectors so a downstream ``X``/``Y``
     # dependence does not silently produce gauge-dependent (wrong) gradients.
+    # This also zeroes the gradient of an otherwise gauge-invariant projector
+    # ``X @ Y^H``; that is an accepted limitation (see the ``Note`` above) -- use
+    # a dense decomposition if non-Hermitian projector derivatives are needed.
     X = lax.stop_gradient(X)
     Y = lax.stop_gradient(Y)
     if return_left:
