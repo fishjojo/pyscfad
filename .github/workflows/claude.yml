@@ -10,16 +10,44 @@ on:
   pull_request_review:
     types: [submitted]
 
+concurrency:
+  # Serialize Claude runs per PR/issue and cancel an in-progress run when a
+  # newer trigger arrives. This bounds the Claude<->reviewer feedback loop:
+  # when Claude pushes a fix and the reviewer (e.g. Codex) re-reviews, the new
+  # review supersedes the old run instead of stacking concurrent jobs.
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   claude:
+    # Two ways to invoke Claude:
+    #   1. @claude mention path — any of the four events, but only from a
+    #      trusted author (OWNER / MEMBER / COLLABORATOR).
+    #   2. Auto-address-review path — a submitted PR review (no @claude needed)
+    #      from either the Codex review bot or a trusted human reviewer. This is
+    #      what lets Claude automatically respond to reviews, push fixes, and
+    #      resolve threads. Approved/dismissed reviews are skipped (nothing to do).
+    # `github.actor != 'claude[bot]'` guards against Claude triggering itself.
     if: |
-      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
-               github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association) &&
-      (
-        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      github.actor != 'claude[bot]' && (
+        (
+          contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
+                   github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association)
+          && (
+            (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+            (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+            (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+            (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+          )
+        ) || (
+          github.event_name == 'pull_request_review'
+          && github.event.review.state != 'approved'
+          && github.event.review.state != 'dismissed'
+          && (
+            github.event.review.user.login == 'chatgpt-codex-connector[bot]'
+            || contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)
+          )
+        )
       )
     runs-on: ubuntu-latest
     permissions:
@@ -39,6 +67,12 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          # The action skips bot-triggered runs by default. The auto-address-review
+          # path is triggered BY the Codex review bot, so allow that bot explicitly
+          # (scoped, not '*') — otherwise the run is silently skipped. Human @claude
+          # triggers are unaffected.
+          allowed_bots: 'chatgpt-codex-connector[bot]'
 
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
@@ -75,10 +109,11 @@ jobs:
           # Allowed tools let Claude edit files, run the build/test suite, commit,
           # push, and open PRs. Bash is deny-by-default, so only the listed
           # commands are permitted (this list adds to the built-in Edit/Write).
-          # The job-level `if:` (OWNER / MEMBER / COLLABORATOR) is what gates who
-          # can invoke Claude; the system prompt only shapes WHAT it does.
+          # The job-level `if:` is what gates who can invoke Claude (trusted
+          # @claude mentions, plus auto-runs on Codex / trusted-human reviews);
+          # the system prompt only shapes WHAT it does.
           claude_args: |
             --model claude-opus-4-8
             --allowed-tools "Bash(git:*),Bash(gh:*),Bash(python:*),Bash(pytest:*),Bash(pip:*),Edit,Write,WebSearch,WebFetch(domain:github.com),WebFetch(domain:api.github.com),WebFetch(domain:raw.githubusercontent.com),WebFetch(domain:arxiv.org),WebFetch(domain:docs.python.org),WebFetch(domain:readthedocs.io),WebFetch(domain:pyscf.org),WebFetch(domain:github.io),WebFetch(domain:wikipedia.org),WebFetch(domain:doi.org),WebFetch(domain:stackoverflow.com),WebFetch(domain:stackexchange.com),WebFetch(domain:chemrxiv.org),WebFetch(domain:semanticscholar.org)"
-            --append-system-prompt "When you are triggered on an existing open pull request (via a PR review, a review comment, or an issue comment on the PR), address the feedback directly: make the code changes, run the relevant tests when code is touched, commit to that PR's branch and push, then post a comment summarizing what you changed and how you verified it. When you are triggered on an issue, only create a branch and open a new pull request if the triggering comment explicitly asks for one (for example 'open a PR' or 'implement and push a branch'); otherwise respond with your findings or a suggested patch as a comment and ask for confirmation. IMPORTANT: GitHub forbids your token from creating or updating files under .github/workflows/ (the 'workflows permission' restriction), so any git push that touches a workflow file will be rejected. If a change requires editing .github/workflows/, do NOT attempt to commit or push it — instead post the full change as a diff/patch in a comment and ask a human to apply it manually."
+            --append-system-prompt "When you are triggered on an existing open pull request (via a PR review, a review comment, or an issue comment on the PR), address the feedback directly: make the code changes, run the relevant tests when code is touched, commit to that PR's branch and push, then post a comment summarizing what you changed and how you verified it. When you are triggered on an issue, only create a branch and open a new pull request if the triggering comment explicitly asks for one (for example 'open a PR' or 'implement and push a branch'); otherwise respond with your findings or a suggested patch as a comment and ask for confirmation. IMPORTANT: GitHub forbids your token from creating or updating files under .github/workflows/ (the 'workflows permission' restriction), so any git push that touches a workflow file will be rejected. If a change requires editing .github/workflows/, do NOT attempt to commit or push it — instead post the full change as a diff/patch in a comment and ask a human to apply it manually. When you are triggered by a submitted pull request review (including automated reviewers such as Codex), treat every UNRESOLVED review thread as a task. First enumerate the PR's review threads with `gh api graphql`, querying repository.pullRequest.reviewThreads and reading each node's id (the thread node id), isResolved, isOutdated, path, line, and its comments' databaseId, author login and body; skip any thread whose isResolved is already true. For each unresolved thread, judge the finding on its merits: if it is valid, implement the fix in the code. After addressing the findings, run the relevant tests when code is touched, then commit to the PR branch and push. Then, for each thread you handled, reply to it by POSTing to the REST endpoint repos/{owner}/{repo}/pulls/{number}/comments/{comment_databaseId}/replies (using the databaseId of the thread's first comment) explaining what you changed or why you did not change anything. ONLY resolve a thread whose finding you actually fixed, by calling the GraphQL resolveReviewThread mutation with that thread's node id. Do NOT resolve a thread you disagreed with or could not fix — leave it open with a reply explaining your reasoning. Finally, post one summary comment listing which findings you fixed and resolved, and which you left open and why."
 
