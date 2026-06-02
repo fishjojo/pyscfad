@@ -24,9 +24,11 @@ jobs:
     #   1. @claude mention path — any of the four events, but only from a
     #      trusted author (OWNER / MEMBER / COLLABORATOR).
     #   2. Auto-address-review path — a submitted PR review (no @claude needed)
-    #      from either the Codex review bot or a trusted human reviewer. This is
-    #      what lets Claude automatically respond to reviews, push fixes, and
-    #      resolve threads. Approved/dismissed reviews are skipped (nothing to do).
+    #      from either the Codex review bot or a trusted human reviewer, but ONLY
+    #      on PRs that Claude itself opened (pull_request.user is claude[bot]).
+    #      This is what lets Claude automatically respond to reviews, push fixes,
+    #      and resolve threads on its own PRs. Approved/dismissed reviews are
+    #      skipped (nothing to do).
     # `github.actor != 'claude[bot]'` guards against Claude triggering itself.
     if: |
       github.actor != 'claude[bot]' && (
@@ -41,6 +43,7 @@ jobs:
           )
         ) || (
           github.event_name == 'pull_request_review'
+          && github.event.pull_request.user.login == 'claude[bot]'
           && github.event.review.state != 'approved'
           && github.event.review.state != 'dismissed'
           && (
