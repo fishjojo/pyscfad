@@ -48,13 +48,16 @@ jobs:
           # routes network through a proxy with a domain allowlist. `git push`
           # (and `pip install`) need the network, and in a headless CI run the
           # sandbox cannot prompt a human to escalate out — so they get denied.
-          # Allow the domains required to push branches and install deps.
+          # Matching is per-host, so list every host the workflow touches:
+          #   github.com           - git push/fetch over HTTPS
+          #   api.github.com       - the `gh` CLI (gh pr create / comment / view)
+          #   pypi.org, files.pythonhosted.org - `pip install`
           settings: |
             {
               "sandbox": {
                 "enabled": true,
                 "network": {
-                  "allowedDomains": ["github.com", "pypi.org", "files.pythonhosted.org"]
+                  "allowedDomains": ["github.com", "api.github.com", "pypi.org", "files.pythonhosted.org"]
                 }
               }
             }
