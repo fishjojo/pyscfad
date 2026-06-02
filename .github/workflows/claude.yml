@@ -102,12 +102,24 @@ jobs:
               }
             }
 
-          # NOTE: no `prompt:` input. Setting `prompt:` forces the action into
-          # "agent mode", which runs headlessly and does NOT post a reply back to
-          # the issue/PR. Omitting it selects "tag mode", which responds to the
-          # @claude mention and manages a response comment automatically. The
-          # behavioral guidance that used to live in `prompt:` is moved into
-          # `--append-system-prompt` below so tag mode keeps it.
+          # PROMPT / MODE SELECTION.
+          # claude-code-action auto-detects "tag" vs "agent" mode:
+          #   - tag mode (empty prompt + @claude mention): posts/updates a tracking
+          #     comment and auto-fetches issue/PR context. This is the @claude path.
+          #   - agent mode (non-empty prompt): runs headlessly; the prepare step
+          #     proceeds only when `prompt` is non-empty.
+          # A pull_request_review submitted WITHOUT an @claude mention matches
+          # neither the tag trigger (no mention) nor the agent trigger (empty
+          # prompt): the detector falls through to agent mode and the prepare step
+          # then SKIPS the run because the prompt is empty (verified in the action
+          # source: detector.ts returns "agent" by default, prepare.ts gates agent
+          # mode on a non-empty prompt). So set a prompt ONLY for that no-mention
+          # auto-review case — it selects agent mode, lets the run proceed, and
+          # carries the PR number + task. Every other trigger yields '' -> tag mode,
+          # unchanged. The detailed thread-handling procedure stays in
+          # `--append-system-prompt` below and applies in both modes.
+          prompt: "${{ (github.event_name == 'pull_request_review' && !contains(github.event.review.body, '@claude')) && format('A pull request review was submitted on PR #{0} of {1} without an @claude mention. First check out the PR branch with `gh pr checkout {0}` (this run starts on the base branch). Then follow the review-handling procedure in your system prompt: enumerate the PR''s unresolved review threads with `gh api graphql`, fix the valid findings, run the relevant tests when you touch code, commit and push to the PR branch, reply to each thread you handled, resolve ONLY the threads you actually fixed, and post one summary comment of what you fixed and what you left open.', github.event.pull_request.number, github.repository) || '' }}"
+
           #
           # Allowed tools let Claude edit files, run the build/test suite, commit,
           # push, and open PRs. Bash is deny-by-default, so only the listed
