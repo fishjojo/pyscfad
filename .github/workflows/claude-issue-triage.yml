@@ -8,10 +8,12 @@ jobs:
   triage-issue:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # The agent reads UNTRUSTED issue content, so this job gets NO actions: write
+    # (it must not be able to dispatch workflows even if prompt-injected). The
+    # dispatch is isolated in the separate `dispatch-verify` job below.
     permissions:
       contents: read
       issues: write
-      actions: write   # dispatch the bug-fix workflow when the issue is labeled `bug`
 
     steps:
       - name: Checkout repository
@@ -30,13 +32,24 @@ jobs:
           allowed_non_write_users: "*" # Required for issue triage workflow, if users without repo write access create issues
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # If triage decided this is a bug, kick off the (read-only) verification
-      # workflow, which decides whether a fix is needed and, only then, dispatches
-      # the write-capable fix workflow. The label was applied with GITHUB_TOKEN,
-      # which does NOT trigger the `issues: labeled` event downstream — so
-      # dispatch claude-verify-bug.yml explicitly (workflow_dispatch is the
-      # documented exception that GITHUB_TOKEN is allowed to trigger). Requires
-      # actions: write above.
+  # If triage labeled the issue `bug`, kick off the (read-only) verification
+  # workflow, which decides whether a fix is needed and, only then, dispatches
+  # the write-capable fix workflow. The label was applied with GITHUB_TOKEN,
+  # which does NOT trigger the `issues: labeled` event downstream — so dispatch
+  # claude-verify-bug.yml explicitly (workflow_dispatch is the documented
+  # exception that GITHUB_TOKEN is allowed to trigger).
+  #
+  # This is a SEPARATE job: it runs no agent and never interprets issue content
+  # as instructions — it only matches the literal `bug` label and runs a fixed
+  # command — so granting it actions: write does not expose dispatch to a
+  # prompt-injected agent.
+  dispatch-verify:
+    needs: triage-issue
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+      actions: write
+    steps:
       - name: Trigger bug verification when labeled bug
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
