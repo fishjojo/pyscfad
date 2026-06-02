@@ -21,6 +21,22 @@ name: Claude Bug Verify
 # issue content to a model — it only posts the verifier's structured summary and
 # runs a fixed `gh workflow run`.
 #
+# THREAT MODEL — the verifier is a COST/TRIAGE GATE, not a trust boundary.
+# Verifying a bug requires executing project code to reproduce it (python /
+# pytest / pip), and code execution inherently permits writing files in the
+# checkout — so no allow/deny tool list can make this agent both able to
+# reproduce bugs AND unable to write local files. We therefore do NOT rely on
+# the verifier being un-subvertible. The actual security boundary is:
+#   - the agent's token is READ-ONLY (it cannot push, comment, edit/close issues,
+#     or dispatch), so anything it writes is confined to the discarded checkout;
+#   - the only effect of a (possibly fabricated) needs_fix=true is dispatching the
+#     fixer, which INDEPENDENTLY re-reproduces the bug from scratch (it is told
+#     not to trust this verdict) and only ever produces a reviewable claude[bot]
+#     PR — never a direct change — behind branch protection on main;
+#   - the sandbox network allowlist prevents exfiltration of anything written.
+# So a subverted verifier can at most waste a fixer run, not land an unreviewed
+# change.
+#
 # Two entry points:
 #   1. issues: labeled  — a human (or any label-capable user) adds `bug`.
 #   2. workflow_dispatch — the triage workflow dispatches this after auto-applying
