@@ -10,16 +10,57 @@ on:
   pull_request_review:
     types: [submitted]
 
+concurrency:
+  # Bound the Claude<->reviewer loop WITHOUT letting unrelated events cancel a
+  # normal @claude run:
+  #   - Auto-review path: only reviews that the job-level `if` would actually
+  #     ACCEPT for the auto path share one per-PR group ('claude-autoreview-<pr>'),
+  #     so a newer eligible review supersedes an in-flight auto-run (the loop
+  #     bound). The eligibility test is duplicated here because concurrency is
+  #     evaluated BEFORE the job `if`: an ineligible review (approved/dismissed,
+  #     untrusted reviewer, non-Claude PR, or @claude-mention) must NOT land in
+  #     the shared group, or it would cancel a legitimate in-flight auto-fix run
+  #     and then skip its own job. Keep these checks in sync with the job `if`.
+  #   - Everything else (mention runs + skipped/ineligible review events): a
+  #     unique group ('claude-solo-<id>') keyed by the triggering event id, so it
+  #     runs to completion and never cancels anything.
+  # cancel-in-progress therefore only ever affects the shared auto-review group.
+  group: "${{ (github.event_name == 'pull_request_review' && !contains(github.event.review.body, '@claude') && github.actor != 'claude[bot]' && github.event.pull_request.user.login == 'claude[bot]' && github.event.review.state != 'approved' && github.event.review.state != 'dismissed' && (github.event.review.user.login == 'chatgpt-codex-connector[bot]' || github.event.review.author_association == 'OWNER' || github.event.review.author_association == 'MEMBER' || github.event.review.author_association == 'COLLABORATOR')) && format('claude-autoreview-{0}', github.event.pull_request.number) || format('claude-solo-{0}', github.event.comment.id || github.event.review.id || github.event.issue.id || github.run_id) }}"
+  cancel-in-progress: true
+
 jobs:
   claude:
+    # Two ways to invoke Claude:
+    #   1. @claude mention path — any of the four events, but only from a
+    #      trusted author (OWNER / MEMBER / COLLABORATOR).
+    #   2. Auto-address-review path — a submitted PR review (no @claude needed)
+    #      from either the Codex review bot or a trusted human reviewer, but ONLY
+    #      on PRs that Claude itself opened (pull_request.user is claude[bot]).
+    #      This is what lets Claude automatically respond to reviews, push fixes,
+    #      and resolve threads on its own PRs. Approved/dismissed reviews are
+    #      skipped (nothing to do).
+    # `github.actor != 'claude[bot]'` guards against Claude triggering itself.
     if: |
-      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
-               github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association) &&
-      (
-        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      github.actor != 'claude[bot]' && (
+        (
+          contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
+                   github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association)
+          && (
+            (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+            (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+            (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+            (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+          )
+        ) || (
+          github.event_name == 'pull_request_review'
+          && github.event.pull_request.user.login == 'claude[bot]'
+          && github.event.review.state != 'approved'
+          && github.event.review.state != 'dismissed'
+          && (
+            github.event.review.user.login == 'chatgpt-codex-connector[bot]'
+            || contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)
+          )
+        )
       )
     runs-on: ubuntu-latest
     permissions:
@@ -39,6 +80,12 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          # The action skips bot-triggered runs by default. The auto-address-review
+          # path is triggered BY the Codex review bot, so allow that bot explicitly
+          # (scoped, not '*') — otherwise the run is silently skipped. Human @claude
+          # triggers are unaffected.
+          allowed_bots: 'chatgpt-codex-connector[bot]'
 
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
@@ -65,20 +112,33 @@ jobs:
               }
             }
 
-          # NOTE: no `prompt:` input. Setting `prompt:` forces the action into
-          # "agent mode", which runs headlessly and does NOT post a reply back to
-          # the issue/PR. Omitting it selects "tag mode", which responds to the
-          # @claude mention and manages a response comment automatically. The
-          # behavioral guidance that used to live in `prompt:` is moved into
-          # `--append-system-prompt` below so tag mode keeps it.
+          # PROMPT / MODE SELECTION.
+          # claude-code-action auto-detects "tag" vs "agent" mode:
+          #   - tag mode (empty prompt + @claude mention): posts/updates a tracking
+          #     comment and auto-fetches issue/PR context. This is the @claude path.
+          #   - agent mode (non-empty prompt): runs headlessly; the prepare step
+          #     proceeds only when `prompt` is non-empty.
+          # A pull_request_review submitted WITHOUT an @claude mention matches
+          # neither the tag trigger (no mention) nor the agent trigger (empty
+          # prompt): the detector falls through to agent mode and the prepare step
+          # then SKIPS the run because the prompt is empty (verified in the action
+          # source: detector.ts returns "agent" by default, prepare.ts gates agent
+          # mode on a non-empty prompt). So set a prompt ONLY for that no-mention
+          # auto-review case — it selects agent mode, lets the run proceed, and
+          # carries the PR number + task. Every other trigger yields '' -> tag mode,
+          # unchanged. The detailed thread-handling procedure stays in
+          # `--append-system-prompt` below and applies in both modes.
+          prompt: "${{ (github.event_name == 'pull_request_review' && !contains(github.event.review.body, '@claude')) && format('A pull request review was submitted on PR #{0} of {1} without an @claude mention. First check out the PR branch with `gh pr checkout {0}` (this run starts on the base branch). The reviewer''s top-level review body was: <<<{2}>>>. Treat that body as feedback to address as well, in addition to any inline review threads (the body is NOT a review thread and will not appear when you enumerate threads). Then follow the review-handling procedure in your system prompt: enumerate the PR''s unresolved review threads with `gh api graphql`, fix the valid findings (and the points raised in the review body), run the relevant tests when you touch code, commit and push to the PR branch, reply to each inline thread you handled, resolve ONLY the threads you actually fixed, and post one summary comment of what you fixed and what you left open (replying to the review body there if it had no inline threads).', github.event.pull_request.number, github.repository, github.event.review.body) || '' }}"
+
           #
           # Allowed tools let Claude edit files, run the build/test suite, commit,
           # push, and open PRs. Bash is deny-by-default, so only the listed
           # commands are permitted (this list adds to the built-in Edit/Write).
-          # The job-level `if:` (OWNER / MEMBER / COLLABORATOR) is what gates who
-          # can invoke Claude; the system prompt only shapes WHAT it does.
+          # The job-level `if:` is what gates who can invoke Claude (trusted
+          # @claude mentions, plus auto-runs on Codex / trusted-human reviews);
+          # the system prompt only shapes WHAT it does.
           claude_args: |
             --model claude-opus-4-8
             --allowed-tools "Bash(git:*),Bash(gh:*),Bash(python:*),Bash(pytest:*),Bash(pip:*),Edit,Write,WebSearch,WebFetch(domain:github.com),WebFetch(domain:api.github.com),WebFetch(domain:raw.githubusercontent.com),WebFetch(domain:arxiv.org),WebFetch(domain:docs.python.org),WebFetch(domain:readthedocs.io),WebFetch(domain:pyscf.org),WebFetch(domain:github.io),WebFetch(domain:wikipedia.org),WebFetch(domain:doi.org),WebFetch(domain:stackoverflow.com),WebFetch(domain:stackexchange.com),WebFetch(domain:chemrxiv.org),WebFetch(domain:semanticscholar.org)"
-            --append-system-prompt "When you are triggered on an existing open pull request (via a PR review, a review comment, or an issue comment on the PR), address the feedback directly: make the code changes, run the relevant tests when code is touched, commit to that PR's branch and push, then post a comment summarizing what you changed and how you verified it. When you are triggered on an issue, only create a branch and open a new pull request if the triggering comment explicitly asks for one (for example 'open a PR' or 'implement and push a branch'); otherwise respond with your findings or a suggested patch as a comment and ask for confirmation. IMPORTANT: GitHub forbids your token from creating or updating files under .github/workflows/ (the 'workflows permission' restriction), so any git push that touches a workflow file will be rejected. If a change requires editing .github/workflows/, do NOT attempt to commit or push it — instead post the full change as a diff/patch in a comment and ask a human to apply it manually."
+            --append-system-prompt "When you are triggered on an existing open pull request (via a PR review, a review comment, or an issue comment on the PR), address the feedback directly: make the code changes, run the relevant tests when code is touched, commit to that PR's branch and push, then post a comment summarizing what you changed and how you verified it. When you are triggered on an issue, only create a branch and open a new pull request if the triggering comment explicitly asks for one (for example 'open a PR' or 'implement and push a branch'); otherwise respond with your findings or a suggested patch as a comment and ask for confirmation. IMPORTANT: GitHub forbids your token from creating or updating files under .github/workflows/ (the 'workflows permission' restriction), so any git push that touches a workflow file will be rejected. If a change requires editing .github/workflows/, do NOT attempt to commit or push it — instead post the full change as a diff/patch in a comment and ask a human to apply it manually. When you are triggered by a submitted pull request review (including automated reviewers such as Codex), treat every UNRESOLVED review thread as a task. First enumerate the PR's review threads with `gh api graphql`, querying repository.pullRequest.reviewThreads and reading each node's id (the thread node id), isResolved, isOutdated, path, line, and its comments' databaseId, author login and body; skip any thread whose isResolved is already true. For each unresolved thread, judge the finding on its merits: if it is valid, implement the fix in the code. After addressing the findings, run the relevant tests when code is touched, then commit to the PR branch and push. Then, for each thread you handled, reply to it by POSTing to the REST endpoint repos/{owner}/{repo}/pulls/{number}/comments/{comment_databaseId}/replies (using the databaseId of the thread's first comment) explaining what you changed or why you did not change anything. ONLY resolve a thread whose finding you actually fixed, by calling the GraphQL resolveReviewThread mutation with that thread's node id. Do NOT resolve a thread you disagreed with or could not fix — leave it open with a reply explaining your reasoning. Finally, post one summary comment listing which findings you fixed and resolved, and which you left open and why."
 
