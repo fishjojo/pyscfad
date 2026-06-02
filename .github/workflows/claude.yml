@@ -57,8 +57,11 @@ jobs:
               "sandbox": {
                 "enabled": true,
                 "network": {
-                  "allowedDomains": ["github.com", "api.github.com", "pypi.org", "files.pythonhosted.org"]
+                  "allowedDomains": ["github.com", "api.github.com", "pypi.org", "files.pythonhosted.org", "arxiv.org", "docs.python.org", "readthedocs.io", "pyscf.org", "github.io", "wikipedia.org", "doi.org", "raw.githubusercontent.com", "stackoverflow.com", "stackexchange.com", "chemrxiv.org", "semanticscholar.org"]
                 }
+              },
+              "permissions": {
+                "allow": ["WebSearch", "WebFetch"]
               }
             }
 
@@ -76,6 +79,6 @@ jobs:
           # can invoke Claude; the system prompt only shapes WHAT it does.
           claude_args: |
             --model claude-opus-4-8
-            --allowed-tools "Bash(git:*),Bash(gh:*),Bash(python:*),Bash(pytest:*),Bash(pip:*),Edit,Write"
+            --allowed-tools "Bash(git:*),Bash(gh:*),Bash(python:*),Bash(pytest:*),Bash(pip:*),Edit,Write,WebSearch,WebFetch"
             --append-system-prompt "When you are triggered on an existing open pull request (via a PR review, a review comment, or an issue comment on the PR), address the feedback directly: make the code changes, run the relevant tests when code is touched, commit to that PR's branch and push, then post a comment summarizing what you changed and how you verified it. When you are triggered on an issue, only create a branch and open a new pull request if the triggering comment explicitly asks for one (for example 'open a PR' or 'implement and push a branch'); otherwise respond with your findings or a suggested patch as a comment and ask for confirmation."
 
