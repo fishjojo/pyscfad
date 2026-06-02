@@ -57,8 +57,11 @@ jobs:
               "sandbox": {
                 "enabled": true,
                 "network": {
-                  "allowedDomains": ["github.com", "api.github.com", "pypi.org", "files.pythonhosted.org"]
+                  "allowedDomains": ["github.com", "api.github.com", "pypi.org", "files.pythonhosted.org", "arxiv.org", "docs.python.org", "readthedocs.io", "pyscf.org", "github.io", "wikipedia.org", "doi.org", "raw.githubusercontent.com", "stackoverflow.com", "stackexchange.com", "chemrxiv.org", "semanticscholar.org"]
                 }
+              },
+              "permissions": {
+                "allow": ["WebSearch", "WebFetch(domain:github.com)", "WebFetch(domain:api.github.com)", "WebFetch(domain:raw.githubusercontent.com)", "WebFetch(domain:arxiv.org)", "WebFetch(domain:docs.python.org)", "WebFetch(domain:readthedocs.io)", "WebFetch(domain:pyscf.org)", "WebFetch(domain:github.io)", "WebFetch(domain:wikipedia.org)", "WebFetch(domain:doi.org)", "WebFetch(domain:stackoverflow.com)", "WebFetch(domain:stackexchange.com)", "WebFetch(domain:chemrxiv.org)", "WebFetch(domain:semanticscholar.org)"]
               }
             }
 
@@ -76,6 +79,6 @@ jobs:
           # can invoke Claude; the system prompt only shapes WHAT it does.
           claude_args: |
             --model claude-opus-4-8
-            --allowed-tools "Bash(git:*),Bash(gh:*),Bash(python:*),Bash(pytest:*),Bash(pip:*),Edit,Write"
-            --append-system-prompt "When you are triggered on an existing open pull request (via a PR review, a review comment, or an issue comment on the PR), address the feedback directly: make the code changes, run the relevant tests when code is touched, commit to that PR's branch and push, then post a comment summarizing what you changed and how you verified it. When you are triggered on an issue, only create a branch and open a new pull request if the triggering comment explicitly asks for one (for example 'open a PR' or 'implement and push a branch'); otherwise respond with your findings or a suggested patch as a comment and ask for confirmation."
+            --allowed-tools "Bash(git:*),Bash(gh:*),Bash(python:*),Bash(pytest:*),Bash(pip:*),Edit,Write,WebSearch,WebFetch(domain:github.com),WebFetch(domain:api.github.com),WebFetch(domain:raw.githubusercontent.com),WebFetch(domain:arxiv.org),WebFetch(domain:docs.python.org),WebFetch(domain:readthedocs.io),WebFetch(domain:pyscf.org),WebFetch(domain:github.io),WebFetch(domain:wikipedia.org),WebFetch(domain:doi.org),WebFetch(domain:stackoverflow.com),WebFetch(domain:stackexchange.com),WebFetch(domain:chemrxiv.org),WebFetch(domain:semanticscholar.org)"
+            --append-system-prompt "When you are triggered on an existing open pull request (via a PR review, a review comment, or an issue comment on the PR), address the feedback directly: make the code changes, run the relevant tests when code is touched, commit to that PR's branch and push, then post a comment summarizing what you changed and how you verified it. When you are triggered on an issue, only create a branch and open a new pull request if the triggering comment explicitly asks for one (for example 'open a PR' or 'implement and push a branch'); otherwise respond with your findings or a suggested patch as a comment and ask for confirmation. IMPORTANT: GitHub forbids your token from creating or updating files under .github/workflows/ (the 'workflows permission' restriction), so any git push that touches a workflow file will be rejected. If a change requires editing .github/workflows/, do NOT attempt to commit or push it — instead post the full change as a diff/patch in a comment and ask a human to apply it manually."
 
