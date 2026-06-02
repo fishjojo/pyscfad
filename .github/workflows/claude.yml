@@ -59,24 +59,20 @@ jobs:
               }
             }
 
-          # The job-level `if:` already guarantees the requester is a trusted
-          # maintainer (OWNER / MEMBER / COLLABORATOR), so this prompt only needs
-          # to control WHEN a PR is opened: only on an explicit instruction.
-          prompt: |
-            Follow the instructions in the comment or issue that triggered this run.
-
-            By default, respond by posting your findings, answer, or a suggested
-            patch as a comment. Do NOT create branches, push commits, or open a
-            pull request unless the triggering comment EXPLICITLY instructs you to
-            do so (for example: "open a PR", "submit a PR", "fix this and open a
-            pull request", "implement and push a branch").
-
-            If the request is ambiguous about whether a PR is wanted, comment only
-            and ask for confirmation rather than opening a PR.
-
-          # Allow Claude to create branches, commit, open PRs, AND run the
-          # build/test tools it needs to validate a change before pushing.
-          # Bash is not allowed by default — only the commands listed here are
-          # permitted (this list adds to the action's built-in Edit/Write/etc.).
-          claude_args: '--model claude-opus-4-8 --allowed-tools "Bash(git:*),Bash(gh:*),Bash(python:*),Bash(pytest:*),Bash(pip:*),Edit,Write"'
+          # NOTE: no `prompt:` input. Setting `prompt:` forces the action into
+          # "agent mode", which runs headlessly and does NOT post a reply back to
+          # the issue/PR. Omitting it selects "tag mode", which responds to the
+          # @claude mention and manages a response comment automatically. The
+          # behavioral guidance that used to live in `prompt:` is moved into
+          # `--append-system-prompt` below so tag mode keeps it.
+          #
+          # Allowed tools let Claude edit files, run the build/test suite, commit,
+          # push, and open PRs. Bash is deny-by-default, so only the listed
+          # commands are permitted (this list adds to the built-in Edit/Write).
+          # The job-level `if:` (OWNER / MEMBER / COLLABORATOR) is what gates who
+          # can invoke Claude; the system prompt only shapes WHAT it does.
+          claude_args: |
+            --model claude-opus-4-8
+            --allowed-tools "Bash(git:*),Bash(gh:*),Bash(python:*),Bash(pytest:*),Bash(pip:*),Edit,Write"
+            --append-system-prompt "When you are triggered on an existing open pull request (via a PR review, a review comment, or an issue comment on the PR), address the feedback directly: make the code changes, run the relevant tests when code is touched, commit to that PR's branch and push, then post a comment summarizing what you changed and how you verified it. When you are triggered on an issue, only create a branch and open a new pull request if the triggering comment explicitly asks for one (for example 'open a PR' or 'implement and push a branch'); otherwise respond with your findings or a suggested patch as a comment and ask for confirmation."
 
