@@ -11,11 +11,15 @@ on:
     types: [submitted]
 
 concurrency:
-  # Serialize Claude runs per PR/issue and cancel an in-progress run when a
-  # newer trigger arrives. This bounds the Claude<->reviewer feedback loop:
-  # when Claude pushes a fix and the reviewer (e.g. Codex) re-reviews, the new
-  # review supersedes the old run instead of stacking concurrent jobs.
-  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  # Bound the Claude<->reviewer loop WITHOUT letting unrelated events cancel a
+  # normal @claude run:
+  #   - Auto-review path: one shared per-PR group, so a newer review supersedes
+  #     an in-flight auto-run (this is the loop bound).
+  #   - @claude mention path: a unique group keyed by the triggering
+  #     comment/review/issue id, so each mention run completes and is never
+  #     cancelled by a later event on the same PR/issue.
+  # cancel-in-progress only ever has an effect on the shared auto-review group.
+  group: "${{ (github.event_name == 'pull_request_review' && !contains(github.event.review.body, '@claude')) && format('claude-autoreview-{0}', github.event.pull_request.number) || format('claude-mention-{0}', github.event.comment.id || github.event.review.id || github.event.issue.id || github.run_id) }}"
   cancel-in-progress: true
 
 jobs:
@@ -118,7 +122,7 @@ jobs:
           # carries the PR number + task. Every other trigger yields '' -> tag mode,
           # unchanged. The detailed thread-handling procedure stays in
           # `--append-system-prompt` below and applies in both modes.
-          prompt: "${{ (github.event_name == 'pull_request_review' && !contains(github.event.review.body, '@claude')) && format('A pull request review was submitted on PR #{0} of {1} without an @claude mention. First check out the PR branch with `gh pr checkout {0}` (this run starts on the base branch). Then follow the review-handling procedure in your system prompt: enumerate the PR''s unresolved review threads with `gh api graphql`, fix the valid findings, run the relevant tests when you touch code, commit and push to the PR branch, reply to each thread you handled, resolve ONLY the threads you actually fixed, and post one summary comment of what you fixed and what you left open.', github.event.pull_request.number, github.repository) || '' }}"
+          prompt: "${{ (github.event_name == 'pull_request_review' && !contains(github.event.review.body, '@claude')) && format('A pull request review was submitted on PR #{0} of {1} without an @claude mention. First check out the PR branch with `gh pr checkout {0}` (this run starts on the base branch). The reviewer''s top-level review body was: <<<{2}>>>. Treat that body as feedback to address as well, in addition to any inline review threads (the body is NOT a review thread and will not appear when you enumerate threads). Then follow the review-handling procedure in your system prompt: enumerate the PR''s unresolved review threads with `gh api graphql`, fix the valid findings (and the points raised in the review body), run the relevant tests when you touch code, commit and push to the PR branch, reply to each inline thread you handled, resolve ONLY the threads you actually fixed, and post one summary comment of what you fixed and what you left open (replying to the review body there if it had no inline threads).', github.event.pull_request.number, github.repository, github.event.review.body) || '' }}"
 
           #
           # Allowed tools let Claude edit files, run the build/test suite, commit,
