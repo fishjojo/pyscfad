@@ -196,6 +196,26 @@ def test_eig_jit():
     assert diff < 1e-6
 
 
+def test_eig_restart_orthonormal():
+    # Large diagonally dominant matrix with the (small) default max_space so the
+    # solve must thick-restart several times. The restart must re-orthonormalize
+    # the non-Hermitian Ritz vectors; otherwise it selects spurious near-zero
+    # Ritz pairs (eigenvalues near 0 with tiny vectors) instead of the lowest
+    # roots near 1, 2. See PR #119 review.
+    n, k = 80, 2
+    A = _ddom(50, n)
+    w, X, Y = eig(lambda Z: A @ Z, aopT=lambda Z: A.T @ Z, nroots=k,
+                  adiag=jnp.diag(A), tol=1e-10, return_left=True)
+    wref = np.linalg.eigvals(np.asarray(A))
+    wref = wref[np.argsort(wref.real)][:k]
+    diff = np.abs(np.sort_complex(np.asarray(w)) - np.sort_complex(wref)).max()
+    assert diff < 1e-6
+    # exact eigenpairs with non-degenerate (O(1)) right vectors
+    assert float(abs(A @ X - X * w[None, :]).max()) < 1e-5
+    assert float(jnp.linalg.norm(X, axis=0).min()) > 1e-3
+    assert float(abs(Y.conj().T @ X - jnp.eye(k)).max()) < 1e-8
+
+
 def test_eig_check_grads_order2():
     # Non-Hermitian eigenvalue gradient via aopT, forward and reverse, 2nd order.
     n, k = 8, 1

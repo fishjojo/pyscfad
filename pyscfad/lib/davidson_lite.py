@@ -160,9 +160,16 @@ def _davidson_solve(aop, x0, k, precond, tol, max_cycle, m, hermitian):
         T = precond(R, theta.astype(dtype))
 
         restart = (nv + k) > m
+        # On a thick restart the Ritz vectors ``X`` seed the next basis. For the
+        # non-Hermitian solve ``X = V @ C`` with ``C`` from ``jnp.linalg.eig`` is
+        # not orthonormal, which would corrupt the next projected solve
+        # ``V.conj().T @ AV`` (it assumes an orthonormal basis). Re-orthonormalize
+        # via QR before storing. For the Hermitian case ``X`` is already
+        # orthonormal so QR is a no-op (up to column phase).
+        Xr = jnp.linalg.qr(X)[0]
         Vb, off, valid = lax.cond(
             restart,
-            lambda: (jnp.zeros_like(V).at[:, :k].set(X), jnp.int32(k), jnp.int32(k)),
+            lambda: (jnp.zeros_like(V).at[:, :k].set(Xr), jnp.int32(k), jnp.int32(k)),
             lambda: (V, nv, nv))
         T = _orthonormalize(T, Vb, valid, m)
         Vnew = dynamic_update_slice(Vb, T.astype(Vb.dtype), (jnp.int32(0), off.astype(jnp.int32)))
