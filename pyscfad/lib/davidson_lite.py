@@ -276,6 +276,17 @@ def eig(aop, aopT=None, x0=None, *, nroots=1, adiag=None, precond=None,
         operators the converged pairs are still exact eigenpairs but may not be
         the lowest ones; supply a good ``x0``/``adiag`` in that case.
 
+    Note:
+        Only the eigenvalues ``w`` are differentiable. The right/left
+        eigenvectors of a general operator have an undetermined complex scaling
+        gauge (``X -> a X``, ``Y -> Y / conj(a)`` leaves both eigen-equations and
+        ``Y^H X = 1`` invariant); the forward solver pins it with the unit-norm
+        normalization of :func:`jax.numpy.linalg.eig`, whose phase is not a
+        smooth function of the operator. Their derivatives are therefore not
+        well-defined w.r.t. the returned vectors and are stopped (return zero).
+        Differentiate gauge-invariant quantities (eigenvalues, or spectral
+        projectors built from biorthonormal pairs) instead.
+
     Args:
         aop: Linear operator ``aop(V) -> A @ V``.
         aopT: Adjoint operator ``aopT(V) -> A^H @ V``. Required for derivatives
@@ -381,9 +392,11 @@ def eig(aop, aopT=None, x0=None, *, nroots=1, adiag=None, precond=None,
         _, zetaY = lax.scan(coly, None, (B2.T, w, deg))
         dY = zetaY.T
 
-        # Fix the gauge (scale) of dX, dY from the biorthonormality tangent bs:
+        # Internal gauge for the linear solve: split the biorthonormality tangent
         #   d(Y^H X) = bs  ->  diag(dY^H X + Y^H dX) = bs
-        # split symmetrically between the X- and Y-gauge directions.
+        # symmetrically between the X- and Y-gauge directions. This makes the
+        # eigenvalue tangent self-consistent to all orders; the eigenvector
+        # tangents themselves remain gauge dependent and are stopped on output.
         gauge = bs - (jnp.sum(jnp.conj(dY) * X, axis=0)
                       + jnp.sum(jnp.conj(Y) * dX, axis=0))
         dX = dX + 0.5 * gauge[None, :] / jnp.conj(yx)[None, :] * X
@@ -391,6 +404,17 @@ def eig(aop, aopT=None, x0=None, *, nroots=1, adiag=None, precond=None,
         return (dX, dY, dw)
 
     X, Y, w = custom_root(root_fn, state0, solve, tangent_solve, has_aux=False)
+    # Only the eigenvalues are exposed as differentiable for the non-Hermitian
+    # solve. The right/left eigenvectors have an undetermined complex scaling
+    # gauge (``X -> a X``, ``Y -> Y / conj(a)`` preserves the eigen-equations and
+    # ``Y^H X = 1``); the forward solver pins it with ``jnp.linalg.eig``'s
+    # unit-norm normalization, whose phase is not a smooth function of the
+    # operator, so eigenvector derivatives could not correspond to the returned
+    # vectors. The eigenvalues ``w`` are gauge invariant and differentiate
+    # correctly. Stop gradients on the vectors so a downstream ``X``/``Y``
+    # dependence does not silently produce gauge-dependent (wrong) gradients.
+    X = lax.stop_gradient(X)
+    Y = lax.stop_gradient(Y)
     if return_left:
         return w, X, Y
     return w, X

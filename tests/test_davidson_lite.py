@@ -229,3 +229,36 @@ def test_eig_check_grads_order2():
         return w[0].real
 
     check_grads(f, (0.05,), order=2, modes=['fwd', 'rev'], atol=2e-3, rtol=2e-3)
+
+
+def test_eig_eigvec_grad_stopped():
+    # The non-Hermitian eigenvectors have an undetermined complex scaling gauge
+    # that the forward (jnp.linalg.eig) normalization pins non-smoothly, so eig
+    # stops their gradients while keeping the (gauge-invariant) eigenvalue
+    # differentiable. Confirm: d/dp of a scalar of X (and Y) is exactly zero,
+    # but d/dp of the eigenvalue is finite and matches finite differences.
+    n, k = 8, 1
+    A0 = _ddom(40, n)
+    B = _ddom(41, n)
+    c = jnp.asarray(np.random.default_rng(70).standard_normal(n))
+
+    def vec_obj(p):
+        A = A0 + p * B
+        _, X, Y = eig(lambda Z: A @ Z, aopT=lambda Z: A.T @ Z, nroots=k,
+                      adiag=jnp.diag(A), max_space=8, tol=1e-12,
+                      return_left=True)
+        return jnp.sum((c * X[:, 0].real) ** 2) + jnp.sum((c * Y[:, 0].real) ** 2)
+
+    assert float(jax.grad(vec_obj)(0.05)) == 0.0
+
+    def val_obj(p):
+        A = A0 + p * B
+        w, _ = eig(lambda Z: A @ Z, aopT=lambda Z: A.T @ Z, nroots=k,
+                   adiag=jnp.diag(A), max_space=8, tol=1e-12)
+        return w[0].real
+
+    g = float(jax.grad(val_obj)(0.05))
+    h = 1e-4
+    fd = float((val_obj(0.05 + h) - val_obj(0.05 - h)) / (2 * h))
+    assert abs(g) > 1e-6
+    assert abs(g - fd) < 1e-5
