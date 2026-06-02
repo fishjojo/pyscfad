@@ -11,6 +11,7 @@ jobs:
     permissions:
       contents: read
       issues: write
+      actions: write   # dispatch the bug-fix workflow when the issue is labeled `bug`
 
     steps:
       - name: Checkout repository
@@ -28,3 +29,21 @@ jobs:
           claude_args: '--model claude-opus-4-8 --effort medium'
           allowed_non_write_users: "*" # Required for issue triage workflow, if users without repo write access create issues
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # If triage decided this is a bug, kick off the verify-fix-PR workflow.
+      # The label was applied with GITHUB_TOKEN, which does NOT trigger the
+      # `issues: labeled` event downstream — so dispatch claude-fix-bug.yml
+      # explicitly (workflow_dispatch is the documented exception that
+      # GITHUB_TOKEN is allowed to trigger). Requires actions: write above.
+      - name: Trigger bug fix when labeled bug
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if gh issue view "$ISSUE" --repo "$REPO" --json labels --jq '.labels[].name' | grep -qx 'bug'; then
+            echo "Issue #$ISSUE is labeled 'bug'; dispatching claude-fix-bug.yml"
+            gh workflow run claude-fix-bug.yml --repo "$REPO" -f issue_number="$ISSUE"
+          else
+            echo "Issue #$ISSUE is not labeled 'bug'; skipping bug-fix dispatch"
+          fi
