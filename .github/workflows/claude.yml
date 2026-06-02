@@ -44,6 +44,21 @@ jobs:
           additional_permissions: |
             actions: read
 
+          # The Bash tool runs inside an OS-level sandbox by default, which
+          # routes network through a proxy with a domain allowlist. `git push`
+          # (and `pip install`) need the network, and in a headless CI run the
+          # sandbox cannot prompt a human to escalate out — so they get denied.
+          # Allow the domains required to push branches and install deps.
+          settings: |
+            {
+              "sandbox": {
+                "enabled": true,
+                "network": {
+                  "allowedDomains": ["github.com", "pypi.org", "files.pythonhosted.org"]
+                }
+              }
+            }
+
           # The job-level `if:` already guarantees the requester is a trusted
           # maintainer (OWNER / MEMBER / COLLABORATOR), so this prompt only needs
           # to control WHEN a PR is opened: only on an explicit instruction.
@@ -59,6 +74,9 @@ jobs:
             If the request is ambiguous about whether a PR is wanted, comment only
             and ask for confirmation rather than opening a PR.
 
-          # Allow Claude to create branches, commit, and open PRs
-          claude_args: '--model claude-opus-4-8 --allowed-tools "Bash(git:*),Bash(gh pr:*),Bash(gh issue:*)"'
+          # Allow Claude to create branches, commit, open PRs, AND run the
+          # build/test tools it needs to validate a change before pushing.
+          # Bash is not allowed by default — only the commands listed here are
+          # permitted (this list adds to the action's built-in Edit/Write/etc.).
+          claude_args: '--model claude-opus-4-8 --allowed-tools "Bash(git:*),Bash(gh:*),Bash(python:*),Bash(pytest:*),Bash(pip:*),Edit,Write"'
 
