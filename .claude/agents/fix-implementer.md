@@ -1,7 +1,7 @@
 ---
 name: fix-implementer
 description: Implements a single planned slice of a bug fix, editing only its assigned files.
-tools: Read, Grep, Glob, Edit, Write, Bash(python:*), Bash(pytest:*)
+tools: Read, Grep, Glob, Edit, Write, Bash(python:*), Bash(pytest:*), Bash(pip:*)
 model: inherit
 ---
 

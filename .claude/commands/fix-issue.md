@@ -19,10 +19,17 @@ is missing.
 - `REPO` — `owner/name` of the repository (default: infer from `git remote`).
 - `ISSUE_NUMBER` — the issue to resolve (required).
 - `GIT` — `self` or `harness` (default: `self`).
-  - `self`: **you** create the branch, commit, push, and open the PR.
-  - `harness`: leave all changes in the working tree and do **not** run git/gh write
-    commands — an external harness handles commit/push/PR. Still print the summary
-    described in **Finalize** as your final message.
+  - `self`: **you** create the branch, commit, push, open the PR, and post issue
+    comments (you own all GitHub side effects).
+  - `harness`: leave all changes in the working tree and do **not** run any git/gh
+    **write** command — no commit, push, PR, **or issue comment**. An external harness
+    owns every GitHub side effect; it commits/pushes/PRs and reports your result.
+
+**Reporting convention (applies everywhere below, including every early stop).** When a
+step says to "report" / "comment" a verdict, summary, or failure:
+- `GIT: self` → post it as an issue comment with `gh` (or open the PR, as specified).
+- `GIT: harness` → do **not** call `gh`/`git`; return the text as your final message and
+  let the harness post it. Reads (`gh issue view`, `./scripts/gh.sh`) are fine in both.
 
 Arguments: `$ARGUMENTS`
 
@@ -53,8 +60,9 @@ with the issue text. It does no fixing; it only decides whether the work is real
 
 **Gate:** Proceed to the multi-agent pipeline **only** if the verdict is `confirmed`
 (bug) or `actionable` (feature). For any other verdict, do **not** change code, create a
-branch, or open a PR — post a single comment on the issue stating the verdict and the
-verifier's evidence (what was tried, what's missing, or why it isn't a bug), then stop.
+branch, or open a PR — **report** the verdict and the verifier's evidence (what was
+tried, what's missing, or why it isn't a bug) per the **Reporting convention** above
+(`GIT: self` → an issue comment; `GIT: harness` → your final message), then stop.
 
 Carry the verifier's reproduction forward as the ground-truth repro for the rest of the
 run.
@@ -100,9 +108,10 @@ Drive the plan to convergence. For up to **4 iterations**:
    re-dispatch implementers with corrections or revise the plan, and iterate.
 
 If you hit the iteration cap without convergence, do **not** open a green-washed PR.
-Post a comment with what you tried, the remaining failure, and your best partial
-diagnosis, then stop (or, in `GIT: self`, open a **draft** PR clearly marked
-"NEEDS WORK" with the failing output).
+**Report** (per the **Reporting convention**) what you tried, the remaining failure, and
+your best partial diagnosis, then stop. In `GIT: self` you may instead open a **draft**
+PR clearly marked "NEEDS WORK" with the failing output; in `GIT: harness`, return that
+status as your final message and let the harness decide.
 
 ---
 
