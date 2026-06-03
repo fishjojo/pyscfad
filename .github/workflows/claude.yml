@@ -140,8 +140,9 @@ jobs:
           # are permitted (this list adds to the built-in Edit/Write). The job-level
           # `if:` is what gates who can invoke Claude (trusted @claude mentions, plus
           # auto-runs on Codex / trusted-human reviews); the system prompt only
-          # shapes WHAT it does. (The `bug`-label auto path is handled separately by
-          # claude-verify-bug.yml + claude-fix-bug.yml.)
+          # shapes WHAT it does. A trusted maintainer mentioning @claude on an issue
+          # is the ONLY way fixes/features are implemented — there is no
+          # label-triggered auto-fix.
           claude_args: |
             --model claude-opus-4-8
             --effort high
