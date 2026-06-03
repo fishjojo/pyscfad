@@ -130,8 +130,16 @@ If `GIT: harness`:
   message. The harness commits, pushes, and opens the PR.
 
 If `GIT: self`:
-1. Create a branch: `agent/fix-<ISSUE_NUMBER>-<short-slug>` off the default branch.
-   Never commit to the default branch.
+0. First check whether this issue already has an open bot PR/branch:
+   `gh pr list --state open --search "Fixes #<ISSUE_NUMBER> in:body"`. If one exists,
+   don't start a fresh attempt that collides with it — either push your new commits onto
+   that existing branch, or stop and comment linking the existing PR. Do not blindly
+   recreate the same branch.
+1. Otherwise create a branch off the default branch (never commit to the default branch):
+   `agent/fix-<ISSUE_NUMBER>-<short-slug>`. If a remote ref by that name already exists
+   (`git ls-remote --exit-code --heads origin <branch>` succeeds), append a short unique
+   suffix (e.g. `-2`, or the run id) so the later `git push` is not rejected as a
+   non-fast-forward update.
 2. Commit with a message referencing the issue, ending with:
    `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 3. Push the branch and open a **draft** PR whose body starts with `Fixes #<ISSUE_NUMBER>`
