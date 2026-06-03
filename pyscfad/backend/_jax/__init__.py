@@ -18,9 +18,11 @@ try:
 except ImportError as err:
     raise ImportError("Unable to import jax.") from err
 
-from ..config import default_floatx
-if default_floatx() == 'float64':
-    jax.config.update("jax_enable_x64", True)
+# Always enable x64. The working precision is controlled separately via the
+# ``pyscfad_floatx`` config (see ``pyscfad._src._config``); keeping x64 enabled
+# lets FP64-only kernels (e.g. the overlap integral ``get_ovlp``) work even when
+# the bulk arithmetic is carried out in float32.
+jax.config.update("jax_enable_x64", True)
 
 from .._common import (
     index,

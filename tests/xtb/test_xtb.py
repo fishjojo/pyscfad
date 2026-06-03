@@ -15,6 +15,7 @@
 import pytest
 import jax
 from pyscfad import numpy as np
+from pyscfad import config_update
 from pyscfad.gto import MoleLite as Mole
 from pyscfad.xtb import basis as xtb_basis
 from pyscfad.xtb import GFN1XTB
@@ -83,3 +84,48 @@ def test_gfn1_xtb_dip_polar(setup, H2O_GFN1_ref, NH3_GFN1_ref):
                 assert abs(mu - mu0).max() < 1e-8
                 alpha1 = jax.jacrev(energy, 2)(numbers, coords, np.zeros(3), sigma)
                 assert abs(alpha1 - alpha0).max() < 1e-8
+
+def test_gfn1_xtb_energy_force_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref):
+    # The FP64 overlap is kept; the EHT/Coulomb arithmetic runs in float32.
+    # Energy/forces match the FP64 references to ~7 significant digits.
+    basis, param = setup
+
+    for vals in (H2O_GFN1_ref, NH3_GFN1_ref):
+        numbers, coords, e0, g0, *_ = vals
+
+        def energy(coords, diis=None):
+            mol = Mole(numbers=numbers, coords=coords, basis=basis, trace_coords=True)
+            mf = GFN1XTB(mol, param=param)
+            mf.diis = diis
+            return mf.kernel()
+
+        with config_update('pyscfad_floatx', 'float32'):
+            for diis in (None, "qbroyden", "anderson"):
+                e1, g1 = jax.value_and_grad(energy)(coords, diis)
+                assert abs(e1 - e0) < 1e-6
+                assert abs(g1 - g0).max() < 1e-6
+
+def test_gfn1_xtb_dip_polar_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref):
+    # Dipole/polarizability are response properties that amplify the float32
+    # roundoff, so they match the FP64 references to ~5 significant digits.
+    basis, param = setup
+
+    for vals in (H2O_GFN1_ref, NH3_GFN1_ref):
+        numbers, coords, _, _, mu0, alpha0 = vals
+
+        def energy(numbers, coords, E0, diis=None):
+            mol = Mole(numbers=numbers, coords=coords, basis=basis, trace_coords=False)
+            mf = GFN1XTB(mol, param=param)
+            mf.diis = diis
+            h0 = mf.get_hcore()
+            mf.get_hcore = lambda *args, **kwargs: h0 + \
+                np.einsum("x, xij->ij", E0, mol.intor("int1e_r", hermi=1))
+            mf.kernel()
+            mu = mf.dip_moment()
+            return mu
+
+        with config_update('pyscfad_floatx', 'float32'):
+            mu = energy(numbers, coords, np.zeros(3))
+            assert abs(mu - mu0).max() < 1e-4
+            alpha1 = jax.jacrev(energy, 2)(numbers, coords, np.zeros(3))
+            assert abs(alpha1 - alpha0).max() < 1e-4

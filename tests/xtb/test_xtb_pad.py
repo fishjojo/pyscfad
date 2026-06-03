@@ -16,6 +16,7 @@ from functools import partial
 import pytest
 import jax
 from pyscfad import numpy as np
+from pyscfad import config_update
 from pyscfad.xtb import basis as xtb_basis
 from pyscfad.ml.gto import MolePad, make_basis_array
 from pyscfad.ml.xtb import GFN1XTB, make_param_array
@@ -59,6 +60,31 @@ def test_gfn1_xtb_pad_energy_force(setup, H2O_GFN1_ref, NH3_GFN1_ref):
         e, g = jax.vmap(jax.value_and_grad(partial(energy, diis=diis), 1))(numbers, coords)
         assert abs(e - e0).max() < 1e-8
         assert abs(g - g0).max() < 1e-8
+
+def test_gfn1_xtb_pad_energy_force_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref):
+    # Padded/batched XTB with the EHT/Coulomb arithmetic in float32; the FP64
+    # overlap is kept. Energy/forces match the FP64 references to ~7 digits.
+    basis, param = setup
+    numbers1, coords1, e1, g1, *_ = H2O_GFN1_ref
+    numbers2, coords2, e2, g2, *_ = NH3_GFN1_ref
+    numbers, coords = _concat(numbers1, coords1, numbers2, coords2)
+
+    e0 = np.asarray([e1, e2])
+    g1 = np.vstack([g1, np.zeros((2,3))])
+    g2 = np.vstack([g2, np.zeros((1,3))])
+    g0 = np.asarray([g1, g2])
+
+    def energy(numbers, coords, diis=None):
+        mol = MolePad(numbers, coords, basis=basis, trace_coords=True)
+        mf = GFN1XTB(mol, param)
+        mf.diis = diis
+        return mf.kernel()
+
+    with config_update('pyscfad_floatx', 'float32'):
+        for diis in (None, "qbroyden"):
+            e, g = jax.vmap(jax.value_and_grad(partial(energy, diis=diis), 1))(numbers, coords)
+            assert abs(e - e0).max() < 1e-6
+            assert abs(g - g0).max() < 1e-6
 
 def test_gfn1_xtb_pad_dip_pol(setup, H2O_GFN1_ref, NH3_GFN1_ref):
     basis, param = setup

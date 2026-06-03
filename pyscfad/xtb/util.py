@@ -17,8 +17,40 @@ from pyscf.gto.mole import ANG_OF
 from pyscf.data.elements import NUC
 from pyscfad import numpy as np
 from pyscfad import ops
+from pyscfad import config
 from pyscfad.lib import unpack_tril
 from pyscfad.gto.mole import inter_distance
+
+def floatx():
+    """The configured working floating-point precision (``pyscfad_floatx``).
+
+    Returns:
+        A :class:`numpy.dtype` (``float32`` or ``float64``).
+    """
+    return numpy.dtype(config.floatx)
+
+def complexx():
+    """Complex dtype matching the configured working precision."""
+    return numpy.complex64 if floatx() == numpy.float32 else numpy.complex128
+
+def asfloatx(x):
+    """Cast floating/complex arrays to the configured working precision.
+
+    Integer and boolean arrays are returned unchanged so index arrays and masks
+    are not affected. Used to run the XTB arithmetic in FP32 while keeping
+    FP64-only kernels (e.g. the overlap integral) untouched.
+    """
+    x = np.asarray(x)
+    kind = x.dtype.kind
+    if kind == 'f':
+        target = floatx()
+        if x.dtype != target:
+            x = x.astype(target)
+    elif kind == 'c':
+        target = complexx()
+        if x.dtype != target:
+            x = x.astype(target)
+    return x
 
 ANG_MOMENT = {
   -20: "2S", # H 2s

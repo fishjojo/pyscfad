@@ -242,12 +242,14 @@ def mulliken_charge(
     dm: ArrayLike,
 ) -> Array:
     PS = np.einsum("pq,qp->p", dm, s1e)
-    occs = np.zeros(mol.nbas)
+    occs = np.zeros(mol.nbas, dtype=PS.dtype)
     occs = ops.index_add(occs, ops.index[util.bas_to_ao_indices(mol)], PS)
     return param.refocc - occs
 
 def sum_shell_charges(mol: MoleLite, partial_charges: ArrayLike) -> Array:
-    atm_charges = np.zeros(mol.natm)
+    # dtype-preserving so the working precision propagates from the charges
+    partial_charges = np.asarray(partial_charges)
+    atm_charges = np.zeros(mol.natm, dtype=partial_charges.dtype)
     atm_charges = ops.index_add(
                         atm_charges,
                         ops.index[util.atom_to_bas_indices(mol)],
@@ -263,7 +265,7 @@ def gamma_GFN1(mol: MoleLite, param: GFN1MolParam) -> Array:
     r = r[i,j]
 
     gamma = np.where(r<1e-6, eta, np.sqrt(1./(r**2 + 1./eta**2)))
-    return gamma
+    return util.asfloatx(gamma)
 
 
 class GFN1XTB(XTB):
@@ -277,7 +279,11 @@ class GFN1XTB(XTB):
             mol = self.mol
         if s1e is None:
             s1e = self.get_ovlp()
-        return s1e * self._get_EHT_factor(mol, s1e)
+        # Carry out the EHT arithmetic in the (possibly reduced) working
+        # precision, then return in the overlap dtype so the SCF linear algebra
+        # (eigensolver, DIIS) stays in the original precision.
+        h1 = util.asfloatx(s1e) * self._get_EHT_factor(mol, s1e)
+        return h1.astype(np.asarray(s1e).dtype)
 
     def _get_EHT_factor(self, mol: MoleLite | None = None, s1e: ArrayLike | None = None) -> Array:
         if mol is None:
@@ -297,7 +303,7 @@ class GFN1XTB(XTB):
         h1 = np.where(mask,
                       hscale * EHT_PI_GFN1(mol, param) * hdiag,
                       hdiag)
-        return h1[util.bas_to_ao_indices_2d(mol)]
+        return util.asfloatx(h1[util.bas_to_ao_indices_2d(mol)])
 
     def get_veff(
         self,
@@ -315,19 +321,24 @@ class GFN1XTB(XTB):
             mol = self.mol
         if s1e is None:
             s1e = self.get_ovlp()
+        out_dtype = np.asarray(s1e).dtype
         if q is None:
             q = self.get_q(mol=mol, dm=dm, s1e=s1e)
+        # run the Coulomb arithmetic in the working precision
+        s1e = util.asfloatx(s1e)
+        q = util.asfloatx(q)
 
         param = self.param
 
         mono = q[:mol.nbas]
-        phi = np.dot(self.gamma, mono)
+        phi = np.dot(util.asfloatx(self.gamma), mono)
         ecoul = .5 * np.dot(mono, phi)
 
         # Third-order term
         atm_charge = sum_shell_charges(mol, mono)
-        phi3 = atm_charge**2 * param.gam3
-        ecoul += np.sum(atm_charge**3 * param.gam3) / 3.
+        gam3 = util.asfloatx(param.gam3)
+        phi3 = atm_charge**2 * gam3
+        ecoul += np.sum(atm_charge**3 * gam3) / 3.
 
         atm_to_bas_id = util.atom_to_bas_indices(mol)
         phi += phi3[atm_to_bas_id]
@@ -335,7 +346,8 @@ class GFN1XTB(XTB):
         phi = phi[:,None] + phi[None,:]
 
         vj = -.5 * s1e * phi
-        return VXC(vxc=vj, ecoul=ecoul)
+        # return in the overlap dtype so the SCF stays in the original precision
+        return VXC(vxc=vj.astype(out_dtype), ecoul=ecoul.astype(out_dtype))
 
     def _energy_nuc(self, mol: MoleLite | None = None, **kwargs) -> float:
         if mol is None:
@@ -354,7 +366,7 @@ class GFN1XTB(XTB):
 
         damp = np.where(r>1e-6, np.exp(-arep_ab * r_safe**kf), 0.)
         enuc = .5 * np.sum(z_ab * damp * r_inv)
-        return enuc
+        return util.asfloatx(enuc)
 
     def get_init_guess(self, mol: MoleLite | None = None, key: str = "refocc", **kwargs) -> Array:
         if key != "refocc":
