@@ -59,10 +59,13 @@ with the issue text. It does no fixing; it only decides whether the work is real
 - For a **feature**, it returns `actionable` / `needs_info` / `out_of_scope`.
 
 **Gate:** Proceed to the multi-agent pipeline **only** if the verdict is `confirmed`
-(bug) or `actionable` (feature). For any other verdict, do **not** change code, create a
-branch, or open a PR — **report** the verdict and the verifier's evidence (what was
-tried, what's missing, or why it isn't a bug) per the **Reporting convention** above
-(`GIT: self` → an issue comment; `GIT: harness` → your final message), then stop.
+(bug) or `actionable` (feature). For any other verdict (`not_reproducible`, `not_a_bug`,
+`needs_info`, `out_of_scope`), do **not** change code, create a branch, or open a PR.
+The verifier is read-only and does not comment — **you** surface its result: post the
+verifier's comment-ready summary per the **Reporting convention** above (`GIT: self` → an
+issue comment; `GIT: harness` → your final message), then stop. This is the path that
+tells the reporter the bug couldn't be verified / the feature can't be implemented as
+specified, so don't drop it.
 
 Carry the verifier's reproduction forward as the ground-truth repro for the rest of the
 run.
