@@ -12,8 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
+import numpy
 import pytest
 from pyscfad import numpy as np
+import pyscfad.backend.numpy as _backend_np
+
+@pytest.fixture
+def float32_ctx():
+    """Test-only override of the global default float dtype (``np.floatx``).
+
+    ``np.floatx`` is fixed at import time by the global ``PYSCFAD_FLOATX``
+    setting; this context manager swaps it temporarily so the FP32 code
+    paths can be compared against the FP64 references in-process.
+    """
+    @contextlib.contextmanager
+    def ctx():
+        orig = _backend_np.floatx
+        _backend_np.floatx = numpy.dtype('float32')
+        try:
+            yield
+        finally:
+            _backend_np.floatx = orig
+    return ctx
 
 @pytest.fixture
 def H2O_GFN1_ref():

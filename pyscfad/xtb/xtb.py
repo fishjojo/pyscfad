@@ -265,7 +265,7 @@ def gamma_GFN1(mol: MoleLite, param: GFN1MolParam) -> Array:
     r = r[i,j]
 
     gamma = np.where(r<1e-6, eta, np.sqrt(1./(r**2 + 1./eta**2)))
-    return util.asfloatx(gamma)
+    return np.asarray(gamma, dtype=np.floatx)
 
 
 class GFN1XTB(XTB):
@@ -282,7 +282,7 @@ class GFN1XTB(XTB):
         # Carry out the EHT arithmetic in the (possibly reduced) working
         # precision, then return in the overlap dtype so the SCF linear algebra
         # (eigensolver, DIIS) stays in the original precision.
-        h1 = util.asfloatx(s1e) * self._get_EHT_factor(mol, s1e)
+        h1 = np.asarray(s1e, dtype=np.floatx) * self._get_EHT_factor(mol, s1e)
         return h1.astype(np.asarray(s1e).dtype)
 
     def _get_EHT_factor(self, mol: MoleLite | None = None, s1e: ArrayLike | None = None) -> Array:
@@ -303,7 +303,7 @@ class GFN1XTB(XTB):
         h1 = np.where(mask,
                       hscale * EHT_PI_GFN1(mol, param) * hdiag,
                       hdiag)
-        return util.asfloatx(h1[util.bas_to_ao_indices_2d(mol)])
+        return np.asarray(h1[util.bas_to_ao_indices_2d(mol)], dtype=np.floatx)
 
     def get_veff(
         self,
@@ -325,18 +325,18 @@ class GFN1XTB(XTB):
         if q is None:
             q = self.get_q(mol=mol, dm=dm, s1e=s1e)
         # run the Coulomb arithmetic in the working precision
-        s1e = util.asfloatx(s1e)
-        q = util.asfloatx(q)
+        s1e = np.asarray(s1e, dtype=np.floatx)
+        q = np.asarray(q, dtype=np.floatx)
 
         param = self.param
 
         mono = q[:mol.nbas]
-        phi = np.dot(util.asfloatx(self.gamma), mono)
+        phi = np.dot(np.asarray(self.gamma, dtype=np.floatx), mono)
         ecoul = .5 * np.dot(mono, phi)
 
         # Third-order term
         atm_charge = sum_shell_charges(mol, mono)
-        gam3 = util.asfloatx(param.gam3)
+        gam3 = np.asarray(param.gam3, dtype=np.floatx)
         phi3 = atm_charge**2 * gam3
         ecoul += np.sum(atm_charge**3 * gam3) / 3.
 
@@ -366,7 +366,7 @@ class GFN1XTB(XTB):
 
         damp = np.where(r>1e-6, np.exp(-arep_ab * r_safe**kf), 0.)
         enuc = .5 * np.sum(z_ab * damp * r_inv)
-        return util.asfloatx(enuc)
+        return np.asarray(enuc, dtype=np.floatx)
 
     def get_init_guess(self, mol: MoleLite | None = None, key: str = "refocc", **kwargs) -> Array:
         if key != "refocc":

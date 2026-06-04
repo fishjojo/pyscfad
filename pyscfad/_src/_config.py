@@ -44,14 +44,6 @@ config.set_default('pyscfad_ccsd_implicit_diff', False)
 #config.set_default('pyscfad_ccsd_checkpoint', False)
 config.set_default('pyscfad_moleintor_opt', False)
 
-# Working floating-point precision for the differentiable arithmetic.
-# This is independent of ``jax_enable_x64`` (which stays on so that FP64-only
-# kernels such as the integrals keep working); code that wants to honor the
-# requested precision should cast through it explicitly.
-from pyscfad.backend.config import default_floatx as _default_floatx
-config.set_default('pyscfad_floatx', _default_floatx())
-del _default_floatx
-
 
 class config_update:
     def __init__(self, name, value):

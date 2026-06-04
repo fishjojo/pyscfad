@@ -498,10 +498,10 @@ class QMMM:
     def get_mm_ewald_pot(self, param=None):
         if param is None:
             param = self.param
-        ew_eta, mesh = util.asfloatx(self.mm_ew_eta), self.mm_ew_mesh
+        ew_eta, mesh = numpy.asarray(self.mm_ew_eta, dtype=numpy.floatx), self.mm_ew_mesh
 
-        coords1 = util.asfloatx(self.mol.atom_coords())
-        coords2 = util.asfloatx(self.mm_coords)
+        coords1 = numpy.asarray(self.mol.atom_coords(), dtype=numpy.floatx)
+        coords2 = numpy.asarray(self.mm_coords, dtype=numpy.floatx)
 
         if len(coords2) > self.max_mm_nbr:
             r2 = -numpy.sum((coords1[:, None, :] - coords2[None])**2, axis=-1)
@@ -512,12 +512,12 @@ class QMMM:
                 [numpy.arange(len(coords2))] * len(coords1))
 
         coords2 = coords2[neighbors]  # shape = Nqm, max_mm_nbr, 3
-        mm_charges = util.asfloatx(self.mm_charges[neighbors])
-        mm_radii = util.asfloatx(self.mm_radii[neighbors])
+        mm_charges = numpy.asarray(self.mm_charges[neighbors], dtype=numpy.floatx)
+        mm_radii = numpy.asarray(self.mm_radii[neighbors], dtype=numpy.floatx)
 
         atom_to_bas = util.atom_to_bas_indices(self.mol)
 
-        fx = util.floatx()
+        fx = numpy.floatx
         (ewovrl0, ewovrl1, ewovrl2) = (
             numpy.zeros_like(param.gam, dtype=fx),
             numpy.zeros((len(coords1), 3), dtype=fx),
@@ -534,7 +534,7 @@ class QMMM:
         # difference between MM gaussain charges and MM point charges
         # TODO since Ewald rcut and the following expnts are fixed,
         # need to check if max_mm_nbr can give desired ewald precision
-        expnts = 2. / (1 / util.asfloatx(param.gam*param.lgam)
+        expnts = 2. / (1 / numpy.asarray(param.gam*param.lgam, dtype=numpy.floatx)
                        [:, None] + mm_radii[atom_to_bas])
         Tij = erfc(expnts * r[atom_to_bas]) / r[atom_to_bas]
         ewovrl0 -= numpy.einsum('ij,ij->i', Tij, mm_charges[atom_to_bas])
@@ -593,13 +593,13 @@ class QMMM:
         return ewovrl0+ewg0[atom_to_bas], ewovrl1+ewg1, ewovrl2+ewg2
 
     def get_mm_ewald_g_fft(self, param, mesh, ew_eta, qm_coords, mm_coords, mm_charges):
-        coords1 = util.asfloatx(qm_coords)
-        coords2 = util.asfloatx(mm_coords)
-        charges2 = util.asfloatx(mm_charges)
-        ew_eta = util.asfloatx(ew_eta)
+        coords1 = numpy.asarray(qm_coords, dtype=numpy.floatx)
+        coords2 = numpy.asarray(mm_coords, dtype=numpy.floatx)
+        charges2 = numpy.asarray(mm_charges, dtype=numpy.floatx)
+        ew_eta = numpy.asarray(ew_eta, dtype=numpy.floatx)
 
         # 1. Spread MM charges to grid
-        inv_a = util.asfloatx(numpy.linalg.inv(self.a))
+        inv_a = numpy.asarray(numpy.linalg.inv(self.a), dtype=numpy.floatx)
         frac_coords2 = numpy.dot(coords2, inv_a)
         frac_coords2 = frac_coords2 % 1.0
 
@@ -631,17 +631,17 @@ class QMMM:
 
         # 3. Multiply by kernel
         Gv, _, _ = self.get_Gv_weights(mesh)
-        Gv = util.asfloatx(Gv)
+        Gv = numpy.asarray(Gv, dtype=numpy.floatx)
         absG2 = numpy.sum(Gv**2, axis=-1)
         # Avoid division by zero at G=0
         absG2 = numpy.where(absG2 == 0, 1e200, absG2)
 
-        vol = util.asfloatx(self.vol)
+        vol = numpy.asarray(self.vol, dtype=numpy.floatx)
         kernel = 4*numpy.pi / absG2 * mesh[0]*mesh[1]*mesh[2] / vol
         kernel = kernel * numpy.exp(-absG2/(4*ew_eta**2))
         kernel = kernel.reshape(*mesh)
 
-        B = util.asfloatx(_get_pme_correction(mesh, order=self.mm_pbe_order))
+        B = numpy.asarray(_get_pme_correction(mesh, order=self.mm_pbe_order), dtype=numpy.floatx)
         kernel *= B
         # Exclude G=0
         kernel = kernel.at[0, 0, 0].set(0)
@@ -792,11 +792,11 @@ class QMMM:
         return ewg0, ewg1, ewg2
 
     def get_qm_ewald_hess(self):
-        ew_eta, mesh = util.asfloatx(self.qm_ew_eta), self.qm_ew_mesh
+        ew_eta, mesh = numpy.asarray(self.qm_ew_eta, dtype=numpy.floatx), self.qm_ew_mesh
 
-        coords1 = util.asfloatx(self.mol.atom_coords())
+        coords1 = numpy.asarray(self.mol.atom_coords(), dtype=numpy.floatx)
 
-        fx = util.floatx()
+        fx = numpy.floatx
         ewself00 = numpy.zeros((len(coords1), len(coords1)), dtype=fx)
         ewself01 = numpy.zeros((len(coords1), len(coords1), 3), dtype=fx)
         ewself11 = numpy.zeros((len(coords1), len(coords1), 3, 3), dtype=fx)
@@ -850,8 +850,8 @@ class QMMM:
 
         # g-space sum (using g grid)
         Gv, Gvbase, weights = self.get_Gv_weights(mesh)
-        Gv = util.asfloatx(Gv)
-        weights = util.asfloatx(weights)
+        Gv = numpy.asarray(Gv, dtype=numpy.floatx)
+        weights = numpy.asarray(weights, dtype=numpy.floatx)
         absG2 = numpy.einsum('gx,gx->g', Gv, Gv)
         absG2 = numpy.where(absG2 == 0, 1e200, absG2)
 
@@ -906,12 +906,12 @@ class QMMM:
                 qm_ewald_hess = self.get_qm_ewald_hess()
             self.qm_ewald_hess = qm_ewald_hess
         charges, dips, quads = self.unpack_q(q)
-        fx = util.floatx()
+        fx = numpy.floatx
         ewpot0 = numpy.zeros_like(charges, dtype=fx)
         ewpot1 = numpy.zeros((mol.natm, 3), dtype=fx)
         ewpot2 = numpy.zeros((mol.natm, 3, 3), dtype=fx)
         if self.pbcqm:
-            ewpot0 = numpy.einsum('ij,j->i', qm_ewald_hess[0], util.asfloatx(charges))
+            ewpot0 = numpy.einsum('ij,j->i', qm_ewald_hess[0], numpy.asarray(charges, dtype=numpy.floatx))
             if self.param.dipgam is not None:
                 ewpot0 += numpy.einsum('ijx,jx->i', qm_ewald_hess[1], dips)
                 ewpot1 += numpy.einsum('ijx,i->jx', qm_ewald_hess[1], charges)

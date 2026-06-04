@@ -16,7 +16,6 @@ from functools import partial
 import pytest
 import jax
 from pyscfad import numpy as np
-from pyscfad import config_update
 from pyscfad.xtb import basis as xtb_basis
 from pyscfad.ml.gto import MolePad, make_basis_array
 from pyscfad.ml.xtb import GFN1XTB, make_param_array
@@ -61,7 +60,7 @@ def test_gfn1_xtb_pad_energy_force(setup, H2O_GFN1_ref, NH3_GFN1_ref):
         assert abs(e - e0).max() < 1e-8
         assert abs(g - g0).max() < 1e-8
 
-def test_gfn1_xtb_pad_energy_force_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref):
+def test_gfn1_xtb_pad_energy_force_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref, float32_ctx):
     # Padded/batched XTB with the EHT/Coulomb arithmetic in float32; the FP64
     # overlap is kept. Energy/forces match the FP64 references to ~7 digits.
     basis, param = setup
@@ -80,7 +79,7 @@ def test_gfn1_xtb_pad_energy_force_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref):
         mf.diis = diis
         return mf.kernel()
 
-    with config_update('pyscfad_floatx', 'float32'):
+    with float32_ctx():
         for diis in (None, "qbroyden"):
             e, g = jax.vmap(jax.value_and_grad(partial(energy, diis=diis), 1))(numbers, coords)
             assert abs(e - e0).max() < 1e-6

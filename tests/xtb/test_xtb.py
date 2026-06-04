@@ -15,7 +15,6 @@
 import pytest
 import jax
 from pyscfad import numpy as np
-from pyscfad import config_update
 from pyscfad.gto import MoleLite as Mole
 from pyscfad.xtb import basis as xtb_basis
 from pyscfad.xtb import GFN1XTB
@@ -85,7 +84,7 @@ def test_gfn1_xtb_dip_polar(setup, H2O_GFN1_ref, NH3_GFN1_ref):
                 alpha1 = jax.jacrev(energy, 2)(numbers, coords, np.zeros(3), sigma)
                 assert abs(alpha1 - alpha0).max() < 1e-8
 
-def test_gfn1_xtb_energy_force_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref):
+def test_gfn1_xtb_energy_force_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref, float32_ctx):
     # The FP64 overlap is kept; the EHT/Coulomb arithmetic runs in float32.
     # Energy/forces match the FP64 references to ~7 significant digits.
     basis, param = setup
@@ -99,13 +98,13 @@ def test_gfn1_xtb_energy_force_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref):
             mf.diis = diis
             return mf.kernel()
 
-        with config_update('pyscfad_floatx', 'float32'):
+        with float32_ctx():
             for diis in (None, "qbroyden", "anderson"):
                 e1, g1 = jax.value_and_grad(energy)(coords, diis)
                 assert abs(e1 - e0) < 1e-6
                 assert abs(g1 - g0).max() < 1e-6
 
-def test_gfn1_xtb_dip_polar_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref):
+def test_gfn1_xtb_dip_polar_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref, float32_ctx):
     # Dipole/polarizability are response properties that amplify the float32
     # roundoff, so they match the FP64 references to ~5 significant digits.
     basis, param = setup
@@ -124,7 +123,7 @@ def test_gfn1_xtb_dip_polar_fp32(setup, H2O_GFN1_ref, NH3_GFN1_ref):
             mu = mf.dip_moment()
             return mu
 
-        with config_update('pyscfad_floatx', 'float32'):
+        with float32_ctx():
             mu = energy(numbers, coords, np.zeros(3))
             assert abs(mu - mu0).max() < 1e-4
             alpha1 = jax.jacrev(energy, 2)(numbers, coords, np.zeros(3))
