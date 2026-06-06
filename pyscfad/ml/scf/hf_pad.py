@@ -12,13 +12,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy
+
 from pyscfad import numpy as np
 from pyscfad.scf import hf_lite as hf
 from pyscfad.scipy.linalg import eigh
 
 class SCF(hf.SCF):
-    # NOTE too large shift will give large errors
-    padding_level_shift = 1e6
+    @property
+    def padding_level_shift(self):
+        r"""Energy shift applied to the fake (padding) MOs.
+
+        The padding block of the Fock matrix is shifted by this amount so the
+        fake MOs sit far above the real spectrum and are never occupied (see
+        :meth:`mo_mask`). LAPACK's generalized eigensolver (``sygvd``) is
+        backward stable with error :math:`\sim \epsilon \lVert H \rVert`, and
+        the shifted padding block makes :math:`\lVert H \rVert \sim`
+        ``padding_level_shift``; the *real* eigenvalues are therefore perturbed
+        by :math:`\sim \epsilon \cdot` ``padding_level_shift``. A shift that is
+        negligible in float64 (``1e6``) thus swamps the real eigenvalues in
+        float32.
+
+        Scale the shift with the working precision so that both the separation
+        gap and the relative contamination stay :math:`\sim \sqrt{\epsilon}`:
+        float64 -> ``1e6``, float32 -> ``~40``. This stays well above any
+        physical MO energy in the minimal/ML basis sets this path targets while
+        keeping :math:`\epsilon \cdot` ``padding_level_shift`` near the float32
+        round-off floor.
+        """
+        eps = numpy.finfo(np.floatx).eps
+        eps64 = numpy.finfo(numpy.float64).eps
+        return float(1e6 * (eps64 / eps) ** 0.5)
 
     def _eigh(self, h, s, **kwargs):
         ao_mask = self.mol.ao_mask

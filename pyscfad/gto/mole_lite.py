@@ -75,7 +75,7 @@ def _format_basis_from_pyscf(pyscf_basis, uniq_symbols):
         tmp = {}
         for shell in shls:
             l = shell[0]
-            param = np.asarray(shell[1:])
+            param = np.asarray(shell[1:], dtype=np.floatx)
             tmp.setdefault(l, []).append(param)
         basis[symb] = {l: tmp[l] for l in sorted(tmp)}
 
@@ -134,7 +134,7 @@ class MoleLite(MoleBase):
         else:
             self.symbols = _format_symbols(symbols)
 
-        self.coords = coords
+        self.coords = np.asarray(coords, dtype=np.floatx)
 
         if basis is not None:
             uniq_symbols = set(self.symbols)
@@ -287,7 +287,7 @@ class MoleLite(MoleBase):
         self._env = ops.index_update(
             self._env,
             ops.index[PTR_COMMON_ORIG:PTR_COMMON_ORIG+3],
-            coord,
+            coord.astype(self._env.dtype),
         )
         return self
 
@@ -309,7 +309,7 @@ class MoleLite(MoleBase):
         self._env = ops.index_update(
             self._env,
             ops.index[PTR_RINV_ORIG:PTR_RINV_ORIG+3],
-            coord,
+            coord.astype(self._env.dtype),
         )
         return self
 
@@ -346,7 +346,7 @@ class MoleLite(MoleBase):
             raise KeyError(f"{mol} not built")
         if mol.ecp or mol.pseudo:
             raise NotImplementedError
-        coords = np.asarray(mol.atom_coords())
+        coords = np.asarray(mol.atom_coords(), dtype=np.floatx)
         symbols = tuple(mol.atom_symbol(i) for i in range(mol.natm))
         uniq_symbols = set(symbols)
         basis = _format_basis_from_pyscf(mol._basis, uniq_symbols)
@@ -442,9 +442,9 @@ def make_atm_env(
     natm = len(coords)
     nuc_charge = [get_charge(symb) for symb in symbols]
     if nuclear_model == NUC_POINT:
-        zeta = np.zeros((natm,1))
+        zeta = np.zeros((natm,1), dtype=np.floatx)
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f"nuclear_model = {nuclear_model} is not supported")
     _env = np.hstack((coords, zeta)).ravel()
 
     _atm = numpy.zeros((natm, ATM_SLOTS), dtype=numpy.int32)
@@ -489,7 +489,7 @@ def make_env(
     """Make ``_atm``, ``_bas``, and ``_env`` for
     interfacing with ``libcint``.
     """
-    pre_env = np.zeros(PTR_ENV_START)
+    pre_env = np.zeros(PTR_ENV_START, dtype=np.floatx)
     _env = [pre_env]
     ptr_env = pre_env.size
 

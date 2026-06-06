@@ -44,7 +44,7 @@ ATOMIC = AA2AU * np.array([
     1.61,1.57,1.49,1.43,1.41,  # Lr-
     1.34,1.29,1.28,1.21,1.22,   # -Cn
     1.36,1.43,1.62,1.75,1.65,1.57,  # Nh-Og
-])
+], dtype=np.floatx)
 """Atomic radii."""
 
 COV_2009 = AA2AU * np.array([
@@ -72,7 +72,7 @@ COV_2009 = AA2AU * np.array([
     1.45,1.41,1.34,1.29,1.27,  # Lr-
     1.21,1.16,1.15,1.09,1.22,  # -Cn
     1.36,1.43,1.46,1.58,1.48,1.57  # Nh-Og
-])
+], dtype=np.floatx)
 """
 Covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197).
 Values for metals decreased by 10 %.

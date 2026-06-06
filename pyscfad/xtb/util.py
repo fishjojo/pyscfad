@@ -111,7 +111,7 @@ def load_unique_element_params(
 
     uniq_elements, uniq_elem_to_atm_id = unique_element_to_atom_indices(mol)
     vals = [getattr(param_element[symb], name) for symb in uniq_elements]
-    vals = np.asarray(vals)
+    vals = np.asarray(vals, dtype=np.floatx)
 
     if broadcast is None:
         return vals, uniq_elem_to_atm_id
@@ -153,7 +153,7 @@ def load_unique_element_shell_params(
         keys = numpy.asarray([_sort_key_for_shell(s) for s in shells])
         sorted_shell_id = numpy.lexsort((keys[:,1],keys[:,0]))
 
-        val = np.asarray(getattr(param_element[elem], name))[sorted_shell_id]
+        val = np.asarray(getattr(param_element[elem], name), dtype=np.floatx)[sorted_shell_id]
         assert nbas == len(val), "Inconsistent basis set and parameter set"
         #npad = nbas - len(val)
         #if npad > 0:
@@ -194,7 +194,7 @@ def load_global_element_pair_params(
             keys.append(key)
 
     val = [param_kpair.get(key, pad) for key in keys]
-    val = np.asarray(val, dtype=float)
+    val = np.asarray(val, dtype=np.floatx)
 
     if broadcast is None:
         return keys, val
@@ -228,7 +228,7 @@ def load_global_shell_pair_params(mol, param, name, pad=1., broadcast=None,
             key = ANG_MOMENT[min(li, lj)] + ANG_MOMENT[max(li, lj)]
             keys.append(key)
     val = [param_shell.get(key, pad) for key in keys]
-    val = np.asarray(val, dtype=float)
+    val = np.asarray(val, dtype=np.floatx)
 
     if broadcast is None:
         return keys, val

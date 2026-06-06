@@ -77,7 +77,7 @@ class MolePad(MoleLite):
         env0: ArrayLike = None,
     ):
         self.numbers = np.asarray(numbers, dtype=np.int32)
-        self.coords = np.asarray(coords, dtype=np.float64)
+        self.coords = np.asarray(coords, dtype=np.floatx)
         self.basis = basis
         self.charge = charge
         self.spin = spin
@@ -230,17 +230,17 @@ def make_atm_env(
     nuclear_model: int = NUC_POINT,
     nucprop: dict | None = None,
 ) -> tuple[Array, Array]:
+    coords = np.asarray(coords, dtype=np.floatx).reshape(-1,3)
     natm = len(coords)
-    nuc_charge = numbers
+    nuc_charge = np.asarray(numbers, dtype=np.int32)
     if nuclear_model == NUC_POINT:
-        zeta = np.zeros((natm,1))
+        zeta = np.zeros((natm,1), dtype=np.floatx)
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f"nuclear_model = {nuclear_model} is not supported")
     _env = np.hstack((coords, zeta)).ravel()
 
     _atm = np.zeros((natm, ATM_SLOTS), dtype=np.int32)
-    _atm = ops.index_update(_atm, ops.index[:,CHARGE_OF],
-                            np.asarray(nuc_charge, dtype=np.int32))
+    _atm = ops.index_update(_atm, ops.index[:,CHARGE_OF], nuc_charge)
     _atm = ops.index_update(_atm, ops.index[:,PTR_COORD],
                             np.arange(ptr, ptr+4*natm, 4, dtype=np.int32))
     _atm = ops.index_update(_atm, ops.index[:,NUC_MOD_OF],
@@ -257,7 +257,7 @@ def make_env(
     """Make ``_atm``, ``_bas``, and ``_env`` for
     interfacing with libcint.
     """
-    pre_env = np.zeros(PTR_ENV_START)
+    pre_env = np.zeros(PTR_ENV_START, dtype=np.floatx)
     _env = [pre_env]
     ptr_env = pre_env.size
 
