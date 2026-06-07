@@ -36,9 +36,10 @@ def _fermi_smearing_occ(mu, mo_energy, sigma, mo_mask):
 
 @partial(custom_jvp, nondiff_argnums=(0, 3))
 def _smearing_solve_mu(f_occ, mo_es, nocc, sigma, mo_mask):
+    nerr_tol = 1e-6 if np.floatx == np.float32 else 1e-8
     def cond_fun(value):
         _, nerr = value
-        return abs(nerr) > 1e-6
+        return abs(nerr) > nerr_tol
 
     def body_fun(value):
         """One Halley step"""

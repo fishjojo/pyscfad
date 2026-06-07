@@ -287,7 +287,7 @@ class MoleLite(MoleBase):
         self._env = ops.index_update(
             self._env,
             ops.index[PTR_COMMON_ORIG:PTR_COMMON_ORIG+3],
-            coord.astype(self._env.dtype),
+            np.asarray(coord, dtype=self._env.dtype),
         )
         return self
 
@@ -309,7 +309,7 @@ class MoleLite(MoleBase):
         self._env = ops.index_update(
             self._env,
             ops.index[PTR_RINV_ORIG:PTR_RINV_ORIG+3],
-            coord.astype(self._env.dtype),
+            np.asarray(coord, dtype=self._env.dtype),
         )
         return self
 
