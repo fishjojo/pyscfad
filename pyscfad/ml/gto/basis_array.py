@@ -17,7 +17,6 @@ from __future__ import annotations
 import dataclasses
 import numpy
 import jax
-from jax import numpy as jnp
 
 from pyscf.lib.exceptions import BasisNotFoundError
 from pyscf.gto import basis as pyscf_basis
@@ -26,6 +25,8 @@ from pyscf.gto.basis.parse_nwchem import search_seg, _parse
 from pyscf.gto.mole import BAS_SLOTS, NORMALIZE_GTO
 from pyscf.data.elements import _symbol
 
+from pyscfad.typing import Array
+from pyscfad import numpy as np
 from pyscfad.gto.mole_lite import _parse_default_basis, _format_basis
 
 # NOTE Monkey patch
@@ -50,10 +51,10 @@ class BasisArray:
     each element type have the same numbers of shells,
     primitives and contractions.
     """
-    data: jax.Array
-    mask_shl: jax.Array
-    mask_ctr: jax.Array
-    mask_data: jax.Array
+    data: Array
+    mask_shl: Array
+    mask_ctr: Array
+    mask_data: Array
     ls: numpy.ndarray = dataclasses.field(metadata={"static": True})
     l_loc: numpy.ndarray = dataclasses.field(metadata={"static": True})
     nctr: numpy.int32 = dataclasses.field(metadata={"static": True})
@@ -93,24 +94,20 @@ def gaussian_int(n, alpha):
 
 def gto_norm(l, expnt):
     assert numpy.all(l >= 0)
-    return 1. / jnp.sqrt(gaussian_int(l*2+2, 2*expnt))
+    return 1. / np.sqrt(gaussian_int(l*2+2, 2*expnt))
 
 def _nomalize_contracted_ao(l, es, cs):
     ee = es.reshape(-1,1) + es.reshape(1,-1)
     ee = gaussian_int(l*2+2, ee)
-    norm2 = jnp.einsum("pi,pq,qi->i", cs, ee, cs)
-    norm = jnp.where(
-        jnp.equal(norm2, 0.),
-        jnp.array(jnp.inf),
-        jnp.sqrt(norm2),
-    )
-    s1 = 1. / norm
-    return jnp.einsum("pi,i->pi", cs, s1)
+    norm2 = np.einsum("pi,pq,qi->i", cs, ee, cs)
+    norm = np.safe_sqrt(norm2)
+    s1 = np.safe_reciprocal(norm, fill_value=0.)
+    return np.einsum("pi,i->pi", cs, s1)
 
 def make_bas_env(
     basis: BasisArray,
     ptr: int = 0,
-) -> tuple[jax.Array, jax.Array]:
+) -> tuple[Array, Array]:
     _bas = []
     _env = []
     # TODO kappa
@@ -126,7 +123,7 @@ def make_bas_env(
             cs = param[:,1:]
             nprim, nctr = cs.shape
 
-            cs = jnp.einsum("pi,p->pi", cs, gto_norm(l, es))
+            cs = np.einsum("pi,p->pi", cs, gto_norm(l, es))
             if NORMALIZE_GTO:
                 cs = _nomalize_contracted_ao(l, es, cs)
 
@@ -137,8 +134,8 @@ def make_bas_env(
             ptr = ptr_coeff + nprim * nctr
             _bas.append([0, l, nprim, nctr, kappa, ptr_exp, ptr_coeff, 0])
 
-    _bas = jnp.asarray(_bas, dtype=jnp.int32).reshape(data.shape[0], len(ls), BAS_SLOTS)
-    _env = jnp.hstack(_env)
+    _bas = np.asarray(_bas, dtype=np.int32).reshape(data.shape[0], len(ls), BAS_SLOTS)
+    _env = np.hstack(_env)
     return _bas, _env
 
 def make_loc(
@@ -183,20 +180,20 @@ def aoslice_by_atom(
 
 def make_ao_mask(
     basis: BasisArray,
-    mask_shl: jnp.Array,
-    mask_ctr: jnp.Array,
+    mask_shl: Array,
+    mask_ctr: Array,
     cart: bool = False,
-) -> jax.Array:
+) -> Array:
     ls = basis.ls
-    mask_shl_ctr = jnp.einsum("zs,zc->zsc", mask_shl, mask_ctr)
+    mask_shl_ctr = np.einsum("zs,zc->zsc", mask_shl, mask_ctr)
 
     def _scatter_sph(mask):
-        out = [jnp.repeat(mask[i], l * 2 + 1) for i, l in enumerate(ls)]
-        return jnp.hstack(out)
+        out = [np.repeat(mask[i], l * 2 + 1) for i, l in enumerate(ls)]
+        return np.hstack(out)
 
     def _scatter_cart(mask):
-        out = [jnp.repeat(mask[i], (l+1)*(l+2)//2) for i, l in enumerate(ls)]
-        return jnp.hstack(out)
+        out = [np.repeat(mask[i], (l+1)*(l+2)//2) for i, l in enumerate(ls)]
+        return np.hstack(out)
 
     if not cart:
         return jax.vmap(_scatter_sph)(mask_shl_ctr).ravel()
@@ -249,8 +246,10 @@ def make_basis_array(
     l_loc = numpy.append(numpy.array(0, dtype=numpy.int32),
                          numpy.cumsum(numpy.bincount(ls), dtype=numpy.int32))
 
-    a = numpy.zeros([max_number+1, len(ls), max_nexp, max_nc1])
-    a[:,:,:,0] = 1e12 # preset exponents to a large number
+    a = numpy.zeros([max_number+1, len(ls), max_nexp, max_nc1], dtype=np.floatx)
+    # preset exponents to a large number
+    # for FP32 l can be up to 4
+    a[:,:,:,0] = 1e12 if np.floatx==np.float64 else 1e6
     mask_shl = numpy.zeros([max_number+1, len(ls)], dtype=bool)
     mask_ctr = numpy.zeros([max_number+1, max_nc1-1], dtype=bool)
     mask_data = numpy.zeros_like(a, dtype=bool)
@@ -263,15 +262,15 @@ def make_basis_array(
             for i, b in enumerate(bas):
                 l_idx = l_loc[l] + i
                 nexp, nc1 = b.shape
-                a[z, l_idx, :nexp, :nc1] = b
+                a[z, l_idx, :nexp, :nc1] = b.astype(np.floatx)
                 mask_shl[z, l_idx] = True
                 mask_ctr[z, :nc1-1] = True
                 mask_data[z, l_idx, :nexp, :nc1] = True
 
-    return BasisArray(data=jnp.asarray(a),
-                      mask_shl=jnp.asarray(mask_shl),
-                      mask_ctr=jnp.asarray(mask_ctr),
-                      mask_data=jnp.asarray(mask_data),
+    return BasisArray(data=np.asarray(a, dtype=np.floatx),
+                      mask_shl=np.asarray(mask_shl),
+                      mask_ctr=np.asarray(mask_ctr),
+                      mask_data=np.asarray(mask_data),
                       ls=ls, l_loc=l_loc, nctr=numpy.int32(max_nc1-1))
 
 
@@ -289,7 +288,7 @@ def make_basis_array(
 #        mask_ao = b.make_ao_mask(mask_shl, mask_ctr)
 #        return data, mask_shl, mask_ctr, mask_ao
 #
-#    data, mask_shl, mask_ctr, mask_ao = foo(b, jnp.array([8,1,1,0]))
+#    data, mask_shl, mask_ctr, mask_ao = foo(b, np.array([8,1,1,0]))
 #    print(mask_shl)
 #    print(mask_ctr)
 #    print(mask_ao)

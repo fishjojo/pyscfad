@@ -46,10 +46,17 @@ from jax._src.numpy import ufuncs
 from jax import numpy as jnp
 from pyscfadlib import lapack as lp
 
+from pyscfad.backend.config import default_floatx
+
+if default_floatx() == "float32":
+    DEG_THRESH = 1e-6
+else:
+    DEG_THRESH = 1e-9
+
 def eigh_gen(a, b, *,
              lower=True,
              itype=1,
-             deg_thresh=1e-9):
+             deg_thresh=DEG_THRESH):
     a = symmetrize(a)
     b = symmetrize(b)
     w, v = eigh_gen_p.bind(a, b, lower=lower, itype=itype, deg_thresh=deg_thresh)

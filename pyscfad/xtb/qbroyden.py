@@ -35,8 +35,8 @@ def normalize_tot_charge(mol, q):
     nbas = mol.nbas
     shl_mask = getattr(mol, "shl_mask", np.ones(nbas, dtype=bool))
     mask_sum = np.sum(shl_mask)
-    safe_mask_sum = np.where(mask_sum > 0, mask_sum, 1.0)
-    shift = np.where(mask_sum > 0, (np.sum(q[:nbas]) - tot) / safe_mask_sum, 0.0)
+    safe_mask_sum = np.where(mask_sum > 0, mask_sum, 1)
+    shift = np.where(mask_sum > 0, (np.sum(q[:nbas]) - tot) / safe_mask_sum, 0)
     return q.at[:nbas].set(
         np.where(shl_mask, q[:nbas] - shift , 0.)
     )
@@ -126,8 +126,8 @@ def _scf_q_broyden(mf, q, dm, h1e, s1e, vhf, e_tot, conv_tol, conv_tol_grad):
              1, e_tot, de, norm_gorb, np.linalg.norm(dm-dm_last))
 
     n_dim = q.size
-    u_hist = np.zeros((n_dim, mf.max_cycle))
-    v_hist = np.zeros((n_dim, mf.max_cycle))
+    u_hist = np.zeros((n_dim, mf.max_cycle), dtype=np.floatx)
+    v_hist = np.zeros((n_dim, mf.max_cycle), dtype=np.floatx)
 
     init_val = (1, de, norm_gorb, q1, s0, g0, dm, vhf, fock, e_tot, u_hist, v_hist)
     cycle, _, _, q, dq, _, dm, vhf, fock, e_tot, _, _ = while_loop(
@@ -188,6 +188,7 @@ def scf(
         q = mf.get_q(mol, dm=dm, s1e=s1e)
     else:
         q = q0
+    q = np.asarray(q, dtype=np.floatx)
 
     h1e = mf.get_hcore(mol, s1e=s1e)
     vhf = mf.get_veff(mol, s1e=s1e, q=q)

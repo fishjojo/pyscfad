@@ -71,7 +71,7 @@ class XTB(ABC, SCFLite):
     def get_hcore(
         self,
         mol: MoleLite | None = None,
-        s1e: ArrayLike | None = None,
+        s1e: Array | None = None,
     ) -> Array:
         raise NotImplementedError
 
@@ -79,12 +79,12 @@ class XTB(ABC, SCFLite):
     def get_veff(
         self,
         mol: MoleLite | None = None,
-        dm: ArrayLike | None = None,
-        dm_last: ArrayLike = np.array(0.),
-        vhf_last: ArrayLike = np.array(0.),
+        dm: Array | None = None,
+        dm_last: Array | None = None,
+        vhf_last: Array | None = None,
         hermi: int = 1,
-        s1e: ArrayLike | None = None,
-        q: ArrayLike | None = None,
+        s1e: Array | None = None,
+        q: Array | None = None,
         **kwargs,
     ) -> VXC:
         raise NotImplementedError
@@ -111,7 +111,6 @@ class XTB(ABC, SCFLite):
     def _get_EHT_factor(
         self,
         mol: MoleLite | None = None,
-        s1e: ArrayLike | None = None,
     ) -> Array:
         raise NotImplementedError
 
@@ -172,8 +171,8 @@ class XTB(ABC, SCFLite):
     def shell_charges(
         self,
         mol: MoleLite | None = None,
-        dm: ArrayLike | None = None,
-        s1e: ArrayLike | None = None,
+        dm: Array | None = None,
+        s1e: Array | None = None,
         method: str = "mulliken"
     ) -> Array:
         if mol is None:
@@ -238,16 +237,17 @@ def EHT_PI_GFN1(
 def mulliken_charge(
     mol: MoleLite,
     param: Any,
-    s1e: ArrayLike,
-    dm: ArrayLike,
+    s1e: Array,
+    dm: Array,
 ) -> Array:
     PS = np.einsum("pq,qp->p", dm, s1e)
-    occs = np.zeros(mol.nbas)
+    occs = np.zeros(mol.nbas, dtype=PS.dtype)
     occs = ops.index_add(occs, ops.index[util.bas_to_ao_indices(mol)], PS)
     return param.refocc - occs
 
 def sum_shell_charges(mol: MoleLite, partial_charges: ArrayLike) -> Array:
-    atm_charges = np.zeros(mol.natm)
+    partial_charges = np.asarray(partial_charges)
+    atm_charges = np.zeros(mol.natm, dtype=partial_charges.dtype)
     atm_charges = ops.index_add(
                         atm_charges,
                         ops.index[util.atom_to_bas_indices(mol)],
@@ -272,18 +272,16 @@ class GFN1XTB(XTB):
     def _get_gamma(self) -> Array:
         return gamma_GFN1(self.mol, self.param)
 
-    def get_hcore(self, mol: MoleLite | None = None, s1e: ArrayLike | None = None) -> Array:
+    def get_hcore(self, mol: MoleLite | None = None, s1e: Array | None = None) -> Array:
         if mol is None:
             mol = self.mol
         if s1e is None:
             s1e = self.get_ovlp()
-        return s1e * self._get_EHT_factor(mol, s1e)
+        return s1e * self._get_EHT_factor(mol)
 
-    def _get_EHT_factor(self, mol: MoleLite | None = None, s1e: ArrayLike | None = None) -> Array:
+    def _get_EHT_factor(self, mol: MoleLite | None = None) -> Array:
         if mol is None:
             mol = self.mol
-        if s1e is None:
-            s1e = self.get_ovlp()
 
         param = self.param
 
@@ -297,17 +295,17 @@ class GFN1XTB(XTB):
         h1 = np.where(mask,
                       hscale * EHT_PI_GFN1(mol, param) * hdiag,
                       hdiag)
-        return h1[util.bas_to_ao_indices_2d(mol)]
+        return np.asarray(h1[util.bas_to_ao_indices_2d(mol)], dtype=np.floatx)
 
     def get_veff(
         self,
         mol: MoleLite | None = None,
-        dm: ArrayLike | None = None,
-        dm_last: ArrayLike = np.array(0.),
-        vhf_last: ArrayLike = np.array(0.),
+        dm: Array | None = None,
+        dm_last: Array | None = None,
+        vhf_last: Array | None = None,
         hermi: int = 1,
-        s1e: ArrayLike | None = None,
-        q: ArrayLike | None = None,
+        s1e: Array | None = None,
+        q: Array | None = None,
         **kwargs,
     ) -> VXC:
         del dm_last, vhf_last

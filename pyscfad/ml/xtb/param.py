@@ -18,11 +18,12 @@ import dataclasses
 
 import numpy
 import jax
-from jax import numpy as jnp
 
 from pyscf.data.elements import _symbol
 from pyscf.data.nist import HARTREE2EV
 
+from pyscfad.typing import Array
+from pyscfad import numpy as np
 from pyscfad.xtb.param import GFN1Param, cn_d3
 from pyscfad.xtb.util import atom_to_bas_indices, atom_to_bas_indices_2d, ANG_MOMENT
 
@@ -39,17 +40,20 @@ def make_gfn1_param_array(
     kcn_d3 = param.kcn_d3
     kEN = param.kEN
 
-    EN = numpy.zeros((max_number+1,))
-    zeff = numpy.zeros((max_number+1,))
-    arep = numpy.zeros((max_number+1,))
-    refocc = numpy.zeros((max_number+1, basis.nbas))
-    gam = numpy.ones((max_number+1,)) # use ones to avoid gradient divergence
-    lgam = numpy.ones((max_number+1, basis.nbas)) # use ones to avoid gradient divergence
-    gam3 = numpy.zeros((max_number+1,))
-    selfenergy = numpy.zeros((max_number+1, basis.nbas))
-    shpoly = numpy.zeros((max_number+1, basis.nbas))
-    kcn = numpy.zeros((max_number+1, basis.nbas))
-    kpair = numpy.ones((max_number+1, max_number+1))
+    EN = numpy.zeros((max_number+1,), dtype=np.floatx)
+    zeff = numpy.zeros((max_number+1,), dtype=np.floatx)
+    arep = numpy.zeros((max_number+1,), dtype=np.floatx)
+    refocc = numpy.zeros((max_number+1, basis.nbas), dtype=np.floatx)
+
+    # use ones to avoid gradient divergence
+    gam = numpy.ones((max_number+1,), dtype=np.floatx)
+    lgam = numpy.ones((max_number+1, basis.nbas), dtype=np.floatx)
+
+    gam3 = numpy.zeros((max_number+1,), dtype=np.floatx)
+    selfenergy = numpy.zeros((max_number+1, basis.nbas), dtype=np.floatx)
+    shpoly = numpy.zeros((max_number+1, basis.nbas), dtype=np.floatx)
+    kcn = numpy.zeros((max_number+1, basis.nbas), dtype=np.floatx)
+    kpair = numpy.ones((max_number+1, max_number+1), dtype=np.floatx)
     for z in range(1,max_number+1):
         symb = _symbol(z)
         EN[z] = param.element[symb].en
@@ -69,7 +73,7 @@ def make_gfn1_param_array(
             if z != z1:
                 kpair[z1,z] = kpair[z,z1]
 
-    k_shlpr = numpy.ones((basis.nbas, basis.nbas))
+    k_shlpr = numpy.ones((basis.nbas, basis.nbas), dtype=np.floatx)
     ls = basis.ls.copy()
     if numpy.bincount(ls)[0] == 2:
         ls[1] = -20 # H 2s
@@ -81,18 +85,18 @@ def make_gfn1_param_array(
     return GFN1ParamArray(kf=kf,
                           kcn_d3=kcn_d3,
                           kEN=kEN,
-                          EN=jnp.asarray(EN),
-                          zeff=jnp.asarray(zeff),
-                          arep=jnp.asarray(arep),
-                          refocc=jnp.asarray(refocc),
-                          gam=jnp.asarray(gam),
-                          lgam=jnp.asarray(lgam),
-                          gam3=jnp.asarray(gam3),
-                          selfenergy=jnp.asarray(selfenergy),
-                          shpoly=jnp.asarray(shpoly),
-                          kcn=jnp.asarray(kcn),
-                          kpair=jnp.asarray(kpair),
-                          k_shlpr=jnp.asarray(k_shlpr))
+                          EN=np.asarray(EN),
+                          zeff=np.asarray(zeff),
+                          arep=np.asarray(arep),
+                          refocc=np.asarray(refocc),
+                          gam=np.asarray(gam),
+                          lgam=np.asarray(lgam),
+                          gam3=np.asarray(gam3),
+                          selfenergy=np.asarray(selfenergy),
+                          shpoly=np.asarray(shpoly),
+                          kcn=np.asarray(kcn),
+                          kpair=np.asarray(kpair),
+                          k_shlpr=np.asarray(k_shlpr))
 
 def make_param_array(
     basis: BasisArray,
@@ -115,20 +119,20 @@ class GFN1ParamArray(ParamArray):
     kf: float
     kcn_d3: float
     kEN: float
-    EN: jax.Array
-    zeff: jax.Array
-    arep: jax.Array
-    refocc: jax.Array
-    gam: jax.Array
-    lgam: jax.Array
-    gam3: jax.Array
-    selfenergy: jax.Array
-    shpoly: jax.Array
-    kcn: jax.Array
-    kpair: jax.Array
-    k_shlpr: jax.Array
-    dipgam: jax.Array | None = None
-    quadgam: jax.Array | None = None
+    EN: Array
+    zeff: Array
+    arep: Array
+    refocc: Array
+    gam: Array
+    lgam: Array
+    gam3: Array
+    selfenergy: Array
+    shpoly: Array
+    kcn: Array
+    kpair: Array
+    k_shlpr: Array
+    dipgam: Array | None = None
+    quadgam: Array | None = None
 
     def to_mol_param(self, mol: MolePad) -> GFN1MoleParam:
         kf = self.kf
@@ -152,13 +156,13 @@ class GFN1ParamArray(ParamArray):
         shpoly = self.shpoly[mol.numbers].ravel()
         kcn = self.kcn[mol.numbers].ravel()
         CN = cn_d3(mol, kcn=self.kcn_d3)
-        kpair = self.kpair[jnp.ix_(mol.numbers, mol.numbers)]
+        kpair = self.kpair[np.ix_(mol.numbers, mol.numbers)]
         kpair = kpair[atom_to_bas_indices_2d(mol)]
 
-        l_to_bas_id = jnp.tile(jnp.arange(mol.basis.nbas), mol.natm)
-        k_shlpr = self.k_shlpr[jnp.ix_(l_to_bas_id, l_to_bas_id)]
-        mask = jnp.outer(mol.shl_mask, mol.shl_mask)
-        k_shlpr = jnp.where(mask, k_shlpr, 1)
+        l_to_bas_id = np.tile(np.arange(mol.basis.nbas), mol.natm)
+        k_shlpr = self.k_shlpr[np.ix_(l_to_bas_id, l_to_bas_id)]
+        mask = np.outer(mol.shl_mask, mol.shl_mask)
+        k_shlpr = np.where(mask, k_shlpr, 1)
         return GFN1MoleParam(kf=kf,
                              kEN=kEN,
                              EN=EN,
@@ -186,19 +190,19 @@ class MoleParam(ABC):
 class GFN1MoleParam(MoleParam):
     kf: float
     kEN: float
-    EN: jax.Array
-    zeff: jax.Array
-    arep: jax.Array
-    refocc: jax.Array
-    gam: jax.Array
-    lgam: jax.Array
-    gam3: jax.Array
-    selfenergy: jax.Array
-    shpoly: jax.Array
-    kcn: jax.Array
-    CN: jax.Array
-    kpair: jax.Array
-    k_shlpr: jax.Array
-    dipgam: jax.Array | None = None
-    quadgam: jax.Array | None = None
+    EN: Array
+    zeff: Array
+    arep: Array
+    refocc: Array
+    gam: Array
+    lgam: Array
+    gam3: Array
+    selfenergy: Array
+    shpoly: Array
+    kcn: Array
+    CN: Array
+    kpair: Array
+    k_shlpr: Array
+    dipgam: Array | None = None
+    quadgam: Array | None = None
 

@@ -45,9 +45,9 @@ def get_Gv_weights(cell, mesh=None):
         mesh = cell.mesh
 
     # Default, the 3D uniform grids
-    rx = np.fft.fftfreq(mesh[0], 1./mesh[0])
-    ry = np.fft.fftfreq(mesh[1], 1./mesh[1])
-    rz = np.fft.fftfreq(mesh[2], 1./mesh[2])
+    rx = np.fft.fftfreq(mesh[0], 1./mesh[0], dtype=np.floatx)
+    ry = np.fft.fftfreq(mesh[1], 1./mesh[1], dtype=np.floatx)
+    rz = np.fft.fftfreq(mesh[2], 1./mesh[2], dtype=np.floatx)
     b = cell.reciprocal_vectors()
     weights = abs(np.linalg.det(b))
 

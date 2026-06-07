@@ -35,7 +35,7 @@ def eigh(a, b=None, *,
          subset_by_index=None,
          subset_by_value=None,
          driver=None,
-         deg_thresh=1e-9):
+         deg_thresh=lax_linalg.DEG_THRESH):
     if overwrite_a or overwrite_b:
         warnings.warn('Arguments \'overwrite_a\' and \'overwrite_b\' have no effect.')
     if check_finite:

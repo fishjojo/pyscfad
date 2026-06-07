@@ -12,8 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .config import get_backend
+from .config import get_backend, default_floatx
 import numpy
+
+#: Default floating-point dtype (``float32`` or ``float64``), fixed at
+#: import time by the global ``PYSCFAD_FLOATX`` setting. Use it wherever
+#: a dtype is expected, e.g. ``np.zeros(n, dtype=np.floatx)`` or
+#: ``x.astype(np.floatx)``.
+floatx = numpy.dtype(default_floatx())
 
 def __getattr__(name):
     return getattr(get_backend(), name)

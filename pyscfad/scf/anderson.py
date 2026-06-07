@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2025-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,6 +23,11 @@ from pyscfad import pytree
 
 Array = Any
 
+if np.floatx == np.float32:
+    RIDGE_TOL = 1e-6
+else:
+    RIDGE_TOL = 1e-10
+
 def _tree_scale_sum(a, xs):
     return tree.map(lambda x: np.tensordot(a, x, axes=1), xs)
 
@@ -44,10 +49,11 @@ def minimize_residual(
     ridge: float,
 ) -> Array:
     m = res_gram.shape[0]
-    res_gram = res_gram + ridge * np.eye(m) # avoid divergence
-    H = np.block([[np.zeros((1, 1)), np.ones((1, m))],
-                  [ np.ones((m, 1)), res_gram       ]])
-    c = np.zeros((m+1)).at[0].set(1)
+    dtype = res_gram.dtype
+    res_gram = res_gram + ridge * np.eye(m, dtype=dtype) # avoid divergence
+    H = np.block([[np.zeros((1, 1), dtype=dtype), np.ones((1, m), dtype=dtype)],
+                  [ np.ones((m, 1), dtype=dtype), res_gram       ]])
+    c = np.zeros((m+1), dtype=dtype).at[0].set(1)
     alpha = np.linalg.solve(H, c)
     return alpha
 
@@ -109,7 +115,7 @@ class Anderson(pytree.PytreeNode):
         self,
         param: Any,
         space: int = 6,
-        ridge: float = 1e-10,
+        ridge: float = RIDGE_TOL,
         damp: float = 0,
         start_cycle: int = 1,
     ):
@@ -126,7 +132,7 @@ class Anderson(pytree.PytreeNode):
         m = self.space
         param_hist = tree.map(lambda x: np.tile(x, [m]+[1]*x.ndim), param)
         res_hist = tree.map(np.zeros_like, param_hist)
-        res_gram = np.zeros((m,m))
+        res_gram = np.zeros((m,m), dtype=np.floatx)
         state = AndersonState(
             cycle=np.asarray(0, dtype=int),
             param_hist=param_hist,

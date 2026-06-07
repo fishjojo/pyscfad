@@ -155,6 +155,29 @@ def test_int1e_origin(atom, basis, unit):
             assert abs(int1_dR0 - int0_dR0).max() < 1e-8
             assert abs(int1_dR - int0_dR).max() < 1e-8
 
+def test_origin_array_like(atom, basis, unit):
+    # set_common_origin / set_rinv_origin are annotated to accept ArrayLike,
+    # so a plain Python sequence must work identically to an ndarray.
+    mol = MoleLite(
+        symbols=("h1", "h2"),
+        coords=np.array([[0., 0., 0.], [0., 0., 2.]]),
+        basis=basis,
+    )
+    R0_list = [1., 0., 1.]
+    R0_arr = numpy.asarray(R0_list)
+
+    with mol.with_common_origin(R0_list):
+        r_list = mol.intor("int1e_r")
+    with mol.with_common_origin(R0_arr):
+        r_arr = mol.intor("int1e_r")
+    assert abs(r_list - r_arr).max() < 1e-12
+
+    with mol.with_rinv_origin(R0_list):
+        rinv_list = mol.intor("int1e_rinv")
+    with mol.with_rinv_origin(R0_arr):
+        rinv_arr = mol.intor("int1e_rinv")
+    assert abs(rinv_list - rinv_arr).max() < 1e-12
+
 def test_from_to_pyscf(atom, basis, unit):
     pmol = pyscf.M(atom=atom, basis=basis, unit=unit)
     mol = MoleLite.from_pyscf(pmol)
