@@ -81,6 +81,8 @@ pyscfad.scf.hf\_lite.SCFLite
            ~SCFLite.get_occ
          
          
+           ~SCFLite.get_ovlp
+         
          
            ~SCFLite.get_veff
          

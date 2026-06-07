@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.2" />
-    <meta name="docbuild:last-update" content="Jun 03, 2026"/>
+    <meta name="docbuild:last-update" content="Jun 07, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -992,7 +992,7 @@
 <h1>pyscfad.scf.hf_lite.SCFLite<a class="headerlink" href="#pyscfad-scf-hf-lite-scflite" title="Link to this heading">#</a></h1>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="pyscfad.scf.hf_lite.SCFLite">
-<span class="sig-prename descclassname"><span class="pre">pyscfad.scf.hf_lite.</span></span><span class="sig-name descname"><span class="pre">SCFLite</span></span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf_lite.py#L298-L523"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf_lite.SCFLite" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyscfad.scf.hf_lite.</span></span><span class="sig-name descname"><span class="pre">SCFLite</span></span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf_lite.py#L303-L533"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf_lite.SCFLite" title="Link to this definition">#</a></dt>
 <dd><p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
@@ -1035,19 +1035,22 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.get_occ.html#pyscfad.scf.hf_lite.SCFLite.get_occ" title="pyscfad.scf.hf_lite.SCFLite.get_occ"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_occ</span></code></a>([mo_energy, mo_coeff])</p></td>
 <td><p>Get MO occupations.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.get_veff.html#pyscfad.scf.hf_lite.SCFLite.get_veff" title="pyscfad.scf.hf_lite.SCFLite.get_veff"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_veff</span></code></a>([mol, dm, dm_last, vhf_last, hermi])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.get_ovlp.html#pyscfad.scf.hf_lite.SCFLite.get_ovlp" title="pyscfad.scf.hf_lite.SCFLite.get_ovlp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_ovlp</span></code></a>([mol])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.get_veff.html#pyscfad.scf.hf_lite.SCFLite.get_veff" title="pyscfad.scf.hf_lite.SCFLite.get_veff"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_veff</span></code></a>([mol, dm, dm_last, vhf_last, hermi])</p></td>
 <td><p>Hartree-Fock potential matrix for the given density matrix</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.kernel.html#pyscfad.scf.hf_lite.SCFLite.kernel" title="pyscfad.scf.hf_lite.SCFLite.kernel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">kernel</span></code></a>([dm0])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.kernel.html#pyscfad.scf.hf_lite.SCFLite.kernel" title="pyscfad.scf.hf_lite.SCFLite.kernel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">kernel</span></code></a>([dm0])</p></td>
 <td><p>SCF main driver</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.make_rdm1.html#pyscfad.scf.hf_lite.SCFLite.make_rdm1" title="pyscfad.scf.hf_lite.SCFLite.make_rdm1"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_rdm1</span></code></a>([mo_coeff, mo_occ])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.make_rdm1.html#pyscfad.scf.hf_lite.SCFLite.make_rdm1" title="pyscfad.scf.hf_lite.SCFLite.make_rdm1"><code class="xref py py-obj docutils literal notranslate"><span class="pre">make_rdm1</span></code></a>([mo_coeff, mo_occ])</p></td>
 <td><p>One-particle density matrix in AO representation</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.mo_mask.html#pyscfad.scf.hf_lite.SCFLite.mo_mask" title="pyscfad.scf.hf_lite.SCFLite.mo_mask"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mo_mask</span></code></a>([mo_energy, mo_coeff])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.mo_mask.html#pyscfad.scf.hf_lite.SCFLite.mo_mask" title="pyscfad.scf.hf_lite.SCFLite.mo_mask"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mo_mask</span></code></a>([mo_energy, mo_coeff])</p></td>
 <td><p>MO masks.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.scf.html#pyscfad.scf.hf_lite.SCFLite.scf" title="pyscfad.scf.hf_lite.SCFLite.scf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scf</span></code></a>([dm0])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.scf.hf_lite.SCFLite.scf.html#pyscfad.scf.hf_lite.SCFLite.scf" title="pyscfad.scf.hf_lite.SCFLite.scf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scf</span></code></a>([dm0])</p></td>
 <td><p>SCF main driver</p></td>
 </tr>
 </tbody>
