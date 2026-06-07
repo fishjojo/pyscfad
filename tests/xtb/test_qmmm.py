@@ -64,13 +64,48 @@ def test_gfn1_xtb_qmmm_energy_force(setup):
     g_fd = (energy(cp) - energy(cm)) / (2 * eps)
     assert abs(g[0, 0] - g_fd) < 1e-5
 
-def test_gfn1_xtb_qmmm_energy_force_fp32(setup, float32_ctx):
+# Body executed under PYSCFAD_FLOATX=float32 in a subprocess (see the
+# ``run_fp32`` fixture); mirrors ``_make_energy`` for the QM/MM coupling.
+_FP32_QMMM_BODY = """
+from pyscfad.gto import MoleLite as Mole
+from pyscfad.xtb import basis as xtb_basis
+from pyscfad.xtb import GFN1XTB
+from pyscfad.xtb.param import GFN1Param
+from pyscfad.xtb.qmmm_pbc.itrf import add_mm_charges
+
+numbers = np.asarray(IN["numbers"])
+coords = np.asarray(IN["coords"])
+a = np.asarray(IN["a"])
+mm_coords = np.asarray(IN["mm_coords"])
+mm_charges = np.asarray(IN["mm_charges"])
+mm_radii = np.asarray(IN["mm_radii"])
+
+basis = xtb_basis.get_basis_filename()
+param = GFN1Param()
+
+def energy(coords):
+    mol = Mole(numbers=numbers, coords=coords, basis=basis, trace_coords=True)
+    mf = GFN1XTB(mol, param=param)
+    mf = add_mm_charges(mf, mm_coords, a, mm_charges, mm_radii, unit='Bohr')
+    mf.diis = None
+    return mf.kernel()
+
+e, g = jax.value_and_grad(energy)(coords)
+emit(e=float(e), g=numpy.asarray(g).tolist())
+"""
+
+def test_gfn1_xtb_qmmm_energy_force_fp32(setup, run_fp32):
     basis, param, numbers, coords, a, mm_coords, mm_charges, mm_radii = setup
     energy = _make_energy(basis, param, numbers, a, mm_coords, mm_charges, mm_radii)
 
+    # FP64 baseline in-process; FP32 result from a float32 subprocess.
     e64, g64 = jax.value_and_grad(energy)(coords)
-    with float32_ctx():
-        e32, g32 = jax.value_and_grad(energy)(coords)
+    res = run_fp32(
+        _FP32_QMMM_BODY,
+        numbers=numbers, coords=coords, a=a,
+        mm_coords=mm_coords, mm_charges=mm_charges, mm_radii=mm_radii)
+    e32 = res["e"]
+    g32 = np.asarray(res["g"])
 
     assert abs(e32 - e64) < 1e-5
     assert abs(g32 - g64).max() < 1e-5
