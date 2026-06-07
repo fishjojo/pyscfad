@@ -247,7 +247,9 @@ def make_basis_array(
                          numpy.cumsum(numpy.bincount(ls), dtype=numpy.int32))
 
     a = numpy.zeros([max_number+1, len(ls), max_nexp, max_nc1], dtype=np.floatx)
-    a[:,:,:,0] = 1e12 # preset exponents to a large number
+    # preset exponents to a large number
+    # for FP32 l can be up to 4
+    a[:,:,:,0] = 1e12 if np.floatx==np.float64 else 1e6
     mask_shl = numpy.zeros([max_number+1, len(ls)], dtype=bool)
     mask_ctr = numpy.zeros([max_number+1, max_nc1-1], dtype=bool)
     mask_data = numpy.zeros_like(a, dtype=bool)
