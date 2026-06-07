@@ -242,8 +242,10 @@ def kernel(
     if dm0 is None:
         dm = mf.get_init_guess(mol, mf.init_guess, s1e=s1e)
     else:
-        dm = dm0
-    dm = np.asarray(dm, dtype=np.floatx)
+        dm = np.asarray(dm0)
+
+    if not np.iscomplexobj(dm):
+        dm = np.asarray(dm, dtype=np.floatx)
 
     h1e = mf.get_hcore(mol, s1e=s1e)
     vhf = mf.get_veff(mol, dm, s1e=s1e)

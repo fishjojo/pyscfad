@@ -44,8 +44,11 @@ def make_gfn1_param_array(
     zeff = numpy.zeros((max_number+1,), dtype=np.floatx)
     arep = numpy.zeros((max_number+1,), dtype=np.floatx)
     refocc = numpy.zeros((max_number+1, basis.nbas), dtype=np.floatx)
-    gam = numpy.ones((max_number+1,), dtype=np.floatx) # use ones to avoid gradient divergence
-    lgam = numpy.ones((max_number+1, basis.nbas), dtype=np.floatx) # use ones to avoid gradient divergence
+
+    # use ones to avoid gradient divergence
+    gam = numpy.ones((max_number+1,), dtype=np.floatx)
+    lgam = numpy.ones((max_number+1, basis.nbas), dtype=np.floatx)
+
     gam3 = numpy.zeros((max_number+1,), dtype=np.floatx)
     selfenergy = numpy.zeros((max_number+1, basis.nbas), dtype=np.floatx)
     shpoly = numpy.zeros((max_number+1, basis.nbas), dtype=np.floatx)

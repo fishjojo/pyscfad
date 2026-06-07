@@ -2,6 +2,9 @@
 
 Chorismate Mutase
 
+# Note:
+Make sure energy spectrum is within +-40 Eh when padding is on.
+
 # FP32 set up:
 export PYSCFAD_FLOATX="float32"
 
