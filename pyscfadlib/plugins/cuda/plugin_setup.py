@@ -51,13 +51,16 @@ setup(
     packages=[package_name],
     python_requires=">=3.11",
     extras_require={
+      # CUDA runtime libraries, matched to the wheel's CUDA major version.
+      # The compiled modules link these (libcusolver.so.11 for cu12,
+      # libcusolver.so.12 for cu13, etc.); CI ships slim wheels that resolve
+      # them from these packages at runtime.
       'with_cuda': [
-          "nvidia-cublas-cu12>=12.1.3.1",
-          "nvidia-cuda-nvcc-cu12>=12.6.85",
-          "nvidia-cuda-runtime-cu12>=12.1.105",
-          "nvidia-cusolver-cu12>=11.4.5.107",
-          "nvidia-cusparse-cu12>=12.1.0.106",
-          "nvidia-nvjitlink-cu12>=12.1.105",
+          f"nvidia-cublas-cu{cuda_version}",
+          f"nvidia-cuda-runtime-cu{cuda_version}",
+          f"nvidia-cusolver-cu{cuda_version}",
+          f"nvidia-cusparse-cu{cuda_version}",
+          f"nvidia-nvjitlink-cu{cuda_version}",
       ],
     },
     license="Apache-2.0",
