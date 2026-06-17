@@ -42,6 +42,7 @@ from pyscfad.gto.moleintor_lite import (
     _aoslice_by_atom,
     _extract_coords,
 )
+from pyscfadlib._cuda_plugin import import_plugin_module
 
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
@@ -49,7 +50,6 @@ if TYPE_CHECKING:
 
 # Load the integral module from the CUDA plugin matching jax's CUDA version
 # (pyscfad-cuda12-plugin / pyscfad-cuda13-plugin / ...).
-from pyscfadlib._cuda_plugin import import_plugin_module
 _cuint = import_plugin_module("_cuint")
 
 if _cuint:
