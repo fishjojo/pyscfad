@@ -18,7 +18,6 @@ GTO integrals using the cuint backend.
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from collections.abc import Sequence
-import importlib
 from dataclasses import dataclass, field, replace
 from functools import partial
 import numpy
@@ -48,16 +47,10 @@ if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
     from pyscfad.gto import MoleLite
 
-_cuint = None
-try:
-    _cuint = importlib.import_module(
-            "._cuint", package="pyscfad_cuda12_plugin",
-    )
-except ImportError as e:
-    #raise ImportError(
-    #    "Failed to import '_cuint' from 'pyscfad_cuda12_plugin'. "
-    #) from e
-    pass
+# Load the integral module from the CUDA plugin matching jax's CUDA version
+# (pyscfad-cuda12-plugin / pyscfad-cuda13-plugin / ...).
+from pyscfadlib._cuda_plugin import import_plugin_module
+_cuint = import_plugin_module("_cuint")
 
 if _cuint:
     for _name, _value in _cuint.registrations().items():
