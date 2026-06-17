@@ -37,6 +37,11 @@ cuda12 = [
   "pyscfad-cuda12-plugin[with_cuda]>=0.3.0",
 ]
 
+cuda13 = [
+  "jax[cuda13]>=0.9.1,<0.11",
+  "pyscfad-cuda13-plugin[with_cuda]>=0.3.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/fishjojo/pyscfad"
 

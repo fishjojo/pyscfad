@@ -14,22 +14,36 @@ PySCF with Auto-differentiation
 Installation
 ------------
 
-* To install the latest release, run:
-```
-pip install pyscfad
-```
+To install the latest release, choose the command matching your hardware:
 
-* To install the CUDA compatible version, run:
-```
-pip install pyscfad[cuda12]
-```
+| Hardware                | Installation                          |
+|-------------------------|---------------------------------------|
+| CPU                     | `pip install pyscfad`                 |
+| NVIDIA GPU (CUDA 12)    | `pip install "pyscfad[cuda12]"`       |
+| NVIDIA GPU (CUDA 13)    | `pip install "pyscfad[cuda13]"`       |
 
-* To install the development version, run:
+To install the development version, run:
 ```
 pip install git+https://github.com/fishjojo/pyscfad.git
 ```
 The dependent C/C++ library `pyscfadlib` can be compiled from source following the instruction
 [here](https://fishjojo.github.io/pyscfad/getting_started/install.html#installing-pyscfadlib).
+
+### Supported platforms
+
+Prebuilt wheels are published for the following platforms:
+
+| Platform                      | CPU | NVIDIA GPU |
+|-------------------------------|-----|------------|
+| Linux, x86_64                 | yes | yes        |
+| Linux, aarch64                | yes | yes        |
+| macOS, Apple silicon (arm64)  | yes | n/a        |
+| macOS, Intel (x86_64)         | no  | n/a        |
+| Windows, x86_64               | no  | no         |
+| Windows WSL2, x86_64          | yes | yes        |
+
+On platforms without a prebuilt wheel, `pyscfadlib` can still be compiled from source
+(see the link above).
 
 
 `pyscfad` depends on

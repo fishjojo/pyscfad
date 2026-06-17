@@ -24,6 +24,22 @@ class BinaryDistribution(Distribution):
   def has_ext_modules(self):
     return True
 
+def cuda_runtime_requirements(cuda_version):
+  """PyPI requirements for the CUDA runtime libraries the modules link against.
+
+  NVIDIA changed the package naming at CUDA 13: through CUDA 12 the real
+  libraries are suffixed (``nvidia-cublas-cu12``); from CUDA 13 on the suffixed
+  packages are empty deprecation stubs and the real libraries live under the
+  unsuffixed names, with the CUDA major encoded in the package version
+  (``nvidia-cublas`` 13.x). For the unsuffixed names we therefore pin the major
+  so a cuda13 wheel cannot resolve a future cuda14 library.
+  """
+  libs = ["nvidia-cublas", "nvidia-cuda-runtime", "nvidia-cusolver",
+          "nvidia-cusparse", "nvidia-nvjitlink"]
+  if cuda_version >= 13:
+    return [f"{name}>={cuda_version},<{cuda_version + 1}" for name in libs]
+  return [f"{name}-cu{cuda_version}" for name in libs]
+
 setup(
     name=project_name,
     version=__version__,
@@ -39,13 +55,7 @@ setup(
       # The compiled modules link these (libcusolver.so.11 for cu12,
       # libcusolver.so.12 for cu13, etc.); CI ships slim wheels that resolve
       # them from these packages at runtime.
-      'with_cuda': [
-          f"nvidia-cublas-cu{cuda_version}",
-          f"nvidia-cuda-runtime-cu{cuda_version}",
-          f"nvidia-cusolver-cu{cuda_version}",
-          f"nvidia-cusparse-cu{cuda_version}",
-          f"nvidia-nvjitlink-cu{cuda_version}",
-      ],
+      'with_cuda': cuda_runtime_requirements(cuda_version),
     },
     license="Apache-2.0",
     classifiers=[
