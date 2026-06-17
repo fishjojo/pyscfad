@@ -454,14 +454,71 @@
 </section>
 <section id="installing-from-pypi">
 <h2>Installing from PyPI<a class="headerlink" href="#installing-from-pypi" title="Link to this heading">#</a></h2>
-<p>pyscfad can be installed via pip from <a class="reference external" href="https://pypi.org/project/pyscfad/">PyPI</a>.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">pyscfad</span>
-</pre></div>
+<p>pyscfad can be installed via pip from <a class="reference external" href="https://pypi.org/project/pyscfad/">PyPI</a>.
+Choose the command matching your hardware:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Hardware</p></th>
+<th class="head"><p>Installation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>CPU</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">pyscfad</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>NVIDIA GPU (CUDA 12)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;pyscfad[cuda12]&quot;</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>NVIDIA GPU (CUDA 13)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;pyscfad[cuda13]&quot;</span></code></p></td>
+</tr>
+</tbody>
+</table>
 </div>
-<p>To install the CUDA compatible version, run</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">pyscfad</span><span class="p">[</span><span class="n">cuda12</span><span class="p">]</span>
-</pre></div>
+<p>The <code class="docutils literal notranslate"><span class="pre">cuda12</span></code>/<code class="docutils literal notranslate"><span class="pre">cuda13</span></code> extras pull in <code class="docutils literal notranslate"><span class="pre">jax</span></code> with the matching CUDA support and the
+<code class="docutils literal notranslate"><span class="pre">pyscfad-cuda&lt;major&gt;-plugin</span></code> wheel, which interfaces with the NVIDIA cuSOLVER/cuBLAS
+libraries. Pick the extra whose CUDA major matches your driver/toolkit.</p>
+</section>
+<section id="supported-platforms">
+<h2>Supported platforms<a class="headerlink" href="#supported-platforms" title="Link to this heading">#</a></h2>
+<p>Prebuilt wheels are published for the following platforms:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Platform</p></th>
+<th class="head"><p>CPU</p></th>
+<th class="head"><p>NVIDIA GPU</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Linux, x86_64</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-odd"><td><p>Linux, aarch64</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+<tr class="row-even"><td><p>macOS, Apple silicon (arm64)</p></td>
+<td><p>yes</p></td>
+<td><p>n/a</p></td>
+</tr>
+<tr class="row-odd"><td><p>macOS, Intel (x86_64)</p></td>
+<td><p>no</p></td>
+<td><p>n/a</p></td>
+</tr>
+<tr class="row-even"><td><p>Windows, x86_64</p></td>
+<td><p>no</p></td>
+<td><p>no</p></td>
+</tr>
+<tr class="row-odd"><td><p>Windows WSL2, x86_64</p></td>
+<td><p>yes</p></td>
+<td><p>yes</p></td>
+</tr>
+</tbody>
+</table>
 </div>
+<p>On platforms without a prebuilt wheel, <code class="docutils literal notranslate"><span class="pre">pyscfadlib</span></code> can still be compiled from source
+(see <a class="reference internal" href="#installing-from-source">Installing from source</a>).</p>
 </section>
 <section id="installing-from-source">
 <h2>Installing from source<a class="headerlink" href="#installing-from-source" title="Link to this heading">#</a></h2>
@@ -502,6 +559,34 @@ export PYTHONPATH=$HOME/pyscfad/pyscfadlib:$PYTHONPATH
 <p class="admonition-title">Note</p>
 <p>For Mac with ARM64 architectures, one needs to set the environment variable
 <code class="docutils literal notranslate"><span class="pre">CMAKE_OSX_ARCHITECTURES=arm64</span></code>.</p>
+</div>
+</section>
+<section id="compiling-the-cuda-plugin-nvidia-gpus">
+<h3>Compiling the CUDA plugin (NVIDIA GPUs)<a class="headerlink" href="#compiling-the-cuda-plugin-nvidia-gpus" title="Link to this heading">#</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">pyscfad-cuda12-plugin</span></code> / <code class="docutils literal notranslate"><span class="pre">pyscfad-cuda13-plugin</span></code> packages are only needed when
+running on NVIDIA GPUs. They are built with CMake and provide the <code class="docutils literal notranslate"><span class="pre">_solver</span></code>
+(cuSOLVER) and <code class="docutils literal notranslate"><span class="pre">_cuint</span></code> modules.</p>
+<p>Building from source requires a CUDA toolkit on <code class="docutils literal notranslate"><span class="pre">PATH</span></code> whose major matches the wheel
+(CUDA 12.8+ for the cuda12 plugin, 13.x for the cuda13 plugin), together with the
+<code class="docutils literal notranslate"><span class="pre">cmake</span></code>, <code class="docutils literal notranslate"><span class="pre">nanobind</span></code>, <code class="docutils literal notranslate"><span class="pre">jax</span></code>, and <code class="docutils literal notranslate"><span class="pre">build</span></code> Python packages. From the <code class="docutils literal notranslate"><span class="pre">pyscfadlib</span></code>
+directory:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>cd $HOME/pyscfad/pyscfadlib
+python plugins/cuda/build_plugin.py --cuda-major 13   # or --cuda-major 12
+pip install dist/pyscfad_cuda13_plugin*.whl
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">build_plugin.py</span></code> drives <code class="docutils literal notranslate"><span class="pre">plugins/cuda/CMakeLists.txt</span></code>, which builds the nanobind
+modules and fetches the <code class="docutils literal notranslate"><span class="pre">cuint</span></code> kernels from GitHub. The CUDA major (default: detected
+from <code class="docutils literal notranslate"><span class="pre">nvcc</span></code>) selects both the wheel name and the matching <code class="docutils literal notranslate"><span class="pre">nvidia-*</span></code> runtime
+dependencies. Device architectures default to up to <code class="docutils literal notranslate"><span class="pre">sm_120</span></code> for the CUDA major;
+override them with <code class="docutils literal notranslate"><span class="pre">--cuda-arch</span></code>, e.g.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">plugins</span><span class="o">/</span><span class="n">cuda</span><span class="o">/</span><span class="n">build_plugin</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">cuda</span><span class="o">-</span><span class="n">major</span> <span class="mi">12</span> <span class="o">--</span><span class="n">cuda</span><span class="o">-</span><span class="n">arch</span> <span class="s2">&quot;70-real;80-real;90-real&quot;</span>
+</pre></div>
+</div>
+<p>To also install the CUDA runtime libraries (cuSOLVER, cuBLAS, etc.) from PyPI alongside
+the plugin, install the wheel with the <code class="docutils literal notranslate"><span class="pre">with_cuda</span></code> extra:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="s2">&quot;dist/pyscfad_cuda13_plugin*.whl[with_cuda]&quot;</span>
+</pre></div>
 </div>
 </section>
 </section>
@@ -582,8 +667,10 @@ export PYTHONPATH=$HOME/pyscfad/pyscfadlib:$PYTHONPATH
     <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#python-version-support">Python version support</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installing-from-pypi">Installing from PyPI</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#supported-platforms">Supported platforms</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#installing-from-source">Installing from source</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#installing-pyscfadlib-cpu-only">Installing pyscfadlib (CPU only)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#compiling-the-cuda-plugin-nvidia-gpus">Compiling the CUDA plugin (NVIDIA GPUs)</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dependencies">Dependencies</a></li>
