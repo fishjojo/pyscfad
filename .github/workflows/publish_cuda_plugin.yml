@@ -40,7 +40,7 @@ jobs:
             home: /usr/local/cuda-13.0
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Decide whether to build
         id: decide
@@ -126,7 +126,7 @@ jobs:
 
       - name: Upload wheel
         if: ${{ steps.decide.outputs.should_build == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cuda_plugin_${{ matrix.cuda.major }}_${{ matrix.arch }}_${{ matrix.py }}
           path: pyscfadlib/wheelhouse/*.whl
@@ -142,7 +142,7 @@ jobs:
 
     steps:
       - name: Download wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: dist
           merge-multiple: true

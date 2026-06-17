@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.0
@@ -38,7 +38,7 @@ jobs:
           config-file: "{package}/pyproject.toml"
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cibw_wheels_linux_x86_64
           path: pyscfadlib/wheelhouse/*.whl
@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.0
@@ -62,7 +62,7 @@ jobs:
           config-file: "{package}/pyproject.toml"
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cibw_wheels_linux_aarch64
           path: pyscfadlib/wheelhouse/*.whl
@@ -74,7 +74,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.0
@@ -86,7 +86,7 @@ jobs:
           config-file: "{package}/pyproject.toml"
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cibw_wheels_macos_arm64
           path: pyscfadlib/wheelhouse/*.whl
@@ -110,7 +110,7 @@ jobs:
 
     steps:
       - name: Download wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: dist
           merge-multiple: true
