@@ -6,7 +6,7 @@ This is the PySCFAD repository.
 The repo contains three packages:
 - **pyscfad** - the pure-Python differentiable (via JAX by default) quantum chemistry library (see `pyproject.toml`).
 - **pyscfadlib** - a C/C++ support library with custom primitives and vjp rules (see `pyscfadlib/pyproject.toml`).
-- **pyscfad-cuda12-plugin** - a C++ plugin for interfacing with third-party CUDA libraries (see `pyscfadlib/plugins/cuda/plugin_setup.py`).
+- **pyscfad-cuda12-plugin** / **pyscfad-cuda13-plugin** - C++ plugins (one per CUDA major) interfacing with third-party CUDA libraries, built with CMake (see `pyscfadlib/plugins/cuda/`).
 
 ## Building
 
@@ -19,15 +19,19 @@ The repo contains three packages:
     pip install .
     ```
 
-- **pyscfad-cuda12-plugin**: `pip install pyscfad-cuda12-plugin`
+- **pyscfad-cuda12-plugin** / **pyscfad-cuda13-plugin**: `pip install pyscfad-cuda12-plugin`
+  (or `pyscfad-cuda13-plugin`)
   - **CRITICAL**: only needed when running on NVIDIA GPUs.
-  - **Build from source** (requires bazel):
+  - **Build from source** (CMake): needs a matching CUDA toolkit on `PATH`
+    (CUDA 12.8+ for the cuda12 wheel, 13.x for cuda13) plus the `cmake`, `nanobind`,
+    `jax`, and `build` Python packages. From `pyscfadlib/`:
     ```bash
-    cd pyscfadlib
-    python build/build.py build
-    cd dist
-    pip install pyscfad_cuda12_plugin*.whl
+    python plugins/cuda/build_plugin.py --cuda-major 13   # or --cuda-major 12
+    pip install dist/pyscfad_cuda13_plugin*.whl
     ```
+    `build_plugin.py` drives `plugins/cuda/CMakeLists.txt`, which builds the `_solver`
+    (cuSOLVER) and `_cuint` nanobind modules and fetches the `cuint` kernels from GitHub.
+    Device archs default to up to `sm_120` for the CUDA major; override with `--cuda-arch`.
 
 - **pyscfad**: `pip install pyscfad`
   - **Build from source** (requires pyscfadlib build first; run from the repo root):
