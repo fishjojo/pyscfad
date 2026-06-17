@@ -79,10 +79,16 @@ jobs:
             CUDA_REPO_ARCH=sbsa
           fi
 
+          # Pass explicit values (not the value-less `-e VAR` form, which only
+          # forwards exported variables) so the inner `set -u` script sees them.
           docker run --rm \
             -v ${{ github.workspace }}:/project \
             -w /project \
-            -e TAG -e CUDA_MAJOR -e CUDA_PKG -e CUDA_HOME_DIR -e CUDA_REPO_ARCH \
+            -e TAG="$TAG" \
+            -e CUDA_MAJOR="$CUDA_MAJOR" \
+            -e CUDA_PKG="$CUDA_PKG" \
+            -e CUDA_HOME_DIR="$CUDA_HOME_DIR" \
+            -e CUDA_REPO_ARCH="$CUDA_REPO_ARCH" \
             "$IMAGE" \
             bash -lc '
               set -euo pipefail
