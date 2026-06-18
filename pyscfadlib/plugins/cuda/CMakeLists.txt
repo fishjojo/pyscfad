@@ -124,6 +124,18 @@ target_include_directories(_solver PRIVATE
 target_compile_options(_solver PRIVATE -fno-strict-aliasing)
 target_link_libraries(_solver PRIVATE CUDA::cusolver CUDA::cublas CUDA::cudart)
 
+# Opt-in cuSOLVER FP32/FP64 emulation (handle_pool.cc, gated by PYSCFADLIB_CUSOLVER_*
+# env vars). The math-mode/strategy API and FP32 BF16x9 emulation arrived in CUDA 13.0;
+# FP64 fixed-point emulation in 13.2. Gate on the toolkit version (minor matters) so older
+# toolkits and the cuda12 plugin build cleanly and treat the env vars as a no-op.
+if(CUDAToolkit_VERSION VERSION_GREATER_EQUAL "13.0")
+  target_compile_definitions(_solver PRIVATE PYSCFAD_HAVE_CUSOLVER_EMULATION)
+endif()
+if(CUDAToolkit_VERSION VERSION_GREATER_EQUAL "13.2")
+  target_compile_definitions(_solver PRIVATE PYSCFAD_HAVE_CUSOLVER_FP64_EMULATION)
+endif()
+message(STATUS "_solver: cuSOLVER emulation FP32>=13.0 FP64>=13.2 (toolkit ${CUDAToolkit_VERSION})")
+
 # ---------------------------------------------------------------------------
 # _cuint : custom GPU integral kernels (links the external cuint static lib)
 # ---------------------------------------------------------------------------
