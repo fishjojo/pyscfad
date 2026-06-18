@@ -117,6 +117,7 @@ ExternalProject_Add(cuint_ext
 nanobind_add_module(_solver STABLE_ABI
   ${PYSCFADLIB_ROOT}/pyscfadlib/cuda/solver.cc
   ${PYSCFADLIB_ROOT}/pyscfadlib/cuda/solver_kernels.cc
+  ${PYSCFADLIB_ROOT}/pyscfadlib/cuda/handle_pool.cc
 )
 target_include_directories(_solver PRIVATE
   ${PYSCFADLIB_ROOT} ${XLA_DIR} ${CUDAToolkit_INCLUDE_DIRS})

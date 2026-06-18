@@ -1,6 +1,7 @@
 #include "xla/ffi/api/ffi.h"
 #include "pyscfadlib/ffi_helpers.h"
 #include "pyscfadlib/cuda/vendor.h"
+#include "pyscfadlib/cuda/handle_pool.h"
 #include "pyscfadlib/cuda/solver_kernels.h"
 
 namespace pyscfad {
@@ -69,9 +70,7 @@ ffi::Error SygvdImpl(
 {
     int n = MaybeCastNoOverflow<int>(a_cols);
 
-    cusolverDnHandle_t handle = NULL;
-    cusolverDnCreate(&handle);
-    cusolverDnSetStream(handle, stream);
+    auto handle = SolverHandlePool::Borrow(stream);
 
     auto *a_data = static_cast<T*>(a.untyped_data());
     auto *b_data = static_cast<T*>(b.untyped_data());
@@ -95,12 +94,12 @@ ffi::Error SygvdImpl(
     cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR;
     cublasFillMode_t uplo = lower ? CUBLAS_FILL_MODE_LOWER : CUBLAS_FILL_MODE_UPPER;
 
-    int lwork = solver::SygvdBufferSize<T>(handle, itype, jobz, uplo, n);
+    int lwork = solver::SygvdBufferSize<T>(handle.get(), itype, jobz, uplo, n);
     auto *work = AllocateWorkspace<T>(scratch, lwork, "sygvd");
 
     int64_t out_step = a_cols * a_cols;
     for (int64_t i = 0; i < batch_count; ++i) {
-        solver::Sygvd<T>(handle, itype, jobz, uplo, n,
+        solver::Sygvd<T>(handle.get(), itype, jobz, uplo, n,
                          a_out_data, b_out_data, eigenvalues_data,
                          work, lwork, info_data);
         a_out_data += out_step;
@@ -109,7 +108,6 @@ ffi::Error SygvdImpl(
         ++info_data;
     }
 
-    cusolverDnDestroy(handle);
     return ffi::Error::Success();
 }
 
