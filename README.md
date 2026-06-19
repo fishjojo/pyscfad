@@ -5,6 +5,8 @@
 PySCF with Auto-differentiation
 ===============================
 
+[![PyPI version](https://img.shields.io/pypi/v/pyscfad.svg)](https://pypi.org/project/pyscfad/)
+[![Python versions](https://img.shields.io/pypi/pyversions/pyscfad.svg)](https://pypi.org/project/pyscfad/)
 [![Build Status](https://github.com/fishjojo/pyscfad/workflows/CI/badge.svg)](https://github.com/fishjojo/pyscfad/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/fishjojo/pyscfad/branch/main/graph/badge.svg?token=NLSWGI0PLE)](https://codecov.io/gh/fishjojo/pyscfad)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6960749.svg)](https://doi.org/10.5281/zenodo.6960749)
