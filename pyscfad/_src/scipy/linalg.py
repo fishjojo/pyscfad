@@ -15,7 +15,7 @@
 import numpy
 import scipy
 
-def logm(A, disp=True, real=False):
+def logm(A, real=False):
     """Compute matrix logarithm.
 
     Compute the matrix logarithm ensuring that it is real
@@ -87,7 +87,7 @@ def logm(A, disp=True, real=False):
             idx += 1
 
         if not real_output:
-            return scipy.linalg.logm(A, disp=disp)
+            return scipy.linalg.logm(A)
 
         F = q @ t @ q.T
 
@@ -95,13 +95,10 @@ def logm(A, disp=True, real=False):
         errtol = 1000 * numpy.finfo("d").eps
         # TODO use a better error approximation
         errest = scipy.linalg.norm(scipy.linalg.expm(F) - A, 1) / scipy.linalg.norm(A, 1)
-        if disp:
-            if not numpy.isfinite(errest) or errest >= errtol:
-                print("logm result may be inaccurate, approximate err =", errest)
-            return F
-        else:
-            return F, errest
+        if not numpy.isfinite(errest) or errest >= errtol:
+            print("logm result may be inaccurate, approximate err =", errest)
+        return F
 
     else:
-        return scipy.linalg.logm(A, disp=disp)
+        return scipy.linalg.logm(A)
 
