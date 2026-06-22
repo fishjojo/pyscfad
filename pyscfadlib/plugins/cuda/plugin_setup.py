@@ -30,15 +30,30 @@ def cuda_runtime_requirements(cuda_version):
   NVIDIA changed the package naming at CUDA 13: through CUDA 12 the real
   libraries are suffixed (``nvidia-cublas-cu12``); from CUDA 13 on the suffixed
   packages are empty deprecation stubs and the real libraries live under the
-  unsuffixed names, with the CUDA major encoded in the package version
-  (``nvidia-cublas`` 13.x). For the unsuffixed names we therefore pin the major
-  so a cuda13 wheel cannot resolve a future cuda14 library.
+  unsuffixed names.
+
+  For the unsuffixed names we pin each library to the major of its version so a
+  cuda13 wheel cannot resolve a library from a newer CUDA generation. Crucially,
+  only some packages version by the CUDA major: cuBLAS / cudart / nvJitLink
+  track it (13.x), while cuSOLVER and cuSPARSE keep their own independent
+  product versioning (12.x in the CUDA 13 line) -- pinning those to the CUDA
+  major instead would request a nonexistent ``>=13`` release. ``lib_major`` maps
+  each library to the version major shipped with this CUDA release.
   """
-  libs = ["nvidia-cublas", "nvidia-cuda-runtime", "nvidia-cusolver",
-          "nvidia-cusparse", "nvidia-nvjitlink"]
-  if cuda_version >= 13:
-    return [f"{name}>={cuda_version},<{cuda_version + 1}" for name in libs]
-  return [f"{name}-cu{cuda_version}" for name in libs]
+  if cuda_version < 13:
+    libs = ["nvidia-cublas", "nvidia-cuda-runtime", "nvidia-cusolver",
+            "nvidia-cusparse", "nvidia-nvjitlink"]
+    return [f"{name}-cu{cuda_version}" for name in libs]
+
+  lib_major = {
+      "nvidia-cublas": cuda_version,
+      "nvidia-cuda-runtime": cuda_version,
+      "nvidia-nvjitlink": cuda_version,
+      # Independent product versioning; revisit for CUDA majors past 13.
+      "nvidia-cusolver": 12,
+      "nvidia-cusparse": 12,
+  }
+  return [f"{name}>={major},<{major + 1}" for name, major in lib_major.items()]
 
 setup(
     name=project_name,
