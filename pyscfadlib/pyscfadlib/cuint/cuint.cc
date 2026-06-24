@@ -2,6 +2,7 @@
 #include "pyscfadlib/cuint/ovlp.h"
 #include "pyscfadlib/cuint/dipole.h"
 #include "pyscfadlib/cuint/quadrupole.h"
+#include "pyscfadlib/cuint/latovlp.h"
 
 namespace pyscfad {
 namespace cuint {
@@ -19,6 +20,9 @@ nb::dict Registrations() {
 
     dict["cuint_quadrupole_ffi"] = EncapsulateFfiHandler(QuadrupoleFfi);
     dict["cuint_quadrupole_gradient_ffi"] = EncapsulateFfiHandler(QuadrupoleGradientFfi);
+
+    dict["cuint_lat_overlap_ffi"] = EncapsulateFfiHandler(LatOverlapFfi);
+    dict["cuint_lat_overlap_gradient_ffi"] = EncapsulateFfiHandler(LatOverlapGradientFfi);
     return dict;
 }
 

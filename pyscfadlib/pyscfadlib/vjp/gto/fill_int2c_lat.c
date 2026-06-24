@@ -128,7 +128,7 @@ static void sort2c_s2(double *out, double *buf,
 static int _nr2c_fill(int (*intor)(), void (*sort2c)(), double *out,
                       int comp, int nimgs, int jsh, int ish0,
                       double *buf, double *env_loc,
-                      double *Ls, bool *Ls_mask,
+                      double *Ls, int *Ls_mask,
                       int *shls_slice, int *ao_loc, CINTOpt *cintopt,
                       int *atm, int natm, int *bas, int nbas, double *env)
 {
@@ -157,7 +157,7 @@ static int _nr2c_fill(int (*intor)(), void (*sort2c)(), double *out,
         cache = buf + dmjc;
 
         for (jL = 0; jL < nimgs; jL++) {
-            if (!Ls_mask[jL]) continue;
+            if (Ls_mask[jL] == 0) continue;
 
             pbuf = buf;
             shift_bas(env_loc, env, Ls, jptrxyz, jL);
@@ -180,7 +180,7 @@ static int _nr2c_fill(int (*intor)(), void (*sort2c)(), double *out,
 
 void LATnr2c_fill_s1(int (*intor)(), double *out,
                      int comp, int nimgs, int jsh,
-                      double *buf, double *env_loc, double *Ls, bool *Ls_mask,
+                      double *buf, double *env_loc, double *Ls, int *Ls_mask,
                       int *shls_slice, int *ao_loc, CINTOpt *cintopt,
                       int *atm, int natm, int *bas, int nbas, double *env)
 {
@@ -192,7 +192,7 @@ void LATnr2c_fill_s1(int (*intor)(), double *out,
 
 void LATnr2c_fill_s2(int (*intor)(), double *out,
                      int comp, int nimgs, int jsh,
-                      double *buf, double *env_loc, double *Ls, bool *Ls_mask,
+                      double *buf, double *env_loc, double *Ls, int *Ls_mask,
                       int *shls_slice, int *ao_loc, CINTOpt *cintopt,
                       int *atm, int natm, int *bas, int nbas, double *env)
 {
@@ -203,7 +203,7 @@ void LATnr2c_fill_s2(int (*intor)(), double *out,
 
 
 void LATnr2c_drv(int (*intor)(), void (*fill)(), double *out,
-                 int comp, int nimgs, double *Ls, bool *Ls_mask,
+                 int comp, int nimgs, double *Ls, int *Ls_mask,
                  int *shls_slice, int *ao_loc, CINTOpt *cintopt,
                  int *atm, int natm, int *bas, int nbas, double *env, int nenv)
 {

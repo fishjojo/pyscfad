@@ -19,9 +19,14 @@ from typing import TYPE_CHECKING
 
 from pyscfad import numpy as np
 from pyscfad.gto import MoleLite
-from pyscfad.pbc.gto import cell
+from pyscfad.pbc.gto import cell, _latintor
 from pyscfad.pbc.gto.cell import estimate_rcut
-from pyscfad.pbc.tools import get_lattice_Ls
+from pyscfad.pbc.tools import (
+    get_lattice_Ls,
+    nimgs_to_lattice_Ls,
+)
+from pyscfad.experimental.moleintor_cuint import CuintPlan
+from pyscfad.experimental import latintor_cuint
 
 if TYPE_CHECKING:
     from pyscfad.typing import Array, ArrayLike
@@ -65,6 +70,40 @@ class Cell(MoleLite):
             scaled_Ls = np.rint(scaled_Ls).astype(int)
             nimgs = abs(scaled_Ls).max(axis=0)
         self.nimgs = nimgs
+        self._Ls = None
+
+    @property
+    def Ls(self) -> Array:
+        if self._Ls is None:
+            if self.nimgs is None:
+                raise RuntimeError("cell.nimgs is not set")
+            self._Ls = nimgs_to_lattice_Ls(self)
+        return self._Ls
+
+    @Ls.setter
+    def Ls(self, val: ArrayLike):
+        self._Ls = np.asarray(val, dtype=np.float64).reshape(-1,3)
+
+    def get_Ls_mask(
+        self,
+        Ls: ArrayLike | None = None,
+        rcut: float | None = None
+    ) -> Array:
+        if Ls is None:
+            Ls = self.Ls
+        Ls = np.asarray(Ls, dtype=np.float64).reshape(-1,3)
+
+        if rcut is None:
+            rcut = self.rcut
+        if rcut is None:
+            raise KeyError("cell.rcut not set")
+
+        r = self.atom_coords()
+        rr = r[:,None] - r
+        dist_max = np.linalg.norm(rr, axis=2).max()
+        Ls_mask = np.linalg.norm(Ls, axis=1) < (self.rcut + dist_max)
+        Ls_mask = np.asarray(Ls_mask, dtype=np.int32)
+        return Ls_mask
 
     def lattice_vectors(self) -> Array:
         """Unit cell lattice vectors.
@@ -116,21 +155,44 @@ class Cell(MoleLite):
         hermi: int = 0,
         Ls: ArrayLike | None = None,
         shls_slice: tuple[int, ...] | None = None,
+        cuint_plan: CuintPlan | None = None,
     ) -> Array:
         """Lattice one-electron integrals.
-        """
-        from pyscfad.pbc.gto._latintor import _lattice_intor
-        if Ls is None:
-            Ls = self.get_lattice_Ls()
 
+        Notes:
+            When ``hermi=1``, the CPU backend will output the lower triangle
+            (including the diagonal); the cuint backend will output irregular blocks
+            with the diagonal blocks halved, which should be used as follows
+
+            .. code-block:: python
+
+                s1e = einsum('kl,lpq->kpq', expkL, s1e_lat)
+                s1e = s1e + s1e.transpose(0,2,1).conj()
+        """
         intor_name = self._add_suffix(intor_name)
 
-        out = _lattice_intor(
-            intor_name, self.rcut, Ls,
-            self._atm, self._bas, self._env,
-            shls_slice=shls_slice, comp=comp, hermi=hermi,
-            trace_coords=self.trace_coords, trace_basis=self.trace_basis,
-        )
+        if Ls is None:
+            Ls = self.Ls
+
+        Ls_mask = self.get_Ls_mask(Ls)
+
+        if cuint_plan is None:
+            cuint_plan = self.cuint_plan
+
+        if cuint_plan is None:
+            out = _latintor._lattice_intor(
+                intor_name, Ls, Ls_mask,
+                self._atm, self._bas, self._env,
+                shls_slice=shls_slice, comp=comp, hermi=hermi,
+                trace_coords=self.trace_coords, trace_basis=self.trace_basis,
+            )
+        else:
+            out = latintor_cuint._lattice_intor(
+                intor_name, Ls, Ls_mask,
+                self._atm, self._bas, self._env, cuint_plan,
+                shls_slice=shls_slice, comp=comp, hermi=hermi,
+                trace_coords=self.trace_coords, trace_basis=self.trace_basis,
+            )
         return out
 
     make_kpts = cell.Cell.make_kpts

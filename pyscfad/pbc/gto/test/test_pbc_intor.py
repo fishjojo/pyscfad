@@ -63,7 +63,7 @@ def int1e_deriv1_r0(cell, intor, kpts=None):
 
 def test_int1e_r0(get_cell):
     cell = get_cell
-    kpts = cell.make_kpts([2,2,2])
+    kpts = cell.make_kpts([3,3,3])
 
     for intor in TEST_SET:
         jac_fwd = jax.jacfwd(func_norm)(cell, intor, kpts)
