@@ -38,8 +38,8 @@ numbers = numpy.array(atoms.get_atomic_numbers(), dtype=np.int32)
 coords = np.array(atoms.positions) / BOHR
 
 qm_indexes = np.array("1411 5668 5669 5670 5682 5685 5686 1414 1415 1417 1418 1420 1421 1423 1426 1427 1429 1430 5664 5665 5672 5674 5677 5679 5681 5683 1413 1416 1419 1424 5663 5666 5667 5671 5673 5675 5676 5678 5680 5684 1422 1425 1428 91 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 1230 1232 1233 1234 1235 1236 1237 1238 1239 1240".split(), dtype=np.int32) - 1
-mm_charges = np.array(numpy.loadtxt("./partial_charges.dat")).at[qm_indexes].set(0.)
-mm_coords = np.array(read("geom.xyz").positions) / BOHR
+mm_charges = np.array(numpy.load("partial_charges.npy")).at[qm_indexes].set(0.)
+mm_coords = np.array(read("geom.db").positions) / BOHR
 a = np.diag(np.array([79.00600, 79.68200, 79.03000])) / BOHR
 mm_radii = np.ones_like(mm_charges)
 
