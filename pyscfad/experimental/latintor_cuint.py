@@ -23,7 +23,7 @@ import numpy
 import jax
 from jax.custom_derivatives import SymbolicZero
 
-from pyscf.gto.mole import ATM_SLOTS, BAS_SLOTS
+from pyscf.gto.mole import BAS_SLOTS
 
 from pyscfad import numpy as np
 from pyscfad import ops
@@ -196,10 +196,12 @@ def _lattice_intor_jvp(
             naoi, naoj = s1a.shape[-2:]
 
             aoidx = np.arange(naoi)
-            jvp = _gen_int1e_fill_jvp_r0(s1a, coords_dot, aoslices-_ao_loc[i0], aoidx[None,None,:,None])
+            jvp = _gen_int1e_fill_jvp_r0(s1a, coords_dot, aoslices-_ao_loc[i0],
+                                         aoidx[None,None,:,None])
 
             aoidx = np.arange(naoj)
-            jvp += _gen_int1e_fill_jvp_r0(-s1a, coords_dot, aoslices-_ao_loc[j0], aoidx[None,None,None,:])
+            jvp += _gen_int1e_fill_jvp_r0(-s1a, coords_dot, aoslices-_ao_loc[j0],
+                                          aoidx[None,None,None,:])
 
             tangent_out += jvp.reshape(tangent_out.shape)
 

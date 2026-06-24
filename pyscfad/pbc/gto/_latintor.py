@@ -36,9 +36,6 @@ from pyscfad.gto._pyscf_moleintor import (
     make_loc,
     _get_intor_and_comp,
 )
-from pyscfad.pbc.gto._pbcintor_lite import (
-    _atom_coords,
-)
 from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
 from pyscfadlib import libcgto_vjp as libcgto
 
