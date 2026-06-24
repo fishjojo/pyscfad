@@ -26,7 +26,6 @@ from pyscfad.lib import hermi_triu
 from pyscfad.gto.mole import inter_distance
 from pyscfad.pbc.scf.khf_lite import KSCFLite
 from pyscfad.dft.rks import VXC
-from pyscfad.pbc.tools import nimgs_to_lattice_Ls
 
 from pyscfad.xtb import xtb
 from pyscfad.xtb import util
@@ -92,7 +91,7 @@ def _gamma_sr_GFN1(cell: Cell, param: GFN1MolParam, rsmooth: float = 1.0) -> Arr
     eta = 1. / (param.lgam * param.gam)
     eta = 2. / (eta[:,None] + eta[None,:])
 
-    Ls = nimgs_to_lattice_Ls(cell)
+    Ls = cell.Ls
     r, r_inv = util.r_and_inv_r(cell, Ls=Ls)
 
     i, j = util.atom_to_bas_indices_2d(cell)
@@ -118,7 +117,7 @@ def _gamma_sr_erfc(cell: Cell, param: GFN1MolParam) -> Array:
     eta = 2. / (eta[:,None] + eta[None,:])
     alpha = .5 * np.sqrt(np.pi) * eta
 
-    Ls = nimgs_to_lattice_Ls(cell)
+    Ls = cell.Ls
     r, r_inv = util.r_and_inv_r(cell, Ls=Ls)
     rcut = util.rcut_erfc_over_r(alpha, cell.precision)
 
@@ -141,7 +140,7 @@ def _gamma_ewald(
     ewald_mesh: ArrayLike | None = None
 ) -> Array:
     # 1/r
-    Ls = nimgs_to_lattice_Ls(cell)
+    Ls = cell.Ls
     r, r_inv = util.r_and_inv_r(cell, Ls=Ls)
 
     ew_eta = ewald_alpha
@@ -192,10 +191,57 @@ class KXTB(xtb.XTB, KSCFLite):
         **kwargs,
     ):
         super().__init__(cell, param=param, kpts=kpts)
+        self._s1e_lat = None
 
     @property
     def tot_electrons(self) -> Array:
         return xtb.tot_valence_electrons(self.cell, nkpts=len(self.kpts))
+
+    def get_ovlp(
+        self,
+        cell: Cell | None = None,
+        kpts: ArrayLike | None = None,
+    ) -> Array:
+        if cell is None:
+            cell = self.cell
+        if kpts is None:
+            kpts = self.kpts
+
+        Ls = cell.Ls
+        expkL = np.exp(1j*np.dot(kpts, Ls.T))
+
+        if cell is self.cell:
+            s1e_lat = self.s1e_lat
+        else:
+            s1e_lat = self.get_ovlp_lat(cell=cell, Ls=Ls)
+
+        s1e = np.einsum("kl,lpq->kpq", expkL, s1e_lat)
+
+        if cell.cuint_plan is None:
+            s1e = hermi_triu(s1e)
+        else:
+            s1e = s1e + s1e.transpose(0,2,1).conj()
+        return s1e
+
+    def get_ovlp_lat(
+        self,
+        cell: Cell | None = None,
+        Ls: ArrayLike | None = None,
+    ) -> Array:
+        if cell is None:
+            cell = self.cell
+        if Ls is None:
+            Ls = cell.Ls
+        Ls = np.asarray(Ls, dtype=np.float64).reshape(-1,3)
+
+        s1e_lat = cell.lattice_intor("int1e_ovlp", hermi=1, Ls=Ls)
+        return s1e_lat
+
+    @property
+    def s1e_lat(self) -> Array:
+        if self._s1e_lat is None:
+            self._s1e_lat = self.get_ovlp_lat()
+        return self._s1e_lat
 
     def shell_charges(
         self,
@@ -226,7 +272,7 @@ def energy_nuc_GFN1(
     zeff = param.zeff
     arep = param.arep
 
-    Ls = nimgs_to_lattice_Ls(cell)
+    Ls = cell.Ls
     r, r_inv = util.r_and_inv_r(cell, Ls=Ls)
     r_safe = np.where(r>1e-6, r, 1.0)
     rcut = util.rcut_enuc_GFN1(kf, zeff, arep, cell.precision)
@@ -300,18 +346,25 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
         hdiag = xtb.EHT_Hdiag_GFN1(cell, param)
         mask = util.mask_atom_pairs(cell)[util.atom_to_bas_indices_2d(cell)]
 
-        Ls = nimgs_to_lattice_Ls(cell)
+        Ls = cell.Ls
         nL = len(Ls)
         h1 = np.where(np.repeat(mask[None,:,:], nL, axis=0),
                       hscale[None,:,:] * EHT_PI_GFN1(cell, param, Ls=Ls) * hdiag[None,:,:],
                       np.repeat(hdiag[None,:,:], nL, axis=0))
 
-        s1e = cell.lattice_intor("int1e_ovlp", hermi=1, Ls=Ls)
+        if cell is self.cell:
+            s1e_lat = self.s1e_lat
+        else:
+            s1e_lat = self.get_ovlp_lat(cell=cell, Ls=Ls)
 
         expkL = np.exp(1j*np.dot(kpts, Ls.T))
         i, j = util.bas_to_ao_indices_2d(cell)
-        hcore = np.einsum("kl,lpq->kpq", expkL, s1e * h1[:,i,j])
-        hcore = hermi_triu(hcore)
+        hcore = np.einsum("kl,lpq->kpq", expkL, s1e_lat * h1[:,i,j])
+
+        if cell.cuint_plan is None:
+            hcore = hermi_triu(hcore)
+        else:
+            hcore = hcore + hcore.transpose(0,2,1).conj()
         return hcore
 
     def get_veff(

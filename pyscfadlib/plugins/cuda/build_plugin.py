@@ -53,6 +53,10 @@ def main():
     ap.add_argument("--cuda-arch", default=None,
                     help="Override CMAKE_CUDA_ARCHITECTURES, e.g. '75-real;80-real'. "
                          "Default: up to sm_120 for the CUDA major.")
+    ap.add_argument("--cuint-root", default=None,
+                    help="Prebuilt local cuint install (with include/ and lib/) to "
+                         "link instead of fetching+building cuint from GitHub. For "
+                         "local development against in-tree cuint changes.")
     ap.add_argument("--output-path", default=str(pathlib.Path.cwd() / "dist"),
                     help="Directory the wheel is written to (default: ./dist).")
     ap.add_argument("--build-dir", default=None,
@@ -84,6 +88,8 @@ def main():
     ]
     if args.cuda_arch:
         configure.append(f"-DCMAKE_CUDA_ARCHITECTURES={args.cuda_arch}")
+    if args.cuint_root:
+        configure.append(f"-DCUINT_ROOT={pathlib.Path(args.cuint_root).resolve()}")
     run(configure)
     run(["cmake", "--build", str(build_dir), "-j", args.jobs])
     run(["cmake", "--install", str(build_dir), "--prefix", str(src_tree)])

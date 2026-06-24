@@ -82,34 +82,70 @@ set(PYSCFAD_PLUGIN_INSTALL_DIR "." CACHE STRING
     "Install destination (relative to CMAKE_INSTALL_PREFIX) for the .so files.")
 
 # ---------------------------------------------------------------------------
-# External cuint library (custom GPU integral kernels), fetched from GitHub and
-# built with its own CMake. The architecture list is forwarded via the standard
-# CMAKE_CUDA_ARCHITECTURES (cuint honours it as of the pinned commit).
+# External cuint library (custom GPU integral kernels).
+#
+# Default: fetched from GitHub at a pinned commit and built (static) by its own
+# CMake, with the architecture list forwarded via CMAKE_CUDA_ARCHITECTURES
+# (cuint honours it as of the pinned commit).
+#
+# Local development: set -DCUINT_ROOT=/path/to/cuint pointing at a prebuilt
+# install (containing include/cuint.h and lib/libcuint.{so,a}). The plugin then
+# links that directly and skips the GitHub fetch/build, so in-tree cuint changes
+# (e.g. new pbc kernels) are picked up. CMAKE_CUDA_ARCHITECTURES is irrelevant in
+# that case — cuint is already compiled, so it must have been built for the archs
+# you intend to run on.
 # ---------------------------------------------------------------------------
-include(ExternalProject)
-set(CUINT_COMMIT "8fb61a157357a8e030ce6766e5d507815d48fe8a")
-set(CUINT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/cuint")
-set(CUINT_INSTALL_DIR "${CUINT_PREFIX}/install")
-set(CUINT_LIBRARY "${CUINT_INSTALL_DIR}/lib/libcuint.a")
+set(CUINT_ROOT "" CACHE PATH
+    "Prebuilt cuint install (include/ and lib/) to link instead of fetching+building cuint from GitHub. Empty = default GitHub build.")
 
-# ExternalProject splits ';'-lists into separate args, so pass the architecture
-# list with an alternate separator and let ExternalProject restore the ';'.
-string(REPLACE ";" "|" CUINT_ARCH "${CMAKE_CUDA_ARCHITECTURES}")
-ExternalProject_Add(cuint_ext
-  GIT_REPOSITORY https://github.com/fishjojo/cuint.git
-  GIT_TAG ${CUINT_COMMIT}
-  PREFIX ${CUINT_PREFIX}
-  INSTALL_DIR ${CUINT_INSTALL_DIR}
-  LIST_SEPARATOR "|"
-  CMAKE_CACHE_ARGS
-    -DCMAKE_BUILD_TYPE:STRING=Release
-    -DBUILD_SHARED_LIBS:BOOL=OFF
-    -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
-    -DCMAKE_CUDA_ARCHITECTURES:STRING=${CUINT_ARCH}
-    -DCMAKE_INSTALL_LIBDIR:PATH=lib
-    -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-  BUILD_BYPRODUCTS ${CUINT_LIBRARY}
-)
+if(CUINT_ROOT)
+  get_filename_component(CUINT_ROOT "${CUINT_ROOT}" ABSOLUTE)
+  # Locate the header and library under the install root. Search the usual
+  # install layout (include/, lib/, lib64/) plus an in-tree build/ dir and the
+  # root itself, so pointing at either a `cmake --install` prefix or a raw build
+  # tree works. NO_DEFAULT_PATH keeps it from picking up a system-wide cuint.
+  find_path(CUINT_INCLUDE_DIR NAMES cuint.h
+    PATHS "${CUINT_ROOT}/include" "${CUINT_ROOT}"
+    NO_DEFAULT_PATH)
+  find_library(CUINT_LIBRARY NAMES cuint
+    PATHS "${CUINT_ROOT}/lib" "${CUINT_ROOT}/lib64" "${CUINT_ROOT}/build" "${CUINT_ROOT}"
+    NO_DEFAULT_PATH)
+  if(NOT CUINT_INCLUDE_DIR OR NOT CUINT_LIBRARY)
+    message(FATAL_ERROR
+      "CUINT_ROOT is set to \"${CUINT_ROOT}\" but a prebuilt cuint was not found there:\n"
+      "    cuint.h        -> ${CUINT_INCLUDE_DIR}\n"
+      "    libcuint.so/.a -> ${CUINT_LIBRARY}\n"
+      "Point -DCUINT_ROOT at the cuint install ROOT containing include/cuint.h and "
+      "lib/libcuint.{so,a} (e.g. /path/to/cuint), not at its lib/ or build/ subdirectory.")
+  endif()
+  message(STATUS "cuint: using prebuilt local install ${CUINT_LIBRARY} (include ${CUINT_INCLUDE_DIR})")
+else()
+  include(ExternalProject)
+  set(CUINT_COMMIT "1f39373e2c6786a3ea548048978909b956659a18")
+  set(CUINT_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/cuint")
+  set(CUINT_INSTALL_DIR "${CUINT_PREFIX}/install")
+  set(CUINT_INCLUDE_DIR "${CUINT_INSTALL_DIR}/include")
+  set(CUINT_LIBRARY "${CUINT_INSTALL_DIR}/lib/libcuint.a")
+
+  # ExternalProject splits ';'-lists into separate args, so pass the architecture
+  # list with an alternate separator and let ExternalProject restore the ';'.
+  string(REPLACE ";" "|" CUINT_ARCH "${CMAKE_CUDA_ARCHITECTURES}")
+  ExternalProject_Add(cuint_ext
+    GIT_REPOSITORY https://github.com/fishjojo/cuint.git
+    GIT_TAG ${CUINT_COMMIT}
+    PREFIX ${CUINT_PREFIX}
+    INSTALL_DIR ${CUINT_INSTALL_DIR}
+    LIST_SEPARATOR "|"
+    CMAKE_CACHE_ARGS
+      -DCMAKE_BUILD_TYPE:STRING=Release
+      -DBUILD_SHARED_LIBS:BOOL=OFF
+      -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
+      -DCMAKE_CUDA_ARCHITECTURES:STRING=${CUINT_ARCH}
+      -DCMAKE_INSTALL_LIBDIR:PATH=lib
+      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+    BUILD_BYPRODUCTS ${CUINT_LIBRARY}
+  )
+endif()
 
 # ---------------------------------------------------------------------------
 # _solver : cuSOLVER generalized eigensolver
@@ -144,11 +180,24 @@ nanobind_add_module(_cuint STABLE_ABI
   ${PYSCFADLIB_ROOT}/pyscfadlib/cuint/ovlp.cc
   ${PYSCFADLIB_ROOT}/pyscfadlib/cuint/dipole.cc
   ${PYSCFADLIB_ROOT}/pyscfadlib/cuint/quadrupole.cc
+  ${PYSCFADLIB_ROOT}/pyscfadlib/cuint/latovlp.cc
 )
-add_dependencies(_cuint cuint_ext)
+if(NOT CUINT_ROOT)
+  add_dependencies(_cuint cuint_ext)
+endif()
 target_include_directories(_cuint PRIVATE
-  ${PYSCFADLIB_ROOT} ${XLA_DIR} ${CUDAToolkit_INCLUDE_DIRS} ${CUINT_INSTALL_DIR}/include)
+  ${PYSCFADLIB_ROOT} ${XLA_DIR} ${CUDAToolkit_INCLUDE_DIRS} ${CUINT_INCLUDE_DIR})
 target_compile_options(_cuint PRIVATE -fno-strict-aliasing)
 target_link_libraries(_cuint PRIVATE ${CUINT_LIBRARY} CUDA::cudart)
+
+# A prebuilt local cuint is typically a shared lib; embed its directory in the
+# RPATH so the built/installed _cuint.so finds libcuint.so without LD_LIBRARY_PATH
+# (harmless if the local cuint is static). This absolute path is for local dev
+# builds only and is not portable into a redistributable wheel.
+if(CUINT_ROOT)
+  set_target_properties(_cuint PROPERTIES
+    BUILD_RPATH "${CUINT_ROOT}/lib"
+    INSTALL_RPATH "${CUINT_ROOT}/lib")
+endif()
 
 install(TARGETS _solver _cuint LIBRARY DESTINATION ${PYSCFAD_PLUGIN_INSTALL_DIR})

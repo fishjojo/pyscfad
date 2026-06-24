@@ -111,6 +111,26 @@ class Element(pytree.PytreeNode):
         self.dipgam = None
         self.quadgam = None
 
+    def __repr__(self):
+        return (f"(levels={self.levels}, "
+                f"slater={self.slater}, "
+                f"refocc={self.refocc}, "
+                f"shpoly={self.shpoly}, "
+                f"kcn={self.kcn}, "
+                f"gam={self.gam}, "
+                f"lgam={self.lgam}, "
+                f"gam3={self.gam3}, "
+                f"zeff={self.zeff}, "
+                f"arep={self.arep}, "
+                f"xbond={self.xbond}, "
+                f"en={self.en}, "
+                f"dkernel={self.dkernel}, "
+                f"qkernel={self.qkernel}, "
+                f"mprad={self.mprad}, "
+                f"mpvcn={self.mpvcn}, "
+                f"dipgam={self.dipgam}, "
+                f"quadgam={self.quadgam})")
+
 
 class GFN1Param(pytree.PytreeNode):
     """Selected parameters from the GFN1 parameter set

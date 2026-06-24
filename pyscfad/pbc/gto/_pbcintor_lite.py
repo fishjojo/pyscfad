@@ -38,6 +38,7 @@ from pyscfad.gto._pyscf_moleintor import (
     make_loc,
     _get_intor_and_comp,
 )
+from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
 from pyscfadlib import libcgto_vjp as libcgto
 
 def _atom_coords(atm, env):
@@ -235,6 +236,7 @@ def _gen_int1e_jvp_r0(
 
     naoi, naoj = s1a.shape[-2:]
     s1a = s1a.reshape(nkpts,3,-1,naoi,naoj)
+    s1a = s1a.transpose(1,0,2,3,4).reshape(3,-1,naoi,naoj)
     coords_dot = _extract_coords(atm, env_dot)
 
     if shls_slice is None:
@@ -250,7 +252,7 @@ def _gen_int1e_jvp_r0(
         aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
     aoidx = np.arange(naoi)
     jvp = _gen_int1e_fill_jvp_r0(s1a, coords_dot, aoslices-_ao_loc[i0],
-                                 aoidx[None,None,None,:,None])
+                                 aoidx[None,None,:,None])
 
     if hermi == 0:
         order_a = int1e_get_dr_order(intor_b)[0]
@@ -262,21 +264,14 @@ def _gen_int1e_jvp_r0(
         )
         s1b = s1b.reshape(nkpts,3**order_a,3,-1,naoi,naoj)
         s1b = s1b.transpose(0,2,1,3,4,5).reshape(nkpts,3,-1,naoi,naoj)
+        s1b = s1b.transpose(1,0,2,3,4).reshape(3,-1,naoi,naoj)
 
         aoidx = np.arange(naoj)
         jvp += _gen_int1e_fill_jvp_r0(s1b, coords_dot, aoslices-_ao_loc[j0],
-                                      aoidx[None,None,None,None,:])
+                                      aoidx[None,None,None,:])
     elif hermi == 1:
-        jvp += jvp.transpose(0,1,3,2)
-    return jvp
-
-def _gen_int1e_fill_jvp_r0(ints, coords_t, aoslices, aoidx):
-    def _fill(sl, coord_t):
-        mask = (aoidx >= sl[0]) & (aoidx < sl[1])
-        grad = np.where(mask, ints, np.array(0, dtype=ints.dtype))
-        return np.einsum("kxyij,x->kyij", grad, coord_t)
-    jvp = np.sum(ops.vmap(_fill)(aoslices, coords_t), axis=0)
-    return jvp
+        jvp += jvp.transpose(0,2,1).conj()
+    return jvp.reshape(nkpts,-1,naoi,naoj)
 
 def _pbc_intor_jvp(
     intor_name, rcut, atm, bas,

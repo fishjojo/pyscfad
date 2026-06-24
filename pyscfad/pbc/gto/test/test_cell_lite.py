@@ -30,10 +30,11 @@ def test_int1e():
     )
     atom = [["Si", [0,0,0]], ["Si", [.5*l,]*3]]
 
+    kmesh = [3,3,3]
     for intor in INTOR:
 
         cell = Cell(atom=atom, basis="sto3g", a=a).build()
-        kpts = cell.make_kpts([2,2,2])
+        kpts = cell.make_kpts(kmesh)
         s1e_ref = np.asarray(cell.pbc_intor(intor, kpts=kpts))
 
         norm = np.asarray(func_norm(cell, intor, kpts))
@@ -47,12 +48,12 @@ def test_int1e():
 
         coords = np.array([[0,0,0],[.5*l,.5*l,.5*l]]) / BOHR
         cell = CellLite(numbers=[14,14], coords=coords, basis="sto3g", a=a/BOHR)
-        kpts = cell.make_kpts([2,2,2])
+        kpts = cell.make_kpts(kmesh)
         s1e = cell.pbc_intor(intor, kpts=kpts)
 
         def func(coords):
             cell = CellLite(numbers=[14,14], coords=coords, basis="sto3g", a=a/BOHR, trace_coords=True)
-            kpts = cell.make_kpts([2,2,2])
+            kpts = cell.make_kpts(kmesh)
             return func_norm(cell, intor, kpts=kpts)
         g1 = np.asarray(jax.jacrev(func)(coords))
 

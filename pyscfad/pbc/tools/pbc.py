@@ -123,7 +123,7 @@ def nimgs_to_lattice_Ls(cell, nimgs=None, dimension=None):
 
     a = cell.lattice_vectors()
     Ls = np.dot(Ts[:,:dimension], a[:dimension])
-    return Ls
+    return Ls.reshape(-1,3)
 
 def get_lattice_Ls(cell, nimgs=None, rcut=None, dimension=None, discard=True):
     """Get the lattice translation vectors for lattice sum.
