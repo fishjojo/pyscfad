@@ -54,12 +54,12 @@
     <link rel="icon" href="../../../_static/pyscfad_logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="pyscfad.xtb.kxtb.KXTB.get_q" href="methods/pyscfad.xtb.kxtb.KXTB.get_q.html" />
+    <link rel="next" title="pyscfad.xtb.kxtb.KXTB.get_ovlp" href="methods/pyscfad.xtb.kxtb.KXTB.get_ovlp.html" />
     <link rel="prev" title="pyscfad.xtb.kxtb.GFN1KXTB.get_veff" href="methods/pyscfad.xtb.kxtb.GFN1KXTB.get_veff.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.2" />
-    <meta name="docbuild:last-update" content="Jun 19, 2026"/>
+    <meta name="docbuild:last-update" content="Jun 24, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -992,12 +992,18 @@
 <h1>pyscfad.xtb.kxtb.KXTB<a class="headerlink" href="#pyscfad-xtb-kxtb-kxtb" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyscfad.xtb.kxtb.KXTB">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyscfad.xtb.kxtb.</span></span><span class="sig-name descname"><span class="pre">KXTB</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/xtb/kxtb.py#L184-L219"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.xtb.kxtb.KXTB" title="Link to this definition">#</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyscfad.xtb.kxtb.</span></span><span class="sig-name descname"><span class="pre">KXTB</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cell</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kpts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/xtb/kxtb.py#L183-L265"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.xtb.kxtb.KXTB" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference internal" href="pyscfad.xtb.xtb.XTB.html#pyscfad.xtb.xtb.XTB" title="pyscfad.xtb.xtb.XTB"><code class="xref py py-class docutils literal notranslate"><span class="pre">XTB</span></code></a>, <a class="reference internal" href="pyscfad.pbc.scf.khf_lite.KSCF.html#pyscfad.pbc.scf.khf_lite.KSCF" title="pyscfad.pbc.scf.khf_lite.KSCF"><code class="xref py py-class docutils literal notranslate"><span class="pre">KSCF</span></code></a></p>
 <p>Base class for XTB methods with k-point sampling.</p>
 <p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.xtb.kxtb.KXTB.get_ovlp.html#pyscfad.xtb.kxtb.KXTB.get_ovlp" title="pyscfad.xtb.kxtb.KXTB.get_ovlp"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_ovlp</span></code></a>([cell, kpts])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.xtb.kxtb.KXTB.get_ovlp_lat.html#pyscfad.xtb.kxtb.KXTB.get_ovlp_lat" title="pyscfad.xtb.kxtb.KXTB.get_ovlp_lat"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_ovlp_lat</span></code></a>([cell, Ls])</p></td>
+<td><p></p></td>
+</tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.xtb.kxtb.KXTB.get_q.html#pyscfad.xtb.kxtb.KXTB.get_q" title="pyscfad.xtb.kxtb.KXTB.get_q"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_q</span></code></a>([cell, dm, s1e, method])</p></td>
 <td><p></p></td>
 </tr>
@@ -1040,11 +1046,11 @@
       </div>
     </a>
     <a class="right-next"
-       href="methods/pyscfad.xtb.kxtb.KXTB.get_q.html"
+       href="methods/pyscfad.xtb.kxtb.KXTB.get_ovlp.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">pyscfad.xtb.kxtb.KXTB.get_q</p>
+        <p class="prev-next-title">pyscfad.xtb.kxtb.KXTB.get_ovlp</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

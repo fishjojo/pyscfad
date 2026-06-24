@@ -61,6 +61,7 @@ pyscfad.xtb.kxtb.GFN1KXTB
          
          
          
+         
            ~GFN1KXTB.get_veff
          
          

@@ -77,6 +77,9 @@ pyscfad.pbc.gto.cell\_lite.CellLite
            ~CellLite.get_Gv_weights
          
          
+           ~CellLite.get_Ls_mask
+         
+         
            ~CellLite.get_abs_kpts
          
          

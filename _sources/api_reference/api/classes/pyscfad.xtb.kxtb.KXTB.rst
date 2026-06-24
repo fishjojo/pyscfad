@@ -55,6 +55,11 @@ pyscfad.xtb.kxtb.KXTB
          
          
          
+           ~KXTB.get_ovlp
+         
+         
+           ~KXTB.get_ovlp_lat
+         
          
            ~KXTB.get_q
          
