@@ -20,6 +20,7 @@ import numpy
 from jax.custom_derivatives import SymbolicZero
 from pyscf.gto.mole import (
     ATOM_OF,
+    CHARGE_OF,
     PTR_COORD,
     PTR_COMMON_ORIG,
     PTR_RINV_ORIG,
@@ -30,9 +31,15 @@ from pyscfad import numpy as np
 from pyscfad.gto._pyscf_moleintor import make_loc, _get_intor_and_comp
 from pyscfad.gto._moleintor_helper import (
     int1e_get_dr_order,
+    int2e_get_dr_order,
     int1e_dr1_name,
+    int2e_dr1_name,
 )
 from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
+
+# The coordinate-gradient filling rule is identical for the 1e and 2e cases;
+# only the broadcasting pattern of ``aoidx`` differs (see the callers below).
+_gen_int2e_fill_jvp_r0 = _gen_int1e_fill_jvp_r0
 
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
@@ -224,10 +231,6 @@ def getints_jvp(
     primals,
     tangents,
 ):
-    if (not intor_name.startswith("int1e") or
-        "nuc" in intor_name):
-        raise NotImplementedError(f"Autodiff not implemented for {intor_name}")
-
     env, = primals
     env_dot, = tangents
     primal_out = getints(
@@ -246,41 +249,181 @@ def getints_jvp(
     )
 
     tangent_out = np.zeros_like(primal_out)
-    intor_ip_bra = intor_ip_ket = None
-    intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor_name)
 
-    if not isinstance(env_dot, SymbolicZero):
-        if trace_coords and (intor_ip_bra or intor_ip_ket):
-            if intor_name.startswith("int1e_rinv"):
-                rc_deriv = PTR_RINV_ORIG
-            elif intor_name.startswith("int1e_r"):
-                rc_deriv = PTR_COMMON_ORIG
-            else:
-                rc_deriv = None
+    if isinstance(env_dot, SymbolicZero):
+        return primal_out, tangent_out
+    if trace_basis:
+        raise NotImplementedError("basis set parameter derivative not supported")
+    if not trace_coords:
+        return primal_out, tangent_out
 
-            tangent_out += _gen_int1e_jvp_r0(
-                intor_ip_bra,
-                intor_ip_ket,
-                atm,
-                bas,
-                env,
-                env_dot,
-                shls_slice,
-                comp,
-                hermi,
-                aosym,
-                ao_loc,
-                trace_coords,
-                trace_basis,
-                aoslices,
-                rc_deriv,
-            ).reshape(tangent_out.shape)
-
-        if trace_basis:
-            raise NotImplementedError("basis set parameter derivative not supported")
+    fname = intor_name.replace("_sph", "").replace("_cart", "")
+    if fname.startswith("int1e"):
+        tangent_out += _int1e_coords_jvp(
+            intor_name,
+            atm,
+            bas,
+            env,
+            env_dot,
+            shls_slice,
+            comp,
+            hermi,
+            aosym,
+            ao_loc,
+            trace_coords,
+            trace_basis,
+            aoslices,
+        ).reshape(tangent_out.shape)
+    elif fname.startswith("int2e"):
+        tangent_out += _int2e_coords_jvp(
+            intor_name,
+            atm,
+            bas,
+            env,
+            env_dot,
+            shls_slice,
+            comp,
+            aosym,
+            ao_loc,
+            aoslices,
+        ).reshape(tangent_out.shape)
+    else:
+        raise NotImplementedError(f"Autodiff not implemented for {intor_name}")
     return primal_out, tangent_out
 
 getints.defjvp(getints_jvp, symbolic_zeros=True)
+
+def _int1e_coords_jvp(
+    intor_name,
+    atm,
+    bas,
+    env,
+    env_dot,
+    shls_slice,
+    comp,
+    hermi,
+    aosym,
+    ao_loc,
+    trace_coords,
+    trace_basis,
+    aoslices,
+):
+    """JVP of a 2-center 1e integral w.r.t. atomic coordinates.
+
+    The contribution splits into an AO-center part (derivative w.r.t. the
+    bra/ket orbital centers, with the operator held fixed) and, for the nuclear
+    attraction integral, an operator-center part recovered with the
+    rinv-at-nucleus trick.
+    """
+    is_nuc = "nuc" in intor_name
+    if is_nuc and int1e_get_dr_order(intor_name) != [0, 0]:
+        raise NotImplementedError(
+            "Higher-order derivatives of int1e_nuc are not supported."
+        )
+
+    intor_ip_bra, intor_ip_ket = int1e_dr1_name(intor_name)
+
+    if intor_name.startswith("int1e_rinv"):
+        rc_deriv = PTR_RINV_ORIG
+    elif intor_name.startswith("int1e_r"):
+        rc_deriv = PTR_COMMON_ORIG
+    else:
+        rc_deriv = None
+
+    jvp = _gen_int1e_jvp_r0(
+        intor_ip_bra,
+        intor_ip_ket,
+        atm,
+        bas,
+        env,
+        env_dot,
+        shls_slice,
+        comp,
+        hermi,
+        aosym,
+        ao_loc,
+        trace_coords,
+        trace_basis,
+        aoslices,
+        rc_deriv,
+    )
+
+    if is_nuc:
+        jvp = jvp + _gen_int1e_nuc_jvp_rc(
+            intor_ip_bra.replace("nuc", "rinv"),
+            intor_ip_ket.replace("nuc", "rinv"),
+            atm,
+            bas,
+            env,
+            env_dot,
+            shls_slice,
+            hermi,
+            ao_loc,
+            aoslices,
+        )
+    return jvp
+
+def _int2e_coords_jvp(
+    intor_name,
+    atm,
+    bas,
+    env,
+    env_dot,
+    shls_slice,
+    comp,
+    aosym,
+    ao_loc,
+    aoslices,
+):
+    """JVP of the 2e integral ``(ij|kl)`` w.r.t. atomic coordinates (``s1``).
+
+    Only the bra-1 (i-center) derivative ``int2e_dr1000`` is evaluated; the
+    remaining three centers are recovered from the full permutation symmetry of
+    the real ERI tensor, ``(ij|kl) = (ji|kl) = (kl|ij)``.
+    """
+    if int2e_get_dr_order(intor_name) != [0, 0, 0, 0]:
+        raise NotImplementedError(
+            "Higher-order derivatives of int2e are not supported."
+        )
+    nbas = len(bas)
+    if shls_slice is not None and tuple(shls_slice) != (0, nbas) * 4:
+        raise NotImplementedError(
+            "int2e coordinate derivatives with a partial shls_slice "
+            "are not supported."
+        )
+
+    intor1 = int2e_dr1_name(intor_name)[0]
+    if ao_loc is None:
+        _ao_loc = make_loc(bas, intor_name)
+    else:
+        _ao_loc = ao_loc
+    nao = int(_ao_loc[-1])
+
+    eri1 = -getints(
+        intor1,
+        atm,
+        bas,
+        env,
+        shls_slice=None,
+        comp=None,
+        hermi=0,
+        aosym="s1",
+        ao_loc=None,
+        trace_coords=False,
+        trace_basis=False,
+        aoslices=aoslices,
+    )
+
+    coords_dot = _extract_coords(atm, env_dot)
+    if aoslices is None:
+        _aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
+    else:
+        _aoslices = aoslices
+    aoidx = np.arange(nao)[None, :, None, None, None]
+    jvp = _gen_int2e_fill_jvp_r0(eri1, coords_dot, _aoslices, aoidx)
+    jvp = jvp + jvp.transpose(1, 0, 2, 3)
+    jvp = jvp + jvp.transpose(2, 3, 0, 1)
+    return jvp
 
 def _gen_int1e_jvp_r0(
     intor_a: str,
@@ -376,6 +519,88 @@ def _gen_int1e_jvp_r0(
 
     elif hermi == 1:
         jvp += jvp.transpose(0,2,1)
+    return jvp
+
+def _gen_int1e_nuc_jvp_rc(
+    intor_a: str,
+    intor_b: str,
+    atm: ArrayLike,
+    bas: ArrayLike,
+    env: ArrayLike,
+    env_dot: ArrayLike,
+    shls_slice: tuple[int, ...] | None,
+    hermi: int,
+    ao_loc: ArrayLike | None,
+    aoslices: ArrayLike | None = None,
+) -> Array:
+    """Operator-center contribution to the ``int1e_nuc`` coordinate JVP.
+
+    The nuclear attraction integral depends on the atomic coordinates not only
+    through the orbital centers (handled by :func:`_gen_int1e_jvp_r0`) but also
+    through the position of each nucleus in the ``1/|r - R_C|`` operator. For
+    nucleus ``C`` the operator-center derivative is obtained by placing the
+    ``rinv`` origin at ``R_C`` and evaluating ``int1e_rinv_dr10`` (and, for
+    ``hermi == 0``, ``int1e_rinv_dr01``), scaled by ``-Z_C``.
+    """
+    if shls_slice is None:
+        nbas = len(bas)
+        shls_slice = (0, nbas, 0, nbas)
+    if ao_loc is None:
+        _ao_loc = make_loc(bas, intor_a)
+    else:
+        _ao_loc = ao_loc
+    i0, i1, j0, j1 = shls_slice[:4]
+    naoi = int(_ao_loc[i1] - _ao_loc[i0])
+    naoj = int(_ao_loc[j1] - _ao_loc[j0])
+
+    coords = _extract_coords(atm, env)
+    coords_dot = _extract_coords(atm, env_dot)
+    charges = atm[:, CHARGE_OF]
+
+    _, comp = _get_intor_and_comp(intor_a)
+    jvp = np.zeros((comp // 3, naoi, naoj), dtype=np.floatx)
+    for ia in range(len(atm)):
+        env_ia = ops.index_update(
+            env,
+            ops.index[PTR_RINV_ORIG:PTR_RINV_ORIG+3],
+            coords[ia].astype(env.dtype),
+        )
+        vrinv = getints(
+            intor_a,
+            atm,
+            bas,
+            env_ia,
+            shls_slice=shls_slice,
+            comp=None,
+            hermi=0,
+            aosym="s1",
+            ao_loc=ao_loc,
+            trace_coords=False,
+            trace_basis=False,
+            aoslices=aoslices,
+        ).reshape(3, -1, naoi, naoj)
+        if hermi == 0:
+            order_a = int1e_get_dr_order(intor_b)[0]
+            s1b = getints(
+                intor_b,
+                atm,
+                bas,
+                env_ia,
+                shls_slice=shls_slice,
+                comp=None,
+                hermi=0,
+                aosym="s1",
+                ao_loc=ao_loc,
+                trace_coords=False,
+                trace_basis=False,
+                aoslices=aoslices,
+            )
+            s1b = s1b.reshape(3**order_a, 3, -1, naoi, naoj).transpose(1, 0, 2, 3, 4)
+            vrinv = vrinv + s1b.reshape(3, -1, naoi, naoj)
+        vrinv = vrinv * (-charges[ia])
+        jvp = jvp + np.einsum("xyij,x->yij", vrinv, coords_dot[ia])
+    if hermi == 1:
+        jvp = jvp + jvp.transpose(0, 2, 1)
     return jvp
 
 def _aoslice_by_atom(

@@ -409,7 +409,46 @@ class SCF(SCFBase):
         return f
 
     def get_hcore(self, mol: MoleLite | None = None, **kwargs) -> Array:
-        return super().get_hcore(mol)
+        """Core Hamiltonian (kinetic + nuclear attraction).
+
+        Implemented directly through the jittable :class:`MoleLite` integrals
+        (rather than PySCF's :func:`get_hcore`, which assumes ECP bookkeeping
+        attributes absent on :class:`MoleLite`).
+        """
+        if mol is None:
+            mol = self.mol
+        h = mol.intor_symmetric("int1e_kin") + mol.intor_symmetric("int1e_nuc")
+        return h.astype(np.floatx)
+
+    def init_guess_by_1e(
+        self,
+        h1e: ArrayLike,
+        s1e: ArrayLike,
+    ) -> Array:
+        """Core-Hamiltonian (1e) initial guess. Fully jittable."""
+        mo_energy, mo_coeff = self.eig(h1e, s1e)
+        mo_occ = self.get_occ(mo_energy, mo_coeff)
+        return self.make_rdm1(mo_coeff, mo_occ)
+
+    def get_init_guess(
+        self,
+        mol: MoleLite | None = None,
+        key: str | None = None,
+        s1e: ArrayLike | None = None,
+        **kwargs,
+    ) -> Array:
+        """Initial density matrix.
+
+        Uses the jittable core-Hamiltonian guess regardless of ``key`` so the
+        whole SCF driver stays traceable under ``jax.jit``/``jax.grad`` (PySCF's
+        ``minao`` guess would require materialising a concrete molecule).
+        """
+        if mol is None:
+            mol = self.mol
+        if s1e is None:
+            s1e = self.get_ovlp(mol)
+        h1e = self.get_hcore(mol)
+        return self.init_guess_by_1e(h1e, s1e)
 
     def make_rdm1(
         self,
@@ -523,7 +562,6 @@ class SCF(SCFBase):
         logger.debug(self, "E1 = %s  E_coul = %s", e1, ecoul)
         return e1+ecoul, ecoul
 
-    get_init_guess = hf.SCF.get_init_guess
     get_jk = hf.SCF.get_jk
     get_veff = hf.SCF.get_veff
     energy_nuc = hf.SCF.energy_nuc
@@ -533,3 +571,4 @@ class SCF(SCFBase):
     get_homo_lumo_energy = get_homo_lumo_energy
 
 SCFLite = SCF
+RHF = SCF

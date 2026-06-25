@@ -42,7 +42,13 @@ from pyscfad.gto.moleintor_lite import (
     _aoslice_by_atom,
     _extract_coords,
 )
-from pyscfadlib._cuda_plugin import import_plugin_module
+try:
+    from pyscfadlib._cuda_plugin import import_plugin_module
+except ImportError:
+    # The CUDA plugin loader ships only with GPU-enabled pyscfadlib builds.
+    # On CPU-only installations it is absent; fall back to no cuint backend so
+    # that importing this module (and hence ``MoleLite``) still succeeds.
+    import_plugin_module = None
 
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
@@ -50,7 +56,7 @@ if TYPE_CHECKING:
 
 # Load the integral module from the CUDA plugin matching jax's CUDA version
 # (pyscfad-cuda12-plugin / pyscfad-cuda13-plugin / ...).
-_cuint = import_plugin_module("_cuint")
+_cuint = import_plugin_module("_cuint") if import_plugin_module is not None else None
 
 if _cuint:
     for _name, _value in _cuint.registrations().items():
