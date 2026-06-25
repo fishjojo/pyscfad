@@ -409,7 +409,38 @@ class SCF(SCFBase):
         return f
 
     def get_hcore(self, mol: MoleLite | None = None, **kwargs) -> Array:
-        return super().get_hcore(mol)
+        """Core Hamiltonian (kinetic + nuclear attraction).
+
+        Computed directly through the (jittable, differentiable) lite integral
+        path rather than PySCF's ``get_hcore`` (which assumes ECP/pseudo
+        bookkeeping absent on :class:`~pyscfad.gto.MoleLite`).
+        """
+        if mol is None:
+            mol = self.mol
+        return (mol.intor_symmetric("int1e_kin")
+                + mol.intor_symmetric("int1e_nuc")).astype(np.floatx)
+
+    def get_init_guess(
+        self,
+        mol: MoleLite | None = None,
+        key: str | None = None,
+        s1e: ArrayLike | None = None,
+        **kwargs,
+    ) -> Array:
+        """Core-Hamiltonian initial-guess density matrix.
+
+        Fully jittable; avoids the ``minao`` guess that routes through
+        :meth:`~pyscfad.gto.MoleLite.to_pyscf` (incompatible with tracing).
+        """
+        if mol is None:
+            mol = self.mol
+        if s1e is None:
+            s1e = self.get_ovlp(mol)
+        h1e = self.get_hcore(mol)
+        mo_energy, mo_coeff = self.eig(h1e, s1e)
+        mo_occ = self.get_occ(mo_energy, mo_coeff)
+        dm = self.make_rdm1(mo_coeff, mo_occ)
+        return dm
 
     def make_rdm1(
         self,
@@ -523,7 +554,6 @@ class SCF(SCFBase):
         logger.debug(self, "E1 = %s  E_coul = %s", e1, ecoul)
         return e1+ecoul, ecoul
 
-    get_init_guess = hf.SCF.get_init_guess
     get_jk = hf.SCF.get_jk
     get_veff = hf.SCF.get_veff
     energy_nuc = hf.SCF.energy_nuc
