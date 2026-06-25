@@ -75,6 +75,29 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Pre-build the environment so the agent spends its run on the actual fix,
+      # not on building the toolchain. build_pyscfadlib.sh needs
+      # `sudo apt-get install liblapack-dev`, which the agent's sandbox lacks — so
+      # on #136 it burned ~38 of 47 min hand-rolling a BLAS shim from source, and
+      # that build output also floods the context window, which is what ends the
+      # session before it can push. A pyscfadlib wheel exists on PyPI, so install
+      # that plus the usual deps here instead. Best-effort: continue-on-error so a
+      # setup hiccup never blocks the agent (it can still build its own env, as
+      # today). Issue-fix runs only — PR-review/triage runs don't need it.
+      - name: Set up Python for the agent
+        if: ${{ github.event_name == 'issues' || (github.event_name == 'issue_comment' && github.event.issue.pull_request == null) }}
+        continue-on-error: true
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pre-build pyscfad environment for the agent
+        if: ${{ github.event_name == 'issues' || (github.event_name == 'issue_comment' && github.event.issue.pull_request == null) }}
+        continue-on-error: true
+        run: |
+          bash ./.github/workflows/install_pyscf.sh
+          pip install pyscfadlib
+          pip install -e .
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
@@ -148,4 +171,50 @@ jobs:
             --effort max
             --allowed-tools "Task,Read,Grep,Glob,Bash(git:*),Bash(gh:*),Bash(./scripts/gh.sh:*),Bash(python:*),Bash(pytest:*),Bash(pip:*),Edit,Write,WebSearch,WebFetch(domain:github.com),WebFetch(domain:api.github.com),WebFetch(domain:raw.githubusercontent.com),WebFetch(domain:arxiv.org),WebFetch(domain:docs.python.org),WebFetch(domain:readthedocs.io),WebFetch(domain:pyscf.org),WebFetch(domain:github.io),WebFetch(domain:wikipedia.org),WebFetch(domain:doi.org),WebFetch(domain:stackoverflow.com),WebFetch(domain:stackexchange.com),WebFetch(domain:chemrxiv.org),WebFetch(domain:semanticscholar.org)"
             --append-system-prompt "When you are triggered on an existing open pull request (via a PR review, a review comment, or an issue comment on the PR), address the feedback directly: make the code changes, run the relevant tests when code is touched, commit to that PR's branch and push, then post a comment summarizing what you changed and how you verified it. When you are triggered on an ISSUE asking to fix a bug or implement a feature, run the multi-agent pipeline in .claude/commands/fix-issue.md: FIRST dispatch the bug-verifier subagent to confirm the bug actually reproduces (or that a feature request is actionable), and ONLY if its verdict is 'confirmed' (bug) or 'actionable' (feature) do you proceed — otherwise post a single comment with the verdict and its evidence and STOP without changing code. When the gate passes, your VERY FIRST action — before the context-builder, the fix-planner, or any code — is to create the draft PR so it exists no matter when the run ends. This OVERRIDES the built-in guidance that says to push only at the end and to merely provide a 'Create a PR' link. Do it now: (1) you are ALREADY on the branch this action created for you, so do NOT create a new branch — read its name with `git rev-parse --abbrev-ref HEAD`; (2) make an initial empty commit: `git commit --allow-empty -m 'WIP: start fix for #N'`; (3) push the current branch, preferring the action push helper `git-push.sh` and otherwise `git push -u origin HEAD`; (4) actually OPEN the PR now with `gh pr create --draft` (body begins with 'Fixes #N' and is marked WIP) — do NOT just post a Create-a-PR link; record its number. THEN dispatch the context-builder and the fix-planner, and update the PR body with the plan via `gh pr edit`. Then orchestrate fix-implementer/fix-verifier subagents in a loop (up to 4 iterations) until the targeted tests converge; spawn all of these with the Task tool (they are defined in .claude/agents/). Commit and push (via `git-push.sh`) after EVERY iteration so the remote always reflects the latest work even if the run ends early. When the loop ends, update that same PR with `gh pr edit` (add the exact verification commands and results), then comment on the issue linking the PR. Do not green-wash: if the tests do not converge within the iteration cap, leave the existing draft PR clearly marked NEEDS WORK with the failing output rather than a passing-looking one. If the issue is only a question or not an actionable code change, respond with your findings as a comment instead of opening a PR. IMPORTANT: GitHub forbids your token from creating or updating files under .github/workflows/ (the 'workflows permission' restriction), so any git push that touches a workflow file will be rejected. If a change requires editing .github/workflows/, do NOT attempt to commit or push it — instead post the full change as a diff/patch in a comment and ask a human to apply it manually. When you are triggered by a submitted pull request review (including automated reviewers such as Codex), treat every UNRESOLVED review thread as a task. First enumerate the PR's review threads with `gh api graphql`, querying repository.pullRequest.reviewThreads and reading each node's id (the thread node id), isResolved, isOutdated, path, line, and its comments' databaseId, author login and body; skip any thread whose isResolved is already true. For each unresolved thread, judge the finding on its merits: if it is valid, implement the fix in the code. After addressing the findings, run the relevant tests when code is touched, then commit to the PR branch and push. Then, for each thread you handled, reply to it by POSTing to the REST endpoint repos/{owner}/{repo}/pulls/{number}/comments/{comment_databaseId}/replies (using the databaseId of the thread's first comment) explaining what you changed or why you did not change anything. ONLY resolve a thread whose finding you actually fixed, by calling the GraphQL resolveReviewThread mutation with that thread's node id. Do NOT resolve a thread you disagreed with or could not fix — leave it open with a reply explaining your reasoning. Finally, post one summary comment listing which findings you fixed and resolved, and which you left open and why."
+
+      # Deterministic backstop. In tag mode the agent only pushes the branch and
+      # opens the PR as its FINAL step; a large issue (e.g. #136) exhausts the run
+      # before reaching it, so the agent's local commits die with the runner — the
+      # job is green but there is no branch and no PR. This step runs AFTER the
+      # agent, OUTSIDE its sandbox, with the Actions token, and pushes whatever the
+      # agent left (committed or not) and opens a draft PR — so even a partial run
+      # yields a reviewable PR. Issue-fix runs only (PR-review runs push directly).
+      - name: Backstop — push agent work and open a draft PR
+        if: ${{ always() && (github.event_name == 'issues' || (github.event_name == 'issue_comment' && github.event.issue.pull_request == null)) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -uo pipefail
+          branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)
+          echo "Backstop: HEAD is on '$branch'"
+          if [ "$branch" = "main" ] || [ "$branch" = "HEAD" ]; then
+            echo "Agent created no feature branch; nothing to do."; exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Capture any uncommitted edits; never include workflow files (token lacks scope).
+          git add -A || true
+          git reset -q -- .github/workflows 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -q -m "wip(#${ISSUE_NUMBER}): capture agent changes [skip ci]"
+            echo "Committed the agent's uncommitted changes."
+          fi
+          git fetch -q origin main || true
+          ahead=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
+          if [ "$ahead" = "0" ]; then
+            echo "No commits ahead of main; the agent produced nothing pushable."; exit 0
+          fi
+          echo "Pushing $ahead commit(s) on $branch."
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git push -u origin "HEAD:refs/heads/${branch}"
+          if gh pr view "$branch" --json number >/dev/null 2>&1; then
+            echo "A PR already exists for $branch; updated it via push."
+          else
+            title=$(gh issue view "$ISSUE_NUMBER" --json title -q .title 2>/dev/null || echo "automated fix")
+            body="Fixes #${ISSUE_NUMBER}"$'\n\n'"⚠️ **Draft opened automatically by the workflow backstop** after the agent run. The agent may not have finished — review the diff and run CI before merging."$'\n\n'"🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+            gh pr create --draft --base main --head "$branch" --title "Fix #${ISSUE_NUMBER}: ${title}" --body "$body"
+            echo "Opened draft PR for $branch."
+          fi
 
