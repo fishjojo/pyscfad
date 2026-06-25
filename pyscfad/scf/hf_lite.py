@@ -33,6 +33,7 @@ from pyscfad import lib
 from pyscfad.lib import logger
 from pyscfad.scf import hf
 from pyscfad.scf.anderson import Anderson
+from pyscfad.scf.diis import DIIS
 #from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.scipy.sparse.linalg import gmres_const_atol
 from pyscfad.scf.addons import get_occ_smearing
@@ -172,11 +173,18 @@ def _scf(
         return cycle+1, de, norm_gorb, dm, vhf, fock, e_tot, diis
 
     fock = mf.get_fock(h1e, s1e, vhf, dm)
-    if isinstance(mf.diis, str) and mf.diis.lower() == "anderson":
+    diis_key = mf.diis.lower() if isinstance(mf.diis, str) else None
+    if diis_key == "anderson":
         diis = Anderson(
             lib.pack_tril(fock),
             space=mf.diis_space,
             damp=mf.diis_damp,
+            start_cycle=mf.diis_start_cycle
+        )
+    elif diis_key == "diis":
+        diis = DIIS(
+            lib.pack_tril(fock),
+            space=mf.diis_space,
             start_cycle=mf.diis_start_cycle
         )
     else:
@@ -399,7 +407,7 @@ class SCF(SCFBase):
         if diis is None:
             pass
 
-        elif isinstance(diis, Anderson):
+        elif isinstance(diis, (Anderson, DIIS)):
             f_tril = diis.update(lib.pack_tril(f), lib.pack_tril(fock_last))
             f = lib.unpack_tril(f_tril)
 
@@ -478,7 +486,7 @@ class SCF(SCFBase):
         """
         if mo_energy is None:
             mo_energy = self.mo_energy
-        return np.ones(mo_energy.size, dtype=bool)
+        return np.ones(mo_energy.shape, dtype=bool)
 
     def get_grad(
         self,
@@ -572,3 +580,170 @@ class SCF(SCFBase):
 
 SCFLite = SCF
 RHF = SCF
+
+
+def get_occ_uhf(
+    mf: UHF,
+    mo_energy: ArrayLike | None = None,
+    mo_coeff: ArrayLike | None = None,
+) -> Array:
+    """Spin-resolved MO occupations (one electron per occupied spin orbital)."""
+    if mf.sigma is not None and mf.sigma > 0:
+        raise NotImplementedError("Smearing is not supported for UHF.")
+    if mo_energy is None:
+        mo_energy = mf.mo_energy
+    if mo_coeff is None:
+        mo_coeff = mf.mo_coeff
+
+    mask = mf.mo_mask(mo_energy, mo_coeff)
+    neleca, nelecb = mf.nelec
+
+    def _occ(mo_e, msk, nocc):
+        pick = (np.cumsum(msk) <= nocc) & msk
+        return np.where(pick, np.asarray(1, dtype=np.floatx), np.asarray(0, dtype=np.floatx))
+
+    occ_a = _occ(mo_energy[0], mask[0], neleca)
+    occ_b = _occ(mo_energy[1], mask[1], nelecb)
+    return np.array((occ_a, occ_b))
+
+
+def get_homo_lumo_energy_uhf(
+    mf: UHF,
+    mo_energy: ArrayLike | None = None,
+    mo_coeff: ArrayLike | None = None,
+) -> tuple[float, float]:
+    if mo_energy is None:
+        mo_energy = mf.mo_energy
+    if mo_coeff is None:
+        mo_coeff = mf.mo_coeff
+
+    mask = mf.mo_mask(mo_energy, mo_coeff)
+    neleca, nelecb = mf.nelec
+
+    def _hl(mo_e, msk, nocc):
+        pick = (np.cumsum(msk) <= nocc) & msk
+        e_homo = np.max(np.where(pick, mo_e, -np.inf))
+        e_lumo = np.min(np.where(msk & ~pick, mo_e, np.inf))
+        return e_homo, e_lumo
+
+    ha, la = _hl(mo_energy[0], mask[0], neleca)
+    hb, lb = _hl(mo_energy[1], mask[1], nelecb)
+    return np.maximum(ha, hb), np.minimum(la, lb)
+
+
+def get_grad_uhf(mo_coeff: ArrayLike, mo_occ: ArrayLike, fock_ao: ArrayLike) -> Array:
+    def _grad(mo, occ, fock):
+        fock_mo = mo.conj().T @ fock @ mo
+        occ_mask = np.where(occ > 0, 1, 0)
+        vir_mask = 1 - occ_mask
+        g = fock_mo * (vir_mask[:, None] * occ_mask[None, :])
+        return g.ravel()
+    ga = _grad(mo_coeff[0], mo_occ[0], fock_ao[0])
+    gb = _grad(mo_coeff[1], mo_occ[1], fock_ao[1])
+    return np.hstack((ga, gb))
+
+
+class UHF(SCF):
+    r"""Unrestricted Hartree-Fock (lightweight, fully jittable).
+
+    Spin-resolved counterpart of :class:`SCF`. The density matrix, Fock matrix,
+    MO energies/coefficients and occupations all carry a leading spin axis of
+    size two (``alpha``/``beta``); the shared SCF driver, DIIS and core
+    Hamiltonian are reused unchanged.
+    """
+
+    @property
+    def nelec(self) -> tuple[int, int]:
+        ne = self.mol.tot_electrons()
+        spin = self.mol.spin
+        neleca = (ne + spin) // 2
+        nelecb = neleca - spin
+        return neleca, nelecb
+
+    def eig(self, h: ArrayLike, s: ArrayLike) -> tuple[Array, Array]:
+        e_a, c_a = self._eigh(h[0], s)
+        e_b, c_b = self._eigh(h[1], s)
+        return np.array((e_a, e_b)), np.array((c_a, c_b))
+
+    def make_rdm1(
+        self,
+        mo_coeff: ArrayLike | None = None,
+        mo_occ: ArrayLike | None = None,
+        **kwargs,
+    ) -> Array:
+        if mo_coeff is None:
+            mo_coeff = self.mo_coeff
+        if mo_occ is None:
+            mo_occ = self.mo_occ
+        dm_a = (mo_coeff[0] * mo_occ[0]) @ mo_coeff[0].conj().T
+        dm_b = (mo_coeff[1] * mo_occ[1]) @ mo_coeff[1].conj().T
+        return np.array((dm_a, dm_b))
+
+    def get_veff(
+        self,
+        mol: MoleLite | None = None,
+        dm: ArrayLike | None = None,
+        dm_last: ArrayLike = 0,
+        vhf_last: ArrayLike = 0,
+        hermi: int = 1,
+        **kwargs,
+    ) -> Array:
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm = self.make_rdm1()
+        dm = np.asarray(dm)
+        if dm.ndim == 2:
+            dm = np.array((dm * .5, dm * .5))
+        vj, vk = self.get_jk(mol, dm, hermi)
+        vhf = vj[0] + vj[1] - vk
+        return vhf
+
+    def init_guess_by_1e(
+        self,
+        h1e: ArrayLike,
+        s1e: ArrayLike,
+    ) -> Array:
+        h1e = np.array((h1e, h1e))
+        mo_energy, mo_coeff = self.eig(h1e, s1e)
+        mo_occ = self.get_occ(mo_energy, mo_coeff)
+        return self.make_rdm1(mo_coeff, mo_occ)
+
+    def energy_elec(
+        self,
+        dm: ArrayLike | None = None,
+        h1e: ArrayLike | None = None,
+        vhf: ArrayLike | None = None,
+    ) -> tuple[float, float]:
+        if dm is None:
+            dm = self.make_rdm1()
+        if h1e is None:
+            h1e = self.get_hcore(self.mol)
+        if vhf is None:
+            vhf = self.get_veff(self.mol, dm)
+        dm = np.asarray(dm)
+        if dm.ndim == 2:
+            dm = np.array((dm * .5, dm * .5))
+        e1 = np.einsum("ij,ji->", h1e, dm[0]) + np.einsum("ij,ji->", h1e, dm[1])
+        e_coul = (np.einsum("ij,ji->", vhf[0], dm[0]) +
+                  np.einsum("ij,ji->", vhf[1], dm[1])) * .5
+        e_elec = (e1 + e_coul).real
+        self.scf_summary["e1"] = e1.real
+        self.scf_summary["e2"] = e_coul.real
+        return e_elec, e_coul.real
+
+    def get_grad(
+        self,
+        mo_coeff: ArrayLike,
+        mo_occ: ArrayLike,
+        fock: ArrayLike | None = None,
+    ) -> Array:
+        if fock is None:
+            dm = self.make_rdm1(mo_coeff, mo_occ)
+            fock = self.get_fock(dm=dm)
+        return get_grad_uhf(mo_coeff, mo_occ, fock)
+
+    get_occ = get_occ_uhf
+    get_homo_lumo_energy = get_homo_lumo_energy_uhf
+
+UHFLite = UHF

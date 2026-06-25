@@ -14,12 +14,25 @@
 """
 DIIS
 """
+from typing import NamedTuple, Any
+import jax
+from jax import tree
 from pyscf.scf import diis as pyscf_cdiis
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.ops import jit, vmap
 from pyscfad import lib
+from pyscfad import pytree
 from pyscfad.lib import logger
+from pyscfad.scf.anderson import (
+    RIDGE_TOL,
+    minimize_residual,
+    update_history,
+    _tree_scale_sum,
+    _tree_sub,
+)
+
+Array = Any
 
 class CDIIS(lib.diis.DIIS, pyscf_cdiis.CDIIS):
     def __init__(self, mf=None, filename=None, Corth=None):
@@ -93,4 +106,104 @@ def get_err_vec(s, d, f, Corth=None):
     else:
         return get_err_vec_orth(s, d, f, Corth)
 
-SCFDIIS = SCF_DIIS = DIIS = CDIIS
+SCFDIIS = SCF_DIIS = CDIIS
+
+
+class DIISState(NamedTuple):
+    cycle: int
+    param_hist: Any
+    res_hist: Any
+    res_gram: Array
+
+
+class DIIS(pytree.PytreeNode):
+    r"""Jittable Pulay DIIS.
+
+    Shares the constrained least-squares machinery of
+    :class:`~pyscfad.scf.anderson.Anderson` (a Gram matrix of error vectors and
+    the Lagrange-constrained minimisation :func:`~pyscfad.scf.anderson.minimize_residual`),
+    but extrapolates the *pure* DIIS combination :math:`\sum_i c_i p_i` of the
+    stored Fock matrices rather than the Anderson update. The error vector for
+    each stored Fock is the change in the iterate, ``param - param_last``, so no
+    overlap/density-matrix commutator is required and the whole update is
+    traceable under ``jax.jit``.
+
+    Parameters
+    ----------
+    param: parameters to be mixed (e.g. the packed Fock matrix).
+    space: size of the DIIS subspace.
+    ridge: ridge regularisation added to the Gram matrix for stability.
+    start_cycle: first cycle (0-based) at which extrapolation is applied.
+    """
+    _dynamic_attr = ["state"]
+
+    def __init__(
+        self,
+        param: Any,
+        space: int = 8,
+        ridge: float = RIDGE_TOL,
+        start_cycle: int = 1,
+    ):
+        self.space = space
+        self.ridge = ridge
+        self.start_cycle = start_cycle
+        self.state = self.init_state(param)
+
+    def init_state(
+        self,
+        param: Any,
+    ) -> NamedTuple:
+        m = self.space
+        param_hist = tree.map(lambda x: np.tile(x, [m]+[1]*x.ndim), param)
+        res_hist = tree.map(np.zeros_like, param_hist)
+        res_gram = np.zeros((m, m), dtype=np.floatx)
+        return DIISState(
+            cycle=np.asarray(0, dtype=int),
+            param_hist=param_hist,
+            res_hist=res_hist,
+            res_gram=res_gram,
+        )
+
+    def update(
+        self,
+        param: Any,
+        param_last: Any,
+    ) -> Any:
+        state = self.state
+        cycle = state.cycle
+
+        pos = np.mod(cycle, self.space)
+        residual = _tree_sub(param, param_last)
+        param_hist, res_hist, res_gram = \
+            update_history(pos, state.param_hist, state.res_hist,
+                           state.res_gram, param, residual)
+
+        next_state = DIISState(
+            cycle=cycle+1,
+            param_hist=param_hist,
+            res_hist=res_hist,
+            res_gram=res_gram,
+        )
+
+        def _diis_step(param, state):
+            alpha = minimize_residual(state.res_gram, self.ridge)
+            return _tree_scale_sum(alpha[1:], state.param_hist)
+
+        def _use_param(param, state):
+            return param
+
+        start_cycle = jax.lax.select(
+            np.greater_equal(self.start_cycle+1, self.space),
+            self.start_cycle+1,
+            self.space,
+        )
+        extrapolated = jax.lax.cond(
+            np.greater_equal(cycle+1, start_cycle),
+            _diis_step,
+            _use_param,
+            param,
+            next_state,
+        )
+
+        self.state = next_state
+        return extrapolated
