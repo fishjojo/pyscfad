@@ -94,3 +94,106 @@ def get_err_vec(s, d, f, Corth=None):
         return get_err_vec_orth(s, d, f, Corth)
 
 SCFDIIS = SCF_DIIS = DIIS = CDIIS
+
+
+# ---------------------------------------------------------------------------
+# Jittable Pulay (commutator) DIIS, structured like ``scf/anderson.py`` so it
+# can live inside a ``jax.lax.while_loop`` SCF as a pytree.
+# ---------------------------------------------------------------------------
+import jax
+from jax import tree
+from pyscfad import pytree
+from pyscfad.scf.anderson import (
+    AndersonState,
+    RIDGE_TOL,
+    minimize_residual,
+    update_history,
+    _tree_scale_sum,
+)
+
+def get_diis_errvec(s, d, f):
+    r"""DIIS commutator error vector :math:`e = SDF - (SDF)^\dagger`.
+
+    Broadcasts over a leading spin axis, so it handles both the RHF
+    ``(nao, nao)`` and UHF ``(2, nao, nao)`` Fock/density layouts.
+    """
+    sdf = np.matmul(np.matmul(s, d), f)
+    return sdf - np.swapaxes(sdf.conj(), -1, -2)
+
+class Pulay(pytree.PytreeNode):
+    r"""Pulay's DIIS using the commutator error vector.
+
+    Mirrors :class:`~pyscfad.scf.anderson.Anderson`: the error-vector Gram
+    matrix is accumulated in a fixed-size circular buffer and the DIIS
+    equations are solved by :func:`~pyscfad.scf.anderson.minimize_residual`.
+    Unlike Anderson, the residual is the externally supplied commutator (not
+    ``param - param_last``) and the extrapolation is the pure DIIS combination
+    :math:`F = \sum_i c_i F_i` (no residual mixing).
+
+    Parameters
+    ----------
+    param: a Fock matrix (template defining the stored shape/dtype).
+    space: size of the DIIS subspace.
+    ridge: ridge regularization for the (near-singular) DIIS matrix.
+    start_cycle: starting cycle for extrapolation.
+    """
+    _dynamic_attr = ["state"]
+
+    def __init__(
+        self,
+        param,
+        space=8,
+        ridge=RIDGE_TOL,
+        start_cycle=1,
+    ):
+        self.space = space
+        self.ridge = ridge
+        self.start_cycle = start_cycle
+        self.state = self.init_state(param)
+
+    def init_state(self, param):
+        m = self.space
+        param_hist = tree.map(lambda x: np.tile(x, [m]+[1]*x.ndim), param)
+        res_hist = tree.map(np.zeros_like, param_hist)
+        res_gram = np.zeros((m, m), dtype=np.floatx)
+        return AndersonState(
+            cycle=np.asarray(0, dtype=int),
+            param_hist=param_hist,
+            res_hist=res_hist,
+            res_gram=res_gram,
+        )
+
+    def update(self, param, residual):
+        state = self.state
+        cycle = state.cycle
+        pos = np.mod(cycle, self.space)
+        param_hist, res_hist, res_gram = update_history(
+            pos, state.param_hist, state.res_hist, state.res_gram, param, residual)
+        next_state = AndersonState(
+            cycle=cycle+1,
+            param_hist=param_hist,
+            res_hist=res_hist,
+            res_gram=res_gram,
+        )
+
+        def _diis_step(param, st):
+            alpha = minimize_residual(st.res_gram, self.ridge)
+            return _tree_scale_sum(alpha[1:], st.param_hist)
+
+        def _use_param(param, st):
+            return param
+
+        start_cycle = jax.lax.select(
+            np.greater_equal(self.start_cycle+1, self.space),
+            self.start_cycle+1,
+            self.space,
+        )
+        extrapolated = jax.lax.cond(
+            np.greater_equal(cycle+1, start_cycle),
+            _diis_step,
+            _use_param,
+            param,
+            next_state,
+        )
+        self.state = next_state
+        return extrapolated

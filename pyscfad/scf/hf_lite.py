@@ -33,6 +33,7 @@ from pyscfad import lib
 from pyscfad.lib import logger
 from pyscfad.scf import hf
 from pyscfad.scf.anderson import Anderson
+from pyscfad.scf.diis import Pulay, get_diis_errvec
 #from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.scipy.sparse.linalg import gmres_const_atol
 from pyscfad.scf.addons import get_occ_smearing
@@ -178,6 +179,12 @@ def _scf(
             space=mf.diis_space,
             damp=mf.diis_damp,
             start_cycle=mf.diis_start_cycle
+        )
+    elif isinstance(mf.diis, str) and mf.diis.lower() == "diis":
+        diis = Pulay(
+            fock,
+            space=mf.diis_space,
+            start_cycle=mf.diis_start_cycle,
         )
     else:
         diis = None
@@ -402,6 +409,10 @@ class SCF(SCFBase):
         elif isinstance(diis, Anderson):
             f_tril = diis.update(lib.pack_tril(f), lib.pack_tril(fock_last))
             f = lib.unpack_tril(f_tril)
+
+        elif isinstance(diis, Pulay):
+            errvec = get_diis_errvec(s1e, dm, f)
+            f = diis.update(f, errvec)
 
         else:
             raise NotImplementedError(f"Unsupported diis type {type(diis)}")
