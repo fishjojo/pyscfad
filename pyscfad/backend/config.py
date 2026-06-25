@@ -94,8 +94,12 @@ _current_backend = None
 _backend_cache = {}
 
 def set_backend(backend_name):
-    if not backend_name in _allowed_backend:
-        raise KeyError(f"Required backend {backend_name} is not supported.")
+    if backend_name not in _allowed_backend:
+        supported = ', '.join(_allowed_backend)
+        raise ValueError(
+            f"Backend '{backend_name}' is not supported. "
+            f"Supported backends are: {supported}."
+        )
 
     with threading.RLock():
         global _current_backend
@@ -105,7 +109,7 @@ def set_backend(backend_name):
             try:
                 module = importlib.import_module(f"pyscfad.backend._{backend_name}").backend
             except Exception:
-                raise RuntimeError("Failed setting backend {backend_name}.")
+                raise RuntimeError(f"Failed setting backend {backend_name}.")
             _backend_cache[backend_name] = module
             _current_backend = module
 
