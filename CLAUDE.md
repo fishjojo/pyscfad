@@ -210,3 +210,25 @@ integral engine. `pyscfadlib` is versioned and released independently of `pyscfa
   `pyscfad_*_implicit_diff` config flag.
 - Use `safe_*` numpy helpers (e.g. `safe_sqrt`) where derivatives can blow up at
   singularities.
+
+## Autonomous CI runs (`@claude` issue fixer)
+
+When you run non-interactively in CI (triggered by an `@claude` mention on an issue
+or PR), you are operating **autonomously**: no human is watching in real time and no
+one will answer questions or say "continue" mid-task. A Stop hook
+(`.claude/hooks/stop-finish.sh`) enforces this, but follow it regardless:
+
+- **Never end your turn on a plan, a status update, or a statement of intent.** If
+  your last message would be "I'll now run X", "running the final regression", or
+  "next I'll push", do that work *now* with tool calls instead of ending. Before
+  ending, re-read your own final message and checklist: if anything is described but
+  not actually done, do it.
+- **Don't ask permission** for reversible actions that follow from the task (running
+  tests, committing, pushing, opening/updating a PR) — just do them.
+- **Finish everything before stopping**: implementation, the targeted tests *and*
+  any final/regression sweep you said you'd run, commit, push, and the PR. Stop only
+  when the task is genuinely complete and verified, or when you are blocked on
+  something only a human can provide.
+- **Signal completion** as your very last action, once everything above is truly done
+  and verified: run `git config --local claude.fixComplete true`, then stop. This is
+  what releases the Stop hook.
