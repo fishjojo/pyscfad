@@ -562,4 +562,155 @@ class SCF(SCFBase):
     get_occ = get_occ
     get_homo_lumo_energy = get_homo_lumo_energy
 
-SCFLite = SCF
+SCFLite = RHF = SCF
+
+
+def _occ_pick(mask_s: Array, nocc: int) -> Array:
+    """The lowest ``nocc`` real orbitals (``mo_energy`` assumed ascending)."""
+    return (np.cumsum(mask_s) <= nocc) & mask_s
+
+def get_occ_uhf(
+    mf: UHF,
+    mo_energy: ArrayLike | None = None,
+    mo_coeff: ArrayLike | None = None,
+) -> Array:
+    """Spin-resolved MO occupations (jittable)."""
+    if mo_energy is None:
+        mo_energy = mf.mo_energy
+    if mo_coeff is None:
+        mo_coeff = mf.mo_coeff
+    mask = mf.mo_mask(mo_energy, mo_coeff)
+    nelec = mf.nelec
+    occ_a = np.where(_occ_pick(mask[0], nelec[0]), 1., 0.)
+    occ_b = np.where(_occ_pick(mask[1], nelec[1]), 1., 0.)
+    return np.stack([occ_a, occ_b]).astype(np.floatx)
+
+def get_grad_uhf(mo_coeff: ArrayLike, mo_occ: ArrayLike, fock_ao: ArrayLike) -> Array:
+    def _g(c, occ, f):
+        fmo = c.conj().T @ f @ c
+        occ_mask = np.where(occ > 0, 1, 0)
+        vir_mask = 1 - occ_mask
+        return (fmo * (vir_mask[:,None] * occ_mask[None,:])).ravel()
+    return np.concatenate([_g(mo_coeff[0], mo_occ[0], fock_ao[0]),
+                           _g(mo_coeff[1], mo_occ[1], fock_ao[1])])
+
+
+class UHF(SCF):
+    r"""Unrestricted Hartree-Fock (lightweight, jittable).
+
+    The spin-resolved quantities (Fock, density, MO coefficients/energies,
+    occupations) carry a leading length-2 axis ``(alpha, beta)``. The core
+    Hamiltonian and overlap remain spin-independent.
+    """
+    @property
+    def nelec(self) -> tuple[int, int]:
+        ne = int(self.mol.tot_electrons())
+        spin = int(self.mol.spin)
+        nalpha = (ne + spin) // 2
+        nbeta = (ne - spin) // 2
+        return (nalpha, nbeta)
+
+    def eig(self, h: ArrayLike, s: ArrayLike) -> tuple[Array, Array]:
+        # accept a spin-independent matrix (e.g. the hcore initial guess)
+        if np.ndim(h) == 2:
+            h = np.stack([h, h])
+        e_a, c_a = self._eigh(h[0], s)
+        e_b, c_b = self._eigh(h[1], s)
+        return np.stack([e_a, e_b]), np.stack([c_a, c_b])
+
+    def get_veff(
+        self,
+        mol: MoleLite | None = None,
+        dm: ArrayLike | None = None,
+        dm_last: ArrayLike = 0,
+        vhf_last: ArrayLike = 0,
+        hermi: int = 1,
+        **kwargs,
+    ) -> Array:
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm = self.make_rdm1()
+        dm = np.asarray(dm)
+        if dm.ndim == 2:
+            dm = np.stack([dm * .5, dm * .5])
+        vj, vk = self.get_jk(mol, dm, hermi)
+        return vj[0] + vj[1] - vk
+
+    def make_rdm1(
+        self,
+        mo_coeff: ArrayLike | None = None,
+        mo_occ: ArrayLike | None = None,
+        **kwargs,
+    ) -> Array:
+        if mo_coeff is None:
+            mo_coeff = self.mo_coeff
+        if mo_occ is None:
+            mo_occ = self.mo_occ
+        dm_a = (mo_coeff[0] * mo_occ[0]) @ mo_coeff[0].conj().T
+        dm_b = (mo_coeff[1] * mo_occ[1]) @ mo_coeff[1].conj().T
+        return np.stack([dm_a, dm_b])
+
+    def mo_mask(
+        self,
+        mo_energy: ArrayLike | None = None,
+        mo_coeff: ArrayLike | None = None,
+    ) -> Array:
+        if mo_energy is None:
+            mo_energy = self.mo_energy
+        return np.ones(np.shape(mo_energy), dtype=bool)
+
+    def energy_elec(
+        self,
+        dm: ArrayLike | None = None,
+        h1e: ArrayLike | None = None,
+        vhf: ArrayLike | None = None,
+    ) -> tuple[float, float]:
+        if dm is None:
+            dm = self.make_rdm1()
+        if h1e is None:
+            h1e = self.get_hcore(self.mol)
+        if vhf is None:
+            vhf = self.get_veff(self.mol, dm)
+        e1 = np.einsum("ij,ji->", h1e, dm[0]) + np.einsum("ij,ji->", h1e, dm[1])
+        e_coul = (np.einsum("ij,ji->", vhf[0], dm[0]) +
+                  np.einsum("ij,ji->", vhf[1], dm[1])) * .5
+        e_elec = (e1 + e_coul).real
+        self.scf_summary["e1"] = e1.real
+        self.scf_summary["e2"] = e_coul.real
+        logger.debug(self, "E1 = %s  Ecoul = %s", e1, e_coul.real)
+        return e_elec, e_coul
+
+    def get_grad(
+        self,
+        mo_coeff: ArrayLike,
+        mo_occ: ArrayLike,
+        fock: ArrayLike | None = None,
+    ) -> Array:
+        if fock is None:
+            dm = self.make_rdm1(mo_coeff, mo_occ)
+            fock = self.get_fock(dm=dm)
+        return get_grad_uhf(mo_coeff, mo_occ, fock)
+
+    def get_homo_lumo_energy(
+        self,
+        mo_energy: ArrayLike | None = None,
+        mo_coeff: ArrayLike | None = None,
+    ) -> tuple[float, float]:
+        if mo_energy is None:
+            mo_energy = self.mo_energy
+        if mo_coeff is None:
+            mo_coeff = self.mo_coeff
+        mask = self.mo_mask(mo_energy, mo_coeff)
+        nelec = self.nelec
+        e_homo = -np.inf
+        e_lumo = np.inf
+        for s in range(2):
+            pick = _occ_pick(mask[s], nelec[s])
+            e_homo = np.maximum(e_homo, np.max(np.where(pick, mo_energy[s], -np.inf)))
+            e_lumo = np.minimum(e_lumo, np.min(np.where(mask[s] & ~pick, mo_energy[s], np.inf)))
+        return e_homo, e_lumo
+
+    get_occ = get_occ_uhf
+
+UHFLite = UHF
