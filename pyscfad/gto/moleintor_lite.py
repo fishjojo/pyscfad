@@ -319,6 +319,7 @@ def getints_jvp(
             shls_slice,
             comp,
             ao_loc,
+            aoslices,
         ).reshape(tangent_out.shape)
 
     else:
@@ -511,6 +512,7 @@ def _gen_int2e_jvp_r0(
     shls_slice: tuple[int, ...] | None,
     comp: int | None,
     ao_loc: ArrayLike | None,
+    aoslices: ArrayLike | None = None,
 ) -> Array:
     """JVP of ``int2e`` (``s1``) w.r.t. atomic coordinates.
 
@@ -532,7 +534,10 @@ def _gen_int2e_jvp_r0(
     naol = _ao_loc[l1] - _ao_loc[l0]
 
     coords_dot = _extract_coords(atm, env_dot)
-    aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
+    # ``MolePad`` supplies aoslices (its ``_bas`` is a traced array, so the
+    # numpy-based ``_aoslice_by_atom`` fallback cannot run under jit/vmap).
+    if aoslices is None:
+        aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
 
     eri1_i = -getints(
         intor_i,

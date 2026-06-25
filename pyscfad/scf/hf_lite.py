@@ -615,8 +615,12 @@ class UHF(SCF):
     """
     @property
     def nelec(self) -> tuple[int, int]:
-        ne = int(self.mol.tot_electrons())
-        spin = int(self.mol.spin)
+        # ``tot_electrons`` may be a traced array (e.g. a padded/batched
+        # MolePad whose electron count varies across the batch); keep the
+        # arithmetic traceable rather than casting to a Python int. ``spin``
+        # is a static attribute.
+        ne = self.mol.tot_electrons()
+        spin = self.mol.spin
         nalpha = (ne + spin) // 2
         nbeta = (ne - spin) // 2
         return (nalpha, nbeta)

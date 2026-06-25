@@ -18,7 +18,15 @@ from pyscfad import numpy as np
 from pyscfad.scf import hf_lite as hf
 from pyscfad.scipy.linalg import eigh
 
-class SCF(hf.SCF):
+class _PadMixin:
+    """Padding-aware overrides shared by the RHF and UHF padded SCF.
+
+    The fake (padding) AOs are decoupled from the real block and pushed far
+    above the real spectrum so they are never occupied; :meth:`mo_mask` then
+    flags them. Both overrides act on a single ``(nao, nao)`` matrix, so they
+    compose with UHF (whose :meth:`eig` diagonalizes each spin separately and
+    whose :meth:`mo_mask` broadcasts over the leading spin axis).
+    """
     @property
     def padding_level_shift(self):
         r"""Energy shift applied to the fake (padding) MOs.
@@ -59,4 +67,12 @@ class SCF(hf.SCF):
         thr = .99 * self.padding_level_shift
         return np.where(np.greater(mo_energy, thr), False, True)
 
-SCFPad = SCF
+
+class SCF(_PadMixin, hf.SCF):
+    """Padded RHF (closed shell), batchable via :func:`jax.vmap`."""
+
+class UHF(_PadMixin, hf.UHF):
+    """Padded UHF (spin-resolved), batchable via :func:`jax.vmap`."""
+
+SCFPad = RHF = SCF
+UHFPad = UHF
