@@ -18,7 +18,15 @@ from pyscfad import numpy as np
 from pyscfad.scf import hf_lite as hf
 from pyscfad.scipy.linalg import eigh
 
-class SCF(hf.SCF):
+class _SCFPadMixin:
+    """Padding-aware diagonalization and MO masking.
+
+    Shared by the restricted (:class:`SCF`) and unrestricted (:class:`UHF`)
+    padded SCF classes. The padding methods operate on a single spin block
+    (a 2D Fock/overlap matrix and a 1D MO-energy vector), so they compose with
+    the spin-resolved :class:`~pyscfad.scf.hf_lite.UHF` whose ``eig`` calls
+    ``_eigh`` once per spin and whose ``get_occ`` masks each spin separately.
+    """
     @property
     def padding_level_shift(self):
         r"""Energy shift applied to the fake (padding) MOs.
@@ -59,4 +67,15 @@ class SCF(hf.SCF):
         thr = .99 * self.padding_level_shift
         return np.where(np.greater(mo_energy, thr), False, True)
 
+
+class SCF(_SCFPadMixin, hf.SCF):
+    """Restricted SCF with padding (for batched calculations)."""
+
 SCFPad = SCF
+RHF = SCF
+
+
+class UHF(_SCFPadMixin, hf.UHF):
+    """Unrestricted SCF with padding (for batched calculations)."""
+
+UHFPad = UHF
