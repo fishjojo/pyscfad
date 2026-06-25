@@ -104,12 +104,6 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-          # TEMPORARY (diagnostic): stream the full agent transcript — including
-          # per-turn token usage and the final assistant turn — to the Actions log,
-          # so we can see exactly why/where a run stops (early-stop vs context limit).
-          # Remove after the diagnostic run.
-          show_full_output: true
-
           # The action skips bot-triggered runs by default. The auto-address-review
           # path is triggered BY the Codex review bot, so allow that bot explicitly
           # (scoped, not '*') — otherwise the run is silently skipped. Human @claude
@@ -138,6 +132,11 @@ jobs:
               },
               "permissions": {
                 "allow": ["WebSearch", "WebFetch(domain:github.com)", "WebFetch(domain:api.github.com)", "WebFetch(domain:raw.githubusercontent.com)", "WebFetch(domain:arxiv.org)", "WebFetch(domain:docs.python.org)", "WebFetch(domain:readthedocs.io)", "WebFetch(domain:pyscf.org)", "WebFetch(domain:github.io)", "WebFetch(domain:wikipedia.org)", "WebFetch(domain:doi.org)", "WebFetch(domain:stackoverflow.com)", "WebFetch(domain:stackexchange.com)", "WebFetch(domain:chemrxiv.org)", "WebFetch(domain:semanticscholar.org)"]
+              },
+              "hooks": {
+                "Stop": [
+                  { "hooks": [ { "type": "command", "command": "bash .claude/hooks/stop-finish.sh" } ] }
+                ]
               }
             }
 
