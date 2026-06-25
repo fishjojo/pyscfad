@@ -255,10 +255,14 @@ def getints_jvp(
     is_int1e = fname.startswith("int1e") or fname.startswith("int2c2e")
     is_int2e = fname.startswith("int2e") or fname.startswith("int4c1e")
 
-    # Only first-order derivatives are supported. ``getints_jvp`` is only ever
-    # invoked under differentiation, so encountering an already-differentiated
-    # ("..._dr..") integral here means a higher-order derivative was requested.
-    if is_int1e and int1e_get_dr_order(intor_name) != [0, 0]:
+    # Only first-order derivatives are supported for the newly migrated
+    # int1e_nuc and int2e branches: the rinv-at-nucleus operator term and the
+    # s1 ERI symmetry assembly do not extend to higher order. ``getints_jvp`` is
+    # only ever invoked under differentiation, so receiving an already
+    # differentiated ("..._dr..") integral here means a higher-order derivative
+    # was requested -- fail loudly. Plain int1e integrals (ovlp/kin/r/rinv/...)
+    # recurse to arbitrary order through the "_dr.." naming and are not gated.
+    if is_int1e and "nuc" in fname and int1e_get_dr_order(intor_name) != [0, 0]:
         raise NotImplementedError(
             f"High-order derivative not implemented for {intor_name}")
     if is_int2e and int2e_get_dr_order(intor_name) != [0, 0, 0, 0]:
