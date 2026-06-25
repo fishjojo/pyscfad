@@ -399,6 +399,9 @@ def _int2e_coords_jvp(
         _ao_loc = ao_loc
     nao = int(_ao_loc[-1])
 
+    # ``int2e_dr1000`` shares the AO layout of the base integral, so reuse the
+    # provided ``ao_loc`` (necessary when ``bas`` is a traced array, e.g. for
+    # MolePad, where ``make_loc`` cannot run at trace time).
     eri1 = -getints(
         intor1,
         atm,
@@ -408,7 +411,7 @@ def _int2e_coords_jvp(
         comp=None,
         hermi=0,
         aosym="s1",
-        ao_loc=None,
+        ao_loc=ao_loc,
         trace_coords=False,
         trace_basis=False,
         aoslices=aoslices,

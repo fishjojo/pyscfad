@@ -18,7 +18,14 @@ from pyscfad import numpy as np
 from pyscfad.scf import hf_lite as hf
 from pyscfad.scipy.linalg import eigh
 
-class SCF(hf.SCF):
+class _PadMixin:
+    """Shared padding behaviour for the batched (padded) SCF classes.
+
+    Fake (padding) AOs are decoupled from the real block and their MOs are
+    shifted far above the physical spectrum so they are never occupied. This is
+    independent of the spin structure, so it is reused verbatim by both the
+    restricted (:class:`SCF`) and unrestricted (:class:`UHF`) variants.
+    """
     @property
     def padding_level_shift(self):
         r"""Energy shift applied to the fake (padding) MOs.
@@ -59,4 +66,16 @@ class SCF(hf.SCF):
         thr = .99 * self.padding_level_shift
         return np.where(np.greater(mo_energy, thr), False, True)
 
+class SCF(_PadMixin, hf.SCF):
+    """Restricted HF with basis-set padding (for batched calculations)."""
+
+class UHF(_PadMixin, hf.UHF):
+    """Unrestricted HF with basis-set padding (for batched calculations).
+
+    The padding ``_eigh``/``mo_mask`` from :class:`_PadMixin` are applied
+    per-spin via :meth:`~pyscfad.scf.hf_lite.UHF.eig`.
+    """
+
 SCFPad = SCF
+RHF = SCF
+UHFPad = UHF
