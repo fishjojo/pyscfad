@@ -72,6 +72,44 @@ run.
 
 ---
 
+## Stage 0.5 — Open the draft PR first (`GIT: self` only)
+
+**Push first so a partial run never vanishes.** Open the branch + draft PR *now*, as your
+first action after the gate — before context-building, planning, or any code. The recurring
+failure this prevents: a long run that finishes the work but ends before it ever pushes,
+leaving a green job with no branch and no PR. (`GIT: harness`: **skip this stage entirely** —
+make no `git`/`gh` writes; the harness owns every side effect.)
+
+For `GIT: self`:
+1. **Use the branch you are on; don't fight a pre-created one.** If a CI/harness environment
+   has already checked you out onto a non-default branch (e.g. `claude/issue-<N>-<timestamp>`),
+   **use that branch** — do **not** create a new one (`git rev-parse --abbrev-ref HEAD` reads
+   its name). Only if you are on the default branch, create
+   `agent/fix-<ISSUE_NUMBER>-<short-slug>` (append a unique suffix if a remote ref by that name
+   already exists). Never commit to the default branch.
+2. **Dedup.** If this issue already has an open bot PR
+   (`gh pr list --state open --search "Fixes #<ISSUE_NUMBER> in:body"`), reuse it rather than
+   opening a second one.
+3. **Identity + empty initial commit.** If `git config user.email` is unset, set a local
+   identity (`git config user.email "claude[bot]@users.noreply.github.com"` and
+   `git config user.name "claude[bot]"`). Make an **empty** initial commit so the branch can
+   carry a PR before any code lands:
+   `git commit --allow-empty -m "WIP: start fix for #<ISSUE_NUMBER>"`. End every commit
+   message with: `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
+4. **Push, then actually create the draft PR.** Push the current branch (prefer the
+   environment's push helper if one is provided — the CI workflow names it — otherwise
+   `git push -u origin HEAD`). Then **create** the PR with `gh pr create --draft` (do *not*
+   merely post a "Create a PR" link): body begins with `Fixes #<ISSUE_NUMBER>`, marked
+   **🚧 Work in progress — do not merge**, ending with
+   `🤖 Generated with [Claude Code](https://claude.com/claude-code)`. **Record the PR number**
+   — you backfill the plan into it after Stage 2 and finalize it later; never open a second PR.
+
+**Workflow-file caveat:** your token cannot push changes under `.github/workflows/`. If a
+slice must edit a workflow file, keep that hunk out of the branch and post it as a diff in a
+comment for a human to apply — the rest of the change still goes through this flow.
+
+---
+
 ## Multi-agent pipeline
 
 You orchestrate four roles. Dispatch each role with the `Task` tool using the matching
@@ -94,40 +132,8 @@ to verify it; plus the overall test strategy and explicit risks/edge cases. Revi
 plan critically yourself before proceeding — reject and re-request if a slice is
 underspecified.
 
-### Stage 2.5 — Open the draft PR early (`GIT: self` only)
-
-**Push early so a partial run never vanishes.** Set up the branch and a draft PR *now*,
-right after the plan and **before** the implement/verify loop — that way, if the run ends
-early (timeout, turn/budget limit, an interrupted final step), the branch and a draft PR
-already exist on GitHub instead of nothing. This is the failure this stage exists to
-prevent: a long run that finishes all the work but ends before it ever pushes.
-
-- **`GIT: harness`:** **skip this stage entirely** — make no `git`/`gh` writes; the
-  harness owns all side effects and commits/pushes/PRs once at the end.
-- **`GIT: self`:**
-  1. **Dedup.** Check for an existing open bot PR for this issue:
-     `gh pr list --state open --search "Fixes #<ISSUE_NUMBER> in:body"`. If one exists,
-     reuse its branch (push onto it) and skip creating a new branch/PR.
-  2. **Branch.** Create `agent/fix-<ISSUE_NUMBER>-<short-slug>` off the default branch
-     (never commit to the default branch). If a remote ref by that name already exists
-     (`git ls-remote --exit-code --heads origin <branch>` succeeds), append a short unique
-     suffix (e.g. `-2`, or the run id).
-  3. **Identity + initial commit.** If `git config user.email` is unset, set a local
-     identity first (`git config user.email "claude[bot]@users.noreply.github.com"` and
-     `git config user.name "claude[bot]"`). Then make an initial commit; if no files have
-     changed yet, use `git commit --allow-empty -m "WIP: start fix for #<ISSUE_NUMBER>"`
-     so the branch can carry a PR before any code lands. End every commit message with:
-     `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
-  4. **Push + draft PR.** Push the branch and open a **draft** PR whose body starts with
-     `Fixes #<ISSUE_NUMBER>`, contains the Stage 2 plan, and is clearly marked
-     **🚧 Work in progress — do not merge** at the top. End the body with:
-     `🤖 Generated with [Claude Code](https://claude.com/claude-code)`
-     **Record the PR number/URL** — you update this *same* PR as the loop progresses and
-     at Finalize; never open a second PR for this issue.
-
-**Workflow-file caveat:** your token cannot push changes under `.github/workflows/`. If a
-slice must edit a workflow file, keep that hunk out of the branch and post it as a diff in
-a comment for a human to apply — the rest of the change still goes through this flow.
+(`GIT: self`) Backfill this plan into the draft PR you opened in Stage 0.5: update its body
+with the ordered slices and test strategy via `gh pr edit`.
 
 ### Stage 3 — Implement + verify loop (orchestrator, highest effort)
 
@@ -142,7 +148,7 @@ Drive the plan to convergence. For up to **4 iterations**:
    targeted tests (and, for a bug, a reproduction of the original failure). It returns
    pass/fail with the failing output.
 3. **Preserve progress.** For `GIT: self`, commit the integrated slices and push them to
-   the Stage 2.5 branch **every iteration**, so the remote and the draft PR always reflect
+   the Stage 0.5 branch **every iteration**, so the remote and the draft PR always reflect
    the latest work even if the run ends mid-loop. For `GIT: harness`, skip this and leave
    the changes in the working tree.
 4. **Converged?** If the verifier passes (and, for a bug, the original repro no longer
@@ -152,7 +158,7 @@ Drive the plan to convergence. For up to **4 iterations**:
 If you hit the iteration cap without convergence, do **not** green-wash. **Report** (per
 the **Reporting convention**) what you tried, the remaining failure, and your best partial
 diagnosis. In `GIT: self`, push what you have and leave the **existing** draft PR (from
-Stage 2.5) clearly marked "NEEDS WORK" with the failing output, then go to Finalize. In
+Stage 0.5) clearly marked "NEEDS WORK" with the failing output, then go to Finalize. In
 `GIT: harness`, return that status as your final message and let the harness decide.
 
 ---
@@ -168,7 +174,7 @@ If `GIT: harness`:
   create`. Print a concise summary (what changed, why, how verified) as your final
   message. The harness commits, pushes, and opens the PR.
 
-If `GIT: self` (the branch and draft PR already exist from Stage 2.5 — **update** them,
+If `GIT: self` (the branch and draft PR already exist from Stage 0.5 — **update** them,
 never open a second PR):
 1. Commit and push any remaining uncommitted changes to that branch, ending the commit
    message with: `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
