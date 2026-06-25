@@ -75,6 +75,29 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Pre-build the environment so the agent spends its run on the actual fix,
+      # not on building the toolchain. build_pyscfadlib.sh needs
+      # `sudo apt-get install liblapack-dev`, which the agent's sandbox lacks — so
+      # on #136 it burned ~38 of 47 min hand-rolling a BLAS shim from source, and
+      # that build output also floods the context window, which is what ends the
+      # session before it can push. A pyscfadlib wheel exists on PyPI, so install
+      # that plus the usual deps here instead. Best-effort: continue-on-error so a
+      # setup hiccup never blocks the agent (it can still build its own env, as
+      # today). Issue-fix runs only — PR-review/triage runs don't need it.
+      - name: Set up Python for the agent
+        if: ${{ github.event_name == 'issues' || (github.event_name == 'issue_comment' && github.event.issue.pull_request == null) }}
+        continue-on-error: true
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pre-build pyscfad environment for the agent
+        if: ${{ github.event_name == 'issues' || (github.event_name == 'issue_comment' && github.event.issue.pull_request == null) }}
+        continue-on-error: true
+        run: |
+          bash ./.github/workflows/install_pyscf.sh
+          pip install pyscfadlib
+          pip install -e .
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
