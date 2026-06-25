@@ -285,6 +285,8 @@ def getints_jvp(
             comp,
             aosym,
             ao_loc,
+            trace_coords,
+            trace_basis,
             aoslices,
         ).reshape(tangent_out.shape)
     else:
@@ -373,6 +375,8 @@ def _int2e_coords_jvp(
     comp,
     aosym,
     ao_loc,
+    trace_coords,
+    trace_basis,
     aoslices,
 ):
     """JVP of the 2e integral ``(ij|kl)`` w.r.t. atomic coordinates (``s1``).
@@ -412,8 +416,8 @@ def _int2e_coords_jvp(
         hermi=0,
         aosym="s1",
         ao_loc=ao_loc,
-        trace_coords=False,
-        trace_basis=False,
+        trace_coords=trace_coords,
+        trace_basis=trace_basis,
         aoslices=aoslices,
     )
 
