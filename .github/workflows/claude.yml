@@ -104,6 +104,12 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
+          # TEMPORARY (diagnostic): stream the full agent transcript — including
+          # per-turn token usage and the final assistant turn — to the Actions log,
+          # so we can see exactly why/where a run stops (early-stop vs context limit).
+          # Remove after the diagnostic run.
+          show_full_output: true
+
           # The action skips bot-triggered runs by default. The auto-address-review
           # path is triggered BY the Codex review bot, so allow that bot explicitly
           # (scoped, not '*') — otherwise the run is silently skipped. Human @claude
