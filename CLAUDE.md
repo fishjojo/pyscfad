@@ -229,6 +229,12 @@ one will answer questions or say "continue" mid-task. A Stop hook
   any final/regression sweep you said you'd run, commit, push, and the PR. Stop only
   when the task is genuinely complete and verified, or when you are blocked on
   something only a human can provide.
+- **Open the PR yourself.** When the work is ready, run `gh pr create --draft`
+  yourself so the PR is authored by **you (the Claude GitHub App)** — *not* the
+  workflow's fallback step, which can only use the default Actions token
+  (`github-actions[bot]`). Do **not** merely post a "Create a PR" link. The Stop
+  hook keeps nudging you until a PR exists for your branch, so opening it is not
+  optional.
 - **Signal completion** as your very last action, once everything above is truly done
-  and verified: run `git config --local claude.fixComplete true`, then stop. This is
-  what releases the Stop hook.
+  and verified (PR opened): run `git config --local claude.fixComplete true`, then
+  stop. This is the fallback signal the Stop hook honors when it cannot see your PR.
