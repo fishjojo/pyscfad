@@ -129,6 +129,52 @@ def _eval_gto_jvp(eval_name, comp, shls_slice, non0tab, ao_loc, cutoff, out,
                                    comp, shls_slice, non0tab, ao_loc, nao)
     return primal_out, tangent_out
 
+# NOTE these AO-derivative contraction kernels are defined at module level
+# (rather than as `jit`-decorated closures inside the JVP rules below) to avoid
+# the recompilation blowup of issue #99. Previously each call to the JVP rule
+# created a fresh `jit` object; since JAX keys its compilation cache on the
+# Python function object, every call recompiled from scratch, causing severe
+# wall-time growth for repeated `jax.grad` with grid-based methods such as
+# ``dft.RKS`` (RHF, which never evaluates AOs on a grid, was unaffected).
+#
+# `_contract_grad_tangent_r` (derivative w.r.t. grid coordinates) is left
+# un-jitted on purpose: for grid-based methods the grid is fixed, so it runs
+# with concrete inputs. As a standalone `jit` its reverse-mode transpose was
+# re-compiled per grid block on every gradient call (an unbounded cache leak);
+# inlined, the transpose is handled by JAX's native einsum rule and is cached
+# once. `_contract_grad_tangent_r0` (derivative w.r.t. nuclear coordinates) is
+# always traced with abstract tangents, so it inlines cleanly and keeps `jit`.
+def _contract_grad_tangent_r(ao1, grid_coords_t, order):
+    tangent_out = []
+    for iorder in range(order+1):
+        tmp = 0
+        for i in range(3):
+            tmp += np.einsum('ygi,g->ygi',
+                             ao1[_XYZ_ID[iorder][i]],
+                             grid_coords_t[:,i])
+        tangent_out.append(tmp)
+    tangent_out = np.concatenate(tangent_out)
+    return tangent_out
+
+@partial(jit, static_argnames=('order', 'nao'))
+def _contract_grad_tangent_r0(ao1, ids, coords_t, order, nao):
+    tangent_out = []
+    for iorder in range(order+1):
+        def body(slices, coords_t):
+            _zero = np.array(0, dtype=ao1.dtype)
+            idx = np.arange(nao)[None,None,:]
+            p0, p1 = slices[:]
+            mask = (idx >= p0) & (idx < p1)
+            # pylint: disable=cell-var-from-loop
+            out  = np.where(mask, ao1[_XYZ_ID[iorder][0]], _zero) * coords_t[0]
+            out += np.where(mask, ao1[_XYZ_ID[iorder][1]], _zero) * coords_t[1]
+            out += np.where(mask, ao1[_XYZ_ID[iorder][2]], _zero) * coords_t[2]
+            return out
+        out = vmap(body)(ids, coords_t)
+        tangent_out.append(np.sum(out, axis=0))
+    tangent_out = np.concatenate(tangent_out)
+    return tangent_out
+
 def _eval_gto_jvp_r(mol, eval_name, grid_coords, grid_coords_t,
                     comp, shls_slice, non0tab, ao_loc, nao):
     if 'deriv' not in eval_name:
@@ -144,20 +190,7 @@ def _eval_gto_jvp_r(mol, eval_name, grid_coords, grid_coords_t,
     ao1 = _eval_gto(mol, new_eval, grid_coords, None, shls_slice, non0tab,
                     ao_loc, None, None)
 
-    @jit
-    def _contract(ao1, grid_coords_t):
-        tangent_out = []
-        for iorder in range(order+1):
-            tmp = 0
-            for i in range(3):
-                tmp += np.einsum('ygi,g->ygi',
-                                 ao1[_XYZ_ID[iorder][i]],
-                                 grid_coords_t[:,i])
-            tangent_out.append(tmp)
-        tangent_out = np.concatenate(tangent_out)
-        return tangent_out
-
-    tangent_out = _contract(ao1, grid_coords_t)
+    tangent_out = _contract_grad_tangent_r(ao1, grid_coords_t, order=order)
     if order == 0:
         tangent_out = tangent_out[0]
     return tangent_out
@@ -205,25 +238,8 @@ def _eval_gto_dot_grad_tangent_r0(mol, mol_t, intor,
     #    tangent_out = np.concatenate(tangent_out)
     #    return tangent_out
 
-    @jit
-    def fn(ao1, ids):
-        tangent_out = []
-        for iorder in range(order+1):
-            def body(slices, coords_t):
-                _zero = np.array(0, dtype=ao1.dtype)
-                idx = np.arange(nao)[None,None,:]
-                p0, p1 = slices[:]
-                mask = (idx >= p0) & (idx < p1)
-                # pylint: disable=cell-var-from-loop
-                out  = np.where(mask, ao1[_XYZ_ID[iorder][0]], _zero) * coords_t[0]
-                out += np.where(mask, ao1[_XYZ_ID[iorder][1]], _zero) * coords_t[1]
-                out += np.where(mask, ao1[_XYZ_ID[iorder][2]], _zero) * coords_t[2]
-                return out
-            out = vmap(body)(ids, coords_t)
-            tangent_out.append(np.sum(out, axis=0))
-        tangent_out = np.concatenate(tangent_out)
-        return tangent_out
-    return fn(-ao1, ids)
+    return _contract_grad_tangent_r0(-ao1, ids, coords_t,
+                                     order=order, nao=int(nao))
 
 def _eval_gto_jvp_r0(mol, mol_t, eval_name, grid_coords, comp, shls_slice, non0tab, ao_loc):
     if 'deriv' not in eval_name:
