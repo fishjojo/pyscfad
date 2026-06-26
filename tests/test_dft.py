@@ -52,21 +52,20 @@ def _count_second_call_compilations(fn, *args):
         def emit(self, record):
             if "Finished XLA compilation of" in record.getMessage():
                 n[0] += 1
-    loggers = [logging.getLogger(name) for name in
-               ("jax._src.dispatch", "jax._src.interpreters.pxla", "jax")]
+    # A single handler on the root "jax" logger catches every compile record
+    # via logging propagation (jax logs compilations under jax._src.*).
+    jax_logger = logging.getLogger("jax")
+    handler = _Counter()
     prev_flag = jax.config.jax_log_compiles
+    prev_level = jax_logger.level
     jax.config.update("jax_log_compiles", True)
-    handlers = []
-    for lg in loggers:
-        h = _Counter()
-        lg.setLevel(logging.WARNING)
-        lg.addHandler(h)
-        handlers.append((lg, h))
+    jax_logger.setLevel(logging.WARNING)
+    jax_logger.addHandler(handler)
     try:
         fn(*args)
     finally:
-        for lg, h in handlers:
-            lg.removeHandler(h)
+        jax_logger.removeHandler(handler)
+        jax_logger.setLevel(prev_level)
         jax.config.update("jax_log_compiles", prev_flag)
     return n[0]
 
