@@ -6,12 +6,18 @@ name: Claude Code Review
 # the `fishjojo-bot` fork) come from FORKED repositories. GitHub deliberately
 # runs fork-triggered `pull_request` workflows with no access to OIDC token
 # minting, a read-only `GITHUB_TOKEN`, and NO secrets at all — even when
-# `id-token: write` is declared. claude-code-action authenticates to GitHub by
-# minting its App token via OIDC, so on every fork PR it failed with
+# `id-token: write` is declared, so on every fork PR the action failed with
 # "Could not fetch an OIDC token" (and the runs sat in `action_required`,
 # needing manual approval). `pull_request_target` runs in the BASE repo's
-# context, where OIDC, secrets, and a writable token are all available and the
+# context, where secrets and a writable `GITHUB_TOKEN` are available and the
 # fork-approval gate does not apply — so the review can actually run.
+#
+# AUTH: we hand the action an explicit `github_token` (the base-context
+# `GITHUB_TOKEN`, see the step below) instead of letting it mint a GitHub App
+# token via OIDC. That App-token exchange returns "401 Invalid OIDC token" for
+# the `pull_request_target` context, and we don't need it — the GITHUB_TOKEN,
+# with the pull-requests/issues write perms below, can post the review (as
+# github-actions[bot]). This mirrors claude-issue-triage.yml.
 #
 # SECURITY: `pull_request_target` exposes the base repo's token/secrets to a job
 # that reviews untrusted PR code (the classic "pwn request"). Two safeguards:
@@ -58,7 +64,6 @@ jobs:
       contents: read
       pull-requests: write   # post the review summary / inline comments
       issues: write          # post the summary comment (PR comments use the issues API)
-      id-token: write        # mint the Claude App token via OIDC
       actions: read          # let Claude read CI results on the PR
 
     steps:
@@ -81,6 +86,12 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Use the base-context GITHUB_TOKEN directly. Providing github_token
+          # makes the action skip the OIDC -> GitHub App token exchange, which
+          # 401s ("Invalid OIDC token") under pull_request_target. Writable here
+          # thanks to the pull-requests/issues: write perms above (review
+          # comments post as github-actions[bot]). See claude-issue-triage.yml.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: '--model claude-opus-4-8'
           # Run the review for PRs opened by humans AND by bots (e.g.
           # dependabot, renovate). By default the action skips bot actors;
