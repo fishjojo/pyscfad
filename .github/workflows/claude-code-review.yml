@@ -1,38 +1,80 @@
 name: Claude Code Review
 
+# Triggered by `pull_request_target`, NOT `pull_request`.
+#
+# Why: most of this project's PRs (e.g. the @claude issue-fixer's, opened from
+# the `fishjojo-bot` fork) come from FORKED repositories. GitHub deliberately
+# runs fork-triggered `pull_request` workflows with no access to OIDC token
+# minting, a read-only `GITHUB_TOKEN`, and NO secrets at all — even when
+# `id-token: write` is declared. claude-code-action authenticates to GitHub by
+# minting its App token via OIDC, so on every fork PR it failed with
+# "Could not fetch an OIDC token" (and the runs sat in `action_required`,
+# needing manual approval). `pull_request_target` runs in the BASE repo's
+# context, where OIDC, secrets, and a writable token are all available and the
+# fork-approval gate does not apply — so the review can actually run.
+#
+# SECURITY: `pull_request_target` exposes the base repo's token/secrets to a job
+# that reviews untrusted PR code (the classic "pwn request"). Two safeguards:
+#   1. The job-level `if` only lets the privileged run proceed for TRUSTED
+#      sources (same-repo PRs, the project's `fishjojo-bot` automation, or
+#      OWNER/MEMBER/COLLABORATOR authors). Untrusted external forks are skipped
+#      entirely — they never reach the elevated token. (They got no review
+#      before either, since their `pull_request` runs failed on OIDC.)
+#   2. This workflow never runs the PR's build/test/install scripts; it only
+#      checks the code out and runs the trusted action, and the checkout uses
+#      `persist-credentials: false` so no git credentials are left on disk.
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, ready_for_review, reopened]
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
 
 jobs:
   claude-review:
-    # Review PRs from humans and bots alike, but never review Claude's own
-    # changes (avoids a self-review loop). Check both the PR author and the
-    # triggering actor: on a `synchronize` event the PR author stays the
-    # original human while github.actor is claude[bot] for Claude's pushes.
-    # See also `allowed_bots` below.
+    # Never review Claude's own changes (avoids a self-review loop): check both
+    # the PR author and the triggering actor, because on a `synchronize` event
+    # the PR author stays the original human while github.actor is claude[bot]
+    # for Claude's pushes. Then gate the privileged `pull_request_target` run to
+    # trusted sources only (see the SECURITY note above):
+    #   - same-repo (non-fork) PRs,
+    #   - the project's `fishjojo-bot` automation (a machine user whose
+    #     author_association is FIRST_TIME_CONTRIBUTOR, so it needs an explicit
+    #     allow), and
+    #   - PRs whose author is an OWNER / MEMBER / COLLABORATOR (covers human
+    #     maintainers' fork PRs).
+    # Untrusted external forks fall through and the job is skipped.
     if: >-
+      github.actor != 'claude[bot]' &&
       github.event.pull_request.user.login != 'claude[bot]' &&
-      github.actor != 'claude[bot]'
+      (
+        github.event.pull_request.head.repo.full_name == github.repository ||
+        github.event.pull_request.user.login == 'fishjojo-bot' ||
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
+      )
 
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
-      id-token: write
+      pull-requests: write   # post the review summary / inline comments
+      issues: write          # post the summary comment (PR comments use the issues API)
+      id-token: write        # mint the Claude App token via OIDC
+      actions: read          # let Claude read CI results on the PR
 
     steps:
-      - name: Checkout repository
+      - name: Checkout the PR's head commit
         uses: actions/checkout@v6
         with:
-          fetch-depth: 1
+          # pull_request_target checks out the BASE repo by default; review the
+          # PR's actual changes by pinning to the head commit SHA (a pinned SHA,
+          # never a mutable ref). fetch-depth: 0 brings the base branch too so
+          # the review can diff head against base locally. persist-credentials:
+          # false keeps the token out of the on-disk git config (defense in
+          # depth — the review reads the diff via the API, not authenticated
+          # git, and posts via its own token).
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Run Claude Code Review
         id: claude-review
@@ -42,12 +84,12 @@ jobs:
           claude_args: '--model claude-opus-4-8'
           # Run the review for PRs opened by humans AND by bots (e.g.
           # dependabot, renovate). By default the action skips bot actors;
-          # '*' allows all bots. Claude's own PRs are excluded via the
-          # job-level `if` above.
+          # '*' allows all bots. The job-level `if` above is the real security
+          # boundary — it already restricts which authors reach this step — so
+          # bots that aren't trusted there are skipped regardless.
           allowed_bots: '*'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-
