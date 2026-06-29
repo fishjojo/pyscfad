@@ -1,5 +1,27 @@
 # Change log
 
+## pyscfad 0.3.3 (June 29, 2026)
+
+* Changes
+  * Add GHF (generalized Hartree-Fock), including a density-fitted variant.
+  * Add cuint GPU backend for periodic GFN1-xTB lattice overlap integrals.
+  * Add FP32 working precision for XTB on the JAX backend (set via `PYSCFAD_FLOATX`).
+  * Add `numpy.safe_sqrt` and `numpy.safe_reciprocal` for stable derivatives at singularities.
+  * Build the CUDA plugin with CMake (replacing Bazel) and add a CUDA 13 plugin; `pyscfad[cuda13]` installs it, and the plugin matching jax's CUDA version is selected automatically.
+  * Add opt-in cuSOLVER FP32/FP64 tensor-core emulation for the generalized eigensolver.
+  * Pool cuSOLVER handles to speed up the CUDA generalized eigensolver.
+  * Reduce memory use of integral nuclear derivatives.
+  * Update for compatibility with pyscf 2.13.
+  * Update `scipy.logm` for compatibility with newer scipy (drop deprecated `disp` argument).
+
+* Bug fixes
+  * Fix NaN in XTB and QM/MM gradients, and improve qbroyden charge-solver stability.
+  * Fix coordinate gradients (JVP) of the dipole (`int1e_r`) and quadrupole (`int1e_rr`) integrals.
+  * Fix repeated recompilation in `dft.RKS` AO-grid gradients.
+  * Fix `set_backend` to raise a clear error listing supported backends for an unsupported backend.
+  * Fix CUDA-plugin runtime dependencies for the `with_cuda` extra (CUDA 12 and 13).
+  * Fix missing numpy and packaging runtime dependencies for pyscfadlib.
+
 ## pyscfad 0.3.2 (April 24, 2026)
 
 * Changes
