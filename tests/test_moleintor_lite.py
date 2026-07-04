@@ -112,6 +112,26 @@ def test_intor_jvp_jit_matches_eager(h2o):
         assert abs(eager - jitted).max() < 1e-10
 
 
+def test_int1e_nuc_second_derivative_jit_matches_eager(h2o):
+    # Exercises the vmapped rinv-at-nucleus jvp under jit at second order.
+    sym, coords = h2o
+    hess_fn = jax.jacfwd(jax.jacfwd(_intor_fn(sym, "int1e_nuc", hermi=1)))
+    eager = numpy.asarray(hess_fn(coords))
+    jitted = numpy.asarray(jax.jit(hess_fn)(coords))
+    assert abs(eager - jitted).max() < 1e-10
+
+
+def test_int1e_nuc_fwd_over_rev(h2o):
+    # jacfwd(grad(...)) is the common hessian idiom; the batched per-nucleus
+    # rinv jvp must stay composable under forward-over-reverse (a lax.scan
+    # implementation broke exactly this composition).
+    sym, coords = h2o
+    fn = _intor_fn(sym, "int1e_nuc", hermi=1)
+    hess = numpy.asarray(jax.jacfwd(jax.grad(lambda c: fn(c).sum()))(coords))
+    ref = numpy.asarray(jax.jacfwd(jax.jacfwd(fn))(coords)).sum(axis=(0, 1))
+    assert abs(hess - ref).max() < 1e-10
+
+
 @pytest.mark.parametrize("name,kwargs", [
     ("int1e_ovlp", {"hermi": 1}),
     ("int1e_kin", {"hermi": 1}),

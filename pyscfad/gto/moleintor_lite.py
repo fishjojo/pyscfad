@@ -468,7 +468,10 @@ def _gen_int1e_nuc_jvp_rc(
     Uses the rinv-at-nucleus trick: for each nucleus ``A`` the rinv origin is
     placed at ``R_A``, the rinv derivative integral is evaluated, scaled by
     ``-Z_A`` and contracted with the tangent of ``R_A``. ``intor_a``/``intor_b``
-    are the rinv bra/ket derivative integral names.
+    are the rinv bra/ket derivative integral names. The per-nucleus loop runs
+    under ``vmap`` so the jaxpr stays constant-size in the atom count; unlike
+    ``lax.scan``, vmap keeps the inner ``getints`` custom_jvp composable under
+    forward-over-reverse differentiation (e.g. ``jacfwd(grad(...))``).
     """
     if comp is not None:
         comp = comp * 3
@@ -487,12 +490,10 @@ def _gen_int1e_nuc_jvp_rc(
     coords = _extract_coords(atm, env)
     coords_dot = _extract_coords(atm, env_dot)
     charges = np.asarray(atm[:, CHARGE_OF], dtype=env.dtype)
-    natm = len(atm)
 
-    jvp = np.zeros((1, naoi, naoj), dtype=env.dtype)
-    for ia in range(natm):
+    def _per_atom(coord):
         env_ia = ops.index_update(
-            env, ops.index[PTR_RINV_ORIG:PTR_RINV_ORIG+3], coords[ia])
+            env, ops.index[PTR_RINV_ORIG:PTR_RINV_ORIG+3], coord)
         vrinv = getints(
             intor_a,
             atm,
@@ -522,10 +523,13 @@ def _gen_int1e_nuc_jvp_rc(
                 trace_basis=trace_basis,
                 aoslices=aoslices,
             )
-            s1b = _move_ket_deriv_axis(s1b, intor_b, naoi, naoj)
-            vrinv = vrinv + s1b
-        vrinv = vrinv * (-charges[ia])
-        jvp = jvp + np.einsum("xyij,x->yij", vrinv, coords_dot[ia])
+            vrinv = vrinv + _move_ket_deriv_axis(s1b, intor_b, naoi, naoj)
+        return vrinv
+
+    # (natm, 3, ycomp, naoi, naoj); the callback runs sequentially per atom.
+    vrinv_all = ops.vmap(_per_atom)(coords)
+    weights = coords_dot * (-charges)[:, None]
+    jvp = np.einsum("axyij,ax->yij", vrinv_all, weights)
     if hermi == 1:
         jvp = jvp + jvp.transpose(0, 2, 1)
     return jvp
