@@ -18,10 +18,12 @@ import pytest
 import jax
 import pyscf
 from pyscf import scf as pyscf_scf
+from pyscf.hessian import rhf as pyscf_rhf_hess
+from pyscf.hessian import uhf as pyscf_uhf_hess
 
 from pyscfad import numpy as np
 from pyscfad.gto.mole_lite import MoleLite
-from pyscfad.scf import hf_lite
+from pyscfad.scf import hf, hf_lite, _eri_lite
 
 BASIS = "sto3g"
 # H2O, coordinates in Bohr.
@@ -42,12 +44,14 @@ def _pyscf_mf(charge, spin, unrestricted, init_guess="hcore"):
     return mf
 
 
-def _energy_fn(cls, charge=0, spin=0, diis="diis"):
+def _energy_fn(cls, charge=0, spin=0, diis="diis", eri_aosym=None):
     def energy(coords):
         mol = MoleLite(symbols=SYM, coords=coords, basis=BASIS,
                        charge=charge, spin=spin, trace_coords=True, verbose=0)
         mf = cls(mol)
         mf.diis = diis
+        if eri_aosym is not None:
+            mf.eri_aosym = eri_aosym
         mf.conv_tol = 1e-11
         return mf.kernel()
     return energy
@@ -106,3 +110,71 @@ def test_uhf_jit_value_and_grad():
     e_e, g_e = jax.value_and_grad(fn)(COORDS)
     assert abs(float(e_j) - float(e_e)) < 1e-10
     assert abs(numpy.asarray(g_j) - numpy.asarray(g_e)).max() < 1e-10
+
+
+def test_dot_eri_dm_s4_unit():
+    mol = MoleLite(symbols=SYM, coords=COORDS, basis=BASIS, verbose=0)
+    eri1 = mol.intor("int2e")
+    eri4 = mol.intor("int2e", aosym="s4")
+    nao = eri1.shape[0]
+
+    rng = numpy.random.default_rng(42)
+    dm_sym = rng.random((nao, nao))
+    dm_sym = dm_sym + dm_sym.T
+    dm_nonsym = rng.random((nao, nao))
+    dm_stack = rng.random((2, nao, nao))
+
+    for dm in (dm_sym, dm_nonsym, dm_stack):
+        dm = np.asarray(dm)
+        # pylint: disable-next=protected-access
+        vj1, vk1 = hf._dot_eri_dm_s1(eri1, dm, True, True)
+        vj4, vk4 = _eri_lite.dot_eri_dm(eri4, dm)
+        assert abs(numpy.asarray(vj4 - vj1)).max() < 1e-12
+        assert abs(numpy.asarray(vk4 - vk1)).max() < 1e-12
+        # blocked K build with a ragged tail block
+        _, vk4b = _eri_lite.dot_eri_dm_s4(eri4, dm, True, True, 3)
+        assert abs(numpy.asarray(vk4b - vk1)).max() < 1e-12
+
+    vj4, vk4 = _eri_lite.dot_eri_dm(eri4, np.asarray(dm_sym), with_k=False)
+    assert vj4 is not None and vk4 is None
+    vj4, vk4 = _eri_lite.dot_eri_dm(eri4, np.asarray(dm_sym), with_j=False)
+    assert vj4 is None and vk4 is not None
+
+
+def test_rhf_s4_matches_s1_jk():
+    fn_s4 = _energy_fn(hf_lite.RHF, eri_aosym="s4")
+    fn_s1 = _energy_fn(hf_lite.RHF, eri_aosym="s1")
+    e4, g4 = jax.value_and_grad(fn_s4)(COORDS)
+    e1, g1 = jax.value_and_grad(fn_s1)(COORDS)
+    assert abs(float(e4) - float(e1)) < 1e-12
+    assert abs(numpy.asarray(g4) - numpy.asarray(g1)).max() < 1e-12
+
+
+def test_rhf_s4_matches_s1_hess_high_cost():
+    h4 = numpy.asarray(
+        jax.jacfwd(jax.grad(_energy_fn(hf_lite.RHF, eri_aosym="s4")))(COORDS))
+    h1 = numpy.asarray(
+        jax.jacfwd(jax.grad(_energy_fn(hf_lite.RHF, eri_aosym="s1")))(COORDS))
+    assert abs(h4 - h1).max() < 1e-10
+
+
+def test_rhf_nuc_hess():
+    hess = numpy.asarray(jax.jacfwd(jax.grad(_energy_fn(hf_lite.RHF)))(COORDS))
+    pmf = _pyscf_mf(0, 0, False, init_guess="minao")
+    h0 = pyscf_rhf_hess.Hessian(pmf).kernel().transpose(0, 2, 1, 3)
+    assert abs(hess - h0).max() < 1e-6
+
+
+def test_rhf_nuc_hess_jit():
+    hess_fn = jax.jacfwd(jax.grad(_energy_fn(hf_lite.RHF)))
+    h_e = numpy.asarray(hess_fn(COORDS))
+    h_j = numpy.asarray(jax.jit(hess_fn)(COORDS))
+    assert abs(h_e - h_j).max() < 1e-10
+
+
+def test_uhf_nuc_hess():
+    hess_fn = jax.jacfwd(jax.grad(_energy_fn(hf_lite.UHF, charge=1, spin=1)))
+    hess = numpy.asarray(hess_fn(COORDS))
+    pmf = _pyscf_mf(1, 1, True, init_guess="hcore")
+    h0 = pyscf_uhf_hess.Hessian(pmf).kernel().transpose(0, 2, 1, 3)
+    assert abs(hess - h0).max() < 1e-6

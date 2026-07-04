@@ -32,6 +32,7 @@ from pyscfad import numpy as np
 from pyscfad import lib
 from pyscfad.lib import logger
 from pyscfad.scf import hf
+from pyscfad.scf import _eri_lite
 from pyscfad.scf.anderson import Anderson
 from pyscfad.scf.diis import DIIS, get_err_vec
 #from pyscfad.tools.linear_solver import gen_gmres
@@ -323,6 +324,10 @@ class SCF(SCFBase):
         smearing_method: Smearning method.
             Only Fermi-Dirac (``fermi``) distribution is supported.
         veff_with_ecoul: Whether ``get_veff`` returns a :class:`~pyscfad.dft.rks.VXC` object.
+        eri_aosym: Permutation-symmetry packing of the stored ERI.
+            The default ``"s4"`` keeps the ERI (and its coordinate tangents)
+            packed as an ``(npair, npair)`` matrix, four times smaller than
+            the dense tensor; set ``"s1"`` for the dense path.
     """
     diis: Any | None = None
     use_sp2: bool = False
@@ -330,6 +335,7 @@ class SCF(SCFBase):
     sigma: float | None = None
     smearing_method: str = "fermi"
     veff_with_ecoul: bool = False
+    eri_aosym: str = "s4"
 
     def __init__(
         self,
@@ -560,7 +566,26 @@ class SCF(SCFBase):
         logger.debug(self, "E1 = %s  E_coul = %s", e1, ecoul)
         return e1+ecoul, ecoul
 
-    get_jk = hf.SCF.get_jk
+    def get_jk(
+        self,
+        mol: MoleLite | None = None,
+        dm: ArrayLike | None = None,
+        hermi: int = 1,
+        with_j: bool = True,
+        with_k: bool = True,
+        omega: float | None = None,
+    ) -> tuple[Array, Array]:
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm = self.make_rdm1()
+        if omega:
+            raise NotImplementedError(
+                "range-separated J/K is not supported in hf_lite")
+        if self._eri is None:
+            self._eri = mol.intor("int2e", aosym=self.eri_aosym)
+        return _eri_lite.dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
+
     get_veff = hf.SCF.get_veff
     energy_nuc = hf.SCF.energy_nuc
     _eigh = hf.SCF._eigh
