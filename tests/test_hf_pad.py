@@ -32,7 +32,7 @@ def basis_array():
     return make_basis_array(BASIS, max_number=8)
 
 
-def _pyscf(sym, coords, charge, spin, unrestricted, init_guess):
+def _pyscf_mf(sym, coords, charge, spin, unrestricted, init_guess):
     atom = [[s, tuple(x)] for s, x in zip(sym, numpy.asarray(coords).tolist())]
     mol = pyscf.M(atom=atom, basis=BASIS, unit="AU",
                   charge=charge, spin=spin, verbose=0)
@@ -40,6 +40,11 @@ def _pyscf(sym, coords, charge, spin, unrestricted, init_guess):
     mf.init_guess = init_guess
     mf.conv_tol = 1e-12
     mf.kernel()
+    return mf
+
+
+def _pyscf(sym, coords, charge, spin, unrestricted, init_guess):
+    mf = _pyscf_mf(sym, coords, charge, spin, unrestricted, init_guess)
     return mf.e_tot, mf.nuc_grad_method().kernel()
 
 
@@ -104,3 +109,36 @@ def test_batched_uhf(basis_array):
     assert abs(g[1, :3] - g0_nh2).max() < 1e-6
     # padding atom must not contribute to the gradient
     assert abs(g[0, 2]).max() < 1e-10
+
+
+def test_batched_rhf_hess_high_cost(basis_array):
+    from pyscf.hessian import rhf as pyscf_rhf_hess
+
+    # H2O (3 atoms) and H2 (2 atoms + 1 padding atom).
+    numbers = np.asarray([[8, 1, 1], [1, 1, 0]], dtype=int)
+    coords = np.asarray([
+        [[0.0, 0.0, 0.213], [0.0, 1.43, -0.85], [0.0, -1.43, -0.85]],
+        [[0.0, 0.0, 0.0], [0.0, 0.0, 1.4], [0.0, 0.0, 0.0]],
+    ])
+
+    mf_h2o = _pyscf_mf(("O", "H", "H"), coords[0], 0, 0, False, "minao")
+    mf_h2 = _pyscf_mf(("H", "H"), coords[1][:2], 0, 0, False, "minao")
+    h0_h2o = pyscf_rhf_hess.Hessian(mf_h2o).kernel().transpose(0, 2, 1, 3)
+    h0_h2 = pyscf_rhf_hess.Hessian(mf_h2).kernel().transpose(0, 2, 1, 3)
+
+    def energy(numbers, coords):
+        mol = MolePad(numbers, coords, basis=basis_array,
+                      trace_coords=True, verbose=0)
+        mf = RHFPad(mol)
+        mf.diis = "diis"
+        mf.conv_tol = 1e-11
+        return mf.kernel()
+
+    hess_fn = jax.jacfwd(jax.grad(energy, 1), 1)
+    hess = numpy.asarray(jax.jit(jax.vmap(hess_fn))(numbers, coords))
+
+    assert abs(hess[0] - h0_h2o).max() < 1e-6
+    assert abs(hess[1][:2, :, :2, :] - h0_h2).max() < 1e-6
+    # padding atom must not couple to anything at second order either
+    assert abs(hess[1][2]).max() < 1e-8
+    assert abs(hess[1][:, :, 2, :]).max() < 1e-8

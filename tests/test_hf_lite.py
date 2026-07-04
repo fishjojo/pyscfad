@@ -178,3 +178,18 @@ def test_uhf_nuc_hess():
     pmf = _pyscf_mf(1, 1, True, init_guess="hcore")
     h0 = pyscf_uhf_hess.Hessian(pmf).kernel().transpose(0, 2, 1, 3)
     assert abs(hess - h0).max() < 1e-6
+
+
+def test_rhf_verbose_jit_smoke():
+    # The logger stages traced values through jax.debug.callback; a verbose
+    # run under jit must complete instead of choking on tracer formatting.
+    def energy(coords):
+        mol = MoleLite(symbols=("H", "H"), coords=coords, basis=BASIS,
+                       trace_coords=True, verbose=4)
+        mf = hf_lite.RHF(mol)
+        mf.diis = "diis"
+        return mf.kernel()
+
+    coords = np.asarray([[0.0, 0.0, 0.0], [0.0, 0.0, 1.4]])
+    e = jax.jit(energy)(coords)
+    assert numpy.isfinite(float(e))
