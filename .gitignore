@@ -130,3 +130,6 @@ dmypy.json
 
 # VSCode
 .vscode/*
+
+# Claude Code personal settings
+.claude/settings.local.json
