@@ -134,7 +134,7 @@ class DIIS(pytree.PytreeNode):
     ridge: ridge regularization for the (possibly singular) linear system.
     start_cycle: starting cycle for extrapolation.
     """
-    _dynamic_attr = ["state"]
+    _dynamic_attr = ['state']
 
     def __init__(
         self,
