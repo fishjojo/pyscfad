@@ -152,6 +152,88 @@ def test_gfn1_kxtb_lattice_gradient(setup):
         fd = (cell_energy(np.asarray(ap)) - cell_energy(np.asarray(am))) / (2*h)
         assert abs(g_ad[i, j] - fd) < 1e-6 * max(abs(fd), 1.0)
 
+# Body executed under PYSCFAD_FLOATX=float32 in a subprocess (see the
+# ``run_fp32`` fixture). Runs the k-point SCF energy/force for every system in
+# ``IN`` and emits the results keyed by the system name; the parent compares
+# them against the FP64 references. Both reference structures have vanishing
+# forces by symmetry.
+_FP32_KXTB_BODY = """
+from pyscfad.pbc.gto import CellLite as Cell
+from pyscfad.xtb.kxtb import GFN1KXTB
+from pyscfad.xtb import basis as xtb_basis
+from pyscfad.xtb.param import GFN1Param
+
+basis = xtb_basis.get_basis_filename()
+param = GFN1Param()
+
+out = {}
+for name, sys in IN.items():
+    numbers = sys["numbers"]
+    coords = np.asarray(sys["coords"])
+    a = np.asarray(sys["a"])
+    sigma = sys["sigma"]
+
+    def energy(coords, numbers=numbers, a=a, sigma=sigma):
+        cell = Cell(numbers=numbers, coords=coords, a=a,
+                    basis=basis, precision=1e-6, trace_coords=True)
+        mf = GFN1KXTB(cell, param=param, kpts=cell.make_kpts([2,]*3))
+        mf.sigma = sigma
+        mf.diis = "anderson"
+        mf.diis_damp = .5
+        mf.diis_space = 6
+        mf.conv_tol = 1e-5
+        return mf.kernel()
+
+    e, g = jax.value_and_grad(energy)(coords)
+    out[name] = {"e": float(e), "g": numpy.asarray(g).tolist()}
+
+emit(**out)
+"""
+
+def test_gfn1_kxtb_energy_force_fp32(run_fp32):
+    # Si diamond (insulator, no smearing) and Cu (with Fermi smearing);
+    # FP64 references from test_gfn1_kxtb_energy_force_with_kpts_sample and
+    # test_gfn1_kxtb_smearing.
+    systems = {
+        "si": {
+            "numbers": [14, 14],
+            "coords": (np.asarray([[0.0, 0.0, 0.0],
+                                   [1.3467560987]*3]) / BOHR),
+            "a": (np.asarray([[0.0, 2.6935121974, 2.6935121974],
+                              [2.6935121974, 0.0, 2.6935121974],
+                              [2.6935121974, 2.6935121974, 0.0]]) / BOHR),
+            "sigma": None,
+            "e0": -3.83117442207487,
+        },
+        "cu": {
+            "numbers": [29, 29],
+            "coords": np.asarray(
+                [[0.        , 0.        , 0.        ],
+                 [2.40522868, 2.40522868, 3.40150702],]),
+            "a": np.asarray(
+                [[4.81045737, 0.        , 0.        ],
+                 [0.        , 4.81045737, 0.        ],
+                 [0.        , 0.        , 6.80301405],]),
+            "sigma": 0.001,
+            "e0": -9.22283523848542,
+        },
+    }
+
+    out = run_fp32(
+        _FP32_KXTB_BODY,
+        **{name: {"numbers": sys["numbers"], "coords": sys["coords"],
+                  "a": sys["a"], "sigma": sys["sigma"]}
+           for name, sys in systems.items()},
+    )
+
+    for name, sys in systems.items():
+        e0 = sys["e0"]
+        e1 = out[name]["e"]
+        g1 = np.asarray(out[name]["g"])
+        assert abs(e1 - e0) / abs(e0) < 1e-6
+        # forces vanish by symmetry; float32 resolves them to ~1e-4
+        assert abs(g1).max() < 1e-3
+
 def test_gfn1_kxtb_smearing(setup):
     basis, param = setup
     numbers = [29, 29]

@@ -33,3 +33,15 @@ def test_astype_floatx():
     other = numpy.float32 if np.floatx == numpy.float64 else numpy.float64
     a = np.zeros(2, dtype=other).astype(np.floatx)
     assert a.dtype == np.floatx
+
+
+def test_complexx_dtype():
+    if np.floatx == numpy.dtype('float32'):
+        assert np.complexx == numpy.dtype('complex64')
+    else:
+        assert np.complexx == numpy.dtype('complex128')
+    # complexx is the complex counterpart of floatx
+    assert numpy.dtype(numpy.result_type(np.floatx, numpy.complex64)) == np.complexx
+    a = np.zeros(2, dtype=np.floatx).astype(np.complexx)
+    assert a.dtype == np.complexx
+    assert a.real.dtype == np.floatx

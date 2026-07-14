@@ -81,7 +81,9 @@ def update_history(
 ) -> tuple[Any, Any, Array]:
     param_hist = _tree_set(param_hist, pos, param)
     res_hist = _tree_set(res_hist, pos, residual)
-    new_row = jax.vmap(_tree_vdot, in_axes=(0, None))(res_hist, residual)
+    # the mixing coefficients are real, so only the real part of the
+    # Gram matrix is needed (complex residuals arise with k-points)
+    new_row = jax.vmap(_tree_vdot, in_axes=(0, None))(res_hist, residual).real
     res_gram = res_gram.at[pos,:].set(new_row)
     res_gram = res_gram.at[:,pos].set(new_row)
     return param_hist, res_hist, res_gram

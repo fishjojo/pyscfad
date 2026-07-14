@@ -115,33 +115,45 @@ def _ref(bfile, nimgs, ewald_mesh, scaled_kpts, numbers, coords, a):
     return float(e), bands, path_bands
 
 
-def test_gfn1_kxtb_pad_energy_force_bands(setup):
+@pytest.fixture(scope="module")
+def refs(setup):
+    """Unbatched FP64 references shared by the FP64 and FP32 tests."""
     bfile, basis, param, nimgs, Ts, ewald_mesh, scaled_kpts = setup
-    nbas = basis.nbas
-    nk = len(scaled_kpts)
-
-    refs = [
+    return [
         _ref(bfile, nimgs, ewald_mesh, scaled_kpts, list(zs), coords, a)
         for zs, coords, a in SYSTEMS
     ]
 
-    def pad(arr, fill=0):
-        arr = numpy.asarray(arr)
-        out = numpy.full((NATM,) + arr.shape[1:], float(fill))
-        out[: len(arr)] = arr
-        return out
 
-    # batch: 2-atom Si + 4-atom C supercell + 1-atom Ne + an empty cell
+def _pad(arr, fill=0):
+    arr = numpy.asarray(arr)
+    out = numpy.full((NATM,) + arr.shape[1:], float(fill))
+    out[: len(arr)] = arr
+    return out
+
+
+def _make_batch(scaled_kpts):
+    """Batch: 2-atom Si + 4-atom C supercell + 1-atom Ne + an empty cell."""
     numbers = np.asarray(
-        [pad(zs).astype(int) for zs, _, _ in SYSTEMS]
+        [_pad(zs).astype(int) for zs, _, _ in SYSTEMS]
         + [numpy.zeros(NATM, dtype=int)],
         dtype=np.int32,
     )
     coords = np.asarray(
-        [pad(c) for _, c, _ in SYSTEMS] + [numpy.zeros((NATM, 3))]
+        [_pad(c) for _, c, _ in SYSTEMS] + [numpy.zeros((NATM, 3))]
     )
     a_batch = np.asarray([a for *_, a in SYSTEMS] + [numpy.eye(3)])
     kpts = np.asarray([_abs_kpts(scaled_kpts, a) for a in a_batch])
+    kpts_band = np.asarray([_abs_kpts(SCALED_BAND_PATH, a) for a in a_batch])
+    return numbers, coords, a_batch, kpts, kpts_band
+
+
+def test_gfn1_kxtb_pad_energy_force_bands(setup, refs):
+    bfile, basis, param, nimgs, Ts, ewald_mesh, scaled_kpts = setup
+    nbas = basis.nbas
+    nk = len(scaled_kpts)
+
+    numbers, coords, a_batch, kpts, kpts_band = _make_batch(scaled_kpts)
     n_solids = len(SYSTEMS)
 
     def energy(numbers, coords, a, kpts, kpts_band):
@@ -169,7 +181,6 @@ def test_gfn1_kxtb_pad_energy_force_bands(setup):
         path_bands = np.sort(path_energy.real, axis=1)[:, :N_LOWEST_BANDS]
         return e, (band, pick, path_bands)
 
-    kpts_band = np.asarray([_abs_kpts(SCALED_BAND_PATH, a) for a in a_batch])
     gfn = jax.jit(jax.vmap(
         jax.value_and_grad(energy, argnums=1, has_aux=True),
         in_axes=(0, 0, 0, 0, 0)))
@@ -217,3 +228,109 @@ def test_gfn1_kxtb_pad_energy_force_bands(setup):
     for slot, isys in enumerate(perm[:n_solids]):
         assert abs(e_swap[slot] - refs[isys][0]) < 1e-6
     assert gfn._cache_size() == 1
+
+
+# Body executed under PYSCFAD_FLOATX=float32 in a subprocess (see the
+# ``run_fp32`` fixture). The padded basis/param arrays must be built *inside*
+# the float32 process so the sentinel exponents and every import-time constant
+# take their float32 values. Emits the batched energies, forces, SCF bands
+# (with the mo_mask pick, exercising the float32 padding level shift), and the
+# get_bands path for the parent to compare against the FP64 references.
+_FP32_KXTB_PAD_BODY = """
+from pyscfad.xtb import basis as xtb_basis
+from pyscfad.ml.gto import make_basis_array
+from pyscfad.ml.xtb import GFN1KXTB, make_param_array
+from pyscfad.ml.pbc.gto import CellPad
+
+numbers = np.asarray(IN["numbers"], dtype=np.int32)
+coords = np.asarray(IN["coords"])
+a_batch = np.asarray(IN["a"])
+kpts = np.asarray(IN["kpts"])
+kpts_band = np.asarray(IN["kpts_band"])
+Ts = numpy.asarray(IN["Ts"])
+ewald_mesh = numpy.asarray(IN["ewald_mesh"])
+RCUT = IN["rcut"]
+N_LOWEST_BANDS = IN["n_lowest_bands"]
+
+bfile = xtb_basis.get_basis_filename()
+basis = make_basis_array(bfile, max_number=IN["max_number"])
+param = make_param_array(basis, max_number=IN["max_number"])
+
+def energy(numbers, coords, a, kpts, kpts_band):
+    Ls = np.asarray(Ts, dtype=np.floatx) @ a
+    cell = CellPad(numbers, coords, basis=basis, a=a, Ls=Ls, rcut=RCUT,
+                   precision=1e-6, verbose=0, trace_coords=True)
+    mf = GFN1KXTB(cell, param, kpts=kpts)
+    mf.ewald_mesh = ewald_mesh
+    mf.diis = "anderson"
+    mf.conv_tol = 1e-5
+    e = mf.kernel()
+
+    band = mf.mo_energy.real
+    mask = mf.mo_mask(band)
+    nocc = mf.tot_electrons // 2
+    flat = band.ravel()
+    order = np.argsort(flat)
+    m = mask.ravel()[order]
+    pick_sorted = (np.cumsum(m) <= nocc) & m
+    pick = np.zeros_like(pick_sorted).at[order].set(
+        pick_sorted).reshape(band.shape)
+
+    path_energy, _ = mf.get_bands(kpts_band)
+    path_bands = np.sort(path_energy.real, axis=1)[:, :N_LOWEST_BANDS]
+    return e, (band, pick, path_bands)
+
+gfn = jax.jit(jax.vmap(jax.value_and_grad(energy, argnums=1, has_aux=True),
+                       in_axes=(0, 0, 0, 0, 0)))
+(e, (band, pick, path_bands)), g = gfn(numbers, coords, a_batch, kpts,
+                                       kpts_band)
+emit(e=numpy.asarray(e).tolist(),
+     g=numpy.asarray(g).tolist(),
+     band=numpy.asarray(band).tolist(),
+     pick=numpy.asarray(pick).tolist(),
+     path_bands=numpy.asarray(path_bands).tolist())
+"""
+
+
+def test_gfn1_kxtb_pad_energy_force_bands_fp32(setup, refs, run_fp32):
+    bfile, basis, param, nimgs, Ts, ewald_mesh, scaled_kpts = setup
+    nk = len(scaled_kpts)
+
+    numbers, coords, a_batch, kpts, kpts_band = _make_batch(scaled_kpts)
+    n_solids = len(SYSTEMS)
+
+    out = run_fp32(
+        _FP32_KXTB_PAD_BODY,
+        numbers=numbers, coords=coords, a=a_batch, kpts=kpts,
+        kpts_band=kpts_band, Ts=Ts, ewald_mesh=ewald_mesh, rcut=RCUT,
+        n_lowest_bands=N_LOWEST_BANDS, max_number=MAX_NUMBER,
+    )
+    e = numpy.asarray(out["e"])
+    g = numpy.asarray(out["g"])
+    band = numpy.asarray(out["band"])
+    pick = numpy.asarray(out["pick"], dtype=bool)
+    path_bands = numpy.asarray(out["path_bands"])
+
+    # float32 energy parity with the unbatched FP64 references
+    for i, (e_ref, _, _) in enumerate(refs):
+        assert abs(e[i] - e_ref) / abs(e_ref) < 2e-6
+    assert abs(e[n_solids]) < 1e-6, "empty cell energy not zero"
+
+    assert numpy.isfinite(g).all()
+    # translation invariance and point-group symmetry at float32 resolution
+    assert numpy.abs(g[:n_solids].sum(axis=1)).max() < 1e-3
+    assert numpy.abs(g[0]).max() < 1e-3
+    assert numpy.abs(g[2]).max() < 1e-3
+
+    # occupied valence bands picked through the float32 padding level shift
+    for i, (_, ref_bands, _) in enumerate(refs):
+        got = band[i][pick[i]].reshape(nk, -1)
+        assert got.shape == ref_bands.shape
+        assert numpy.abs(got - ref_bands).max() < 1e-3
+    assert pick[n_solids].sum() == 0
+
+    # get_bands parity along the fractional band path
+    for i, (_, _, ref_path) in enumerate(refs):
+        width = ref_path.shape[1]
+        assert numpy.abs(path_bands[i][:, :width] - ref_path).max() < 1e-3
+    assert numpy.isfinite(path_bands[n_solids]).all()

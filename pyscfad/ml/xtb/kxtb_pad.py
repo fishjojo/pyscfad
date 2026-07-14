@@ -142,7 +142,7 @@ class GFN1KXTB(kxtb.GFN1KXTB, KXTB):
         ne_safe = np.where(ne > 1e-12, ne, 1.0)
         scale = np.where(ne > 1e-12, nelectron / ne_safe, 0.0)
         dm_kpts = dm_kpts * scale
-        return dm_kpts.astype(np.complex128)
+        return dm_kpts.astype(np.complexx)
 
     def get_hcore(
         self,
@@ -178,13 +178,14 @@ class GFN1KXTB(kxtb.GFN1KXTB, KXTB):
         shl_mask = self.cell.shl_mask
         shl_pair_mask = np.outer(shl_mask, shl_mask)
         h1 = np.where(shl_pair_mask[None, ...], h1, 0.0)
+        h1 = np.asarray(h1, dtype=np.floatx)
 
         if cell is self.cell:
             s1e_lat = self.s1e_lat
         else:
             s1e_lat = self.get_ovlp_lat(cell=cell, Ls=Ls)
 
-        expkL = np.exp(1j * np.dot(kpts, Ls.T))
+        expkL = np.exp(1j * np.dot(kpts, Ls.T)).astype(np.complexx)
         i, j = util.bas_to_ao_indices_2d(cell)
         hcore = np.einsum("kl,lpq->kpq", expkL, s1e_lat * h1[:, i, j])
 
