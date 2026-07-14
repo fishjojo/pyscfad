@@ -70,6 +70,13 @@ def _abs_kpts(scaled_kpts, a):
     return scaled_kpts @ b
 
 
+# fractional band path used for the get_bands parity check
+SCALED_BAND_PATH = numpy.array([[0.0, 0.0, 0.0],
+                                [0.25, 0.0, 0.25],
+                                [0.5, 0.0, 0.5]])
+N_LOWEST_BANDS = 8
+
+
 def _ref(bfile, nimgs, ewald_mesh, scaled_kpts, numbers, coords, a):
     """Unbatched reference with the same static grids as the padded path."""
     cell = CellLite(numbers=numbers, coords=coords, a=a, rcut=RCUT,
@@ -83,7 +90,10 @@ def _ref(bfile, nimgs, ewald_mesh, scaled_kpts, numbers, coords, a):
     e = mf.kernel()
     nocc = int(numpy.asarray(mf.tot_electrons)) // 2 // len(scaled_kpts)
     bands = numpy.sort(numpy.asarray(mf.mo_energy), axis=1)[:, :nocc]
-    return float(e), bands
+    path_energy, _ = mf.get_bands(_abs_kpts(SCALED_BAND_PATH, a))
+    path_bands = numpy.sort(
+        numpy.asarray(path_energy).real, axis=1)[:, :N_LOWEST_BANDS]
+    return float(e), bands, path_bands
 
 
 def test_gfn1_kxtb_pad_energy_force_bands(setup):
@@ -91,10 +101,10 @@ def test_gfn1_kxtb_pad_energy_force_bands(setup):
     nbas = basis.nbas
     nk = len(scaled_kpts)
 
-    e_si, bands_si = _ref(bfile, nimgs, ewald_mesh, scaled_kpts,
-                          [14, 14], COORDS_SI, A_SI)
-    e_c, bands_c = _ref(bfile, nimgs, ewald_mesh, scaled_kpts,
-                        [6, 6], COORDS_C, A_C)
+    e_si, bands_si, path_si = _ref(bfile, nimgs, ewald_mesh, scaled_kpts,
+                                   [14, 14], COORDS_SI, A_SI)
+    e_c, bands_c, path_c = _ref(bfile, nimgs, ewald_mesh, scaled_kpts,
+                                [6, 6], COORDS_C, A_C)
 
     def pad(arr):
         out = numpy.zeros((NATM,) + numpy.asarray(arr).shape[1:])
@@ -107,7 +117,7 @@ def test_gfn1_kxtb_pad_energy_force_bands(setup):
     a_batch = np.asarray([A_SI, A_C, numpy.eye(3)])
     kpts = np.asarray([_abs_kpts(scaled_kpts, a) for a in a_batch])
 
-    def energy(numbers, coords, a, kpts):
+    def energy(numbers, coords, a, kpts, kpts_band):
         Ls = np.asarray(Ts, dtype=np.float64) @ a
         cell = CellPad(numbers, coords, basis=basis, a=a, Ls=Ls, rcut=RCUT,
                        precision=1e-6, verbose=0, trace_coords=True)
@@ -126,12 +136,18 @@ def test_gfn1_kxtb_pad_energy_force_bands(setup):
         pick_sorted = (np.cumsum(m) <= nocc) & m
         pick = np.zeros_like(pick_sorted).at[order].set(
             pick_sorted).reshape(band.shape)
-        return e, (band, pick)
 
+        # bands at arbitrary k-points via the get_bands API
+        path_energy, _ = mf.get_bands(kpts_band)
+        path_bands = np.sort(path_energy.real, axis=1)[:, :N_LOWEST_BANDS]
+        return e, (band, pick, path_bands)
+
+    kpts_band = np.asarray([_abs_kpts(SCALED_BAND_PATH, a) for a in a_batch])
     gfn = jax.jit(jax.vmap(
         jax.value_and_grad(energy, argnums=1, has_aux=True),
-        in_axes=(0, 0, 0, 0)))
-    (e, (band, pick)), g = gfn(numbers, coords, a_batch, kpts)
+        in_axes=(0, 0, 0, 0, 0)))
+    (e, (band, pick, path_bands)), g = gfn(numbers, coords, a_batch, kpts,
+                                           kpts_band)
 
     # energy and gradient parity with the unbatched reference
     assert abs(e[0] - e_si) < 1e-6
@@ -151,9 +167,16 @@ def test_gfn1_kxtb_pad_energy_force_bands(setup):
         assert numpy.abs(got - ref_bands).max() < 1e-5
     assert pick[2].sum() == 0
 
+    # get_bands parity along the fractional band path
+    path_bands = numpy.asarray(path_bands)
+    for i, ref_path in enumerate((path_si, path_c)):
+        assert numpy.abs(path_bands[i] - ref_path).max() < 1e-5
+    assert numpy.isfinite(path_bands[2]).all()
+
     # variable atomic numbers reuse the same jitted executable
     perm = numpy.array([1, 0, 2])
-    (e_swap, _), _ = gfn(numbers[perm], coords[perm], a_batch[perm], kpts[perm])
+    (e_swap, _), _ = gfn(numbers[perm], coords[perm], a_batch[perm],
+                         kpts[perm], kpts_band[perm])
     assert abs(e_swap[0] - e_c) < 1e-6
     assert abs(e_swap[1] - e_si) < 1e-6
     assert gfn._cache_size() == 1

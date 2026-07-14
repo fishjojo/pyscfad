@@ -1,9 +1,9 @@
 """GFN1-KXTB band structure of silicon.
 
-Converge the SCF on a Monkhorst-Pack mesh, then diagonalize the converged
-Fock operator along a high-symmetry k-path (L - Gamma - X). The
-charge-dependent potential is frozen at the converged shell charges, so the
-band Hamiltonian at any k is H(k) = Hcore(k) + Veff[q](k).
+Converge the SCF on a Monkhorst-Pack mesh, then use ``mf.get_bands`` to
+evaluate the bands along a high-symmetry k-path (L - Gamma - X). The
+charge-dependent potential is frozen at the converged density, so the band
+Hamiltonian at any k is H(k) = Hcore(k) + Veff[q](k).
 """
 import numpy
 from pyscf.data.nist import BOHR, HARTREE2EV
@@ -43,9 +43,6 @@ mf.conv_tol = 1e-10
 e_tot = mf.kernel()
 print(f"SCF energy: {e_tot:.10f} Ha")
 
-# converged shell charges freeze the second/third-order potential
-q = mf.get_q()
-
 # --- high-symmetry path L - Gamma - X (scaled/fractional coordinates) ---
 L = numpy.array([0.5, 0.5, 0.5])
 G = numpy.array([0.0, 0.0, 0.0])
@@ -57,13 +54,8 @@ def segment(k0, k1, n):
 scaled_path = numpy.vstack([segment(L, G, 21), segment(G, X, 21)[1:]])
 band_kpts = np.asarray(cell.get_abs_kpts(scaled_path))
 
-# --- bands: diagonalize H(k) = Hcore(k) + Veff[q](k) along the path ---
-s1e_b = mf.get_ovlp(kpts=band_kpts)
-h1e_b = mf.get_hcore(kpts=band_kpts)
-vxc_b = mf.get_veff(s1e=s1e_b, kpts=band_kpts, q=q)
-fock_b = h1e_b + vxc_b.vxc
-
-mo_energy, _ = mf._eigh(fock_b, s1e_b)
+# --- bands at arbitrary k-points from the converged SCF density ---
+mo_energy, mo_coeff = mf.get_bands(band_kpts)
 bands = numpy.sort(numpy.asarray(mo_energy).real, axis=1) * HARTREE2EV
 
 nocc = int(numpy.asarray(mf.tot_electrons)) // 2 // len(kpts)

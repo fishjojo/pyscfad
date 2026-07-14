@@ -209,7 +209,15 @@ def _lattice_intor_jvp(
             raise NotImplementedError("basis set parameter derivative not supported")
 
     if not isinstance(Ls_dot, SymbolicZero):
-        raise NotImplementedError
+        # Every ket function in image L is displaced rigidly by L, so
+        # dS_L/dL is the ket-center derivative summed over all ket centers.
+        # By pair translation invariance this equals minus the bra
+        # derivative that the deriv=1 kernel provides.
+        s1a = -lat_overlap(atm, env, Ls, Ls_mask, cuint_plan, deriv=1)
+        Ls_dot = np.asarray(Ls_dot, dtype=np.float64)
+        tangent_out += np.einsum("lxpq,lx->lpq", -s1a, Ls_dot).reshape(
+            tangent_out.shape
+        )
     return primal_out, tangent_out
 
 _lattice_intor.defjvp(_lattice_intor_jvp, symbolic_zeros=True)

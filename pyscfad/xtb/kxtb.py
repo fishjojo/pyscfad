@@ -412,7 +412,15 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
         phi = phi[util.bas_to_ao_indices(cell)]
         phi = phi[:,None] + phi[None,:]
 
-        vj = -.5 * s1e * phi[None,...]
+        if kpts_band is None:
+            s1e_band = s1e
+        else:
+            # charges are converged on the SCF k-point mesh; the potential
+            # matrix needs the overlap at the requested band k-points
+            kpts_band = np.asarray(kpts_band).reshape(-1, 3)
+            s1e_band = self.get_ovlp(cell, kpts=kpts_band)
+
+        vj = -.5 * s1e_band * phi[None,...]
         vxc = VXC(vxc=vj, ecoul=ecoul)
         return vxc
 
