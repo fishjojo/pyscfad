@@ -71,7 +71,7 @@ def mulliken_charge(
     weights = 1. / nkpts
 
     PS = np.einsum("kpq,kqp->p", dm, s1e).real
-    occs = np.zeros(cell.nbas)
+    occs = np.zeros(cell.nbas, dtype=PS.dtype)
     occs = ops.index_add(occs, ops.index[util.bas_to_ao_indices(cell)], PS)
     occs *= weights
     return param.refocc - occs
@@ -98,7 +98,9 @@ def _gamma_sr_GFN1(cell: Cell, param: GFN1MolParam, rsmooth: float = 1.0) -> Arr
     r = r[:,i,j]
     r_inv = r_inv[:,i,j]
 
-    rcut = cell.rcut
+    # the cutoff radius may be a strongly-typed float64 scalar
+    # (e.g. from estimate_rcut); keep the lattice sum in working precision
+    rcut = np.asarray(cell.rcut, dtype=np.floatx)
     _val = np.sqrt(1./(r**2 + 1./eta**2)) - r_inv
     r1 = r - (rcut - rsmooth)
     x = r1 / rsmooth
@@ -131,7 +133,7 @@ def _gamma_sr_erfc(cell: Cell, param: GFN1MolParam) -> Array:
         0,
     )
     gamma = np.sum(gamma_latt, axis=0)
-    gamma += np.eye(cell.natm)[i,j] * eta
+    gamma += np.eye(cell.natm, dtype=np.floatx)[i,j] * eta
     return gamma
 
 def _gamma_ewald(
@@ -154,7 +156,7 @@ def _gamma_ewald(
     gamma = np.sum(gamma_latt, axis=0)
 
     # self energy
-    gamma += np.eye(cell.natm) * (-2 * ew_eta / np.sqrt(np.pi))
+    gamma += np.eye(cell.natm, dtype=np.floatx) * (-2 * ew_eta / np.sqrt(np.pi))
 
     if ewald_mesh is None:
         ke_cutoff = util.ke_cutoff_ewald(
@@ -208,7 +210,7 @@ class KXTB(xtb.XTB, KSCFLite):
             kpts = self.kpts
 
         Ls = cell.Ls
-        expkL = np.exp(1j*np.dot(kpts, Ls.T))
+        expkL = np.exp(1j*np.dot(kpts, Ls.T)).astype(np.complexx)
 
         if cell is self.cell:
             s1e_lat = self.s1e_lat
@@ -234,8 +236,9 @@ class KXTB(xtb.XTB, KSCFLite):
             Ls = cell.Ls
         Ls = np.asarray(Ls, dtype=np.float64).reshape(-1,3)
 
+        # the integrals are evaluated in FP64; cast to the working precision
         s1e_lat = cell.lattice_intor("int1e_ovlp", hermi=1, Ls=Ls)
-        return s1e_lat
+        return s1e_lat.astype(np.floatx)
 
     @property
     def s1e_lat(self) -> Array:
@@ -323,7 +326,7 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
         ne = np.einsum("kij,kji->", dm_kpts, s1e).real
         nelectron = self.tot_electrons
         dm_kpts *= (nelectron / ne).reshape(-1,1,1)
-        return dm_kpts.astype(np.complex128)
+        return dm_kpts.astype(np.complexx)
 
     def get_hcore(
         self,
@@ -351,13 +354,14 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
         h1 = np.where(np.repeat(mask[None,:,:], nL, axis=0),
                       hscale[None,:,:] * EHT_PI_GFN1(cell, param, Ls=Ls) * hdiag[None,:,:],
                       np.repeat(hdiag[None,:,:], nL, axis=0))
+        h1 = np.asarray(h1, dtype=np.floatx)
 
         if cell is self.cell:
             s1e_lat = self.s1e_lat
         else:
             s1e_lat = self.get_ovlp_lat(cell=cell, Ls=Ls)
 
-        expkL = np.exp(1j*np.dot(kpts, Ls.T))
+        expkL = np.exp(1j*np.dot(kpts, Ls.T)).astype(np.complexx)
         i, j = util.bas_to_ao_indices_2d(cell)
         hcore = np.einsum("kl,lpq->kpq", expkL, s1e_lat * h1[:,i,j])
 

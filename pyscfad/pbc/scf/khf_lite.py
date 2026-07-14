@@ -56,7 +56,8 @@ def get_occ(
         mo_occ_kpts = mo_occ[inverse_idx].reshape(nkpts,-1)
     else:
         pick = (np.cumsum(mask) <= nocc) & mask
-        mo_occ = np.where(pick, 2., 0.)
+        mo_occ = np.zeros_like(pick, dtype=np.floatx)
+        mo_occ = np.where(pick, 2, mo_occ)
         mo_occ_kpts = mo_occ[inverse_idx].reshape(nkpts,-1)
 
         if mf.verbose >= logger.DEBUG:
@@ -86,7 +87,7 @@ class KSCF(SCFLite):
     ):
         if kpts is None:
             kpts = np.zeros((1,3))
-        self.kpts = np.asarray(kpts, dtype=float).reshape(-1,3)
+        self.kpts = np.asarray(kpts, dtype=np.floatx).reshape(-1,3)
 
         super().__init__(cell, **kwargs)
 

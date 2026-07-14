@@ -21,6 +21,11 @@ import numpy
 #: ``x.astype(np.floatx)``.
 floatx = numpy.dtype(default_floatx())
 
+#: Complex counterpart of :data:`floatx` (``complex64`` for ``float32``,
+#: ``complex128`` for ``float64``). Use it for k-point/phase arithmetic,
+#: e.g. ``dm.astype(np.complexx)``.
+complexx = numpy.dtype(numpy.result_type(floatx, numpy.complex64))
+
 def __getattr__(name):
     return getattr(get_backend(), name)
 

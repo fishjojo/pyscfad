@@ -57,7 +57,7 @@ class Cell(MoleLite):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.a = np.asarray(a, dtype=float).reshape(3,3)
+        self.a = np.asarray(a, dtype=np.floatx).reshape(3,3)
         self.precision = precision
         self.dimension = dimension
 
@@ -82,7 +82,7 @@ class Cell(MoleLite):
 
     @Ls.setter
     def Ls(self, val: ArrayLike):
-        self._Ls = np.asarray(val, dtype=np.float64).reshape(-1,3)
+        self._Ls = np.asarray(val, dtype=np.floatx).reshape(-1,3)
 
     def get_Ls_mask(
         self,
