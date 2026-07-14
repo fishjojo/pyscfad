@@ -69,8 +69,10 @@ def test_gfn1_kxtb_energy_force_with_kpts_sample(setup):
         mf.diis = "anderson"
         return mf.kernel()
 
-    e0 = -3.81064113210415
-    g0 = np.array([[-0.00073464,]*3, [0.00073464,]*3])
+    # reference with periodic coordination numbers (cn_d3 over cell.Ls);
+    # forces vanish by symmetry for the ideal diamond structure
+    e0 = -3.83117442207487
+    g0 = np.zeros((2, 3))
 
     e1, g1 = jax.value_and_grad(cell_energy)(coords)
     assert abs(e1 - e0) < 1e-6
@@ -99,7 +101,7 @@ def test_gfn1_kxtb_smearing(setup):
         mf.diis_space = 6
         return mf.kernel()
 
-    e0 = -9.222835240828761
+    e0 = -9.22283523848542
     g0 = np.zeros((2,3))
 
     e1, g1 = jax.value_and_grad(cell_energy)(coords)

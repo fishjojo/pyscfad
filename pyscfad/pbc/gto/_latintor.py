@@ -118,9 +118,11 @@ def _lattice_intor_impl_cpu(
     if ao_loc is None:
         ao_loc = make_loc(bas, intor_name)
     else:
-        # TODO The input ao_loc is for single mol object,
-        # need to concatenate it.
-        raise NotImplementedError
+        # The input ao_loc is for the single cell; concatenate it for the
+        # doubled (bra|ket) environment produced by conc_env above.
+        ao_loc = numpy.asarray(ao_loc).ravel()
+        nao = ao_loc[-1]
+        ao_loc = numpy.concatenate([ao_loc[:-1], nao + ao_loc])
     ao_loc = numpy.asarray(ao_loc, dtype=numpy.int32, order="C")
 
     naoi = ao_loc[i1] - ao_loc[i0]
