@@ -118,9 +118,11 @@ def _lattice_intor_impl_cpu(
     if ao_loc is None:
         ao_loc = make_loc(bas, intor_name)
     else:
-        # TODO The input ao_loc is for single mol object,
-        # need to concatenate it.
-        raise NotImplementedError
+        # The input ao_loc is for the single cell; concatenate it for the
+        # doubled (bra|ket) environment produced by conc_env above.
+        ao_loc = numpy.asarray(ao_loc).ravel()
+        nao = ao_loc[-1]
+        ao_loc = numpy.concatenate([ao_loc[:-1], nao + ao_loc])
     ao_loc = numpy.asarray(ao_loc, dtype=numpy.int32, order="C")
 
     naoi = ao_loc[i1] - ao_loc[i0]
@@ -207,6 +209,38 @@ def _gen_int1e_jvp_r0(
                                   aoidx[None,None,None,:])
     return jvp.reshape(nL,-1,naoi,naoj)
 
+def _gen_int1e_jvp_Ls(
+    intor_b, Ls, Ls_mask, atm, bas, env, Ls_dot,
+    shls_slice, comp, hermi, ao_loc,
+    trace_coords, trace_basis, aoslices=None,
+):
+    """Tangent of the per-image integrals w.r.t. the lattice shifts ``Ls``.
+
+    Every ket function in image L is displaced rigidly by L, so
+    dS_L/dL equals the ket-center derivative summed over all ket centers,
+    i.e. the ket-derivative integral itself (no per-atom scatter needed).
+    """
+    Ls = Ls.reshape(-1,3)
+    nL = len(Ls)
+
+    if comp is not None:
+        comp = comp * 3
+
+    order_a = int1e_get_dr_order(intor_b)[0]
+    s1b = -_lattice_intor(
+        intor_b, Ls, Ls_mask, atm, bas, env,
+        shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
+        trace_coords=trace_coords, trace_basis=trace_basis,
+        aoslices=aoslices,
+    )
+    naoi, naoj = s1b.shape[-2:]
+    s1b = s1b.reshape(nL, 3**order_a, 3, -1, naoi, naoj)
+    s1b = s1b.transpose(0,2,1,3,4,5).reshape(nL, 3, -1, naoi, naoj)
+
+    jvp = np.einsum("lxcpq,lx->lcpq", s1b, Ls_dot)
+    return jvp.reshape(nL, -1, naoi, naoj)
+
+
 def _lattice_intor_jvp(
     intor_name, Ls_mask, atm, bas,
     shls_slice, comp, hermi, ao_loc,
@@ -240,7 +274,16 @@ def _lattice_intor_jvp(
             raise NotImplementedError
 
     if not isinstance(Ls_dot, SymbolicZero):
-        raise NotImplementedError
+        if not intor_ip_ket:
+            raise NotImplementedError(
+                f"Lattice-shift derivative not available for {intor_name}."
+            )
+        tangent_out += _gen_int1e_jvp_Ls(
+            intor_ip_ket,
+            Ls, Ls_mask, atm, bas, env, Ls_dot,
+            shls_slice, comp, hermi, ao_loc,
+            trace_coords, trace_basis, aoslices,
+        ).reshape(tangent_out.shape)
 
     return primal_out, tangent_out
 
