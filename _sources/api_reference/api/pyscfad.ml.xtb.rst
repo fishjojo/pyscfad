@@ -29,6 +29,9 @@ pyscfad.ml.xtb
    :recursive:
 
    
+   kxtb_pad
+   
+   
    param
    
    

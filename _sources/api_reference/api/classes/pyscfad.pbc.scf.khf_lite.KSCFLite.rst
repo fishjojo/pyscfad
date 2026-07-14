@@ -47,6 +47,9 @@ pyscfad.pbc.scf.khf\_lite.KSCFLite
          
          
          
+           ~KSCFLite.get_bands
+         
+         
          
          
            ~KSCFLite.get_grad
