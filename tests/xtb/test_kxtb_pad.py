@@ -89,6 +89,34 @@ def _abs_kpts(scaled_kpts, a):
     return scaled_kpts @ b
 
 
+def _compilations_during(fn, *args):
+    """Call ``fn(*args)``; return (result, number of XLA compilations)."""
+    import logging
+    n = [0]
+
+    class _Counter(logging.Handler):
+        def emit(self, record):
+            if "Finished XLA compilation of" in record.getMessage():
+                n[0] += 1
+
+    # A single handler on the root "jax" logger catches every compile record
+    # via logging propagation (jax logs compilations under jax._src.*).
+    jax_logger = logging.getLogger("jax")
+    handler = _Counter()
+    prev_flag = jax.config.jax_log_compiles
+    prev_level = jax_logger.level
+    jax.config.update("jax_log_compiles", True)
+    jax_logger.setLevel(logging.WARNING)
+    jax_logger.addHandler(handler)
+    try:
+        out = fn(*args)
+    finally:
+        jax_logger.removeHandler(handler)
+        jax_logger.setLevel(prev_level)
+        jax.config.update("jax_log_compiles", prev_flag)
+    return out, n[0]
+
+
 # fractional band path used for the get_bands parity check
 SCALED_BAND_PATH = numpy.array([[0.0, 0.0, 0.0],
                                 [0.25, 0.0, 0.25],
@@ -221,13 +249,17 @@ def test_gfn1_kxtb_pad_energy_force_bands(setup, refs):
     assert numpy.isfinite(path_bands[n_solids]).all()
 
     # systems with different atomic numbers AND different atom counts swap
-    # batch slots while reusing the same jitted executable
+    # batch slots while reusing the same jitted executable: the permuted
+    # call must not trigger any new XLA compilation. (Counting compilations
+    # is robust where `gfn._cache_size()` is not: jit cache entries can be
+    # evicted from jax's global cache during long test sessions.)
     perm = numpy.array([1, 2, 0, 3])
-    (e_swap, _), _ = gfn(numbers[perm], coords[perm], a_batch[perm],
-                         kpts[perm], kpts_band[perm])
+    ((e_swap, _), _), n_compiles = _compilations_during(
+        gfn, numbers[perm], coords[perm], a_batch[perm],
+        kpts[perm], kpts_band[perm])
     for slot, isys in enumerate(perm[:n_solids]):
         assert abs(e_swap[slot] - refs[isys][0]) < 1e-6
-    assert gfn._cache_size() == 1
+    assert n_compiles == 0
 
 
 # Body executed under PYSCFAD_FLOATX=float32 in a subprocess (see the
