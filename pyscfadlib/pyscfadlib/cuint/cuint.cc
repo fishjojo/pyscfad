@@ -14,6 +14,7 @@ nb::dict Registrations() {
 
     dict["cuint_overlap_ffi"] = EncapsulateFfiHandler(OverlapFfi);
     dict["cuint_overlap_gradient_ffi"] = EncapsulateFfiHandler(OverlapGradientFfi);
+    dict["cuint_gen_overlap_ffi"] = EncapsulateFfiHandler(GenOverlapFfi);
 
     dict["cuint_dipole_ffi"] = EncapsulateFfiHandler(DipoleFfi);
     dict["cuint_dipole_gradient_ffi"] = EncapsulateFfiHandler(DipoleGradientFfi);

@@ -181,6 +181,61 @@ def test_rc_deriv(OH):
         assert abs(s1e - s1e_ref).max() < 1e-9
         assert abs(s1e_deriv - s1e_deriv_ref).max() < 1e-9
 
+def test_cuint_basis_deriv(OH):
+    """Basis-set parameter derivatives: cuint vs the lite CPU path."""
+    numbers = OH["numbers"]
+    spin = OH["spin"]
+    coords = OH["coords"]
+    plan = OH["plan"]
+
+    mol0 = MoleLite(numbers=numbers, coords=coords, spin=spin, basis="ccpvdz")
+    basis0 = mol0.basis
+
+    def loss(basis, plan):
+        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
+                       trace_basis=True, cuint_plan=plan)
+        s1e = mol.intor("int1e_ovlp", hermi=1)
+        return np.sum(s1e ** 2)
+
+    g_gpu = jax.grad(loss)(basis0, plan)
+    g_cpu = jax.grad(loss)(basis0, None)
+    for a, b in zip(jax.tree.leaves(g_gpu), jax.tree.leaves(g_cpu)):
+        assert abs(a - b).max() < 1e-9
+
+    # forward mode and jit consistency
+    g_fwd = jax.jacfwd(loss)(basis0, plan)
+    for a, b in zip(jax.tree.leaves(g_gpu), jax.tree.leaves(g_fwd)):
+        assert abs(a - b).max() < 1e-12
+    g_jit = jax.jit(jax.grad(loss))(basis0, plan)
+    for a, b in zip(jax.tree.leaves(g_gpu), jax.tree.leaves(g_jit)):
+        assert abs(a - b).max() < 1e-12
+
+
+def test_cuint_basis_deriv_batched(mol_batch):
+    """Batched basis-parameter gradients (traced atomic numbers) through
+    the cuint backend vs the CPU pad path."""
+    import dataclasses
+    numbers = mol_batch["numbers"]
+    coords = mol_batch["coords"]
+    basis = mol_batch["basis"]
+    plans = mol_batch["plans"]
+    in_axes = mol_batch["in_axes"]
+
+    def loss(data, numbers, coords, plan):
+        basis_ = dataclasses.replace(basis, data=data)
+        mol = MolePad(numbers, coords, basis=basis_, verbose=0,
+                      trace_basis=True, cuint_plan=plan)
+        s = mol.intor("int1e_ovlp", hermi=1)
+        return np.sum(s ** 2)
+
+    g_gpu = jax.jit(jax.vmap(jax.grad(loss), in_axes=(None, 0, 0, in_axes)))(
+        basis.data, numbers, coords, plans)
+
+    for i in range(len(numbers)):
+        g_cpu = jax.grad(loss)(basis.data, numbers[i], coords[i], None)
+        assert abs(g_gpu[i] - g_cpu).max() < 1e-9
+
+
 def test_rc_deriv_batched(mol_batch):
     numbers = mol_batch["numbers"]
     coords = mol_batch["coords"]

@@ -8,6 +8,7 @@ namespace cuint {
 
 XLA_FFI_DECLARE_HANDLER_SYMBOL(OverlapFfi);
 XLA_FFI_DECLARE_HANDLER_SYMBOL(OverlapGradientFfi);
+XLA_FFI_DECLARE_HANDLER_SYMBOL(GenOverlapFfi);
 
 } // namespace cuint
 } // namespace pyscfad

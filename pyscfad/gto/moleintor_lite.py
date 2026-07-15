@@ -33,6 +33,10 @@ from pyscfad.gto._moleintor_helper import (
     int1e_dr1_name,
 )
 from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
+from pyscfad.gto._basis_deriv import (
+    basis_jvp_cs,
+    basis_jvp_exp,
+)
 
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
@@ -165,6 +169,7 @@ def _get_shape(
         "trace_coords",
         "trace_basis",
         "aoslices",
+        "bas_tmpl",
     ),
 )
 def getints(
@@ -180,6 +185,7 @@ def getints(
     trace_coords: bool = False,
     trace_basis: bool = False,
     aoslices: ArrayLike | None = None, # for padding
+    bas_tmpl: ArrayLike | None = None, # static structure when bas is traced
 ) -> Array:
     from pyscfad.gto._pyscf_moleintor import getints as callback
 
@@ -221,6 +227,7 @@ def getints_jvp(
     trace_coords,
     trace_basis,
     aoslices,
+    bas_tmpl,
     primals,
     tangents,
 ):
@@ -243,6 +250,7 @@ def getints_jvp(
         trace_coords=trace_coords,
         trace_basis=trace_basis,
         aoslices=aoslices,
+        bas_tmpl=bas_tmpl,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -274,10 +282,18 @@ def getints_jvp(
                 trace_basis,
                 aoslices,
                 rc_deriv,
+                bas_tmpl,
             ).reshape(tangent_out.shape)
 
         if trace_basis:
-            raise NotImplementedError("basis set parameter derivative not supported")
+            tangent_out += _gen_int1e_jvp_cs(
+                intor_name, atm, bas, env, env_dot,
+                shls_slice, comp, hermi, aosym, bas_tmpl,
+            ).reshape(tangent_out.shape)
+            tangent_out += _gen_int1e_jvp_exp(
+                intor_name, atm, bas, env, env_dot,
+                shls_slice, comp, hermi, aosym, bas_tmpl,
+            ).reshape(tangent_out.shape)
     return primal_out, tangent_out
 
 getints.defjvp(getints_jvp, symbolic_zeros=True)
@@ -298,6 +314,7 @@ def _gen_int1e_jvp_r0(
     trace_basis: bool,
     aoslices: ArrayLike | None = None,
     rc_deriv: int | None = None,
+    bas_tmpl: ArrayLike | None = None,
 ) -> Array:
     if comp is not None:
         comp = comp * 3
@@ -315,6 +332,7 @@ def _gen_int1e_jvp_r0(
         trace_coords=trace_coords,
         trace_basis=trace_basis,
         aoslices=aoslices,
+        bas_tmpl=bas_tmpl,
     )
     naoi, naoj = s1a.shape[1:]
     s1a = s1a.reshape(3,-1,naoi,naoj)
@@ -354,6 +372,7 @@ def _gen_int1e_jvp_r0(
             trace_coords=trace_coords,
             trace_basis=trace_basis,
             aoslices=aoslices,
+            bas_tmpl=bas_tmpl,
         )
         # TODO make it general
         if "int1e_r_" in intor_b or intor_b == "int1e_r":
@@ -377,6 +396,94 @@ def _gen_int1e_jvp_r0(
     elif hermi == 1:
         jvp += jvp.transpose(0,2,1)
     return jvp
+
+def _check_basis_deriv_args(intor_name, bas, shls_slice, aosym, hermi):
+    nbas = len(bas)
+    if shls_slice is not None and tuple(shls_slice)[:4] != (0, nbas, 0, nbas):
+        raise NotImplementedError(
+            "Basis-set parameter derivatives are only supported for "
+            "full integral matrices."
+        )
+    if aosym not in (None, "s1"):
+        raise NotImplementedError(
+            f"Basis-set parameter derivatives with aosym = {aosym} "
+            "are not supported."
+        )
+    if hermi not in (0, 1):
+        raise NotImplementedError(
+            f"Basis-set parameter derivatives with hermi = {hermi} "
+            "are not supported."
+        )
+    if "_spinor" in intor_name:
+        raise NotImplementedError(
+            "Integrals for spinors are not differentiable."
+        )
+
+
+def _gen_int1e_jvp_cs(
+    intor_name: str,
+    atm: ArrayLike,
+    bas: ArrayLike,
+    env: ArrayLike,
+    env_dot: ArrayLike,
+    shls_slice: tuple[int, ...] | None,
+    comp: int | None,
+    hermi: int,
+    aosym: str,
+    bas_tmpl: ArrayLike | None,
+) -> Array:
+    """Contraction-coefficient part of the ``env`` tangent
+    (first order in the basis-set parameters).
+    """
+    _check_basis_deriv_args(intor_name, bas, shls_slice, aosym, hermi)
+    cart = intor_name.endswith("_cart")
+
+    def eval_cross(basc, envc, sls, cross_ao_loc):
+        return getints(
+            intor_name, atm, basc, envc,
+            shls_slice=sls, comp=comp, hermi=0, aosym="s1",
+            ao_loc=cross_ao_loc,
+            trace_coords=False, trace_basis=False,
+        )
+    return basis_jvp_cs(eval_cross, bas, bas_tmpl, env, env_dot, cart, hermi)
+
+
+def _gen_int1e_jvp_exp(
+    intor_name: str,
+    atm: ArrayLike,
+    bas: ArrayLike,
+    env: ArrayLike,
+    env_dot: ArrayLike,
+    shls_slice: tuple[int, ...] | None,
+    comp: int | None,
+    hermi: int,
+    aosym: str,
+    bas_tmpl: ArrayLike | None,
+) -> Array:
+    """Exponent part of the ``env`` tangent
+    (first order in the basis-set parameters).
+    """
+    _check_basis_deriv_args(intor_name, bas, shls_slice, aosym, hermi)
+    if intor_name.endswith("_cart"):
+        intor_cart = intor_name
+        need_c2s = False
+    elif intor_name.endswith("_sph"):
+        intor_cart = intor_name[:-4] + "_cart"
+        need_c2s = True
+    else:
+        # bare names default to spherical
+        intor_cart = intor_name + "_cart"
+        need_c2s = True
+
+    def eval_cross(basc, envc, sls, cross_ao_loc):
+        return getints(
+            intor_cart, atm, basc, envc,
+            shls_slice=sls, comp=comp, hermi=0, aosym="s1",
+            ao_loc=cross_ao_loc,
+            trace_coords=False, trace_basis=False,
+        )
+    return basis_jvp_exp(eval_cross, bas, bas_tmpl, env, env_dot, need_c2s, hermi)
+
 
 def _aoslice_by_atom(
     atm,

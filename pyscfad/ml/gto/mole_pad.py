@@ -185,6 +185,7 @@ class MolePad(MoleLite):
                 trace_coords=self.trace_coords,
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
+                bas_tmpl=self.bas_template,
             )
         else:
             out = moleintor_lite.getints(
@@ -200,8 +201,21 @@ class MolePad(MoleLite):
                 trace_coords=self.trace_coords,
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
+                bas_tmpl=self.bas_template,
             )
         return out
+
+    @property
+    def bas_template(self) -> numpy.ndarray:
+        """Concrete structural ``bas`` template (identical shell template
+        for every atom); used where the static basis structure is needed
+        while ``_bas`` may be traced (e.g. basis-parameter derivatives).
+        """
+        tmpl = getattr(self, "_bas_template", None)
+        if tmpl is None:
+            tmpl = self.basis.make_bas_template(self.natm)
+            self._bas_template = tmpl
+        return tmpl
 
     def ao_loc_nr(self) -> numpy.ndarray:
         if self.cart:

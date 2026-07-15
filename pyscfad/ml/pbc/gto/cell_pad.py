@@ -186,6 +186,7 @@ class CellPad(MolePad):
                 trace_coords=self.trace_coords,
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
+                bas_tmpl=self.bas_template,
             )
         else:
             out = latintor_cuint._lattice_intor(
@@ -196,6 +197,7 @@ class CellPad(MolePad):
                 trace_coords=self.trace_coords,
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
+                bas_tmpl=self.bas_template,
             )
         return out
 

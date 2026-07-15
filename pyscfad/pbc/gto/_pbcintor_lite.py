@@ -29,6 +29,11 @@ from pyscfad.gto.moleintor_lite import (
     _get_shape,
     _aoslice_by_atom,
     _extract_coords,
+    _check_basis_deriv_args,
+)
+from pyscfad.gto._basis_deriv import (
+    basis_jvp_cs,
+    basis_jvp_exp,
 )
 from pyscfad.gto._moleintor_helper import (
     int1e_get_dr_order,
@@ -103,6 +108,7 @@ def _get_lattice_Ls(rcut, atm, env, a, dimension):
         "trace_basis",
         "aoslices",
         "dimension",
+        "bas_tmpl",
     ),
 )
 def _pbc_intor(
@@ -121,6 +127,7 @@ def _pbc_intor(
     trace_basis: bool = False,
     aoslices: ArrayLike | None = None, # for padding
     dimension: int = 3,
+    bas_tmpl: ArrayLike | None = None, # static structure when bas is traced
 ) -> Array:
     shape = _get_shape(
         intor_name,
@@ -172,9 +179,11 @@ def _pbc_intor_impl_cpu(
     if ao_loc is None:
         ao_loc = make_loc(bas, intor_name)
     else:
-        # TODO The input ao_loc is for single mol object,
-        # need to concatenate it.
-        raise NotImplementedError
+        # The input ao_loc is for the single cell; concatenate it for the
+        # doubled (bra|ket) environment produced by conc_env above.
+        ao_loc = numpy.asarray(ao_loc).ravel()
+        nao = ao_loc[-1]
+        ao_loc = numpy.concatenate([ao_loc[:-1], nao + ao_loc])
     ao_loc = numpy.asarray(ao_loc, dtype=numpy.int32, order="C")
 
     naoi = ao_loc[i1] - ao_loc[i0]
@@ -219,7 +228,7 @@ def _pbc_intor_impl_cpu(
 def _gen_int1e_jvp_r0(
     intor_a, intor_b, a, kpts, rcut, atm, bas, env, env_dot,
     shls_slice, comp, hermi, ao_loc,
-    trace_coords, trace_basis, aoslices=None, dimension=3,
+    trace_coords, trace_basis, aoslices=None, dimension=3, bas_tmpl=None,
 ):
     kpts = kpts.reshape(-1,3)
     nkpts = kpts.shape[0]
@@ -231,7 +240,7 @@ def _gen_int1e_jvp_r0(
         intor_a, a, kpts, rcut, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=0, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis,
-        aoslices=aoslices, dimension=dimension,
+        aoslices=aoslices, dimension=dimension, bas_tmpl=bas_tmpl,
     )
 
     naoi, naoj = s1a.shape[-2:]
@@ -273,11 +282,48 @@ def _gen_int1e_jvp_r0(
         jvp += jvp.transpose(0,2,1).conj()
     return jvp.reshape(nkpts,-1,naoi,naoj)
 
+def _gen_int1e_jvp_basis(
+    intor_name, a, kpts, rcut, atm, bas, env, env_dot,
+    shls_slice, comp, hermi, ao_loc, dimension, bas_tmpl,
+):
+    """Basis-set parameter (exponent + contraction coefficient) tangent of
+    the k-point integrals (first order in the basis parameters).
+    """
+    _check_basis_deriv_args(intor_name, bas, shls_slice, "s1", hermi)
+
+    def _eval_cross_factory(name):
+        def eval_cross(basc, envc, sls, cross_ao_loc):
+            return _pbc_intor(
+                name, a, kpts, rcut, atm, basc, envc,
+                shls_slice=sls, comp=comp, hermi=0, ao_loc=cross_ao_loc,
+                trace_coords=False, trace_basis=False,
+                dimension=dimension,
+            )
+        return eval_cross
+
+    cart = intor_name.endswith("_cart")
+    jvp = basis_jvp_cs(_eval_cross_factory(intor_name),
+                       bas, bas_tmpl, env, env_dot, cart, hermi)
+
+    if cart:
+        intor_cart = intor_name
+        need_c2s = False
+    elif intor_name.endswith("_sph"):
+        intor_cart = intor_name[:-4] + "_cart"
+        need_c2s = True
+    else:
+        intor_cart = intor_name + "_cart"
+        need_c2s = True
+    jvp += basis_jvp_exp(_eval_cross_factory(intor_cart),
+                         bas, bas_tmpl, env, env_dot, need_c2s, hermi)
+    return jvp
+
+
 def _pbc_intor_jvp(
     intor_name, rcut, atm, bas,
     shls_slice, comp, hermi, ao_loc,
     trace_coords, trace_basis,
-    aoslices, dimension,
+    aoslices, dimension, bas_tmpl,
     primals, tangents,
 ):
     a, kpts, env = primals
@@ -287,7 +333,7 @@ def _pbc_intor_jvp(
         intor_name, a, kpts, rcut, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis,
-        aoslices=aoslices, dimension=dimension,
+        aoslices=aoslices, dimension=dimension, bas_tmpl=bas_tmpl,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -303,10 +349,13 @@ def _pbc_intor_jvp(
                 a, kpts, rcut, atm, bas, env, env_dot,
                 shls_slice, comp, hermi, ao_loc,
                 trace_coords, trace_basis,
-                aoslices, dimension,
+                aoslices, dimension, bas_tmpl,
             ).reshape(tangent_out.shape)
         if trace_basis:
-            raise NotImplementedError
+            tangent_out += _gen_int1e_jvp_basis(
+                intor_name, a, kpts, rcut, atm, bas, env, env_dot,
+                shls_slice, comp, hermi, ao_loc, dimension, bas_tmpl,
+            ).reshape(tangent_out.shape)
 
     if not isinstance(a_dot, SymbolicZero):
         raise NotImplementedError
