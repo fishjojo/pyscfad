@@ -14,12 +14,23 @@
 """
 DIIS
 """
+from typing import NamedTuple, Any
+import jax
+from jax import tree
 from pyscf.scf import diis as pyscf_cdiis
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.ops import jit, vmap
 from pyscfad import lib
+from pyscfad import pytree
 from pyscfad.lib import logger
+from pyscfad.scf.anderson import (
+    minimize_residual,
+    RIDGE_TOL,
+    _tree_set,
+    _tree_vdot,
+    _tree_scale_sum,
+)
 
 class CDIIS(lib.diis.DIIS, pyscf_cdiis.CDIIS):
     def __init__(self, mf=None, filename=None, Corth=None):
@@ -93,4 +104,99 @@ def get_err_vec(s, d, f, Corth=None):
     else:
         return get_err_vec_orth(s, d, f, Corth)
 
-SCFDIIS = SCF_DIIS = DIIS = CDIIS
+# Legacy (non-jittable) PySCF-based DIIS, used by ``pyscfad.scf.hf``.
+SCFDIIS = SCF_DIIS = CDIIS
+
+
+class DIISState(NamedTuple):
+    cycle: int
+    fock_hist: Any
+    err_hist: Any
+    err_gram: Any
+
+
+class DIIS(pytree.PytreeNode):
+    r"""Jittable Pulay (commutator) DIIS.
+
+    Mirrors :class:`pyscfad.scf.anderson.Anderson`: the mixer state is carried
+    as array-only data through ``jax.lax`` control flow so the SCF iteration can
+    be jitted and vmapped. The error vector is the (optionally orthonormalised)
+    commutator :math:`SDF - FDS` (see :func:`get_err_vec`), and the extrapolated
+    Fock matrix is :math:`\sum_i c_i F_i`, where the Pulay coefficients ``c``
+    solve the standard DIIS linear system via the same
+    :func:`~pyscfad.scf.anderson.minimize_residual` used by Anderson mixing.
+
+    Parameters
+    ----------
+    fock: initial Fock matrix (``(nao, nao)`` or ``(2, nao, nao)`` for UHF).
+    err: initial error vector (matching :func:`get_err_vec`).
+    space: size of the DIIS subspace.
+    ridge: ridge regularization for the (possibly singular) linear system.
+    start_cycle: starting cycle for extrapolation.
+    """
+    _dynamic_attr = ['state']
+
+    def __init__(
+        self,
+        fock: Any,
+        err: Any,
+        space: int = 8,
+        ridge: float = RIDGE_TOL,
+        start_cycle: int = 1,
+    ):
+        self.space = space
+        self.ridge = ridge
+        self.start_cycle = start_cycle
+        self.state = self.init_state(fock, err)
+
+    def init_state(self, fock: Any, err: Any) -> NamedTuple:
+        m = self.space
+        fock_hist = tree.map(lambda x: np.tile(x, [m] + [1] * x.ndim), fock)
+        err_hist = tree.map(lambda x: np.zeros((m,) + x.shape, dtype=x.dtype), err)
+        err_gram = np.zeros((m, m), dtype=np.floatx)
+        return DIISState(
+            cycle=np.asarray(0, dtype=int),
+            fock_hist=fock_hist,
+            err_hist=err_hist,
+            err_gram=err_gram,
+        )
+
+    def update(self, fock: Any, err: Any) -> Any:
+        state = self.state
+        cycle = state.cycle
+        pos = np.mod(cycle, self.space)
+
+        fock_hist = _tree_set(state.fock_hist, pos, fock)
+        err_hist = _tree_set(state.err_hist, pos, err)
+        new_row = jax.vmap(_tree_vdot, in_axes=(0, None))(err_hist, err)
+        err_gram = state.err_gram.at[pos, :].set(new_row).at[:, pos].set(new_row)
+
+        next_state = DIISState(
+            cycle=cycle + 1,
+            fock_hist=fock_hist,
+            err_hist=err_hist,
+            err_gram=err_gram,
+        )
+
+        def _extrapolate(fock, st):
+            alpha = minimize_residual(st.err_gram, self.ridge)
+            return _tree_scale_sum(alpha[1:], st.fock_hist)
+
+        def _keep(fock, st):
+            return fock
+
+        start_cycle = jax.lax.select(
+            np.greater_equal(self.start_cycle + 1, self.space),
+            self.start_cycle + 1,
+            self.space,
+        )
+        extrapolated = jax.lax.cond(
+            np.greater_equal(cycle + 1, start_cycle),
+            _extrapolate,
+            _keep,
+            fock,
+            next_state,
+        )
+
+        self.state = next_state
+        return extrapolated

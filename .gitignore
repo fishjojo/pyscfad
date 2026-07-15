@@ -130,3 +130,12 @@ dmypy.json
 
 # VSCode
 .vscode/*
+
+# Claude Code personal settings
+.claude/settings.local.json
+
+# pyscfadlib build artifacts (CMake generates config.h and installs the
+# libcint external project into thirdparty/ at build time)
+*.so.*
+pyscfadlib/pyscfadlib/config.h
+pyscfadlib/pyscfadlib/thirdparty/

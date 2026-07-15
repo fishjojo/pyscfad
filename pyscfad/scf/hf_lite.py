@@ -32,7 +32,9 @@ from pyscfad import numpy as np
 from pyscfad import lib
 from pyscfad.lib import logger
 from pyscfad.scf import hf
+from pyscfad.scf import _eri_lite
 from pyscfad.scf.anderson import Anderson
+from pyscfad.scf.diis import DIIS, get_err_vec
 #from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.scipy.sparse.linalg import gmres_const_atol
 from pyscfad.scf.addons import get_occ_smearing
@@ -179,6 +181,14 @@ def _scf(
             damp=mf.diis_damp,
             start_cycle=mf.diis_start_cycle
         )
+    elif isinstance(mf.diis, str) and mf.diis.lower() == "diis":
+        err = get_err_vec(s1e, dm, fock)
+        diis = DIIS(
+            fock,
+            err,
+            space=mf.diis_space,
+            start_cycle=mf.diis_start_cycle,
+        )
     else:
         diis = None
     init_val = (0, e_tot, 1e3, dm, vhf, fock, e_tot, diis)
@@ -314,6 +324,10 @@ class SCF(SCFBase):
         smearing_method: Smearning method.
             Only Fermi-Dirac (``fermi``) distribution is supported.
         veff_with_ecoul: Whether ``get_veff`` returns a :class:`~pyscfad.dft.rks.VXC` object.
+        eri_aosym: Permutation-symmetry packing of the stored ERI.
+            The default ``"s4"`` keeps the ERI (and its coordinate tangents)
+            packed as an ``(npair, npair)`` matrix, four times smaller than
+            the dense tensor; set ``"s1"`` for the dense path.
     """
     diis: Any | None = None
     use_sp2: bool = False
@@ -321,6 +335,7 @@ class SCF(SCFBase):
     sigma: float | None = None
     smearing_method: str = "fermi"
     veff_with_ecoul: bool = False
+    eri_aosym: str = "s4"
 
     def __init__(
         self,
@@ -403,13 +418,41 @@ class SCF(SCFBase):
             f_tril = diis.update(lib.pack_tril(f), lib.pack_tril(fock_last))
             f = lib.unpack_tril(f_tril)
 
+        elif isinstance(diis, DIIS):
+            err = get_err_vec(s1e, dm, f)
+            f = diis.update(f, err)
+
         else:
             raise NotImplementedError(f"Unsupported diis type {type(diis)}")
 
         return f
 
     def get_hcore(self, mol: MoleLite | None = None, **kwargs) -> Array:
-        return super().get_hcore(mol)
+        if mol is None:
+            mol = self.mol
+        return mol.intor_symmetric("int1e_kin") + mol.intor_symmetric("int1e_nuc")
+
+    def get_init_guess(
+        self,
+        mol: MoleLite | None = None,
+        key: str | None = None,
+        s1e: ArrayLike | None = None,
+        **kwargs,
+    ) -> Array:
+        """Jittable core-Hamiltonian initial guess.
+
+        Diagonalizes the core Hamiltonian and builds the density matrix from the
+        resulting orbitals. Unlike the PySCF ``minao``/``atom`` guesses, this is
+        fully traceable, so it can be used inside ``jax.jit``/``jax.grad``.
+        """
+        if mol is None:
+            mol = self.mol
+        h1e = self.get_hcore(mol)
+        if s1e is None:
+            s1e = self.get_ovlp(mol)
+        mo_energy, mo_coeff = self.eig(h1e, s1e)
+        mo_occ = self.get_occ(mo_energy, mo_coeff)
+        return self.make_rdm1(mo_coeff, mo_occ)
 
     def make_rdm1(
         self,
@@ -523,8 +566,26 @@ class SCF(SCFBase):
         logger.debug(self, "E1 = %s  E_coul = %s", e1, ecoul)
         return e1+ecoul, ecoul
 
-    get_init_guess = hf.SCF.get_init_guess
-    get_jk = hf.SCF.get_jk
+    def get_jk(
+        self,
+        mol: MoleLite | None = None,
+        dm: ArrayLike | None = None,
+        hermi: int = 1,
+        with_j: bool = True,
+        with_k: bool = True,
+        omega: float | None = None,
+    ) -> tuple[Array, Array]:
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm = self.make_rdm1()
+        if omega:
+            raise NotImplementedError(
+                "range-separated J/K is not supported in hf_lite")
+        if self._eri is None:
+            self._eri = mol.intor("int2e", aosym=self.eri_aosym)
+        return _eri_lite.dot_eri_dm(self._eri, dm, hermi, with_j, with_k)
+
     get_veff = hf.SCF.get_veff
     energy_nuc = hf.SCF.energy_nuc
     _eigh = hf.SCF._eigh
@@ -533,3 +594,155 @@ class SCF(SCFBase):
     get_homo_lumo_energy = get_homo_lumo_energy
 
 SCFLite = SCF
+RHF = SCF
+
+
+def get_occ_uhf(
+    mf: UHF,
+    mo_energy: ArrayLike | None = None,
+    mo_coeff: ArrayLike | None = None,
+) -> Array:
+    """Spin-resolved MO occupations for UHF (jittable)."""
+    if mo_energy is None:
+        mo_energy = mf.mo_energy
+    if mo_coeff is None:
+        mo_coeff = mf.mo_coeff
+
+    mask = mf.mo_mask(mo_energy, mo_coeff)
+    neleca, nelecb = mf.nelec
+
+    def _occ(e, nocc, m):
+        pick = (np.cumsum(m) <= nocc) & m
+        return np.where(pick, np.asarray(1, dtype=np.floatx), np.zeros_like(e))
+
+    occ_a = _occ(mo_energy[0], neleca, mask[0])
+    occ_b = _occ(mo_energy[1], nelecb, mask[1])
+    return np.stack([occ_a, occ_b])
+
+
+class UHF(SCF):
+    """Unrestricted Hartree-Fock (lightweight, jittable)."""
+
+    @property
+    def nelec(self) -> tuple[Any, Any]:
+        ne = self.mol.tot_electrons()
+        nelecb = (ne - self.mol.spin) // 2
+        neleca = ne - nelecb
+        return neleca, nelecb
+
+    def eig(self, h: ArrayLike, s: ArrayLike) -> tuple[Array, Array]:
+        e_a, c_a = self._eigh(h[0], s)
+        e_b, c_b = self._eigh(h[1], s)
+        return np.stack([e_a, e_b]), np.stack([c_a, c_b])
+
+    def get_occ(
+        self,
+        mo_energy: ArrayLike | None = None,
+        mo_coeff: ArrayLike | None = None,
+    ) -> Array:
+        return get_occ_uhf(self, mo_energy, mo_coeff)
+
+    def mo_mask(
+        self,
+        mo_energy: ArrayLike | None = None,
+        mo_coeff: ArrayLike | None = None,
+    ) -> Array:
+        if mo_energy is None:
+            mo_energy = self.mo_energy
+        return np.ones(mo_energy.shape, dtype=bool)
+
+    def make_rdm1(
+        self,
+        mo_coeff: ArrayLike | None = None,
+        mo_occ: ArrayLike | None = None,
+        **kwargs,
+    ) -> Array:
+        if mo_coeff is None:
+            mo_coeff = self.mo_coeff
+        if mo_occ is None:
+            mo_occ = self.mo_occ
+        mo_a, mo_b = mo_coeff[0], mo_coeff[1]
+        dm_a = (mo_a * mo_occ[0]) @ mo_a.conj().T
+        dm_b = (mo_b * mo_occ[1]) @ mo_b.conj().T
+        return np.stack([dm_a, dm_b])
+
+    def get_init_guess(
+        self,
+        mol: MoleLite | None = None,
+        key: str | None = None,
+        s1e: ArrayLike | None = None,
+        **kwargs,
+    ) -> Array:
+        if mol is None:
+            mol = self.mol
+        h1e = self.get_hcore(mol)
+        if s1e is None:
+            s1e = self.get_ovlp(mol)
+        h = np.stack([h1e, h1e])
+        mo_energy, mo_coeff = self.eig(h, s1e)
+        mo_occ = self.get_occ(mo_energy, mo_coeff)
+        return self.make_rdm1(mo_coeff, mo_occ)
+
+    def get_veff(
+        self,
+        mol: MoleLite | None = None,
+        dm: ArrayLike | None = None,
+        dm_last: ArrayLike = 0,
+        vhf_last: ArrayLike = 0,
+        hermi: int = 1,
+        **kwargs,
+    ) -> Array:
+        if mol is None:
+            mol = self.mol
+        if dm is None:
+            dm = self.make_rdm1()
+        dm = np.asarray(dm)
+        if dm.ndim == 2:
+            dm = np.stack([dm * .5, dm * .5])
+        vj, vk = self.get_jk(mol, dm, hermi)
+        # total Coulomb minus same-spin exchange
+        vhf = vj[0] + vj[1] - vk
+        return vhf
+
+    def energy_elec(
+        self,
+        dm: ArrayLike | None = None,
+        h1e: ArrayLike | None = None,
+        vhf: ArrayLike | None = None,
+    ) -> tuple[float, float]:
+        if dm is None:
+            dm = self.make_rdm1()
+        if h1e is None:
+            h1e = self.get_hcore(self.mol)
+        if vhf is None:
+            vhf = self.get_veff(self.mol, dm)
+        e1 = np.einsum("ij,ji->", h1e, dm[0]) + np.einsum("ij,ji->", h1e, dm[1])
+        e_coul = (np.einsum("ij,ji->", vhf[0], dm[0]) +
+                  np.einsum("ij,ji->", vhf[1], dm[1])) * .5
+        e_elec = (e1 + e_coul).real
+        self.scf_summary["e1"] = e1.real
+        self.scf_summary["e2"] = e_coul.real
+        return e_elec, e_coul
+
+    def get_grad(
+        self,
+        mo_coeff: ArrayLike,
+        mo_occ: ArrayLike,
+        fock: ArrayLike | None = None,
+    ) -> Array:
+        if fock is None:
+            dm = self.make_rdm1(mo_coeff, mo_occ)
+            fock = self.get_fock(dm=dm)
+
+        def _grad(c, occ, f):
+            fmo = c.conj().T @ f @ c
+            occ_mask = np.where(occ > 0, 1, 0)
+            vir_mask = 1 - occ_mask
+            g = fmo * (vir_mask[:, None] * occ_mask[None, :])
+            return g.ravel()
+
+        ga = _grad(mo_coeff[0], mo_occ[0], fock[0])
+        gb = _grad(mo_coeff[1], mo_occ[1], fock[1])
+        return np.concatenate([ga, gb])
+
+UHFLite = UHF
