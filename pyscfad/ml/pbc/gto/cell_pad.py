@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pyscfad import numpy as np
-from pyscfad.ml.gto.mole_pad import MolePad
+from pyscfad.ml.gto.mole_pad import MolePad, _bas_template
 from pyscfad.pbc.gto import cell as _cell
 from pyscfad.pbc.gto import _latintor
 from pyscfad.experimental import latintor_cuint
@@ -176,6 +176,8 @@ class CellPad(MolePad):
 
         ao_loc = self.ao_loc
         aoslices = self.aoslice_by_atom(ao_loc=ao_loc)[:, 2:4]
+        # concrete structural view of _bas (see mole_pad._bas_template)
+        bas_tmpl = _bas_template(self.basis, self.natm)
 
         if cuint_plan is None:
             out = _latintor._lattice_intor(
@@ -186,7 +188,7 @@ class CellPad(MolePad):
                 trace_coords=self.trace_coords,
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
-                bas_tmpl=self.bas_template,
+                bas_tmpl=bas_tmpl,
             )
         else:
             out = latintor_cuint._lattice_intor(
@@ -197,7 +199,7 @@ class CellPad(MolePad):
                 trace_coords=self.trace_coords,
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
-                bas_tmpl=self.bas_template,
+                bas_tmpl=bas_tmpl,
             )
         return out
 

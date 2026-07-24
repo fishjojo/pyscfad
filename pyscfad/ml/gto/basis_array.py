@@ -62,9 +62,6 @@ class BasisArray:
     def make_bas_env(self, ptr: int=0):
         return make_bas_env(self, ptr=ptr)
 
-    def make_bas_template(self, natm):
-        return make_bas_template(self, natm)
-
     def make_loc(self, natm, key):
         return make_loc(self, natm, key)
 
@@ -140,28 +137,6 @@ def make_bas_env(
     _bas = np.asarray(_bas, dtype=np.int32).reshape(data.shape[0], len(ls), BAS_SLOTS)
     _env = np.hstack(_env)
     return _bas, _env
-
-def make_bas_template(
-    basis: BasisArray,
-    natm: int,
-) -> numpy.ndarray:
-    """Concrete structural ``bas`` template of a padded molecule.
-
-    Every atom carries the same shell template of the padded basis, so the
-    structure (angular momenta, numbers of primitives and contractions) is
-    static even when the atomic numbers are traced; the env pointer columns
-    are placeholders (gathered from the actual, possibly traced, ``_bas``
-    where needed).
-    """
-    from pyscf.gto.mole import ATOM_OF, ANG_OF, NPRIM_OF, NCTR_OF
-    nshl = basis.nbas
-    tmpl = numpy.zeros((natm * nshl, BAS_SLOTS), dtype=numpy.int32)
-    tmpl[:, ATOM_OF] = numpy.repeat(numpy.arange(natm), nshl)
-    tmpl[:, ANG_OF] = numpy.tile(basis.ls, natm)
-    tmpl[:, NPRIM_OF] = basis.data.shape[-2]
-    tmpl[:, NCTR_OF] = int(basis.nctr)
-    return tmpl
-
 
 def make_loc(
     basis: BasisArray,

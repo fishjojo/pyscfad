@@ -59,26 +59,20 @@ if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
 
 def _format_basis(basis, uniq_symbols):
+    # basis is sorted against symbols and then angular momentum
     if isinstance(basis, dict):
-        for k, v in basis.items():
-            if isinstance(v, dict):
-                # canonical (sorted) key order: jax flattens dict pytrees
-                # with sorted keys, so this keeps the env layout invariant
-                # when the basis is passed through jax transformations
-                return {k: basis[k] for k in sorted(basis)}
+        if all(isinstance(v, dict) for v in basis.values()):
+            return {k: {l: basis[k][l] for l in sorted(basis[k])} for k in sorted(basis)}
 
     basis = format_basis(basis)
     return _format_basis_from_pyscf(basis, uniq_symbols)
 
 def _format_basis_from_pyscf(pyscf_basis, uniq_symbols):
     basis = {}
-    # canonical (sorted) symbol order: jax flattens dict pytrees with
-    # sorted keys, so this keeps the env layout invariant when the basis
-    # is passed through jax transformations
     for symb in sorted(pyscf_basis):
-        shls = pyscf_basis[symb]
         if symb not in uniq_symbols:
             continue
+        shls = pyscf_basis[symb]
         tmp = {}
         for shell in shls:
             l = shell[0]
@@ -415,7 +409,7 @@ class MoleLite(MoleBase):
 
 def gaussian_int(
     n: int | numpy.ndarray,
-    alpha: ArrayLike,
+    alpha: Array,
 ) -> Array:
     r"""Gaussian integral.
 
@@ -428,7 +422,7 @@ def gaussian_int(
 @with_doc(pyscf.gto.mole.gto_norm.__doc__)
 def gto_norm(
     l: int | numpy.ndarray,
-    expnt: ArrayLike,
+    expnt: Array,
 ) -> Array:
     assert numpy.all(l >= 0)
     return 1. / np.sqrt(gaussian_int(l*2+2, 2*expnt))
