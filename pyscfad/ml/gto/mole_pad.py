@@ -18,6 +18,9 @@ from typing import TYPE_CHECKING
 import numpy
 from pyscf.gto.mole import (
     ATOM_OF,
+    ANG_OF,
+    NPRIM_OF,
+    NCTR_OF,
     ATM_SLOTS,
     BAS_SLOTS,
     CHARGE_OF,
@@ -39,6 +42,24 @@ from pyscfad.experimental import moleintor_cuint
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
     from pyscfad.ml.gto.basis_array import BasisArray
+
+def _bas_template(
+    basis: BasisArray,
+    natm: int,
+) -> numpy.ndarray:
+    """Concrete structural ``bas`` counterpart of a padded molecule's
+    ``_bas`` (env pointer columns are placeholders). Every atom carries
+    the same shell template, so the structure is static even when the
+    atomic numbers are traced.
+    """
+    nshl = basis.nbas
+    tmpl = numpy.zeros((natm * nshl, BAS_SLOTS), dtype=numpy.int32)
+    tmpl[:, ATOM_OF] = numpy.repeat(numpy.arange(natm), nshl)
+    tmpl[:, ANG_OF] = numpy.tile(basis.ls, natm)
+    tmpl[:, NPRIM_OF] = basis.data.shape[-2]
+    tmpl[:, NCTR_OF] = int(basis.nctr)
+    return tmpl
+
 
 def tot_electrons(mol: MolePad) -> Array:
     nelectron = mol.atom_charges().sum()
@@ -166,6 +187,10 @@ class MolePad(MoleLite):
 
         ao_loc = self.ao_loc
         aoslices = self.aoslice_by_atom(ao_loc=ao_loc)[:,2:4]
+        # concrete structural view of _bas (identical shell template on every
+        # atom, from the static BasisArray fields): the basis-parameter
+        # derivatives need the static structure while _bas may be traced
+        bas_tmpl = _bas_template(self.basis, self.natm)
 
         if cuint_plan is None:
             cuint_plan = self.cuint_plan
@@ -185,6 +210,7 @@ class MolePad(MoleLite):
                 trace_coords=self.trace_coords,
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
+                bas_tmpl=bas_tmpl,
             )
         else:
             out = moleintor_lite.getints(
@@ -200,6 +226,7 @@ class MolePad(MoleLite):
                 trace_coords=self.trace_coords,
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
+                bas_tmpl=bas_tmpl,
             )
         return out
 
