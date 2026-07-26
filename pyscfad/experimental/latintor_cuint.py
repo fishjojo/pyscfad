@@ -42,8 +42,7 @@ from pyscfad.gto.moleintor_lite import (
 )
 from pyscfad.gto._pyscf_moleintor import make_loc
 from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
-from pyscfad.gto._basis_deriv import _resolve_template
-from .moleintor_cuint import PairInfo, gen_overlap_cross
+from .moleintor_cuint import PairInfo, gen_overlap_cross, _plan_bas_concrete
 
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
@@ -64,7 +63,6 @@ if TYPE_CHECKING:
         "trace_coords",
         "trace_basis",
         "aoslices",
-        "bas_tmpl",
     ),
 )
 def _lattice_intor(
@@ -82,7 +80,6 @@ def _lattice_intor(
     trace_coords: bool = False,
     trace_basis: bool = False,
     aoslices: ArrayLike | None = None, # for padding
-    bas_tmpl: ArrayLike | None = None, # static structure when bas is traced
 ) -> Array:
     bas = np.asarray(bas).reshape(-1,BAS_SLOTS)
     nbas = bas.shape[0]
@@ -189,24 +186,24 @@ class LatBasisCrossPlan:
     row per (shell, contraction, primitive); bra rows reference the
     original atoms, ket rows reference a second atom copy whose
     coordinates live in an appended env block. Function spaces: fake
-    ``[0, naof)``, real ``[naof, naof + nao)``.
+    ``[0, nao_fake)``, real ``[nao_fake, nao_fake + nao)``.
 
-    All structure is built from the concrete template; the env pointer
+    All structure is built from ``bas_conc``; the env pointer
     columns are filled from the actual (possibly traced) ``bas`` by
     :meth:`make_rows`.
     """
-    def __init__(self, tmpl, natm, nenv):
-        tmpl = numpy.asarray(tmpl)
-        nbas = len(tmpl)
-        ls = tmpl[:, ANG_OF]
-        nprims = tmpl[:, NPRIM_OF]
-        nctrs = tmpl[:, NCTR_OF]
+    def __init__(self, bas_conc, natm, nenv):
+        bas_conc = numpy.asarray(bas_conc)
+        nbas = len(bas_conc)
+        ls = bas_conc[:, ANG_OF]
+        nprims = bas_conc[:, NPRIM_OF]
+        nctrs = bas_conc[:, NCTR_OF]
         nls = 2 * ls + 1
 
         ao_loc = numpy.append(0, numpy.cumsum(nls * nctrs)).astype(numpy.int32)
         fake_loc = numpy.append(0, numpy.cumsum(nls * nctrs * nprims)).astype(numpy.int32)
         nao = int(ao_loc[-1])
-        naof = int(fake_loc[-1])
+        nao_fake = int(fake_loc[-1])
 
         ptr_ones = int(nenv)
         ptr_coords2 = ptr_ones + 1
@@ -226,14 +223,14 @@ class LatBasisCrossPlan:
         for i in range(nbas):
             l, nprim, nctr = int(ls[i]), int(nprims[i]), int(nctrs[i])
             nl = 2 * l + 1
-            iatm = int(tmpl[i, ATOM_OF])
+            iatm = int(bas_conc[i, ATOM_OF])
             for k in range(nctr):
                 for j in range(nprim):
                     fake_rows.append([iatm, l, 1, 1, 0, 0, ptr_ones, 0])
                     real_rows.append([iatm, l, 1, 1, 0, 0, 0, 0])
                     f0 = fake_loc[i] + (k * nprim + j) * nl
                     fake_fn.append(f0)
-                    real_fn.append(naof + ao_loc[i] + k * nl)
+                    real_fn.append(nao_fake + ao_loc[i] + k * nl)
                     prim_shell.append(i)
                     prim_j.append(j)
                     prim_coeff_off.append(k * nprim + j)
@@ -319,9 +316,9 @@ class LatBasisCrossPlan:
 
         self.rows_static = rows
         self.primitive_to_function = prim2fn
-        self.n_functions = naof + nao
+        self.n_functions = nao_fake + nao
         self.n_primitives = n_rows
-        self.naof = naof
+        self.nao_fake = nao_fake
         self.nao = nao
         self.npr = npr
         self.natm = int(natm)
@@ -373,17 +370,17 @@ class LatBasisCrossPlan:
 _LAT_BASIS_CROSS_PLAN_CACHE = {}
 
 
-def _get_lat_basis_cross_plan(tmpl, natm, nenv):
-    key = (tmpl.tobytes(), tmpl.shape, int(natm), int(nenv))
+def _get_lat_basis_cross_plan(bas_conc, natm, nenv):
+    key = (bas_conc.tobytes(), bas_conc.shape, int(natm), int(nenv))
     plan = _LAT_BASIS_CROSS_PLAN_CACHE.get(key)
     if plan is None:
-        plan = LatBasisCrossPlan(tmpl, natm, nenv)
+        plan = LatBasisCrossPlan(bas_conc, natm, nenv)
         _LAT_BASIS_CROSS_PLAN_CACHE[key] = plan
     return plan
 
 
 def _gen_int1e_jvp_basis(
-    intor_name, Ls, Ls_mask, atm, bas, env, env_dot, ao_loc, bas_tmpl,
+    intor_name, Ls, Ls_mask, atm, bas, env, env_dot, ao_loc, cuint_plan,
 ):
     """Basis-set parameter tangent of the per-image lattice integrals
     on the cuint backend (first order in the basis parameters).
@@ -400,11 +397,11 @@ def _gen_int1e_jvp_basis(
             "Basis-set parameter derivatives on the cuint lattice backend "
             f"are only supported for int1e_ovlp_sph, got {intor_name}."
         )
-    tmpl = _resolve_template(bas, bas_tmpl)
+    bas_conc = _plan_bas_concrete(cuint_plan, bas)
     natm = atm.shape[0]
     nenv = env.shape[-1]
-    plan = _get_lat_basis_cross_plan(tmpl, natm, nenv)
-    naof = plan.naof
+    plan = _get_lat_basis_cross_plan(bas_conc, natm, nenv)
+    nao_fake = plan.nao_fake
     nao = plan.nao
     rows = plan.make_rows(bas)
 
@@ -431,13 +428,13 @@ def _gen_int1e_jvp_basis(
     env2 = ops.stop_gradient(env2)
 
     def _blocks(pairs_bra, pairs_ket, i_deriv):
-        # bra-direction blocks [0:naof, naof:], with optional bra Laplacian
+        # bra-direction blocks [0:nao_fake, nao_fake:], with optional bra Laplacian
         xb = gen_overlap_cross(atm2, env2, plan, rows, i_deriv=i_deriv,
                                pairs=pairs_bra)
-        # ket-direction blocks [naof:, 0:naof], with the ket Laplacian
+        # ket-direction blocks [nao_fake:, 0:nao_fake], with the ket Laplacian
         xk = gen_overlap_cross(atm2, env2, plan, rows, j_deriv=i_deriv,
                                pairs=pairs_ket)
-        return xb[..., :naof, naof:], xk[..., naof:, :naof]
+        return xb[..., :nao_fake, nao_fake:], xk[..., nao_fake:, :nao_fake]
 
     x0_bra_off, x0_ket_off = _blocks(plan.pairs_bra_off, plan.pairs_ket_off, 0)
     x0_bra_diag, x0_ket_diag = _blocks(plan.pairs_bra_diag, plan.pairs_ket_diag, 0)
@@ -472,9 +469,9 @@ def _gen_int1e_jvp_basis(
     w_cs = env_dot[coeff_env_idx]
     w_exp = ops.stop_gradient(env[coeff_env_idx]) * env_dot[exp_env_idx]
 
-    t_cs = np.zeros((nao, naof), dtype=np.float64)
+    t_cs = np.zeros((nao, nao_fake), dtype=np.float64)
     t_cs = ops.index_add(t_cs, ops.index[plan.map_real_rows, plan.map_fake_rows], w_cs)
-    t_exp = np.zeros((nao, naof), dtype=np.float64)
+    t_exp = np.zeros((nao, nao_fake), dtype=np.float64)
     t_exp = ops.index_add(t_exp, ops.index[plan.map_real_rows, plan.map_fake_rows], w_exp)
 
     def _bra(t, x):
@@ -499,7 +496,7 @@ def _gen_int1e_jvp_basis(
 def _lattice_intor_jvp(
     intor_name, Ls_mask, atm, bas, cuint_plan,
     shls_slice, comp, hermi, ao_loc,
-    trace_coords, trace_basis, aoslices, bas_tmpl,
+    trace_coords, trace_basis, aoslices,
     primals, tangents,
 ):
     if not intor_name == "int1e_ovlp_sph":
@@ -513,7 +510,6 @@ def _lattice_intor_jvp(
         intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis, aoslices=aoslices,
-        bas_tmpl=bas_tmpl,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -553,7 +549,7 @@ def _lattice_intor_jvp(
         if trace_basis:
             tangent_out += _gen_int1e_jvp_basis(
                 intor_name, Ls, Ls_mask, atm, bas, env, env_dot, ao_loc,
-                bas_tmpl,
+                cuint_plan,
             ).reshape(tangent_out.shape)
 
     if not isinstance(Ls_dot, SymbolicZero):

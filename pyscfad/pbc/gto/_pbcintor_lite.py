@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from functools import partial
 import ctypes
 import numpy
@@ -29,7 +31,6 @@ from pyscfad.gto.moleintor_lite import (
     _get_shape,
     _aoslice_by_atom,
     _extract_coords,
-    _check_basis_deriv_args,
 )
 from pyscfad.gto._basis_deriv import (
     basis_jvp_cs,
@@ -45,6 +46,9 @@ from pyscfad.gto._pyscf_moleintor import (
 )
 from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
 from pyscfadlib import libcgto_vjp as libcgto
+
+if TYPE_CHECKING:
+    from pyscfad.ml.gto.basis_array import BasisArrayMetadata
 
 def _atom_coords(atm, env):
     ptr = atm[:,PTR_COORD]
@@ -108,7 +112,7 @@ def _get_lattice_Ls(rcut, atm, env, a, dimension):
         "trace_basis",
         "aoslices",
         "dimension",
-        "bas_tmpl",
+        "basis_array_metadata",
     ),
 )
 def _pbc_intor(
@@ -127,7 +131,7 @@ def _pbc_intor(
     trace_basis: bool = False,
     aoslices: ArrayLike | None = None, # for padding
     dimension: int = 3,
-    bas_tmpl: ArrayLike | None = None, # static structure when bas is traced
+    basis_array_metadata: BasisArrayMetadata | None = None, # for padding
 ) -> Array:
     shape = _get_shape(
         intor_name,
@@ -228,7 +232,7 @@ def _pbc_intor_impl_cpu(
 def _gen_int1e_jvp_r0(
     intor_a, intor_b, a, kpts, rcut, atm, bas, env, env_dot,
     shls_slice, comp, hermi, ao_loc,
-    trace_coords, trace_basis, aoslices=None, dimension=3, bas_tmpl=None,
+    trace_coords, trace_basis, aoslices=None, dimension=3, basis_array_metadata=None,
 ):
     kpts = kpts.reshape(-1,3)
     nkpts = kpts.shape[0]
@@ -240,7 +244,7 @@ def _gen_int1e_jvp_r0(
         intor_a, a, kpts, rcut, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=0, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis,
-        aoslices=aoslices, dimension=dimension, bas_tmpl=bas_tmpl,
+        aoslices=aoslices, dimension=dimension, basis_array_metadata=basis_array_metadata,
     )
 
     naoi, naoj = s1a.shape[-2:]
@@ -284,26 +288,28 @@ def _gen_int1e_jvp_r0(
 
 def _gen_int1e_jvp_basis(
     intor_name, a, kpts, rcut, atm, bas, env, env_dot,
-    shls_slice, comp, hermi, ao_loc, dimension, bas_tmpl,
+    shls_slice, comp, hermi, ao_loc, dimension, basis_array_metadata,
 ):
     """Basis-set parameter (exponent + contraction coefficient) tangent of
     the k-point integrals (first order in the basis parameters).
-    """
-    _check_basis_deriv_args(intor_name, bas, shls_slice, "s1", hermi)
 
-    def _eval_cross_factory(name):
-        def eval_cross(basc, envc, sls, cross_ao_loc):
+    ``S(k)`` is hermitian, so ``hermi = 1`` adds the conjugate transpose of
+    the bra term instead of evaluating the ket cross block; the cross
+    integrals themselves are always evaluated with ``hermi = 0``.
+    """
+    def _intor_cross_factory(name):
+        def intor_cross(basc, envc, sls, cross_ao_loc):
             return _pbc_intor(
                 name, a, kpts, rcut, atm, basc, envc,
                 shls_slice=sls, comp=comp, hermi=0, ao_loc=cross_ao_loc,
                 trace_coords=False, trace_basis=False,
                 dimension=dimension,
             )
-        return eval_cross
+        return intor_cross
 
     cart = intor_name.endswith("_cart")
-    jvp = basis_jvp_cs(_eval_cross_factory(intor_name),
-                       bas, bas_tmpl, env, env_dot, cart, hermi)
+    jvp = basis_jvp_cs(_intor_cross_factory(intor_name), bas, env, env_dot,
+                       cart, hermi, shls_slice, basis_array_metadata)
 
     if cart:
         intor_cart = intor_name
@@ -314,8 +320,8 @@ def _gen_int1e_jvp_basis(
     else:
         intor_cart = intor_name + "_cart"
         need_c2s = True
-    jvp += basis_jvp_exp(_eval_cross_factory(intor_cart),
-                         bas, bas_tmpl, env, env_dot, need_c2s, hermi)
+    jvp += basis_jvp_exp(_intor_cross_factory(intor_cart), bas, env, env_dot,
+                         need_c2s, hermi, shls_slice, basis_array_metadata)
     return jvp
 
 
@@ -323,7 +329,7 @@ def _pbc_intor_jvp(
     intor_name, rcut, atm, bas,
     shls_slice, comp, hermi, ao_loc,
     trace_coords, trace_basis,
-    aoslices, dimension, bas_tmpl,
+    aoslices, dimension, basis_array_metadata,
     primals, tangents,
 ):
     a, kpts, env = primals
@@ -333,7 +339,7 @@ def _pbc_intor_jvp(
         intor_name, a, kpts, rcut, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis,
-        aoslices=aoslices, dimension=dimension, bas_tmpl=bas_tmpl,
+        aoslices=aoslices, dimension=dimension, basis_array_metadata=basis_array_metadata,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -349,12 +355,12 @@ def _pbc_intor_jvp(
                 a, kpts, rcut, atm, bas, env, env_dot,
                 shls_slice, comp, hermi, ao_loc,
                 trace_coords, trace_basis,
-                aoslices, dimension, bas_tmpl,
+                aoslices, dimension, basis_array_metadata,
             ).reshape(tangent_out.shape)
         if trace_basis:
             tangent_out += _gen_int1e_jvp_basis(
                 intor_name, a, kpts, rcut, atm, bas, env, env_dot,
-                shls_slice, comp, hermi, ao_loc, dimension, bas_tmpl,
+                shls_slice, comp, hermi, ao_loc, dimension, basis_array_metadata,
             ).reshape(tangent_out.shape)
 
     if not isinstance(a_dot, SymbolicZero):

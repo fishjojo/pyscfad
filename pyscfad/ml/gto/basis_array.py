@@ -1,4 +1,4 @@
-# Copyright 2021-2025 The PySCFAD Authors
+# Copyright 2025-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from __future__ import annotations
+from typing import NamedTuple
 
 import dataclasses
 import numpy
@@ -29,7 +30,7 @@ from pyscfad.typing import Array
 from pyscfad import numpy as np
 from pyscfad.gto.mole_lite import _parse_default_basis, _format_basis
 
-# NOTE Monkey patch
+# FIXME Monkey patch
 def _load_external(module, filename_or_basisname, symb, **kwargs):
     try:
         return module.load(filename_or_basisname, symb, **kwargs)
@@ -44,6 +45,14 @@ def load(basisfile, symb, optimize=True):
     return _parse(raw_basis, optimize)
 parse_nwchem.load = load
 
+class BasisArrayMetadata(NamedTuple):
+    """Metadata for :class:`BasisArray`.
+    """
+    ls: tuple
+    l_loc: tuple
+    nprim: int
+    nctr: int
+
 @jax.tree_util.register_dataclass
 @dataclasses.dataclass
 class BasisArray:
@@ -57,6 +66,7 @@ class BasisArray:
     mask_data: Array
     ls: numpy.ndarray = dataclasses.field(metadata={"static": True})
     l_loc: numpy.ndarray = dataclasses.field(metadata={"static": True})
+    nprim: numpy.int32 = dataclasses.field(metadata={"static": True})
     nctr: numpy.int32 = dataclasses.field(metadata={"static": True})
 
     def make_bas_env(self, ptr: int=0):
@@ -71,7 +81,7 @@ class BasisArray:
     def make_ao_mask(self, mask_shl, mask_ctr, cart=False):
         return make_ao_mask(self, mask_shl=mask_shl, mask_ctr=mask_ctr, cart=cart)
 
-    def nao_nr(self, cart=False):
+    def nao_nr(self, cart: bool = False) -> int:
         """Number of atomic orbitals per element (non-relativistic).
         """
         ls = self.ls
@@ -81,11 +91,21 @@ class BasisArray:
             return numpy.sum(2*ls+1) * self.nctr
 
     @property
-    def nbas(self):
+    def nbas(self) -> int:
         """Number of shells per element.
         """
         return len(self.ls)
 
+    @property
+    def metadata(self) -> BasisArrayMetadata:
+        """Static metadata.
+        """
+        return BasisArrayMetadata(
+            ls=tuple(self.ls.tolist()),
+            l_loc=tuple(self.l_loc.tolist()),
+            nprim=int(self.nprim),
+            nctr=int(self.nctr),
+        )
 
 def gaussian_int(n, alpha):
     from jax.scipy.special import gamma
@@ -143,8 +163,8 @@ def make_loc(
     natm: int,
     key: str,
 ) -> numpy.ndarray:
-    l = numpy.repeat(basis.ls.reshape(1,-1), natm, axis=0).ravel()
-    nc = basis.data.shape[-1] - 1
+    l = numpy.tile(basis.ls, natm)
+    nc = basis.nctr
     if "cart" in key:
         dims = (l+1)*(l+2)//2 * nc
     elif "sph" in key:
@@ -271,7 +291,9 @@ def make_basis_array(
                       mask_shl=np.asarray(mask_shl),
                       mask_ctr=np.asarray(mask_ctr),
                       mask_data=np.asarray(mask_data),
-                      ls=ls, l_loc=l_loc, nctr=numpy.int32(max_nc1-1))
+                      ls=ls, l_loc=l_loc,
+                      nprim=numpy.int32(max_nexp),
+                      nctr=numpy.int32(max_nc1-1))
 
 
 #if __name__ == "__main__":

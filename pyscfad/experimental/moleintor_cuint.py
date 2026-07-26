@@ -28,6 +28,7 @@ from pyscf.gto.mole import (
     NPRIM_OF,
     NCTR_OF,
     ANG_OF,
+    BAS_SLOTS,
     PTR_EXP,
     PTR_COEFF,
     PTR_COMMON_ORIG,
@@ -44,9 +45,8 @@ from pyscfad.gto.moleintor_lite import (
     _extract_coords,
 )
 from pyscfad.gto._basis_deriv import (
-    _resolve_template,
-    _get_maps,
-    gather_env_idx,
+    _concrete_bas,
+    cs_scatter_maps,
 )
 from pyscfad import ops
 from pyscfadlib._cuda_plugin import import_plugin_module
@@ -83,7 +83,6 @@ if _cuint:
         "trace_coords",
         "trace_basis",
         "aoslices",
-        "bas_tmpl",
     ),
 )
 def getints(
@@ -100,7 +99,6 @@ def getints(
     trace_coords: bool = False,
     trace_basis: bool = False,
     aoslices: ArrayLike | None = None, # for padding
-    bas_tmpl: ArrayLike | None = None, # static structure when bas is traced
 ) -> Array:
     nbas = len(bas)
     if shls_slice is not None and tuple(shls_slice)[:4] != (0, nbas, 0,  nbas):
@@ -145,7 +143,6 @@ def getints_jvp(
     trace_coords,
     trace_basis,
     aoslices,
-    bas_tmpl,
     primals,
     tangents,
 ):
@@ -160,7 +157,6 @@ def getints_jvp(
         trace_coords=trace_coords,
         trace_basis=trace_basis,
         aoslices=aoslices,
-        bas_tmpl=bas_tmpl,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -180,12 +176,12 @@ def getints_jvp(
                 cuint_plan,
                 shls_slice, comp, hermi, aosym, ao_loc,
                 trace_coords, trace_basis,
-                aoslices, rc_deriv, bas_tmpl,
+                aoslices, rc_deriv,
             ).reshape(tangent_out.shape)
 
         if trace_basis:
             tangent_out += _gen_int1e_jvp_basis(
-                intor_name, atm, bas, env, env_dot, hermi, bas_tmpl,
+                intor_name, atm, bas, env, env_dot, hermi, cuint_plan,
             ).reshape(tangent_out.shape)
     return primal_out, tangent_out
 
@@ -199,27 +195,27 @@ class BasisCrossPlan:
 
     The fake shells are one uncontracted shell per (shell, primitive) with
     unit coefficient (an env slot appended at ``ptr_ones``), mapped to a
-    primitive-resolved function space ``[0, naof)``; the real shells are
+    primitive-resolved function space ``[0, nao_fake)``; the real shells are
     decontracted per (shell, contraction, primitive) and keep their
-    ``ao_loc`` offsets shifted into ``[naof, naof + nao)``. Pairs are
+    ``ao_loc`` offsets shifted into ``[nao_fake, nao_fake + nao)``. Pairs are
     explicit ("screened") lists, one group per (l_bra, l_ket) combination.
 
-    All structure is built from the concrete template; the env pointer
+    All structure is built from ``bas_conc``; the env pointer
     columns are filled from the actual (possibly traced) ``bas`` by
     :meth:`make_rows`, so the plan works under jit and vmap over atomic
     numbers.
     """
-    def __init__(self, tmpl, ptr_ones):
-        tmpl = numpy.asarray(tmpl)
-        ls = tmpl[:, ANG_OF]
-        nprims = tmpl[:, NPRIM_OF]
-        nctrs = tmpl[:, NCTR_OF]
+    def __init__(self, bas_conc, ptr_ones):
+        bas_conc = numpy.asarray(bas_conc)
+        ls = bas_conc[:, ANG_OF]
+        nprims = bas_conc[:, NPRIM_OF]
+        nctrs = bas_conc[:, NCTR_OF]
         nls = 2 * ls + 1
 
         ao_loc = numpy.append(0, numpy.cumsum(nls * nctrs)).astype(numpy.int32)
         fake_loc = numpy.append(0, numpy.cumsum(nls * nprims)).astype(numpy.int32)
         nao = int(ao_loc[-1])
-        naof = int(fake_loc[-1])
+        nao_fake = int(fake_loc[-1])
 
         fake_rows = []
         fake_fn = []
@@ -230,10 +226,10 @@ class BasisCrossPlan:
         real_shell = []
         real_prim = []
         real_coeff_off = []
-        for i in range(len(tmpl)):
+        for i in range(len(bas_conc)):
             l, nprim, nctr = int(ls[i]), int(nprims[i]), int(nctrs[i])
             nl = 2 * l + 1
-            iatm = int(tmpl[i, ATOM_OF])
+            iatm = int(bas_conc[i, ATOM_OF])
             for j in range(nprim):
                 fake_rows.append([iatm, l, 1, 1, 0, 0, ptr_ones, 0])
                 fake_fn.append(fake_loc[i] + j * nl)
@@ -242,7 +238,7 @@ class BasisCrossPlan:
             for k in range(nctr):
                 for j in range(nprim):
                     real_rows.append([iatm, l, 1, 1, 0, 0, 0, 0])
-                    real_fn.append(naof + ao_loc[i] + k * nl)
+                    real_fn.append(nao_fake + ao_loc[i] + k * nl)
                     real_shell.append(i)
                     real_prim.append(j)
                     real_coeff_off.append(k * nprim + j)
@@ -271,9 +267,9 @@ class BasisCrossPlan:
         self.rows_static = rows
         self.primitive_to_function = prim2fn
         self.pairs = pairs
-        self.naof = naof
+        self.nao_fake = nao_fake
         self.nao = nao
-        self.n_functions = naof + nao
+        self.n_functions = nao_fake + nao
         self.n_primitives = n_rows
         self.nf = nf
 
@@ -313,13 +309,24 @@ class BasisCrossPlan:
 _BASIS_CROSS_PLAN_CACHE = {}
 
 
-def _get_basis_cross_plan(tmpl, ptr_ones):
-    key = (tmpl.tobytes(), tmpl.shape, int(ptr_ones))
+def _get_basis_cross_plan(bas_conc, ptr_ones):
+    key = (bas_conc.tobytes(), bas_conc.shape, int(ptr_ones))
     plan = _BASIS_CROSS_PLAN_CACHE.get(key)
     if plan is None:
-        plan = BasisCrossPlan(tmpl, ptr_ones)
+        plan = BasisCrossPlan(bas_conc, ptr_ones)
         _BASIS_CROSS_PLAN_CACHE[key] = plan
     return plan
+
+
+def _plan_bas_concrete(cuint_plan, bas) -> numpy.ndarray:
+    """The concrete structural ``bas_conc`` recorded on the cuint plan at
+    creation (pointer columns zeroed; they are always gathered from the
+    runtime ``bas``), falling back to a concrete ``bas``.
+    """
+    if cuint_plan.bas_conc is not None:
+        return numpy.frombuffer(
+            cuint_plan.bas_conc, dtype=numpy.int32).reshape(-1, BAS_SLOTS)
+    return _concrete_bas(bas)
 
 
 def gen_overlap_cross(
@@ -394,7 +401,7 @@ def _gen_int1e_jvp_basis(
     env,
     env_dot,
     hermi,
-    bas_tmpl,
+    cuint_plan,
 ):
     """Basis-set parameter (exponent + contraction coefficient) tangent
     for the cuint backend (first order in the basis parameters).
@@ -411,10 +418,10 @@ def _gen_int1e_jvp_basis(
     if hermi != 1:
         raise NotImplementedError(f"hermi = {hermi}")
 
-    tmpl = _resolve_template(bas, bas_tmpl)
+    bas_conc = _plan_bas_concrete(cuint_plan, bas)
     ptr_ones = env.shape[-1]
-    plan = _get_basis_cross_plan(tmpl, ptr_ones)
-    naof = plan.naof
+    plan = _get_basis_cross_plan(bas_conc, ptr_ones)
+    nao_fake = plan.nao_fake
     nao = plan.nao
     rows = plan.make_rows(bas)
 
@@ -423,9 +430,9 @@ def _gen_int1e_jvp_basis(
     envc = ops.stop_gradient(np.concatenate(
         [np.asarray(env, dtype=np.float64), np.ones(1, dtype=np.float64)]))
 
-    x0 = gen_overlap_cross(atm, envc, plan, rows)[0, :naof, naof:]
+    x0 = gen_overlap_cross(atm, envc, plan, rows)[0, :nao_fake, nao_fake:]
     d2 = gen_overlap_cross(atm, envc, plan, rows, i_deriv=2)
-    tr_d2 = (d2[0] + d2[4] + d2[8])[:naof, naof:]
+    tr_d2 = (d2[0] + d2[4] + d2[8])[:nao_fake, nao_fake:]
 
     ptr_exp = bas[:, PTR_EXP]
     alpha_env_idx = ptr_exp[plan.fakefn_shell] + plan.fakefn_prim
@@ -433,14 +440,19 @@ def _gen_int1e_jvp_basis(
     lfac = 2.0 * (2 * plan.l_fake_fn + 3)
     x_exp = -(tr_d2 + (lfac * alpha)[:, None] * x0) / (4.0 * alpha ** 2)[:, None]
 
-    maps = _get_maps(tmpl, "cs", False)
-    coeff_env_idx, exp_env_idx = gather_env_idx(bas, maps)
+    maps = cs_scatter_maps(bas_conc, False)
+    # the cs maps enumerate (shell, contraction, primitive, function) with
+    # coeff_off = contraction * nprim + primitive, so the primitive offset
+    # the exponent term needs is coeff_off modulo nprim of that shell
+    coeff_env_idx = bas[:, PTR_COEFF][maps.entry_shell] + maps.coeff_off
+    prim_off = maps.coeff_off % bas_conc[maps.entry_shell, NPRIM_OF]
+    exp_env_idx = bas[:, PTR_EXP][maps.entry_shell] + prim_off
     w_cs = env_dot[coeff_env_idx]
     w_exp = ops.stop_gradient(env[coeff_env_idx]) * env_dot[exp_env_idx]
 
-    t_cs = np.zeros((nao, naof), dtype=x0.dtype)
+    t_cs = np.zeros((nao, nao_fake), dtype=x0.dtype)
     t_cs = ops.index_add(t_cs, ops.index[maps.real_rows, maps.fake_rows], w_cs)
-    t_exp = np.zeros((nao, naof), dtype=x0.dtype)
+    t_exp = np.zeros((nao, nao_fake), dtype=x0.dtype)
     t_exp = ops.index_add(t_exp, ops.index[maps.real_rows, maps.fake_rows], w_exp)
 
     jvp = np.einsum("ma,av->mv", t_cs, x0) + np.einsum("ma,av->mv", t_exp, x_exp)
@@ -454,7 +466,7 @@ def _gen_int1e_jvp_r0(
     cuint_plan,
     shls_slice, comp, hermi, aosym, ao_loc,
     trace_coords, trace_basis,
-    aoslices, rc_deriv, bas_tmpl=None,
+    aoslices, rc_deriv,
 ):
     if comp is not None:
         comp = comp * 3
@@ -481,7 +493,7 @@ def _gen_int1e_jvp_r0(
             shls_slice=shls_slice, comp=comp,
             hermi=hermi, aosym=aosym, ao_loc=ao_loc,
             trace_coords=trace_coords, trace_basis=trace_basis,
-            aoslices=aoslices, bas_tmpl=bas_tmpl,
+            aoslices=aoslices,
         )
 
         naoi, naoj = s1a.shape[-2:]
@@ -714,6 +726,10 @@ class CuintPlan:
     n_primitives: numpy.int32 = field(metadata={"static": True})
     pairs: list[PairInfo]
     is_screened: numpy.int32 = field(metadata={"static": True})
+    # concrete structural _bas snapshot (raw int32 bytes, pointer columns
+    # zeroed) for the basis-parameter derivatives; bytes keep the static
+    # field hashable and value-compared in jit cache keys
+    bas_conc: bytes | None = field(default=None, metadata={"static": True})
 
 @jax.tree_util.register_dataclass
 @dataclass
@@ -748,6 +764,7 @@ def cuint_merge_plans(plans: Sequence[CuintPlan]) -> tuple[CuintPlan, CuintPlan]
         n_primitives = plans[0].n_primitives,
         pairs = plans[0].pairs,
         is_screened = plans[0].is_screened,
+        bas_conc = plans[0].bas_conc,
     )
 
     vmap_in_axes = jax.tree.map(lambda x: None, merged_plans)
@@ -773,6 +790,12 @@ def cuint_create_plan(mol: MoleLite, screening: bool = False) -> CuintPlan:
 
     bas = numpy.asarray(mol._bas)
     ao_loc = mol.ao_loc
+
+    # structural snapshot for the basis-parameter derivatives; the env
+    # pointers are gathered from the runtime bas, so zero them here to
+    # make bas_conc (and the plan caches keyed on it) canonical
+    bas_conc = bas.copy()
+    bas_conc[:, [PTR_EXP, PTR_COEFF]] = 0
 
     ls = bas[:, ANG_OF]
     sort_idx = numpy.argsort(ls)
@@ -850,6 +873,7 @@ def cuint_create_plan(mol: MoleLite, screening: bool = False) -> CuintPlan:
         n_primitives = numpy.int32(n_primitives),
         pairs = pairs,
         is_screened = numpy.int32(is_screened),
+        bas_conc = bas_conc.tobytes(),
     )
     return plan
 

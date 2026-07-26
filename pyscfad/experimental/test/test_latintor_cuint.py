@@ -73,48 +73,59 @@ def test_latovlp():
 
 
 def test_latovlp_basis_deriv():
-    """Basis-parameter tangent of the per-image lattice overlap:
-    forward AD vs finite differences of the stored (cuint) primal."""
-    from pyscfad.experimental import latintor_cuint
-    from pyscfad.gto._mole_helper import setup_exp, setup_ctr_coeff
-
+    """Single-cell lattice-overlap basis gradients (w.r.t. ``CellLite.basis``)
+    through the cuint backend, vs the CPU path and finite differences."""
     numbers = [14, 14]
     coords = numpy.array([[0.0, 0.0, 0.0], [1.3468] * 3]) / BOHR
     a = numpy.array([[0.0, 2.6935, 2.6935],
                      [2.6935, 0.0, 2.6935],
                      [2.6935, 2.6935, 0.0]]) / BOHR
-    cell = CellLite(numbers=numbers, coords=coords, a=a, basis="gth-szv",
-                    rcut=8.0, precision=1e-6, verbose=0)
-    plan = cuint_create_plan(cell)
-    Ls = numpy.asarray(cell.Ls, dtype=float).reshape(-1, 3)
-    Ls_mask = numpy.ones(len(Ls), dtype=numpy.int32)
-    atm, bas = cell._atm, cell._bas
-    env = numpy.asarray(cell._env)
+    cell0 = CellLite(numbers=numbers, coords=coords, a=a, basis="gth-szv",
+                     rcut=8.0, precision=1e-6, verbose=0)
+    plan = cuint_create_plan(cell0)
+    Ls = numpy.asarray(cell0.Ls, dtype=float).reshape(-1, 3)
+    # pass nimgs explicitly: deriving it inside the traced construction goes
+    # through the non-jittable get_lattice_Ls
+    nimgs = tuple(int(x) for x in numpy.asarray(cell0.nimgs))
+    basis0 = cell0.basis
 
-    def f(env_):
-        return latintor_cuint._lattice_intor(
-            "int1e_ovlp_sph", Ls, Ls_mask, atm, bas, env_, plan,
-            hermi=1, trace_coords=True, trace_basis=True)
+    def loss(basis, plan):
+        cell = CellLite(numbers=numbers, coords=coords, a=a, basis=basis,
+                        rcut=8.0, nimgs=nimgs, precision=1e-6, verbose=0,
+                        trace_basis=True)
+        s1e = np.sum(cell.lattice_intor("int1e_ovlp", hermi=1, Ls=Ls,
+                                        cuint_plan=plan), axis=0)
+        # backend-specific storage conventions (as in kxtb):
+        # CPU stores the lower triangle, cuint stores halved pair blocks
+        if plan is None:
+            s1e = hermi_triu(s1e)
+        else:
+            s1e = s1e + s1e.T
+        return np.sum(s1e ** 2)
 
-    jac = numpy.asarray(jax.jacfwd(f)(np.asarray(env)))
+    g_gpu = jax.grad(loss)(basis0, plan)
+    g_cpu = jax.grad(loss)(basis0, None)
+    for x, y in zip(jax.tree.leaves(g_gpu), jax.tree.leaves(g_cpu)):
+        assert abs(numpy.asarray(x) - numpy.asarray(y)).max() < 1e-9
 
-    _, _, exp_of = setup_exp(cell)
-    _, _, cs_of = setup_ctr_coeff(cell)
-    disp = 1e-4
-    for slot in numpy.concatenate([exp_of, cs_of])[::2]:
-        def at(d):
-            env1 = env.copy()
-            env1[slot] += d
-            return numpy.asarray(f(env1))
-        fd = (8*(at(disp)-at(-disp)) - (at(2*disp)-at(-2*disp))) / (12*disp)
-        assert abs(jac[..., slot] - fd).max() < 1e-8
+    # finite differences at one exponent and one coefficient per shell block
+    leaves, treedef = jax.tree.flatten(basis0)
+    grad_leaves = jax.tree.leaves(g_gpu)
+    for i, leaf in enumerate(leaves):
+        leaf = numpy.asarray(leaf, dtype=float)
+        for idx in ((0, 0), (leaf.shape[0] - 1, leaf.shape[1] - 1)):
+            disp = 1e-4 * max(1.0, abs(leaf[idx]))
 
-    # reverse mode consistency
-    def loss(env_):
-        return np.sum(f(env_) ** 2)
-    g_rev = numpy.asarray(jax.grad(loss)(np.asarray(env)))
-    g_fwd = numpy.asarray(jax.jacfwd(loss)(np.asarray(env)))
-    assert abs(g_rev - g_fwd).max() < 1e-10
+            def at(d):
+                leaf1 = leaf.copy()
+                leaf1[idx] += d
+                leaves1 = list(leaves)
+                leaves1[i] = np.asarray(leaf1)
+                return float(loss(jax.tree.unflatten(treedef, leaves1), plan))
+
+            fd = (at(disp) - at(-disp)) / (2 * disp)
+            got = numpy.asarray(grad_leaves[i])[idx]
+            assert abs(got - fd) < 1e-6 * max(1.0, abs(fd))
 
 
 def test_kxtb_basis_grad_parity():
@@ -218,7 +229,6 @@ def test_gfn1_kxtb_pad_cuint():
 def test_latovlp_basis_deriv_batched():
     """Batched (padded, traced atomic numbers) lattice-overlap basis
     gradients through the cuint backend vs the CPU pad path."""
-    import dataclasses
     from pyscfad.xtb import basis as xtb_basis
     from pyscfad.ml.gto import make_basis_array
     from pyscfad.ml.pbc.gto import CellPad
@@ -252,9 +262,8 @@ def test_latovlp_basis_deriv_batched():
         plans.append(cuint_create_plan(c))
     merged_plan, plan_axes = cuint_merge_plans(plans)
 
-    def loss(data, numbers, coords, plan):
-        basis_ = dataclasses.replace(basis, data=data)
-        cell = CellPad(numbers, coords, basis=basis_, a=a, Ls=Ls0, rcut=rcut,
+    def loss(basis, numbers, coords, plan):
+        cell = CellPad(numbers, coords, basis=basis, a=a, Ls=Ls0, rcut=rcut,
                        precision=1e-6, verbose=0, trace_basis=True,
                        cuint_plan=plan)
         s1e_lat = cell.lattice_intor("int1e_ovlp", hermi=1)
@@ -267,12 +276,15 @@ def test_latovlp_basis_deriv_batched():
             s1e = s1e + s1e.T
         return np.sum(s1e ** 2)
 
-    g_gpu = jax.jit(jax.vmap(jax.grad(loss), in_axes=(None, 0, 0, plan_axes)))(
-        basis.data, numbers_b, coords_b, merged_plan)
+    # the BasisArray also carries boolean mask leaves (their tangents come
+    # back as float0, i.e. no derivative); the parameters live in 'data'
+    grad = jax.grad(loss, allow_int=True)
+    g_gpu = jax.jit(jax.vmap(grad, in_axes=(None, 0, 0, plan_axes)))(
+        basis, numbers_b, coords_b, merged_plan)
 
     for i in range(len(numbers_b)):
-        g_cpu = jax.grad(loss)(basis.data, numbers_b[i], coords_b[i], None)
+        g_cpu = grad(basis, numbers_b[i], coords_b[i], None).data
         # the CPU lattice sum screens shell pairs at `precision`, cuint does
         # not, so the two backends agree only to ~precision relative
-        assert bool((abs(g_gpu[i] - g_cpu)
+        assert bool((abs(g_gpu.data[i] - g_cpu)
                      <= 1e-6 * (1.0 + abs(g_cpu))).all())
