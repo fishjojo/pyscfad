@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy
 import pytest
 import jax
 from pyscf.data.nist import BOHR
@@ -180,6 +181,134 @@ def test_rc_deriv(OH):
 
         assert abs(s1e - s1e_ref).max() < 1e-9
         assert abs(s1e_deriv - s1e_deriv_ref).max() < 1e-9
+
+def test_cuint_basis_deriv(OH):
+    """Basis-set parameter derivatives: cuint vs the lite CPU path."""
+    numbers = OH["numbers"]
+    spin = OH["spin"]
+    coords = OH["coords"]
+    plan = OH["plan"]
+
+    mol0 = MoleLite(numbers=numbers, coords=coords, spin=spin, basis="ccpvdz")
+    basis0 = mol0.basis
+
+    def loss(basis, plan):
+        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
+                       trace_basis=True, cuint_plan=plan)
+        s1e = mol.intor("int1e_ovlp", hermi=1)
+        return np.sum(s1e ** 2)
+
+    g_gpu = jax.grad(loss)(basis0, plan)
+    g_cpu = jax.grad(loss)(basis0, None)
+    for a, b in zip(jax.tree.leaves(g_gpu), jax.tree.leaves(g_cpu)):
+        assert abs(a - b).max() < 1e-9
+
+    # forward mode and jit consistency
+    g_fwd = jax.jacfwd(loss)(basis0, plan)
+    for a, b in zip(jax.tree.leaves(g_gpu), jax.tree.leaves(g_fwd)):
+        assert abs(a - b).max() < 1e-12
+    g_jit = jax.jit(jax.grad(loss))(basis0, plan)
+    for a, b in zip(jax.tree.leaves(g_gpu), jax.tree.leaves(g_jit)):
+        assert abs(a - b).max() < 1e-12
+
+
+def test_cuint_basis_deriv_fd(OH):
+    """The cuint basis gradient against finite differences, checked
+    separately for the exponent (column 0 of a shell block) and the
+    contraction-coefficient columns.
+
+    The other basis-derivative tests compare against the CPU path, which
+    reaches the exponent term a different way (l+2 Cartesian promotion,
+    versus the solid-harmonic identity used here); this pins the cuint
+    result on its own.
+    """
+    numbers = OH["numbers"]
+    spin = OH["spin"]
+    coords = OH["coords"]
+    plan = OH["plan"]
+
+    basis0 = MoleLite(numbers=numbers, coords=coords, spin=spin,
+                      basis="ccpvdz").basis
+
+    def loss(basis):
+        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
+                       trace_basis=True, cuint_plan=plan)
+        s1e = mol.intor("int1e_ovlp", hermi=1)
+        return np.sum(s1e ** 2)
+
+    grad_leaves = jax.tree.leaves(jax.grad(loss)(basis0))
+    leaves, treedef = jax.tree.flatten(basis0)
+
+    n_exp = n_cs = 0
+    for i, leaf in enumerate(leaves):
+        leaf = numpy.asarray(leaf, dtype=float)
+        nprim, ncol = leaf.shape
+        # one exponent and one contraction coefficient per shell block
+        for idx in ((0, 0), (nprim - 1, ncol - 1)):
+            disp = 1e-4 * max(1.0, abs(leaf[idx]))
+
+            def at(d):
+                leaf1 = leaf.copy()
+                leaf1[idx] += d
+                leaves1 = list(leaves)
+                leaves1[i] = np.asarray(leaf1)
+                return float(loss(jax.tree.unflatten(treedef, leaves1)))
+
+            fd = (at(disp) - at(-disp)) / (2 * disp)
+            got = numpy.asarray(grad_leaves[i])[idx]
+            assert abs(got - fd) < 1e-6 * max(1.0, abs(fd))
+            n_exp += idx[1] == 0
+            n_cs += idx[1] > 0
+    assert n_exp and n_cs
+
+
+@pytest.mark.parametrize("intor", ["int1e_r", "int1e_rr"])
+def test_cuint_basis_deriv_unsupported(OH, intor):
+    """Only the overlap has a basis-parameter derivative on cuint; the
+    dipole/quadrupole exponent terms need their own kernels.
+    """
+    numbers = OH["numbers"]
+    spin = OH["spin"]
+    coords = OH["coords"]
+    plan = OH["plan"]
+
+    basis0 = MoleLite(numbers=numbers, coords=coords, spin=spin,
+                      basis="ccpvdz").basis
+
+    def loss(basis):
+        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
+                       trace_basis=True, cuint_plan=plan)
+        return np.sum(mol.intor(intor, hermi=1) ** 2)
+
+    with pytest.raises(NotImplementedError):
+        jax.grad(loss)(basis0)
+
+
+def test_cuint_basis_deriv_batched(mol_batch):
+    """Batched basis-parameter gradients (traced atomic numbers) through
+    the cuint backend vs the CPU pad path."""
+    numbers = mol_batch["numbers"]
+    coords = mol_batch["coords"]
+    basis = mol_batch["basis"]
+    plans = mol_batch["plans"]
+    in_axes = mol_batch["in_axes"]
+
+    def loss(basis, numbers, coords, plan):
+        mol = MolePad(numbers, coords, basis=basis, verbose=0,
+                      trace_basis=True, cuint_plan=plan)
+        s = mol.intor("int1e_ovlp", hermi=1)
+        return np.sum(s ** 2)
+
+    # the BasisArray also carries boolean mask leaves, whose tangents come
+    # back as float0; the parameters live in 'data'
+    grad = jax.grad(loss, allow_int=True)
+    g_gpu = jax.jit(jax.vmap(grad, in_axes=(None, 0, 0, in_axes)))(
+        basis, numbers, coords, plans)
+
+    for i in range(len(numbers)):
+        g_cpu = grad(basis, numbers[i], coords[i], None)
+        assert abs(g_gpu.data[i] - g_cpu.data).max() < 1e-9
+
 
 def test_rc_deriv_batched(mol_batch):
     numbers = mol_batch["numbers"]

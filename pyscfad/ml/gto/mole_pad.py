@@ -200,6 +200,7 @@ class MolePad(MoleLite):
                 trace_coords=self.trace_coords,
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
+                basis_array_metadata=self.basis.metadata,
             )
         return out
 

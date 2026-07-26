@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from functools import partial
 import ctypes
 import numpy
@@ -28,6 +30,12 @@ from pyscfad.gto.moleintor_lite import (
     _aoslice_by_atom,
     _extract_coords,
 )
+from pyscfad.gto._basis_deriv import (
+    basis_jvp_cs,
+    basis_jvp_exp,
+    _resolve_bas_concrete,
+    _resolve_shls_slice,
+)
 from pyscfad.gto._moleintor_helper import (
     int1e_get_dr_order,
     int1e_dr1_name,
@@ -38,6 +46,9 @@ from pyscfad.gto._pyscf_moleintor import (
 )
 from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
 from pyscfadlib import libcgto_vjp as libcgto
+
+if TYPE_CHECKING:
+    from pyscfad.ml.gto.basis_array import BasisArrayMetadata
 
 @partial(
     ops.custom_jvp,
@@ -53,6 +64,7 @@ from pyscfadlib import libcgto_vjp as libcgto
         "trace_coords",
         "trace_basis",
         "aoslices",
+        "basis_array_metadata",
     ),
 )
 def _lattice_intor(
@@ -69,6 +81,7 @@ def _lattice_intor(
     trace_coords: bool = False,
     trace_basis: bool = False,
     aoslices: ArrayLike | None = None, # for padding
+    basis_array_metadata: BasisArrayMetadata | None = None, # for padding
 ) -> Array:
     shape = _get_shape(
         intor_name,
@@ -158,7 +171,7 @@ def _lattice_intor_impl_cpu(
 def _gen_int1e_jvp_r0(
     intor_a, intor_b, Ls, Ls_mask, atm, bas, env, env_dot,
     shls_slice, comp, hermi, ao_loc,
-    trace_coords, trace_basis, aoslices=None,
+    trace_coords, trace_basis, aoslices=None, basis_array_metadata=None,
 ):
     Ls = Ls.reshape(-1,3)
     nL = len(Ls)
@@ -170,7 +183,7 @@ def _gen_int1e_jvp_r0(
         intor_a, Ls, Ls_mask, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis,
-        aoslices=aoslices,
+        aoslices=aoslices, basis_array_metadata=basis_array_metadata,
     )
 
     naoi, naoj = s1a.shape[-2:]
@@ -198,7 +211,7 @@ def _gen_int1e_jvp_r0(
         intor_b, Ls, Ls_mask, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis,
-        aoslices=aoslices,
+        aoslices=aoslices, basis_array_metadata=basis_array_metadata,
     )
     s1b = s1b.reshape(nL,3**order_a,3,-1,naoi,naoj)
     s1b = s1b.transpose(0,2,1,3,4,5).reshape(nL,3,-1,naoi,naoj)
@@ -212,7 +225,7 @@ def _gen_int1e_jvp_r0(
 def _gen_int1e_jvp_Ls(
     intor_b, Ls, Ls_mask, atm, bas, env, Ls_dot,
     shls_slice, comp, hermi, ao_loc,
-    trace_coords, trace_basis, aoslices=None,
+    trace_coords, trace_basis, aoslices=None, basis_array_metadata=None,
 ):
     """Tangent of the per-image integrals w.r.t. the lattice shifts ``Ls``.
 
@@ -231,7 +244,7 @@ def _gen_int1e_jvp_Ls(
         intor_b, Ls, Ls_mask, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis,
-        aoslices=aoslices,
+        aoslices=aoslices, basis_array_metadata=basis_array_metadata,
     )
     naoi, naoj = s1b.shape[-2:]
     s1b = s1b.reshape(nL, 3**order_a, 3, -1, naoi, naoj)
@@ -241,10 +254,67 @@ def _gen_int1e_jvp_Ls(
     return jvp.reshape(nL, -1, naoi, naoj)
 
 
+def _gen_int1e_jvp_basis(
+    intor_name, Ls, Ls_mask, atm, bas, env, env_dot,
+    shls_slice, comp, hermi, ao_loc, basis_array_metadata,
+):
+    """Basis-set parameter (exponent + contraction coefficient) tangent of
+    the per-image lattice integrals (first order in the basis parameters).
+
+    Both the bra and the ket cross terms are computed explicitly for every
+    image (per-image transposes would relate different images, ``S_L^T =
+    S_{-L}``), so the cross evaluations always use ``hermi = 0``; for
+    ``hermi == 1`` the tangent is masked to the lower triangle afterwards,
+    matching the ``s2``-fill storage of the primal.
+    """
+    bas_conc = _resolve_bas_concrete(bas, basis_array_metadata)
+    i0, i1, j0, j1 = _resolve_shls_slice(shls_slice, len(bas), hermi)
+
+    def _intor_cross_factory(name):
+        def intor_cross(basc, envc, sls, cross_ao_loc):
+            return _lattice_intor(
+                name, Ls, Ls_mask, atm, basc, envc,
+                shls_slice=sls, comp=comp, hermi=0, ao_loc=cross_ao_loc,
+                trace_coords=False, trace_basis=False,
+            )
+        return intor_cross
+
+    cart = intor_name.endswith("_cart")
+    jvp = basis_jvp_cs(_intor_cross_factory(intor_name), bas, env, env_dot,
+                       cart, 0, shls_slice, basis_array_metadata)
+
+    if cart:
+        intor_cart = intor_name
+        need_c2s = False
+    elif intor_name.endswith("_sph"):
+        intor_cart = intor_name[:-4] + "_cart"
+        need_c2s = True
+    else:
+        intor_cart = intor_name + "_cart"
+        need_c2s = True
+    jvp += basis_jvp_exp(_intor_cross_factory(intor_cart), bas, env, env_dot,
+                         need_c2s, 0, shls_slice, basis_array_metadata)
+
+    if hermi == 1:
+        # the s2 fill stores the shell-pair blocks with
+        # bra shell >= ket shell (diagonal shell blocks complete)
+        if ao_loc is None:
+            _ao_loc = make_loc(bas_conc, intor_name)
+        else:
+            _ao_loc = numpy.asarray(ao_loc).ravel()
+        row_shell = numpy.repeat(numpy.arange(i0, i1),
+                                 numpy.diff(_ao_loc[i0:i1+1]))
+        col_shell = numpy.repeat(numpy.arange(j0, j1),
+                                 numpy.diff(_ao_loc[j0:j1+1]))
+        mask = row_shell[:,None] >= col_shell[None,:]
+        jvp = np.where(mask, jvp, np.zeros((), dtype=jvp.dtype))
+    return jvp
+
+
 def _lattice_intor_jvp(
     intor_name, Ls_mask, atm, bas,
     shls_slice, comp, hermi, ao_loc,
-    trace_coords, trace_basis, aoslices,
+    trace_coords, trace_basis, aoslices, basis_array_metadata,
     primals, tangents,
 ):
     Ls, env = primals
@@ -254,6 +324,7 @@ def _lattice_intor_jvp(
         intor_name, Ls, Ls_mask, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis, aoslices=aoslices,
+        basis_array_metadata=basis_array_metadata,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -268,10 +339,13 @@ def _lattice_intor_jvp(
                 intor_ip_bra, intor_ip_ket,
                 Ls, Ls_mask, atm, bas, env, env_dot,
                 shls_slice, comp, hermi, ao_loc,
-                trace_coords, trace_basis, aoslices,
+                trace_coords, trace_basis, aoslices, basis_array_metadata,
             ).reshape(tangent_out.shape)
         if trace_basis:
-            raise NotImplementedError
+            tangent_out += _gen_int1e_jvp_basis(
+                intor_name, Ls, Ls_mask, atm, bas, env, env_dot,
+                shls_slice, comp, hermi, ao_loc, basis_array_metadata,
+            ).reshape(tangent_out.shape)
 
     if not isinstance(Ls_dot, SymbolicZero):
         if not intor_ip_ket:
@@ -282,7 +356,7 @@ def _lattice_intor_jvp(
             intor_ip_ket,
             Ls, Ls_mask, atm, bas, env, Ls_dot,
             shls_slice, comp, hermi, ao_loc,
-            trace_coords, trace_basis, aoslices,
+            trace_coords, trace_basis, aoslices, basis_array_metadata,
         ).reshape(tangent_out.shape)
 
     return primal_out, tangent_out

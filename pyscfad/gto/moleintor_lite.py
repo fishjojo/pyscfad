@@ -33,9 +33,14 @@ from pyscfad.gto._moleintor_helper import (
     int1e_dr1_name,
 )
 from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
+from pyscfad.gto._basis_deriv import (
+    basis_jvp_cs,
+    basis_jvp_exp,
+)
 
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
+    from pyscfad.ml.gto.basis_array import BasisArrayMetadata
 
 def _get_shape_ints2c(
     intor_name: str,
@@ -165,6 +170,7 @@ def _get_shape(
         "trace_coords",
         "trace_basis",
         "aoslices",
+        "basis_array_metadata",
     ),
 )
 def getints(
@@ -180,32 +186,19 @@ def getints(
     trace_coords: bool = False,
     trace_basis: bool = False,
     aoslices: ArrayLike | None = None, # for padding
+    basis_array_metadata: BasisArrayMetadata | None = None, # for padding
 ) -> Array:
     from pyscfad.gto._pyscf_moleintor import getints as callback
 
-    shape = _get_shape(
-        intor_name,
-        bas,
-        comp,
-        shls_slice,
-        aosym,
-        ao_loc,
-    )
-
+    shape = _get_shape(intor_name, bas, comp, shls_slice, aosym, ao_loc)
     result_shape_dtypes = ops.ShapeDtypeStruct(shape, np.float64)
 
     out = ops.pure_callback(
         partial(callback, intor_name, aosym=aosym),
         result_shape_dtypes,
-        atm,
-        bas,
-        env,
-        sharding=None,
-        vmap_method="sequential",
-        shls_slice=shls_slice,
-        comp=comp,
-        hermi=hermi,
-        ao_loc=ao_loc,
+        atm, bas, env,
+        sharding=None, vmap_method="sequential",
+        shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
     )
     return out
 
@@ -221,6 +214,7 @@ def getints_jvp(
     trace_coords,
     trace_basis,
     aoslices,
+    basis_array_metadata,
     primals,
     tangents,
 ):
@@ -259,61 +253,44 @@ def getints_jvp(
                 rc_deriv = None
 
             tangent_out += _gen_int1e_jvp_r0(
-                intor_ip_bra,
-                intor_ip_ket,
-                atm,
-                bas,
-                env,
-                env_dot,
-                shls_slice,
-                comp,
-                hermi,
-                aosym,
-                ao_loc,
-                trace_coords,
-                trace_basis,
-                aoslices,
-                rc_deriv,
+                intor_ip_bra, intor_ip_ket,
+                atm, bas, env, env_dot,
+                shls_slice, comp, hermi, aosym, ao_loc,
+                trace_coords, trace_basis,
+                aoslices, rc_deriv,
             ).reshape(tangent_out.shape)
 
         if trace_basis:
-            raise NotImplementedError("basis set parameter derivative not supported")
+            tangent_out += _gen_int1e_jvp_cs(
+                intor_name, atm, bas, env, env_dot,
+                shls_slice, comp, hermi, aosym,
+                basis_array_metadata,
+            ).reshape(tangent_out.shape)
+
+            tangent_out += _gen_int1e_jvp_exp(
+                intor_name, atm, bas, env, env_dot,
+                shls_slice, comp, hermi, aosym,
+                basis_array_metadata,
+            ).reshape(tangent_out.shape)
     return primal_out, tangent_out
 
 getints.defjvp(getints_jvp, symbolic_zeros=True)
 
 def _gen_int1e_jvp_r0(
-    intor_a: str,
-    intor_b: str,
-    atm: ArrayLike,
-    bas: ArrayLike,
-    env: ArrayLike,
-    env_dot: ArrayLike,
-    shls_slice: tuple[int, ...] | None,
-    comp: int | None,
-    hermi: int,
-    aosym: str,
-    ao_loc: ArrayLike | None,
-    trace_coords: bool,
-    trace_basis: bool,
-    aoslices: ArrayLike | None = None,
-    rc_deriv: int | None = None,
-) -> Array:
+    intor_a, intor_b,
+    atm, bas, env, env_dot,
+    shls_slice, comp, hermi, aosym, ao_loc,
+    trace_coords, trace_basis,
+    aoslices, rc_deriv,
+):
     if comp is not None:
         comp = comp * 3
 
     s1a = -getints(
-        intor_a,
-        atm,
-        bas,
-        env,
-        shls_slice=shls_slice,
-        comp=comp,
-        hermi=0,
-        aosym=aosym,
-        ao_loc=ao_loc,
-        trace_coords=trace_coords,
-        trace_basis=trace_basis,
+        intor_a, atm, bas, env,
+        shls_slice=shls_slice, comp=comp, hermi=0,
+        aosym=aosym, ao_loc=ao_loc,
+        trace_coords=trace_coords, trace_basis=trace_basis,
         aoslices=aoslices,
     )
     naoi, naoj = s1a.shape[1:]
@@ -333,7 +310,8 @@ def _gen_int1e_jvp_r0(
     if aoslices is None:
         aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
     aoidx = np.arange(naoi)
-    jvp = _gen_int1e_fill_jvp_r0(s1a, coords_dot, aoslices-_ao_loc[i0], aoidx[None,None,:,None])
+    jvp = _gen_int1e_fill_jvp_r0(s1a, coords_dot, aoslices-_ao_loc[i0],
+                                 aoidx[None,None,:,None])
 
     if isinstance(rc_deriv, int):
         R0_dot = env_dot[rc_deriv:rc_deriv+3]
@@ -342,17 +320,10 @@ def _gen_int1e_jvp_r0(
     if hermi == 0:
         order_a = int1e_get_dr_order(intor_b)[0]
         s1b = -getints(
-            intor_b,
-            atm,
-            bas,
-            env,
-            shls_slice=shls_slice,
-            comp=comp,
-            hermi=0,
-            aosym=aosym,
-            ao_loc=ao_loc,
-            trace_coords=trace_coords,
-            trace_basis=trace_basis,
+            intor_b, atm, bas, env,
+            shls_slice=shls_slice, comp=comp, hermi=0,
+            aosym=aosym, ao_loc=ao_loc,
+            trace_coords=trace_coords, trace_basis=trace_basis,
             aoslices=aoslices,
         )
         # TODO make it general
@@ -377,6 +348,49 @@ def _gen_int1e_jvp_r0(
     elif hermi == 1:
         jvp += jvp.transpose(0,2,1)
     return jvp
+
+def _gen_int1e_jvp_cs(
+    intor_name, atm, bas, env, env_dot,
+    shls_slice, comp, hermi, aosym,
+    basis_array_metadata,
+):
+    cart = intor_name.endswith("_cart")
+
+    def intor_cross(basc, envc, sls, cross_ao_loc):
+        return getints(
+            intor_name, atm, basc, envc,
+            shls_slice=sls, comp=comp, hermi=0,
+            aosym="s1", ao_loc=cross_ao_loc,
+            trace_coords=False, trace_basis=False,
+        )
+    return basis_jvp_cs(intor_cross, bas, env, env_dot, cart, hermi,
+                        shls_slice, basis_array_metadata)
+
+def _gen_int1e_jvp_exp(
+    intor_name, atm, bas, env, env_dot,
+    shls_slice, comp, hermi, aosym,
+    basis_array_metadata,
+):
+    if intor_name.endswith("_cart"):
+        intor_cart = intor_name
+        need_c2s = False
+    elif intor_name.endswith("_sph"):
+        intor_cart = intor_name[:-4] + "_cart"
+        need_c2s = True
+    else:
+        # bare names default to spherical
+        intor_cart = intor_name + "_cart"
+        need_c2s = True
+
+    def intor_cross(basc, envc, sls, cross_ao_loc):
+        return getints(
+            intor_cart, atm, basc, envc,
+            shls_slice=sls, comp=comp, hermi=0,
+            aosym="s1", ao_loc=cross_ao_loc,
+            trace_coords=False, trace_basis=False,
+        )
+    return basis_jvp_exp(intor_cross, bas, env, env_dot, need_c2s, hermi,
+                         shls_slice, basis_array_metadata)
 
 def _aoslice_by_atom(
     atm,
