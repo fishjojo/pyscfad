@@ -16,6 +16,7 @@ pyscfad.ml.gto.basis\_array
 
    
       BasisArray
+      BasisArrayMetadata
 
    
    
