@@ -45,10 +45,12 @@ from pyscfad.gto._pyscf_moleintor import make_loc
 from pyscfad.gto._moleintor_helper import int1e_dr1_name
 from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
 from .moleintor_cuint import (
+    CrossChunk,
     PairInfo,
-    gen_overlap_cross,
+    chunk_budget,
     _basis_deriv_order,
-    _lap_trace,
+    _cross_blocks,
+    _fake_chunks,
     _plan_bas_concrete,
 )
 
@@ -197,14 +199,16 @@ class LatBasisCrossPlan:
     Row layout: ``[fake_bra, real_bra, fake_ket, real_ket]``, each with one
     row per (shell, contraction, primitive); bra rows reference the
     original atoms, ket rows reference a second atom copy whose
-    coordinates live in an appended env block. Function spaces: fake
-    ``[0, nao_fake)``, real ``[nao_fake, nao_fake + nao)``.
+    coordinates live in an appended env block. The fake ``[0, nao_fake)`` and
+    real ``[0, nao)`` function spaces are independent (one indexes the rows of
+    a cross block, the other its columns) and the fake one is split over
+    :class:`~pyscfad.experimental.moleintor_cuint.CrossChunk` s.
 
     All structure is built from ``bas_conc``; the env pointer
     columns are filled from the actual (possibly traced) ``bas`` by
     :meth:`make_rows`.
     """
-    def __init__(self, bas_conc, natm, nenv):
+    def __init__(self, bas_conc, natm, nenv, budget=None):
         bas_conc = numpy.asarray(bas_conc)
         nbas = len(bas_conc)
         ls = bas_conc[:, ANG_OF]
@@ -242,7 +246,7 @@ class LatBasisCrossPlan:
                     real_rows.append([iatm, l, 1, 1, 0, 0, 0, 0])
                     f0 = fake_loc[i] + (k * nprim + j) * nl
                     fake_fn.append(f0)
-                    real_fn.append(nao_fake + ao_loc[i] + k * nl)
+                    real_fn.append(ao_loc[i] + k * nl)
                     prim_shell.append(i)
                     prim_j.append(j)
                     prim_coeff_off.append(k * nprim + j)
@@ -261,8 +265,7 @@ class LatBasisCrossPlan:
         ket_fake[:, ATOM_OF] += natm
         ket_real[:, ATOM_OF] += natm
         rows = numpy.vstack([fake_rows, real_rows, ket_fake, ket_real])
-        prim2fn = numpy.asarray(fake_fn + real_fn + fake_fn + real_fn,
-                                dtype=numpy.int32)
+        real_fn = numpy.asarray(real_fn, dtype=numpy.int32)
         n_rows = 4 * npr
 
         # ordered primal pair set: primitives enumerated with shells
@@ -281,15 +284,26 @@ class LatBasisCrossPlan:
                             numpy.searchsorted(order_l, l, "right"))
                    for l in uls}
 
-        def _groups(pair_p, pair_q, la, lb, bra_kind):
-            # bra_kind "fake": (fake_bra_p, real_ket_q)
-            # bra_kind "real": (real_bra_p, fake_ket_q)
-            if len(pair_p) == 0:
-                return None
-            if bra_kind == "fake":
-                enc = pair_p * n_rows + (3 * npr + pair_q)
-            else:
-                enc = (npr + pair_p) * n_rows + (2 * npr + pair_q)
+        # the primal ordered pair set, as (la, lb, p, q, group suffix); the
+        # encodings are built per chunk below
+        base_groups = []
+        for la in uls:
+            a0, a1 = lbounds[int(la)]
+            ra = order[a0:a1]
+            # same-l: strict upper triangle in the sorted positions
+            iu, ju = numpy.triu_indices(len(ra), k=1)
+            base_groups.append((la, la, ra[iu], ra[ju], "off"))
+            # diagonal pairs
+            base_groups.append((la, la, ra, ra, "diag"))
+            for lb in uls:
+                if lb <= la:
+                    continue
+                b0, b1 = lbounds[int(lb)]
+                rb = order[b0:b1]
+                pp, qq = numpy.meshgrid(ra, rb, indexing="ij")
+                base_groups.append((la, lb, pp.ravel(), qq.ravel(), "off"))
+
+        def _pair_info(la, lb, enc):
             return PairInfo(
                 li=numpy.int32(la),
                 lj=numpy.int32(lb),
@@ -297,48 +311,45 @@ class LatBasisCrossPlan:
                 n_pairs=numpy.int32(len(enc)),
             )
 
-        pairs_bra_off = []
-        pairs_ket_off = []
-        pairs_bra_diag = []
-        pairs_ket_diag = []
-        for la in uls:
-            a0, a1 = lbounds[int(la)]
-            ra = order[a0:a1]
-            # same-l: strict upper triangle in the sorted positions
-            iu, ju = numpy.triu_indices(len(ra), k=1)
-            g = _groups(ra[iu], ra[ju], la, la, "fake")
-            if g: pairs_bra_off.append(g)
-            g = _groups(ra[iu], ra[ju], la, la, "real")
-            if g: pairs_ket_off.append(g)
-            # diagonal pairs
-            g = _groups(ra, ra, la, la, "fake")
-            if g: pairs_bra_diag.append(g)
-            g = _groups(ra, ra, la, la, "real")
-            if g: pairs_ket_diag.append(g)
-            for lb in uls:
-                if lb <= la:
-                    continue
-                b0, b1 = lbounds[int(lb)]
-                rb = order[b0:b1]
-                pp, qq = numpy.meshgrid(ra, rb, indexing="ij")
-                g = _groups(pp.ravel(), qq.ravel(), la, lb, "fake")
-                if g: pairs_bra_off.append(g)
-                g = _groups(pp.ravel(), qq.ravel(), la, lb, "real")
-                if g: pairs_ket_off.append(g)
+        nl_per_prim = 2 * fake_rows[:, ANG_OF] + 1
+        chunks = []
+        if budget is None:
+            budget = chunk_budget(nao, nl_per_prim.max())
+        for r0, r1, fn0, n_fn in _fake_chunks(nl_per_prim, budget):
+            chunk_prim2fn = numpy.zeros(n_rows, dtype=numpy.int32)
+            fake_off = numpy.asarray(fake_fn, dtype=numpy.int32)[r0:r1] - fn0
+            chunk_prim2fn[r0:r1] = fake_off               # fake bra copy
+            chunk_prim2fn[2*npr+r0:2*npr+r1] = fake_off   # fake ket copy
+            chunk_prim2fn[npr:2*npr] = real_fn            # real bra copy
+            chunk_prim2fn[3*npr:] = real_fn               # real ket copy
+            pairs = {"bra_off": [], "bra_diag": [],
+                     "ket_off": [], "ket_diag": []}
+            for la, lb, p, q, kind in base_groups:
+                # bra direction (fake_bra_p, real_ket_q): chunk on the bra
+                m = (p >= r0) & (p < r1)
+                if m.any():
+                    enc = p[m] * n_rows + (3 * npr + q[m])
+                    pairs["bra_" + kind].append(_pair_info(la, lb, enc))
+                # ket direction (real_bra_p, fake_ket_q): chunk on the ket
+                m = (q >= r0) & (q < r1)
+                if m.any():
+                    enc = (npr + p[m]) * n_rows + (2 * npr + q[m])
+                    pairs["ket_" + kind].append(_pair_info(la, lb, enc))
+            chunks.append(CrossChunk(
+                fn_start=fn0, n_fn=n_fn,
+                n_functions=numpy.int32(max(n_fn, nao)),
+                primitive_to_function=chunk_prim2fn,
+                pairs={k: tuple(v) for k, v in pairs.items()},
+            ))
 
         self.rows_static = rows
-        self.primitive_to_function = prim2fn
-        self.n_functions = nao_fake + nao
+        self.chunks = chunks
         self.n_primitives = n_rows
         self.nao_fake = nao_fake
         self.nao = nao
         self.npr = npr
         self.natm = int(natm)
         self.ptr_coords2 = ptr_coords2
-        self.pairs_bra_off = pairs_bra_off
-        self.pairs_ket_off = pairs_ket_off
-        self.pairs_bra_diag = pairs_bra_diag
-        self.pairs_ket_diag = pairs_ket_diag
 
         # env pointer gather descriptors (per (shell, ctr, prim) row)
         self.prim_shell = numpy.asarray(prim_shell)
@@ -382,11 +393,11 @@ class LatBasisCrossPlan:
 _LAT_BASIS_CROSS_PLAN_CACHE = {}
 
 
-def _get_lat_basis_cross_plan(bas_conc, natm, nenv):
-    key = (bas_conc.tobytes(), bas_conc.shape, int(natm), int(nenv))
+def _get_lat_basis_cross_plan(bas_conc, natm, nenv, budget=None):
+    key = (bas_conc.tobytes(), bas_conc.shape, int(natm), int(nenv), budget)
     plan = _LAT_BASIS_CROSS_PLAN_CACHE.get(key)
     if plan is None:
-        plan = LatBasisCrossPlan(bas_conc, natm, nenv)
+        plan = LatBasisCrossPlan(bas_conc, natm, nenv, budget)
         _LAT_BASIS_CROSS_PLAN_CACHE[key] = plan
     return plan
 
@@ -418,13 +429,12 @@ def _gen_int1e_jvp_basis(
     bas_conc = _plan_bas_concrete(cuint_plan, bas)
     natm = atm.shape[0]
     nenv = env.shape[-1]
+    Ls = Ls.reshape(-1, 3)
+    nL = Ls.shape[0]
     plan = _get_lat_basis_cross_plan(bas_conc, natm, nenv)
     nao_fake = plan.nao_fake
     nao = plan.nao
     rows = plan.make_rows(bas)
-
-    Ls = Ls.reshape(-1, 3)
-    nL = Ls.shape[0]
 
     # doubled system: ket atom copy displaced by L, coordinates in an
     # appended env block; evaluated on the (stopped) primal env only
@@ -445,31 +455,22 @@ def _gen_int1e_jvp_basis(
     )
     env2 = ops.stop_gradient(env2)
 
-    def _blocks(pairs_bra, pairs_ket, lap):
-        """Cross blocks of the integral (``lap``: with the Laplacian of the
-        exponent identity applied to the fake shell).
+    def _blocks(kind, lap):
+        """Bra- and ket-direction cross blocks of one pair group, assembled
+        over the chunks (``lap``: with the Laplacian of the exponent identity
+        applied to the fake shell, already traced).
 
         The integral's own ``n_deriv`` derivatives always sit on the bra,
         which is the fake shell in the bra-direction blocks and the real
         shell in the ket-direction ones.
         """
-        # bra-direction blocks [0:nao_fake, nao_fake:]: fake bra, real ket
-        xb = gen_overlap_cross(atm2, env2, plan, rows,
-                               i_deriv=n_deriv + 2 * lap,
-                               pairs=pairs_bra)[..., :nao_fake, nao_fake:]
-        # ket-direction blocks [nao_fake:, 0:nao_fake]: real bra, fake ket
-        xk = gen_overlap_cross(atm2, env2, plan, rows, i_deriv=n_deriv,
-                               j_deriv=2 * lap,
-                               pairs=pairs_ket)[..., nao_fake:, :nao_fake]
-        if lap:
-            xb = _lap_trace(xb, n_deriv, 1)
-            xk = _lap_trace(xk, n_deriv, 1)
+        # bra-direction blocks: fake bra x real ket
+        xb = _cross_blocks(atm2, env2, plan, rows, n_deriv, lap,
+                           group="bra_" + kind)
+        # ket-direction blocks: real bra x fake ket
+        xk = _cross_blocks(atm2, env2, plan, rows, n_deriv, lap,
+                           group="ket_" + kind, transpose=True)
         return xb, xk
-
-    x0_bra_off, x0_ket_off = _blocks(plan.pairs_bra_off, plan.pairs_ket_off, 0)
-    x0_bra_diag, x0_ket_diag = _blocks(plan.pairs_bra_diag, plan.pairs_ket_diag, 0)
-    d2_bra_off, d2_ket_off = _blocks(plan.pairs_bra_off, plan.pairs_ket_off, 1)
-    d2_bra_diag, d2_ket_diag = _blocks(plan.pairs_bra_diag, plan.pairs_ket_diag, 1)
 
     ptr_exp_col = bas[:, PTR_EXP]
     alpha_env_idx = ptr_exp_col[plan.fakefn_shell] + plan.fakefn_prim
@@ -477,19 +478,6 @@ def _gen_int1e_jvp_basis(
     lfac = 2.0 * (2 * plan.l_fake_fn + 3)
     scale = 1.0 / (4.0 * alpha ** 2)
     afac = lfac * alpha
-
-    def _x_exp_bra(tr, x0):
-        # (nL, comp, nao_fake, nao): the fake shell indexes the rows
-        return -(tr + afac[None, None, :, None] * x0) * scale[None, None, :, None]
-
-    def _x_exp_ket(tr, x0):
-        # (nL, comp, nao, nao_fake): the fake shell indexes the columns
-        return -(tr + x0 * afac[None, None, None, :]) * scale[None, None, None, :]
-
-    x_exp_bra_off = _x_exp_bra(d2_bra_off, x0_bra_off)
-    x_exp_bra_diag = _x_exp_bra(d2_bra_diag, x0_bra_diag)
-    x_exp_ket_off = _x_exp_ket(d2_ket_off, x0_ket_off)
-    x_exp_ket_diag = _x_exp_ket(d2_ket_diag, x0_ket_diag)
 
     ptr_coeff_col = bas[:, PTR_COEFF]
     coeff_env_idx = ptr_coeff_col[plan.map_entry_shell] + plan.map_coeff_off
@@ -510,14 +498,26 @@ def _gen_int1e_jvp_basis(
     def _ket(x, t):
         return np.einsum("lcma,na->lcmn", x, t)
 
-    # the primal halves the diagonal primitive pairs (cuint's OVLP_SPELL),
-    # so their bra and ket cross terms enter with weight 1/2 as well
-    jvp = (
-        _bra(t_cs, x0_bra_off) + _ket(x0_ket_off, t_cs)
-        + 0.5 * (_bra(t_cs, x0_bra_diag) + _ket(x0_ket_diag, t_cs))
-        + _bra(t_exp, x_exp_bra_off) + _ket(x_exp_ket_off, t_exp)
-        + 0.5 * (_bra(t_exp, x_exp_bra_diag) + _ket(x_exp_ket_diag, t_exp))
-    )
+    def _weighted(lap):
+        """Cross blocks summed over the pair groups with their weights. The
+        primal halves the diagonal primitive pairs (cuint's OVLP_SPELL), so
+        their cross terms enter with weight 1/2 as well; folding that in here
+        rather than after the contraction keeps the (tangent-batched)
+        contraction outputs down to one per direction.
+        """
+        xb_off, xk_off = _blocks("off", lap)
+        xb_diag, xk_diag = _blocks("diag", lap)
+        return xb_off + 0.5 * xb_diag, xk_off + 0.5 * xk_diag
+
+    x0_bra, x0_ket = _weighted(0)
+    tr_bra, tr_ket = _weighted(1)
+    x_exp_bra = -(tr_bra + afac[None, None, :, None] * x0_bra) \
+        * scale[None, None, :, None]
+    x_exp_ket = -(tr_ket + x0_ket * afac[None, None, None, :]) \
+        * scale[None, None, None, :]
+
+    jvp = (_bra(t_cs, x0_bra) + _ket(x0_ket, t_cs)
+           + _bra(t_exp, x_exp_bra) + _ket(x_exp_ket, t_exp))
 
     Ls_mask = np.asarray(Ls_mask).reshape(-1)
     jvp = np.where(Ls_mask[:, None, None, None] != 0, jvp,

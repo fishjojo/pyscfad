@@ -403,6 +403,47 @@ def test_cuint_mixed_coord_basis_deriv_batched(mol_batch):
         assert not g[~mask].any()
 
 
+def test_cuint_cross_block_chunking(OH):
+    """The cross integrals are evaluated a chunk of fake functions at a time
+    so that the square block the kernels write is no bigger than the
+    (fake x real) one that is kept. That split is pure bookkeeping: the
+    assembled block must not depend on the chunk width.
+    """
+    from pyscfad.experimental.moleintor_cuint import (
+        BasisCrossPlan, _cross_blocks, _plan_bas_concrete,
+    )
+
+    numbers = OH["numbers"]
+    spin = OH["spin"]
+    coords = OH["coords"]
+    plan_cu = OH["plan"]
+
+    mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis="ccpvdz")
+    atm = numpy.asarray(mol._atm, dtype=numpy.int32)
+    bas = numpy.asarray(mol._bas)
+    env = numpy.asarray(mol._env)
+    bas_conc = _plan_bas_concrete(plan_cu, bas)
+    envc = np.concatenate([np.asarray(env), np.ones(1)])
+
+    whole = BasisCrossPlan(bas_conc, env.shape[-1], budget=10**6)
+    split = BasisCrossPlan(bas_conc, env.shape[-1], budget=5)
+    assert len(whole.chunks) == 1
+    assert len(split.chunks) > 1
+    assert sum(c.n_fn for c in split.chunks) == split.nao_fake
+
+    for n_deriv in (0, 1):
+        for lap in (False, True):
+            a = _cross_blocks(atm, envc, whole, whole.make_rows(bas),
+                              n_deriv, lap)
+            b = _cross_blocks(atm, envc, split, split.make_rows(bas),
+                              n_deriv, lap)
+            a = numpy.asarray(a)
+            b = numpy.asarray(b)
+            assert a.shape == (3 ** n_deriv, whole.nao_fake, whole.nao)
+            # only the atomicAdd order over the pair lists differs
+            assert abs(a - b).max() < 1e-12 * max(1.0, abs(a).max())
+
+
 def test_cuint_basis_deriv_gradient_old_plugin(OH, monkeypatch):
     """A plugin whose kernels stop at total derivative order 2 cannot do the
     exponent term of the gradient integral; cuint would silently return

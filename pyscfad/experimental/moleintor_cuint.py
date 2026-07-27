@@ -16,7 +16,7 @@
 GTO integrals using the cuint backend.
 """
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from functools import partial
@@ -193,6 +193,63 @@ def getints_jvp(
 getints.defjvp(getints_jvp, symbolic_zeros=True)
 
 
+class CrossChunk(NamedTuple):
+    """One kernel launch's worth of fake functions.
+
+    The cuint kernels address their output as a square
+    ``n_functions x n_functions`` matrix (the component and configuration
+    strides are ``n_functions**2``), while the cross blocks are the
+    rectangular fake x real ones. Splitting the fake functions into chunks of
+    at most ``nao`` of them makes the square the kernels demand no bigger than
+    the block that is actually filled.
+
+    Attributes:
+        fn_start: First fake function of the chunk (into ``[0, nao_fake)``).
+        n_fn: Number of fake functions in the chunk.
+        n_functions: Side of the square the kernels write,
+            ``max(n_fn, nao)``.
+        primitive_to_function: Function index of every plan row for this
+            chunk: the chunk's fake rows relative to ``fn_start``, the real
+            rows as themselves (the two index spaces are independent -- one
+            indexes the output rows, the other its columns).
+        pairs: ``{group name: tuple of PairInfo}`` restricted to the chunk.
+    """
+    fn_start: int
+    n_fn: int
+    n_functions: numpy.int32
+    primitive_to_function: numpy.ndarray
+    pairs: dict
+
+
+def chunk_budget(nao, nl_max):
+    """Fake functions per kernel launch.
+
+    ``nao`` of them: the kernels write a square block, so a chunk that wide
+    makes the square exactly the (fake x real) block that is kept, with
+    nothing allocated around it. A chunk always holds whole rows, hence the
+    floor at the widest single row.
+    """
+    return max(int(nao), int(nl_max))
+
+
+def _fake_chunks(nl_per_row, budget):
+    """Group consecutive fake rows into chunks of at most ``budget``
+    functions, as ``(row start, row stop, function start, function count)``.
+
+    A row's functions are contiguous, so the chunks tile ``[0, nao_fake)``.
+    """
+    chunks = []
+    r0 = fn0 = total = 0
+    for i, nl in enumerate(nl_per_row):
+        if total and total + nl > budget:
+            chunks.append((r0, i, fn0, total))
+            r0, fn0, total = i, fn0 + total, 0
+        total += int(nl)
+    if total:
+        chunks.append((r0, len(nl_per_row), fn0, total))
+    return chunks
+
+
 class BasisCrossPlan:
     """Static structural plan for the fake(primitive) x real cross
     integrals used by the basis-set parameter derivatives
@@ -201,16 +258,18 @@ class BasisCrossPlan:
     The fake shells are one uncontracted shell per (shell, primitive) with
     unit coefficient (an env slot appended at ``ptr_ones``), mapped to a
     primitive-resolved function space ``[0, nao_fake)``; the real shells are
-    decontracted per (shell, contraction, primitive) and keep their
-    ``ao_loc`` offsets shifted into ``[nao_fake, nao_fake + nao)``. Pairs are
-    explicit ("screened") lists, one group per (l_bra, l_ket) combination.
+    decontracted per (shell, contraction, primitive) and keep their ``ao_loc``
+    offsets in ``[0, nao)``. The fake functions index the rows of the cross
+    block and the real ones its columns, so the two spaces are independent.
+    Pairs are explicit ("screened") lists, one group per (l_bra, l_ket)
+    combination, split over :class:`CrossChunk` s.
 
     All structure is built from ``bas_conc``; the env pointer
     columns are filled from the actual (possibly traced) ``bas`` by
     :meth:`make_rows`, so the plan works under jit and vmap over atomic
     numbers.
     """
-    def __init__(self, bas_conc, ptr_ones):
+    def __init__(self, bas_conc, ptr_ones, budget=None):
         bas_conc = numpy.asarray(bas_conc)
         ls = bas_conc[:, ANG_OF]
         nprims = bas_conc[:, NPRIM_OF]
@@ -243,7 +302,7 @@ class BasisCrossPlan:
             for k in range(nctr):
                 for j in range(nprim):
                     real_rows.append([iatm, l, 1, 1, 0, 0, 0, 0])
-                    real_fn.append(nao_fake + ao_loc[i] + k * nl)
+                    real_fn.append(ao_loc[i] + k * nl)
                     real_shell.append(i)
                     real_prim.append(j)
                     real_coeff_off.append(k * nprim + j)
@@ -251,30 +310,43 @@ class BasisCrossPlan:
         nf = len(fake_rows)
         nr = len(real_rows)
         rows = numpy.asarray(fake_rows + real_rows, dtype=numpy.int32)
-        prim2fn = numpy.asarray(fake_fn + real_fn, dtype=numpy.int32)
+        fake_fn = numpy.asarray(fake_fn, dtype=numpy.int32)
+        real_fn = numpy.asarray(real_fn, dtype=numpy.int32)
         n_rows = nf + nr
 
         l_fake = rows[:nf, ANG_OF]
         l_real = rows[nf:, ANG_OF]
-        pairs = []
-        for la in numpy.unique(l_fake):
-            f_idx = numpy.flatnonzero(l_fake == la)
-            for lb in numpy.unique(l_real):
-                r_idx = nf + numpy.flatnonzero(l_real == lb)
-                enc = (f_idx[:, None] * n_rows + r_idx[None, :]).ravel()
-                pairs.append(PairInfo(
-                    li=numpy.int32(la),
-                    lj=numpy.int32(lb),
-                    pair_indices=numpy.asarray(enc, dtype=numpy.int32),
-                    n_pairs=numpy.int32(enc.size),
-                ))
+        chunks = []
+        nl_fake = 2 * l_fake + 1
+        if budget is None:
+            budget = chunk_budget(nao, nl_fake.max())
+        for r0, r1, fn0, n_fn in _fake_chunks(nl_fake, budget):
+            prim2fn = numpy.zeros(n_rows, dtype=numpy.int32)
+            prim2fn[r0:r1] = fake_fn[r0:r1] - fn0
+            prim2fn[nf:] = real_fn
+            pairs = []
+            for la in numpy.unique(l_fake[r0:r1]):
+                f_idx = r0 + numpy.flatnonzero(l_fake[r0:r1] == la)
+                for lb in numpy.unique(l_real):
+                    r_idx = nf + numpy.flatnonzero(l_real == lb)
+                    enc = (f_idx[:, None] * n_rows + r_idx[None, :]).ravel()
+                    pairs.append(PairInfo(
+                        li=numpy.int32(la),
+                        lj=numpy.int32(lb),
+                        pair_indices=numpy.asarray(enc, dtype=numpy.int32),
+                        n_pairs=numpy.int32(enc.size),
+                    ))
+            chunks.append(CrossChunk(
+                fn_start=fn0, n_fn=n_fn,
+                n_functions=numpy.int32(max(n_fn, nao)),
+                primitive_to_function=prim2fn,
+                pairs={"cross": tuple(pairs)},
+            ))
 
         self.rows_static = rows
-        self.primitive_to_function = prim2fn
-        self.pairs = pairs
+        self.chunks = chunks
         self.nao_fake = nao_fake
         self.nao = nao
-        self.n_functions = nao_fake + nao
         self.n_primitives = n_rows
         self.nf = nf
 
@@ -314,11 +386,11 @@ class BasisCrossPlan:
 _BASIS_CROSS_PLAN_CACHE = {}
 
 
-def _get_basis_cross_plan(bas_conc, ptr_ones):
-    key = (bas_conc.tobytes(), bas_conc.shape, int(ptr_ones))
+def _get_basis_cross_plan(bas_conc, ptr_ones, budget=None):
+    key = (bas_conc.tobytes(), bas_conc.shape, int(ptr_ones), budget)
     plan = _BASIS_CROSS_PLAN_CACHE.get(key)
     if plan is None:
-        plan = BasisCrossPlan(bas_conc, ptr_ones)
+        plan = BasisCrossPlan(bas_conc, ptr_ones, budget)
         _BASIS_CROSS_PLAN_CACHE[key] = plan
     return plan
 
@@ -407,13 +479,18 @@ def gen_overlap_cross(
     env: Array,
     plan,
     rows: ArrayLike,
+    chunk: CrossChunk,
     i_deriv: int = 0,
     j_deriv: int = 0,
-    pairs: Sequence[PairInfo] | None = None,
+    group: str = "cross",
 ) -> Array:
-    """Cross overlap (or its bra/ket coordinate derivatives) over the
-    explicit pair lists of a :class:`BasisCrossPlan`, via the general-order
-    ``cuint_gen_overlap_ffi`` kernel. No symmetrization is applied.
+    """Cross overlap (or its bra/ket coordinate derivatives) over one chunk's
+    explicit pair lists, via the general-order ``cuint_gen_overlap_ffi``
+    kernel. No symmetrization is applied.
+
+    The result is the ``(comp, n_functions, n_functions)`` square the kernels
+    write; the caller keeps the fake x real (or real x fake) corner of it,
+    ``chunk.n_fn`` by ``plan.nao``.
 
     ``env`` may carry one leading batch dimension (e.g. lattice images);
     ``atm``/``rows`` are then tiled so that every operand carries the same
@@ -423,11 +500,10 @@ def gen_overlap_cross(
     atm = np.asarray(atm, dtype=np.int32)
     env = np.asarray(env, dtype=np.float64)
     rows = np.asarray(rows, dtype=np.int32)
-    if pairs is None:
-        pairs = plan.pairs
+    pairs = chunk.pairs[group]
 
     comp = 3 ** (i_deriv + j_deriv)
-    n = int(plan.n_functions)
+    n = int(chunk.n_functions)
     if env.ndim == 1:
         shape = (comp, n, n)
     else:
@@ -449,7 +525,7 @@ def gen_overlap_cross(
     out = np.zeros(shape, dtype)
     for pair in pairs:
         out = call(
-            out, pair.pair_indices, plan.primitive_to_function,
+            out, pair.pair_indices, chunk.primitive_to_function,
             atm, rows, env,
             i_angular=pair.li,
             j_angular=pair.lj,
@@ -465,6 +541,30 @@ def gen_overlap_cross(
             comp=numpy.int32(comp),
         )
     return out
+
+
+def _cross_blocks(atm, env, plan, rows, n_deriv, lap, group="cross",
+                  transpose=False):
+    """The fake x real cross block over all of a plan's chunks.
+
+    ``lap`` contracts the two extra derivative slots of the exponent
+    identity into a Laplacian, per chunk, so only the ``3**n_deriv``
+    components of the integral itself are kept. ``transpose`` selects the
+    real x fake blocks (the ket direction of the lattice plan).
+    """
+    blocks = []
+    for chunk in plan.chunks:
+        x = gen_overlap_cross(atm, env, plan, rows, chunk, group=group,
+                              i_deriv=n_deriv if transpose else n_deriv + 2*lap,
+                              j_deriv=2 * lap if transpose else 0)
+        if transpose:
+            x = x[..., :plan.nao, :chunk.n_fn]
+        else:
+            x = x[..., :chunk.n_fn, :plan.nao]
+        if lap:
+            x = _lap_trace(x, n_deriv, x.ndim - 3)
+        blocks.append(x)
+    return np.concatenate(blocks, axis=-1 if transpose else -2)
 
 
 def _gen_int1e_jvp_basis(
@@ -515,17 +615,10 @@ def _gen_int1e_jvp_basis(
     envc = ops.stop_gradient(np.concatenate(
         [np.asarray(env, dtype=np.float64), np.ones(1, dtype=np.float64)]))
 
-    x0 = gen_overlap_cross(atm, envc, plan, rows,
-                           i_deriv=n_deriv)[..., :nao_fake, nao_fake:]
-    d2 = gen_overlap_cross(atm, envc, plan, rows,
-                           i_deriv=n_deriv+2)[..., :nao_fake, nao_fake:]
-    tr_d2 = _lap_trace(d2, n_deriv, 0)
-
     ptr_exp = bas[:, PTR_EXP]
     alpha_env_idx = ptr_exp[plan.fakefn_shell] + plan.fakefn_prim
     alpha = ops.stop_gradient(env[alpha_env_idx])
     lfac = 2.0 * (2 * plan.l_fake_fn + 3)
-    x_exp = -(tr_d2 + (lfac * alpha)[:, None] * x0) / (4.0 * alpha ** 2)[:, None]
 
     maps = cs_scatter_maps(bas_conc, False)
     # the cs maps enumerate (shell, contraction, primitive, function) with
@@ -537,11 +630,21 @@ def _gen_int1e_jvp_basis(
     w_cs = env_dot[coeff_env_idx]
     w_exp = ops.stop_gradient(env[coeff_env_idx]) * env_dot[exp_env_idx]
 
-    t_cs = np.zeros((nao, nao_fake), dtype=x0.dtype)
+    dtype = np.float64
+    t_cs = np.zeros((nao, nao_fake), dtype=dtype)
     t_cs = ops.index_add(t_cs, ops.index[maps.real_rows, maps.fake_rows], w_cs)
-    t_exp = np.zeros((nao, nao_fake), dtype=x0.dtype)
+    t_exp = np.zeros((nao, nao_fake), dtype=dtype)
     t_exp = ops.index_add(t_exp, ops.index[maps.real_rows, maps.fake_rows], w_exp)
 
+    # the fake functions are covered one chunk at a time, so the square block
+    # the kernels insist on writing is only nao x nao and the exponent term's
+    # 3**(n_deriv+2) components live for one chunk each -- what is kept is the
+    # (fake x real) block the contraction needs, with the Laplacian already
+    # traced out of it
+    x0 = _cross_blocks(atm, envc, plan, rows, n_deriv, lap=False)
+    tr_d2 = _cross_blocks(atm, envc, plan, rows, n_deriv, lap=True)
+
+    x_exp = -(tr_d2 + (lfac * alpha)[:, None] * x0) / (4.0 * alpha ** 2)[:, None]
     jvp = (np.einsum("ma,...av->...mv", t_cs, x0)
            + np.einsum("ma,...av->...mv", t_exp, x_exp))
     # ket term: + transpose for the (symmetric) overlap, - for its
