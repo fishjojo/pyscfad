@@ -40,9 +40,17 @@ from pyscfad.gto.moleintor_lite import (
     _aoslice_by_atom,
     _extract_coords,
 )
+from pyscfad.gto._basis_deriv import next_coord_deriv
 from pyscfad.gto._pyscf_moleintor import make_loc
+from pyscfad.gto._moleintor_helper import int1e_dr1_name
 from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
-from .moleintor_cuint import PairInfo, gen_overlap_cross, _plan_bas_concrete
+from .moleintor_cuint import (
+    PairInfo,
+    gen_overlap_cross,
+    _basis_deriv_order,
+    _lap_trace,
+    _plan_bas_concrete,
+)
 
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
@@ -63,6 +71,7 @@ if TYPE_CHECKING:
         "trace_coords",
         "trace_basis",
         "aoslices",
+        "max_coord_deriv",
     ),
 )
 def _lattice_intor(
@@ -80,6 +89,7 @@ def _lattice_intor(
     trace_coords: bool = False,
     trace_basis: bool = False,
     aoslices: ArrayLike | None = None, # for padding
+    max_coord_deriv: int | None = None,
 ) -> Array:
     bas = np.asarray(bas).reshape(-1,BAS_SLOTS)
     nbas = bas.shape[0]
@@ -96,9 +106,11 @@ def _lattice_intor(
 
     if intor_name == "int1e_ovlp_sph":
         out = lat_overlap(atm, env, Ls, Ls_mask, cuint_plan)
+    elif intor_name in ("int1e_ovlp_dr10_sph", "int1e_ipovlp_sph"):
+        out = lat_overlap(atm, env, Ls, Ls_mask, cuint_plan, deriv=1)
     else:
         raise NotImplementedError(
-            "Integral {intor_name} is not supported."
+            f"Integral {intor_name} is not supported."
         )
     return out
 
@@ -385,18 +397,24 @@ def _gen_int1e_jvp_basis(
     """Basis-set parameter tangent of the per-image lattice integrals
     on the cuint backend (first order in the basis parameters).
 
-    The exponent term uses the solid-harmonic identity
-    ``r_A^2 chi = [lap_A chi + 2 alpha (2l+3) chi] / (4 alpha^2)`` with
-    the Laplacian from ``gen_overlap`` (``i_deriv``/``j_deriv`` = 2 on the
-    fake side). All cross integrals run per image through the kernels'
-    native configuration batching (the ket atom copy is displaced by L).
+    Handles the lattice overlap and its coordinate gradient
+    (``int1e_ovlp_dr10``/``int1e_ipovlp``, one bra derivative), so that
+    forces and stresses stay differentiable w.r.t. the basis set. The
+    exponent term uses the solid-harmonic identity
+    ``r_A^2 chi = [lap_A chi + 2 alpha (2l+3) chi] / (4 alpha^2)`` with the
+    Laplacian from ``gen_overlap`` (two extra derivative slots on the fake
+    side, on top of the integral's own bra derivative). All cross integrals
+    run per image through the kernels' native configuration batching (the
+    ket atom copy is displaced by L).
+
+    Note:
+        As in the molecular backend, the cross integrals are evaluated on the
+        stopped primal ``env``, so a mixed coordinate/basis second derivative
+        has to differentiate the coordinates first, e.g.
+        ``jacfwd(grad(f, coords), basis)``.
     """
     del ao_loc
-    if intor_name != "int1e_ovlp_sph":
-        raise NotImplementedError(
-            "Basis-set parameter derivatives on the cuint lattice backend "
-            f"are only supported for int1e_ovlp_sph, got {intor_name}."
-        )
+    n_deriv = _basis_deriv_order(intor_name, backend="cuint lattice")
     bas_conc = _plan_bas_concrete(cuint_plan, bas)
     natm = atm.shape[0]
     nenv = env.shape[-1]
@@ -427,19 +445,31 @@ def _gen_int1e_jvp_basis(
     )
     env2 = ops.stop_gradient(env2)
 
-    def _blocks(pairs_bra, pairs_ket, i_deriv):
-        # bra-direction blocks [0:nao_fake, nao_fake:], with optional bra Laplacian
-        xb = gen_overlap_cross(atm2, env2, plan, rows, i_deriv=i_deriv,
-                               pairs=pairs_bra)
-        # ket-direction blocks [nao_fake:, 0:nao_fake], with the ket Laplacian
-        xk = gen_overlap_cross(atm2, env2, plan, rows, j_deriv=i_deriv,
-                               pairs=pairs_ket)
-        return xb[..., :nao_fake, nao_fake:], xk[..., nao_fake:, :nao_fake]
+    def _blocks(pairs_bra, pairs_ket, lap):
+        """Cross blocks of the integral (``lap``: with the Laplacian of the
+        exponent identity applied to the fake shell).
+
+        The integral's own ``n_deriv`` derivatives always sit on the bra,
+        which is the fake shell in the bra-direction blocks and the real
+        shell in the ket-direction ones.
+        """
+        # bra-direction blocks [0:nao_fake, nao_fake:]: fake bra, real ket
+        xb = gen_overlap_cross(atm2, env2, plan, rows,
+                               i_deriv=n_deriv + 2 * lap,
+                               pairs=pairs_bra)[..., :nao_fake, nao_fake:]
+        # ket-direction blocks [nao_fake:, 0:nao_fake]: real bra, fake ket
+        xk = gen_overlap_cross(atm2, env2, plan, rows, i_deriv=n_deriv,
+                               j_deriv=2 * lap,
+                               pairs=pairs_ket)[..., nao_fake:, :nao_fake]
+        if lap:
+            xb = _lap_trace(xb, n_deriv, 1)
+            xk = _lap_trace(xk, n_deriv, 1)
+        return xb, xk
 
     x0_bra_off, x0_ket_off = _blocks(plan.pairs_bra_off, plan.pairs_ket_off, 0)
     x0_bra_diag, x0_ket_diag = _blocks(plan.pairs_bra_diag, plan.pairs_ket_diag, 0)
-    d2_bra_off, d2_ket_off = _blocks(plan.pairs_bra_off, plan.pairs_ket_off, 2)
-    d2_bra_diag, d2_ket_diag = _blocks(plan.pairs_bra_diag, plan.pairs_ket_diag, 2)
+    d2_bra_off, d2_ket_off = _blocks(plan.pairs_bra_off, plan.pairs_ket_off, 1)
+    d2_bra_diag, d2_ket_diag = _blocks(plan.pairs_bra_diag, plan.pairs_ket_diag, 1)
 
     ptr_exp_col = bas[:, PTR_EXP]
     alpha_env_idx = ptr_exp_col[plan.fakefn_shell] + plan.fakefn_prim
@@ -448,13 +478,13 @@ def _gen_int1e_jvp_basis(
     scale = 1.0 / (4.0 * alpha ** 2)
     afac = lfac * alpha
 
-    def _x_exp_bra(d2, x0):
-        tr = d2[:, 0] + d2[:, 4] + d2[:, 8]
-        return -(tr + afac[None, :, None] * x0[:, 0]) * scale[None, :, None]
+    def _x_exp_bra(tr, x0):
+        # (nL, comp, nao_fake, nao): the fake shell indexes the rows
+        return -(tr + afac[None, None, :, None] * x0) * scale[None, None, :, None]
 
-    def _x_exp_ket(d2, x0):
-        tr = d2[:, 0] + d2[:, 4] + d2[:, 8]
-        return -(tr + x0[:, 0] * afac[None, None, :]) * scale[None, None, :]
+    def _x_exp_ket(tr, x0):
+        # (nL, comp, nao, nao_fake): the fake shell indexes the columns
+        return -(tr + x0 * afac[None, None, None, :]) * scale[None, None, None, :]
 
     x_exp_bra_off = _x_exp_bra(d2_bra_off, x0_bra_off)
     x_exp_bra_diag = _x_exp_bra(d2_bra_diag, x0_bra_diag)
@@ -475,20 +505,22 @@ def _gen_int1e_jvp_basis(
     t_exp = ops.index_add(t_exp, ops.index[plan.map_real_rows, plan.map_fake_rows], w_exp)
 
     def _bra(t, x):
-        return np.einsum("ma,lav->lmv", t, x)
+        return np.einsum("ma,lcav->lcmv", t, x)
 
     def _ket(x, t):
-        return np.einsum("lma,na->lmn", x, t)
+        return np.einsum("lcma,na->lcmn", x, t)
 
+    # the primal halves the diagonal primitive pairs (cuint's OVLP_SPELL),
+    # so their bra and ket cross terms enter with weight 1/2 as well
     jvp = (
-        _bra(t_cs, x0_bra_off[:, 0]) + _ket(x0_ket_off[:, 0], t_cs)
-        + 0.5 * (_bra(t_cs, x0_bra_diag[:, 0]) + _ket(x0_ket_diag[:, 0], t_cs))
+        _bra(t_cs, x0_bra_off) + _ket(x0_ket_off, t_cs)
+        + 0.5 * (_bra(t_cs, x0_bra_diag) + _ket(x0_ket_diag, t_cs))
         + _bra(t_exp, x_exp_bra_off) + _ket(x_exp_ket_off, t_exp)
         + 0.5 * (_bra(t_exp, x_exp_bra_diag) + _ket(x_exp_ket_diag, t_exp))
     )
 
     Ls_mask = np.asarray(Ls_mask).reshape(-1)
-    jvp = np.where(Ls_mask[:, None, None] != 0, jvp,
+    jvp = np.where(Ls_mask[:, None, None, None] != 0, jvp,
                    np.zeros((), dtype=jvp.dtype))
     return jvp
 
@@ -496,11 +528,9 @@ def _gen_int1e_jvp_basis(
 def _lattice_intor_jvp(
     intor_name, Ls_mask, atm, bas, cuint_plan,
     shls_slice, comp, hermi, ao_loc,
-    trace_coords, trace_basis, aoslices,
+    trace_coords, trace_basis, aoslices, max_coord_deriv,
     primals, tangents,
 ):
-    if not intor_name == "int1e_ovlp_sph":
-        raise NotImplementedError
     assert hermi == 1
 
     Ls, env = primals
@@ -510,14 +540,32 @@ def _lattice_intor_jvp(
         intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis, aoslices=aoslices,
+        max_coord_deriv=max_coord_deriv,
     )
 
     tangent_out = np.zeros_like(primal_out)
 
+    # the bra-derivative integral drives both geometry tangents; going
+    # through _lattice_intor (rather than calling the kernel directly) keeps
+    # it differentiable w.r.t. the basis-set parameters, which is what makes
+    # mixed coordinate/basis derivatives available
+    intor_ip_bra = int1e_dr1_name(intor_name)[0]
+    nested_coord_deriv, nested_trace_coords = next_coord_deriv(
+        max_coord_deriv, trace_coords
+    )
+    need_ip = ((not isinstance(env_dot, SymbolicZero) and trace_coords)
+               or not isinstance(Ls_dot, SymbolicZero))
+    if need_ip:
+        s1a = -_lattice_intor(
+            intor_ip_bra, Ls, Ls_mask, atm, bas, env, cuint_plan,
+            shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
+            trace_coords=nested_trace_coords, trace_basis=trace_basis,
+            aoslices=aoslices, max_coord_deriv=nested_coord_deriv,
+        )
+
     if not isinstance(env_dot, SymbolicZero):
         if trace_coords:
-            s1a = -lat_overlap(atm, env, Ls, Ls_mask, cuint_plan, deriv=1)
-            s1a = s1a.transpose(1,0,2,3)
+            s1a_x = s1a.transpose(1,0,2,3)
 
             env_dot = np.asarray(env_dot, dtype=np.float64)
             coords_dot = _extract_coords(atm, env_dot)
@@ -534,14 +582,14 @@ def _lattice_intor_jvp(
             if aoslices is None:
                 aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
 
-            naoi, naoj = s1a.shape[-2:]
+            naoi, naoj = s1a_x.shape[-2:]
 
             aoidx = np.arange(naoi)
-            jvp = _gen_int1e_fill_jvp_r0(s1a, coords_dot, aoslices-_ao_loc[i0],
+            jvp = _gen_int1e_fill_jvp_r0(s1a_x, coords_dot, aoslices-_ao_loc[i0],
                                          aoidx[None,None,:,None])
 
             aoidx = np.arange(naoj)
-            jvp += _gen_int1e_fill_jvp_r0(-s1a, coords_dot, aoslices-_ao_loc[j0],
+            jvp += _gen_int1e_fill_jvp_r0(-s1a_x, coords_dot, aoslices-_ao_loc[j0],
                                           aoidx[None,None,None,:])
 
             tangent_out += jvp.reshape(tangent_out.shape)
@@ -557,7 +605,6 @@ def _lattice_intor_jvp(
         # dS_L/dL is the ket-center derivative summed over all ket centers.
         # By pair translation invariance this equals minus the bra
         # derivative that the deriv=1 kernel provides.
-        s1a = -lat_overlap(atm, env, Ls, Ls_mask, cuint_plan, deriv=1)
         Ls_dot = np.asarray(Ls_dot, dtype=np.float64)
         tangent_out += np.einsum("lxpq,lx->lpq", -s1a, Ls_dot).reshape(
             tangent_out.shape

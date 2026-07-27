@@ -35,6 +35,7 @@ from pyscfad.gto.moleintor_lite import (
 from pyscfad.gto._basis_deriv import (
     basis_jvp_cs,
     basis_jvp_exp,
+    next_coord_deriv,
 )
 from pyscfad.gto._moleintor_helper import (
     int1e_get_dr_order,
@@ -113,6 +114,7 @@ def _get_lattice_Ls(rcut, atm, env, a, dimension):
         "aoslices",
         "dimension",
         "basis_array_metadata",
+        "max_coord_deriv",
     ),
 )
 def _pbc_intor(
@@ -132,6 +134,7 @@ def _pbc_intor(
     aoslices: ArrayLike | None = None, # for padding
     dimension: int = 3,
     basis_array_metadata: BasisArrayMetadata | None = None, # for padding
+    max_coord_deriv: int | None = None,
 ) -> Array:
     shape = _get_shape(
         intor_name,
@@ -233,6 +236,7 @@ def _gen_int1e_jvp_r0(
     intor_a, intor_b, a, kpts, rcut, atm, bas, env, env_dot,
     shls_slice, comp, hermi, ao_loc,
     trace_coords, trace_basis, aoslices=None, dimension=3, basis_array_metadata=None,
+    max_coord_deriv=None,
 ):
     kpts = kpts.reshape(-1,3)
     nkpts = kpts.shape[0]
@@ -240,11 +244,16 @@ def _gen_int1e_jvp_r0(
     if comp is not None:
         comp = comp * 3
 
+    nested_coord_deriv, nested_trace_coords = next_coord_deriv(
+        max_coord_deriv, trace_coords
+    )
+
     s1a = -_pbc_intor(
         intor_a, a, kpts, rcut, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=0, ao_loc=ao_loc,
-        trace_coords=trace_coords, trace_basis=trace_basis,
+        trace_coords=nested_trace_coords, trace_basis=trace_basis,
         aoslices=aoslices, dimension=dimension, basis_array_metadata=basis_array_metadata,
+        max_coord_deriv=nested_coord_deriv,
     )
 
     naoi, naoj = s1a.shape[-2:]
@@ -272,8 +281,10 @@ def _gen_int1e_jvp_r0(
         s1b = -_pbc_intor(
             intor_b, a, kpts, rcut, atm, bas, env,
             shls_slice=shls_slice, comp=comp, hermi=0, ao_loc=ao_loc,
-            trace_coords=trace_coords, trace_basis=trace_basis,
+            trace_coords=nested_trace_coords, trace_basis=trace_basis,
             aoslices=aoslices, dimension=dimension,
+            basis_array_metadata=basis_array_metadata,
+            max_coord_deriv=nested_coord_deriv,
         )
         s1b = s1b.reshape(nkpts,3**order_a,3,-1,naoi,naoj)
         s1b = s1b.transpose(0,2,1,3,4,5).reshape(nkpts,3,-1,naoi,naoj)
@@ -329,7 +340,7 @@ def _pbc_intor_jvp(
     intor_name, rcut, atm, bas,
     shls_slice, comp, hermi, ao_loc,
     trace_coords, trace_basis,
-    aoslices, dimension, basis_array_metadata,
+    aoslices, dimension, basis_array_metadata, max_coord_deriv,
     primals, tangents,
 ):
     a, kpts, env = primals
@@ -340,6 +351,7 @@ def _pbc_intor_jvp(
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis,
         aoslices=aoslices, dimension=dimension, basis_array_metadata=basis_array_metadata,
+        max_coord_deriv=max_coord_deriv,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -355,7 +367,7 @@ def _pbc_intor_jvp(
                 a, kpts, rcut, atm, bas, env, env_dot,
                 shls_slice, comp, hermi, ao_loc,
                 trace_coords, trace_basis,
-                aoslices, dimension, basis_array_metadata,
+                aoslices, dimension, basis_array_metadata, max_coord_deriv,
             ).reshape(tangent_out.shape)
         if trace_basis:
             tangent_out += _gen_int1e_jvp_basis(

@@ -190,18 +190,21 @@ def test_cs_exp_jit(basis):
                - numpy.asarray(grad_jit.data)).max() < 1e-12
 
 
-def test_cs_exp_padded_slots(basis):
-    """Padded exponents do not move the integrals (their coefficients are
-    zero), while padded coefficients carry the true, tiny derivative.
+@pytest.mark.parametrize("intor", ["int1e_ovlp", "int1e_ovlp_dr10"])
+def test_cs_exp_padded_slots(basis, intor):
+    """Padding slots carry no derivative at all.
+
+    They hold placeholders (exponent 1e12, zero coefficient) that contribute
+    to no integral, and their derivative would be meaningless anyway:
+    ``make_bas_env`` gives a padded coefficient a ``gto_norm(l, 1e12)`` ~ 1e21
+    tangent multiplying cross integrals of ~1e-19, which no backend resolves
+    to that relative accuracy. ``make_bas_env`` therefore freezes them.
     """
-    loss = loss_fn("int1e_ovlp", hermi=1)
+    loss = loss_fn(intor, hermi=1 if intor == "int1e_ovlp" else 0)
     grad = numpy.asarray(jax.grad(loss, allow_int=True)(basis).data)
 
     pad = ~numpy.asarray(basis.mask_data)
-    exp_col = numpy.zeros_like(pad)
-    exp_col[..., 0] = True
-    assert abs(grad[pad & exp_col]).max() < 1e-12
-    assert abs(grad[pad & ~exp_col]).max() < 1e-6
+    assert not grad[pad].any()
 
 
 def test_cs_exp_traced_numbers(basis):

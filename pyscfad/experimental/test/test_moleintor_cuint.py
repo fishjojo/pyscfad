@@ -262,6 +262,180 @@ def test_cuint_basis_deriv_fd(OH):
     assert n_exp and n_cs
 
 
+def test_cuint_basis_deriv_ipovlp(OH):
+    """Basis-parameter gradients of the coordinate-gradient overlap
+    (``int1e_ipovlp``): cuint vs the CPU lite path.
+
+    This is the integral the geometry-gradient tangent is built from, so its
+    basis derivative is what makes mixed coordinate/basis derivatives work.
+    """
+    numbers = OH["numbers"]
+    spin = OH["spin"]
+    coords = OH["coords"]
+    plan = OH["plan"]
+
+    basis0 = MoleLite(numbers=numbers, coords=coords, spin=spin,
+                      basis="ccpvdz").basis
+
+    def loss(basis, plan):
+        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
+                       trace_basis=True, cuint_plan=plan)
+        # both backends return the full (antisymmetric) matrix; cuint only
+        # implements hermi=1, the CPU path builds it with hermi=0
+        s1e = mol.intor("int1e_ipovlp", hermi=1 if plan is not None else 0)
+        return np.sum(s1e ** 2)
+
+    g_gpu = jax.grad(loss)(basis0, plan)
+    g_cpu = jax.grad(loss)(basis0, None)
+    for a, b in zip(jax.tree.leaves(g_gpu), jax.tree.leaves(g_cpu)):
+        assert abs(a - b).max() < 1e-9
+
+    g_jit = jax.jit(jax.grad(loss))(basis0, plan)
+    for a, b in zip(jax.tree.leaves(g_gpu), jax.tree.leaves(g_jit)):
+        assert abs(a - b).max() < 1e-12
+
+
+def _mixed_loss(numbers, spin, mcd=1):
+    """sum(S**2) as a function of (coords, basis), traced for both."""
+    def loss(coords, basis, plan):
+        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
+                       trace_coords=True, trace_basis=True,
+                       max_coord_deriv=mcd, cuint_plan=plan)
+        return np.sum(mol.intor("int1e_ovlp", hermi=1) ** 2)
+    return loss
+
+
+def test_cuint_mixed_coord_basis_deriv(OH):
+    """Mixed coordinate/basis second derivative (the basis-parameter
+    gradient of the geometry gradient): cuint vs the CPU lite path, and
+    against finite differences of the geometry gradient.
+    """
+    numbers = OH["numbers"]
+    spin = OH["spin"]
+    coords = OH["coords"]
+    plan = OH["plan"]
+
+    basis0 = MoleLite(numbers=numbers, coords=coords, spin=spin,
+                      basis="ccpvdz").basis
+    loss = _mixed_loss(numbers, spin)
+
+    # differentiate the geometry gradient w.r.t. the basis parameters; the
+    # coordinate derivative has to be the inner one (the cross integrals of
+    # the basis tangent are evaluated on the primal geometry)
+    mixed = jax.jacfwd(jax.grad(loss, argnums=0), argnums=1)
+    g_gpu = mixed(coords, basis0, plan)
+    g_cpu = mixed(coords, basis0, None)
+    for a, b in zip(jax.tree.leaves(g_gpu), jax.tree.leaves(g_cpu)):
+        assert abs(a - b).max() < 1e-9
+
+    # finite differences of the geometry gradient w.r.t. one exponent and one
+    # contraction coefficient per shell block
+    grad_coords = jax.grad(loss, argnums=0)
+    leaves, treedef = jax.tree.flatten(basis0)
+    got_leaves = jax.tree.leaves(g_gpu)
+    for i, leaf in enumerate(leaves):
+        leaf = numpy.asarray(leaf, dtype=float)
+        for idx in ((0, 0), (leaf.shape[0] - 1, leaf.shape[1] - 1)):
+            disp = 1e-5 * max(1.0, abs(leaf[idx]))
+
+            def at(d):
+                leaf1 = leaf.copy()
+                leaf1[idx] += d
+                leaves1 = list(leaves)
+                leaves1[i] = np.asarray(leaf1)
+                return numpy.asarray(
+                    grad_coords(coords, jax.tree.unflatten(treedef, leaves1),
+                                plan))
+
+            fd = (at(disp) - at(-disp)) / (2 * disp)
+            got = numpy.asarray(got_leaves[i])[..., idx[0], idx[1]]
+            assert abs(got - fd).max() < 1e-6 * max(1.0, abs(fd).max())
+
+
+def test_cuint_mixed_coord_basis_deriv_needs_max_coord_deriv(OH):
+    """Without ``max_coord_deriv=1`` the nested gradient integral keeps
+    tracing coordinates, and the second geometry derivative it then asks for
+    is not implemented on cuint -- it must fail loudly, not silently.
+    """
+    numbers = OH["numbers"]
+    spin = OH["spin"]
+    coords = OH["coords"]
+    plan = OH["plan"]
+
+    basis0 = MoleLite(numbers=numbers, coords=coords, spin=spin,
+                      basis="ccpvdz").basis
+    loss = _mixed_loss(numbers, spin, mcd=None)
+
+    with pytest.raises(NotImplementedError):
+        jax.jacfwd(jax.grad(loss, argnums=0), argnums=1)(coords, basis0, plan)
+
+
+def test_cuint_mixed_coord_basis_deriv_batched(mol_batch):
+    """Batched (padded, traced atomic numbers) mixed coordinate/basis
+    second derivatives through the cuint backend vs the CPU pad path."""
+    import dataclasses
+
+    numbers = mol_batch["numbers"]
+    coords = mol_batch["coords"]
+    basis = mol_batch["basis"]
+    plans = mol_batch["plans"]
+    in_axes = mol_batch["in_axes"]
+
+    # differentiate w.r.t. the basis parameters only (the BasisArray also
+    # carries boolean mask leaves, which forward mode has no tangents for)
+    def loss(data, numbers, coords, plan):
+        mol = MolePad(numbers, coords,
+                      basis=dataclasses.replace(basis, data=data), verbose=0,
+                      trace_coords=True, trace_basis=True,
+                      max_coord_deriv=1, cuint_plan=plan)
+        return np.sum(mol.intor("int1e_ovlp", hermi=1) ** 2)
+
+    mixed = jax.jacfwd(jax.grad(loss, argnums=2), argnums=0)
+    g_gpu = jax.jit(jax.vmap(mixed, in_axes=(None, 0, 0, in_axes)))(
+        basis.data, numbers, coords, plans)
+
+    for i in range(len(numbers)):
+        g_cpu = numpy.asarray(mixed(basis.data, numbers[i], coords[i], None))
+        g = numpy.asarray(g_gpu[i])
+        assert abs(g - g_cpu).max() < 1e-9
+        # padding entries are frozen in make_bas_env
+        mask = numpy.broadcast_to(numpy.asarray(basis.mask_data), g.shape)
+        assert not g[~mask].any()
+
+
+def test_cuint_basis_deriv_gradient_old_plugin(OH, monkeypatch):
+    """A plugin whose kernels stop at total derivative order 2 cannot do the
+    exponent term of the gradient integral; cuint would silently return
+    zeros, so the Python side has to refuse.
+    """
+    from pyscfad.experimental import moleintor_cuint
+
+    numbers = OH["numbers"]
+    spin = OH["spin"]
+    coords = OH["coords"]
+    plan = OH["plan"]
+
+    basis0 = MoleLite(numbers=numbers, coords=coords, spin=spin,
+                      basis="ccpvdz").basis
+    monkeypatch.setattr(moleintor_cuint, "cuint_max_deriv", lambda: 2)
+
+    def loss(basis):
+        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
+                       trace_basis=True, cuint_plan=plan)
+        return np.sum(mol.intor("int1e_ipovlp", hermi=1) ** 2)
+
+    with pytest.raises(NotImplementedError, match="derivative order 3"):
+        jax.grad(loss)(basis0)
+
+    # the plain overlap only needs order 2 and still works
+    def loss_ovlp(basis):
+        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
+                       trace_basis=True, cuint_plan=plan)
+        return np.sum(mol.intor("int1e_ovlp", hermi=1) ** 2)
+
+    assert jax.tree.leaves(jax.grad(loss_ovlp)(basis0))
+
+
 @pytest.mark.parametrize("intor", ["int1e_r", "int1e_rr"])
 def test_cuint_basis_deriv_unsupported(OH, intor):
     """Only the overlap has a basis-parameter derivative on cuint; the

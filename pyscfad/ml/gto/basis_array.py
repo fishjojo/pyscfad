@@ -28,6 +28,7 @@ from pyscf.data.elements import _symbol
 
 from pyscfad.typing import Array
 from pyscfad import numpy as np
+from pyscfad import ops
 from pyscfad.gto.mole_lite import _parse_default_basis, _format_basis
 
 # FIXME Monkey patch
@@ -59,6 +60,10 @@ class BasisArray:
     """Basis set stored in an array, padded to make
     each element type have the same numbers of shells,
     primitives and contractions.
+
+    The padding slots (where ``mask_data`` is False) hold placeholders that
+    enter no integral, and :func:`make_bas_env` freezes them, so derivatives
+    with respect to them are exactly zero.
     """
     data: Array
     mask_shl: Array
@@ -133,7 +138,13 @@ def make_bas_env(
     # TODO kappa
     kappa = 0
 
-    data = basis.data
+    # Padding entries (``mask_data`` False) are placeholders -- exponent 1e12
+    # and zero coefficient -- so they contribute nothing to any integral. Their
+    # derivative, on the other hand, is pure noise: ``gto_norm(l, 1e12)`` is
+    # ~1e21 and multiplies cross integrals of ~1e-19 that no backend resolves
+    # to that relative accuracy. Freeze them, leaving the values untouched.
+    data = np.where(basis.mask_data, basis.data,
+                    ops.stop_gradient(basis.data))
     ls = basis.ls
     for z in range(data.shape[0]):
         basis_add = data[z]

@@ -98,6 +98,15 @@ set(PYSCFAD_PLUGIN_INSTALL_DIR "." CACHE STRING
 set(CUINT_ROOT "" CACHE PATH
     "Prebuilt cuint install (include/ and lib/) to link instead of fetching+building cuint from GitHub. Empty = default GitHub build.")
 
+# Highest total derivative order (i_deriv + j_deriv) the general overlap kernels
+# are instantiated for. 3 is required by the basis-set parameter derivatives of
+# the coordinate-gradient overlap (pyscfad.gto._basis_deriv): the exponent term
+# adds a Laplacian (2) on top of the gradient (1) already in the integral.
+# cuint's dispatch silently no-ops above the compiled cap, so the Python side
+# checks this value (exported as _cuint.max_deriv()) before asking for order 3.
+set(CUINT_MAX_DERIV 3 CACHE STRING
+    "Maximum total derivative order compiled into the cuint overlap kernels.")
+
 if(CUINT_ROOT)
   get_filename_component(CUINT_ROOT "${CUINT_ROOT}" ABSOLUTE)
   # Locate the header and library under the install root. Search the usual
@@ -141,6 +150,7 @@ else()
       -DBUILD_SHARED_LIBS:BOOL=OFF
       -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
       -DCMAKE_CUDA_ARCHITECTURES:STRING=${CUINT_ARCH}
+      -DMAX_DERIV:STRING=${CUINT_MAX_DERIV}
       -DCMAKE_INSTALL_LIBDIR:PATH=lib
       -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
     BUILD_BYPRODUCTS ${CUINT_LIBRARY}
@@ -188,6 +198,12 @@ endif()
 target_include_directories(_cuint PRIVATE
   ${PYSCFADLIB_ROOT} ${XLA_DIR} ${CUDAToolkit_INCLUDE_DIRS} ${CUINT_INCLUDE_DIR})
 target_compile_options(_cuint PRIVATE -fno-strict-aliasing)
+# cuint installs only cuint.h, not its generated config.h, so the compiled
+# derivative-order cap is passed through from the build (see CUINT_MAX_DERIV)
+# and reported by _cuint.max_deriv(). With CUINT_ROOT it describes the prebuilt
+# cuint being linked, so set it to match that build.
+target_compile_definitions(_cuint PRIVATE
+  PYSCFAD_CUINT_MAX_DERIV=${CUINT_MAX_DERIV})
 target_link_libraries(_cuint PRIVATE ${CUINT_LIBRARY} CUDA::cudart)
 
 # A prebuilt local cuint is typically a shared lib; embed its directory in the

@@ -36,6 +36,7 @@ from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
 from pyscfad.gto._basis_deriv import (
     basis_jvp_cs,
     basis_jvp_exp,
+    next_coord_deriv as _next_coord_deriv,
 )
 
 if TYPE_CHECKING:
@@ -171,6 +172,7 @@ def _get_shape(
         "trace_basis",
         "aoslices",
         "basis_array_metadata",
+        "max_coord_deriv",
     ),
 )
 def getints(
@@ -187,6 +189,7 @@ def getints(
     trace_basis: bool = False,
     aoslices: ArrayLike | None = None, # for padding
     basis_array_metadata: BasisArrayMetadata | None = None, # for padding
+    max_coord_deriv: int | None = None,
 ) -> Array:
     from pyscfad.gto._pyscf_moleintor import getints as callback
 
@@ -215,6 +218,7 @@ def getints_jvp(
     trace_basis,
     aoslices,
     basis_array_metadata,
+    max_coord_deriv,
     primals,
     tangents,
 ):
@@ -237,6 +241,8 @@ def getints_jvp(
         trace_coords=trace_coords,
         trace_basis=trace_basis,
         aoslices=aoslices,
+        basis_array_metadata=basis_array_metadata,
+        max_coord_deriv=max_coord_deriv,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -257,7 +263,7 @@ def getints_jvp(
                 atm, bas, env, env_dot,
                 shls_slice, comp, hermi, aosym, ao_loc,
                 trace_coords, trace_basis,
-                aoslices, rc_deriv,
+                aoslices, rc_deriv, basis_array_metadata, max_coord_deriv,
             ).reshape(tangent_out.shape)
 
         if trace_basis:
@@ -281,17 +287,28 @@ def _gen_int1e_jvp_r0(
     atm, bas, env, env_dot,
     shls_slice, comp, hermi, aosym, ao_loc,
     trace_coords, trace_basis,
-    aoslices, rc_deriv,
+    aoslices, rc_deriv, basis_array_metadata=None, max_coord_deriv=None,
 ):
     if comp is not None:
         comp = comp * 3
+
+    # This tangent is first order in the nuclear coordinates. Its own
+    # coordinate derivative (the (R,R) Hessian block, int1e_ovlp_dr20/dr11) is
+    # only needed at second order; a caller that promises not to go there
+    # (``max_coord_deriv=1``: forces and stress, possibly differentiated
+    # further w.r.t. basis parameters) skips tracing it, while the basis
+    # derivative of this tangent -- the mixed block -- is kept.
+    nested_coord_deriv, nested_trace_coords = _next_coord_deriv(
+        max_coord_deriv, trace_coords
+    )
 
     s1a = -getints(
         intor_a, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=0,
         aosym=aosym, ao_loc=ao_loc,
-        trace_coords=trace_coords, trace_basis=trace_basis,
-        aoslices=aoslices,
+        trace_coords=nested_trace_coords, trace_basis=trace_basis,
+        aoslices=aoslices, basis_array_metadata=basis_array_metadata,
+        max_coord_deriv=nested_coord_deriv,
     )
     naoi, naoj = s1a.shape[1:]
     s1a = s1a.reshape(3,-1,naoi,naoj)
@@ -323,8 +340,9 @@ def _gen_int1e_jvp_r0(
             intor_b, atm, bas, env,
             shls_slice=shls_slice, comp=comp, hermi=0,
             aosym=aosym, ao_loc=ao_loc,
-            trace_coords=trace_coords, trace_basis=trace_basis,
-            aoslices=aoslices,
+            trace_coords=nested_trace_coords, trace_basis=trace_basis,
+            aoslices=aoslices, basis_array_metadata=basis_array_metadata,
+            max_coord_deriv=nested_coord_deriv,
         )
         # TODO make it general
         if "int1e_r_" in intor_b or intor_b == "int1e_r":

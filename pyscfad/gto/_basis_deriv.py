@@ -77,6 +77,32 @@ _S_NORM = 0.282094791773878143
 _P_NORM = 0.488602511902919921
 
 
+def next_coord_deriv(
+    max_coord_deriv: int | None,
+    trace_coords: bool,
+) -> tuple[int | None, bool]:
+    """Budget for the integrals *inside* a coordinate-tangent term.
+
+    A coordinate JVP term is one order in the nuclear coordinates (or lattice
+    shifts); the integrals it is built from are differentiated again only for
+    second- and higher-order geometry derivatives. ``max_coord_deriv`` is the
+    highest such order the caller will take (``None``: no limit, the default).
+    With ``max_coord_deriv=1`` -- forces and stress, which may still be
+    differentiated with respect to basis-set parameters -- the nested integrals
+    stop tracing coordinates, so the pure (R,R) blocks (``int1e_ovlp_dr20``,
+    ``dr11`` and the lattice analogues) are never requested, while the mixed
+    coordinate/basis blocks are unaffected. That saves work on every step and
+    is what lets the GPU backends, which implement only the first coordinate
+    derivative, take basis-parameter gradients of forces.
+
+    Returns ``(budget for the nested call, whether it traces coordinates)``.
+    """
+    if max_coord_deriv is None:
+        return None, trace_coords
+    remaining = int(max_coord_deriv) - 1
+    return remaining, trace_coords and remaining > 0
+
+
 def _concrete_bas(bas) -> numpy.ndarray:
     try:
         return numpy.asarray(bas)

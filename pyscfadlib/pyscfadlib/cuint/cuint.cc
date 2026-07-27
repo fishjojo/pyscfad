@@ -9,6 +9,16 @@ namespace cuint {
 
 namespace nb = nanobind;
 
+// Highest total derivative order (i_deriv + j_deriv) the linked cuint overlap
+// kernels were compiled for; set by the plugin build (CUINT_MAX_DERIV). cuint's
+// dispatch silently does nothing above its compiled cap, so callers must check
+// this before requesting a derivative order.
+#ifndef PYSCFAD_CUINT_MAX_DERIV
+#define PYSCFAD_CUINT_MAX_DERIV 2
+#endif
+
+int MaxDeriv() { return PYSCFAD_CUINT_MAX_DERIV; }
+
 nb::dict Registrations() {
     nb::dict dict;
 
@@ -29,6 +39,7 @@ nb::dict Registrations() {
 
 NB_MODULE(_cuint, m) {
     m.def("registrations", &Registrations);
+    m.def("max_deriv", &MaxDeriv);
 }
 
 } // namespace cuint

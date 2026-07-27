@@ -128,6 +128,134 @@ def test_latovlp_basis_deriv():
             assert abs(got - fd) < 1e-6 * max(1.0, abs(fd))
 
 
+def test_latovlp_mixed_coord_basis_deriv():
+    """Mixed coordinate/basis second derivative of the lattice overlap (the
+    basis-parameter gradient of the geometry gradient): cuint vs the CPU
+    lattice path, and against finite differences of the geometry gradient.
+    """
+    numbers = [14, 14]
+    coords = np.asarray(numpy.array([[0.0, 0.0, 0.0], [1.3468] * 3]) / BOHR)
+    a = numpy.array([[0.0, 2.6935, 2.6935],
+                     [2.6935, 0.0, 2.6935],
+                     [2.6935, 2.6935, 0.0]]) / BOHR
+    cell0 = CellLite(numbers=numbers, coords=coords, a=a, basis="gth-szv",
+                     rcut=8.0, precision=1e-6, verbose=0)
+    plan = cuint_create_plan(cell0)
+    Ls = numpy.asarray(cell0.Ls, dtype=float).reshape(-1, 3)
+    nimgs = tuple(int(x) for x in numpy.asarray(cell0.nimgs))
+    basis0 = cell0.basis
+
+    def loss(coords, basis, plan):
+        # max_coord_deriv=1: the nested gradient integral keeps its basis
+        # derivative but stops tracing coordinates (no second geometry
+        # derivative, which cuint does not implement)
+        cell = CellLite(numbers=numbers, coords=coords, a=a, basis=basis,
+                        rcut=8.0, nimgs=nimgs, precision=1e-6, verbose=0,
+                        trace_coords=True, trace_basis=True, max_coord_deriv=1)
+        s1e = np.sum(cell.lattice_intor("int1e_ovlp", hermi=1, Ls=Ls,
+                                        cuint_plan=plan), axis=0)
+        # backend-specific storage conventions (as in kxtb):
+        # CPU stores the lower triangle, cuint stores halved pair blocks
+        if plan is None:
+            s1e = hermi_triu(s1e)
+        else:
+            s1e = s1e + s1e.T
+        return np.sum(s1e ** 2)
+
+    mixed = jax.jacfwd(jax.grad(loss, argnums=0), argnums=1)
+    g_gpu = mixed(coords, basis0, plan)
+    g_cpu = mixed(coords, basis0, None)
+    for x, y in zip(jax.tree.leaves(g_gpu), jax.tree.leaves(g_cpu)):
+        assert abs(numpy.asarray(x) - numpy.asarray(y)).max() < 1e-9
+
+    # finite differences of the geometry gradient
+    grad_coords = jax.grad(loss, argnums=0)
+    leaves, treedef = jax.tree.flatten(basis0)
+    got_leaves = jax.tree.leaves(g_gpu)
+    for i, leaf in enumerate(leaves):
+        leaf = numpy.asarray(leaf, dtype=float)
+        for idx in ((0, 0), (leaf.shape[0] - 1, leaf.shape[1] - 1)):
+            disp = 1e-5 * max(1.0, abs(leaf[idx]))
+
+            def at(d):
+                leaf1 = leaf.copy()
+                leaf1[idx] += d
+                leaves1 = list(leaves)
+                leaves1[i] = np.asarray(leaf1)
+                return numpy.asarray(
+                    grad_coords(coords, jax.tree.unflatten(treedef, leaves1),
+                                plan))
+
+            fd = (at(disp) - at(-disp)) / (2 * disp)
+            got = numpy.asarray(got_leaves[i])[..., idx[0], idx[1]]
+            assert abs(got - fd).max() < 1e-6 * max(1.0, abs(fd).max())
+
+
+def test_latovlp_mixed_coord_basis_deriv_pad():
+    """Batched (padded) mixed coordinate/basis second derivatives of the
+    lattice overlap: cuint vs the CPU pad path."""
+    import dataclasses
+    from pyscfad.xtb import basis as xtb_basis
+    from pyscfad.ml.gto import make_basis_array
+    from pyscfad.ml.pbc.gto import CellPad
+    from pyscfad.ml.pbc.gto.cell_pad import make_image_grid
+    from pyscfad.experimental.moleintor_cuint import cuint_merge_plans
+
+    a = numpy.array([[0.0, 2.6935, 2.6935],
+                     [2.6935, 0.0, 2.6935],
+                     [2.6935, 2.6935, 0.0]]) / BOHR
+    coords_si = numpy.array([[0.0, 0.0, 0.0], [1.3468] * 3]) / BOHR
+    # the exponent term of the gradient integral evaluates 27-component
+    # cross integrals per image, so keep the image count (and the padding)
+    # small here
+    rcut = 6.0
+
+    bfile = xtb_basis.get_basis_filename()
+    basis = make_basis_array(bfile, max_number=14)
+
+    cell0 = CellLite(numbers=[14, 14], coords=coords_si, a=a, basis=bfile,
+                     rcut=rcut, precision=1e-6, verbose=0)
+    Ts = make_image_grid(numpy.asarray(cell0.nimgs))
+    Ls0 = Ts @ a
+
+    numbers_b = numpy.array([[14, 14], [10, 0]], dtype=numpy.int32)
+    coords_b = np.asarray(numpy.stack([coords_si, numpy.zeros((2, 3))]))
+
+    plans = []
+    for nums, crds in zip(numbers_b, coords_b):
+        c = CellPad(nums, crds, basis=basis, a=a, Ls=Ls0, rcut=rcut,
+                    precision=1e-6, verbose=0)
+        plans.append(cuint_create_plan(c))
+    merged_plan, plan_axes = cuint_merge_plans(plans)
+
+    def loss(data, numbers, coords, plan):
+        cell = CellPad(numbers, coords,
+                       basis=dataclasses.replace(basis, data=data),
+                       a=a, Ls=Ls0, rcut=rcut, precision=1e-6, verbose=0,
+                       trace_coords=True, trace_basis=True,
+                       max_coord_deriv=1, cuint_plan=plan)
+        s1e = np.sum(cell.lattice_intor("int1e_ovlp", hermi=1), axis=0)
+        if plan is None:
+            s1e = hermi_triu(s1e)
+        else:
+            s1e = s1e + s1e.T
+        return np.sum(s1e ** 2)
+
+    mixed = jax.jacfwd(jax.grad(loss, argnums=2), argnums=0)
+    g_gpu = jax.jit(jax.vmap(mixed, in_axes=(None, 0, 0, plan_axes)))(
+        basis.data, numbers_b, coords_b, merged_plan)
+
+    mask = numpy.asarray(basis.mask_data)
+    for i in range(len(numbers_b)):
+        g_cpu = numpy.asarray(mixed(basis.data, numbers_b[i], coords_b[i], None))
+        g = numpy.asarray(g_gpu[i])
+        # the CPU lattice sum screens shell pairs at `precision`, cuint does
+        # not, so the two backends agree only to ~precision relative
+        assert bool((abs(g - g_cpu) <= 1e-6 * (1.0 + abs(g_cpu))).all())
+        # padding entries are frozen in make_bas_env
+        assert not g[~numpy.broadcast_to(mask, g.shape)].any()
+
+
 def test_kxtb_basis_grad_parity():
     """GFN1-xTB (k-point) energy gradient w.r.t. the raw basis parameters:
     cuint vs the CPU lattice path."""

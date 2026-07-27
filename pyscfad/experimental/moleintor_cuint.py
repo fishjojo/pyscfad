@@ -45,6 +45,7 @@ from pyscfad.gto.moleintor_lite import (
     _extract_coords,
 )
 from pyscfad.gto._basis_deriv import (
+    next_coord_deriv,
     _concrete_bas,
     cs_scatter_maps,
 )
@@ -83,6 +84,7 @@ if _cuint:
         "trace_coords",
         "trace_basis",
         "aoslices",
+        "max_coord_deriv",
     ),
 )
 def getints(
@@ -99,6 +101,7 @@ def getints(
     trace_coords: bool = False,
     trace_basis: bool = False,
     aoslices: ArrayLike | None = None, # for padding
+    max_coord_deriv: int | None = None,
 ) -> Array:
     nbas = len(bas)
     if shls_slice is not None and tuple(shls_slice)[:4] != (0, nbas, 0,  nbas):
@@ -126,7 +129,7 @@ def getints(
         out = quadrupole(atm, env, cuint_plan, deriv=1)
     else:
         raise NotImplementedError(
-            "Integral {intor_name} is not supported."
+            f"Integral {intor_name} is not supported."
         )
     return out
 
@@ -143,6 +146,7 @@ def getints_jvp(
     trace_coords,
     trace_basis,
     aoslices,
+    max_coord_deriv,
     primals,
     tangents,
 ):
@@ -157,6 +161,7 @@ def getints_jvp(
         trace_coords=trace_coords,
         trace_basis=trace_basis,
         aoslices=aoslices,
+        max_coord_deriv=max_coord_deriv,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -176,7 +181,7 @@ def getints_jvp(
                 cuint_plan,
                 shls_slice, comp, hermi, aosym, ao_loc,
                 trace_coords, trace_basis,
-                aoslices, rc_deriv,
+                aoslices, rc_deriv, max_coord_deriv,
             ).reshape(tangent_out.shape)
 
         if trace_basis:
@@ -318,6 +323,74 @@ def _get_basis_cross_plan(bas_conc, ptr_ones):
     return plan
 
 
+def cuint_max_deriv() -> int:
+    """Highest total derivative order (``i_deriv + j_deriv``) the installed
+    cuint kernels were compiled for.
+
+    cuint dispatches the derivative order at compile time and silently does
+    nothing when asked for an order it was not built with, so every caller
+    of :func:`gen_overlap_cross` must check this first. Plugins predating the
+    ``max_deriv`` export report cuint's ``MAX_DERIV = 2`` default.
+    """
+    if not _cuint:
+        return 0
+    fn = getattr(_cuint, "max_deriv", None)
+    if fn is None:
+        return 2
+    return int(fn())
+
+
+# cuint integrals whose basis-set parameter derivative is implemented, and the
+# order of the bra coordinate derivative each carries. The exponent term adds a
+# bra Laplacian on top of that (see _gen_int1e_jvp_basis), so the coordinate
+# gradient needs kernels compiled for total derivative order 3.
+_BASIS_DERIV_ORDER = {
+    "int1e_ovlp_sph": 0,
+    "int1e_ovlp_dr10_sph": 1,
+    "int1e_ipovlp_sph": 1,
+}
+
+
+def _basis_deriv_order(intor_name: str, backend: str = "cuint") -> int:
+    """Coordinate-derivative order of ``intor_name``, checking that its
+    basis-parameter derivative (and the kernels it needs) are available.
+    """
+    try:
+        n_deriv = _BASIS_DERIV_ORDER[intor_name]
+    except KeyError:
+        supported = ", ".join(sorted(_BASIS_DERIV_ORDER))
+        raise NotImplementedError(
+            f"Basis-set parameter derivatives on the {backend} backend are "
+            f"only supported for {supported}, got {intor_name}."
+        ) from None
+    order = n_deriv + 2
+    max_deriv = cuint_max_deriv()
+    if order > max_deriv:
+        raise NotImplementedError(
+            f"The basis-set parameter derivative of {intor_name} needs cuint "
+            f"overlap kernels of total derivative order {order} (the exponent "
+            "term is a Laplacian on top of the integral's own derivatives), "
+            f"but the installed CUDA plugin provides {max_deriv}. Rebuild it "
+            f"with -DCUINT_MAX_DERIV={order} (see pyscfadlib/plugins/cuda)."
+        )
+    return n_deriv
+
+
+def _lap_trace(x: Array, n_deriv: int, axis: int) -> Array:
+    """Contract the trailing pair of derivative slots of a
+    :func:`gen_overlap_cross` output into a Laplacian.
+
+    ``x`` has ``3**(n_deriv + 2)`` components along ``axis``, enumerating
+    ``n_deriv`` gradient slots (slowest) followed by the two Laplacian slots
+    (see the component ordering in cuint's ``gen_kernel``); the result keeps
+    the ``3**n_deriv`` gradient components.
+    """
+    shape = x.shape
+    x = x.reshape(shape[:axis] + (3 ** n_deriv, 9) + shape[axis+1:])
+    idx = (slice(None),) * (axis + 1)
+    return x[idx + (0,)] + x[idx + (4,)] + x[idx + (8,)]
+
+
 def _plan_bas_concrete(cuint_plan, bas) -> numpy.ndarray:
     """The concrete structural ``bas_conc`` recorded on the cuint plan at
     creation (pointer columns zeroed; they are always gathered from the
@@ -406,15 +479,27 @@ def _gen_int1e_jvp_basis(
     """Basis-set parameter (exponent + contraction coefficient) tangent
     for the cuint backend (first order in the basis parameters).
 
-    The exponent term uses the solid-harmonic identity
+    Handles the overlap and its coordinate gradient
+    (``int1e_ovlp_dr10``/``int1e_ipovlp``, one bra derivative), so that
+    geometry gradients stay differentiable w.r.t. the basis set. The
+    exponent term uses the solid-harmonic identity
     ``r_A^2 chi = [lap_A chi + 2 alpha (2l+3) chi] / (4 alpha^2)``,
-    with the bra Laplacian evaluated by ``gen_overlap(i_deriv=2)``.
+    differentiated along with the integral: the bra Laplacian comes from
+    ``gen_overlap(i_deriv = n_deriv + 2)``, whose leading components are the
+    integral's own gradient components.
+
+    The bra cross term determines the tangent completely: the overlap is
+    symmetric and its gradient antisymmetric, so the ket term is the (signed)
+    transpose of the bra term.
+
+    Note:
+        The cross integrals are evaluated on the stopped primal ``env``, so
+        this tangent is treated as geometry-independent. A mixed
+        coordinate/basis second derivative therefore has to differentiate
+        the coordinates first, e.g. ``jacfwd(grad(f, coords), basis)``; the
+        CPU path (``moleintor_lite``) has the same restriction.
     """
-    if intor_name != "int1e_ovlp_sph":
-        raise NotImplementedError(
-            "Basis-set parameter derivatives on the cuint backend are only "
-            f"supported for int1e_ovlp_sph, got {intor_name}."
-        )
+    n_deriv = _basis_deriv_order(intor_name)
     if hermi != 1:
         raise NotImplementedError(f"hermi = {hermi}")
 
@@ -430,9 +515,11 @@ def _gen_int1e_jvp_basis(
     envc = ops.stop_gradient(np.concatenate(
         [np.asarray(env, dtype=np.float64), np.ones(1, dtype=np.float64)]))
 
-    x0 = gen_overlap_cross(atm, envc, plan, rows)[0, :nao_fake, nao_fake:]
-    d2 = gen_overlap_cross(atm, envc, plan, rows, i_deriv=2)
-    tr_d2 = (d2[0] + d2[4] + d2[8])[:nao_fake, nao_fake:]
+    x0 = gen_overlap_cross(atm, envc, plan, rows,
+                           i_deriv=n_deriv)[..., :nao_fake, nao_fake:]
+    d2 = gen_overlap_cross(atm, envc, plan, rows,
+                           i_deriv=n_deriv+2)[..., :nao_fake, nao_fake:]
+    tr_d2 = _lap_trace(d2, n_deriv, 0)
 
     ptr_exp = bas[:, PTR_EXP]
     alpha_env_idx = ptr_exp[plan.fakefn_shell] + plan.fakefn_prim
@@ -455,8 +542,11 @@ def _gen_int1e_jvp_basis(
     t_exp = np.zeros((nao, nao_fake), dtype=x0.dtype)
     t_exp = ops.index_add(t_exp, ops.index[maps.real_rows, maps.fake_rows], w_exp)
 
-    jvp = np.einsum("ma,av->mv", t_cs, x0) + np.einsum("ma,av->mv", t_exp, x_exp)
-    jvp = jvp + jvp.T
+    jvp = (np.einsum("ma,...av->...mv", t_cs, x0)
+           + np.einsum("ma,...av->...mv", t_exp, x_exp))
+    # ket term: + transpose for the (symmetric) overlap, - for its
+    # (antisymmetric) gradient
+    jvp = jvp + (-1) ** n_deriv * np.swapaxes(jvp, -1, -2)
     return jvp
 
 
@@ -466,10 +556,18 @@ def _gen_int1e_jvp_r0(
     cuint_plan,
     shls_slice, comp, hermi, aosym, ao_loc,
     trace_coords, trace_basis,
-    aoslices, rc_deriv,
+    aoslices, rc_deriv, max_coord_deriv=None,
 ):
     if comp is not None:
         comp = comp * 3
+
+    # see pyscfad.gto._basis_deriv.next_coord_deriv: with max_coord_deriv=1 the
+    # nested integrals keep their basis derivative but stop tracing
+    # coordinates, so the second coordinate derivative -- which this backend
+    # does not implement -- is never requested.
+    nested_coord_deriv, nested_trace_coords = next_coord_deriv(
+        max_coord_deriv, trace_coords
+    )
 
     coords_dot = _extract_coords(atm, env_dot)
 
@@ -492,8 +590,8 @@ def _gen_int1e_jvp_r0(
             cuint_plan,
             shls_slice=shls_slice, comp=comp,
             hermi=hermi, aosym=aosym, ao_loc=ao_loc,
-            trace_coords=trace_coords, trace_basis=trace_basis,
-            aoslices=aoslices,
+            trace_coords=nested_trace_coords, trace_basis=trace_basis,
+            aoslices=aoslices, max_coord_deriv=nested_coord_deriv,
         )
 
         naoi, naoj = s1a.shape[-2:]

@@ -144,7 +144,7 @@ class Cell(MoleLite):
             self._atm, self._bas, self._env,
             shls_slice=shls_slice, comp=comp, hermi=hermi,
             trace_coords=self.trace_coords, trace_basis=self.trace_basis,
-            dimension=self.dimension,
+            dimension=self.dimension, max_coord_deriv=self.max_coord_deriv,
         )
         return out
 
@@ -185,6 +185,7 @@ class Cell(MoleLite):
                 self._atm, self._bas, self._env,
                 shls_slice=shls_slice, comp=comp, hermi=hermi,
                 trace_coords=self.trace_coords, trace_basis=self.trace_basis,
+                max_coord_deriv=self.max_coord_deriv,
             )
         else:
             out = latintor_cuint._lattice_intor(
@@ -192,6 +193,7 @@ class Cell(MoleLite):
                 self._atm, self._bas, self._env, cuint_plan,
                 shls_slice=shls_slice, comp=comp, hermi=hermi,
                 trace_coords=self.trace_coords, trace_basis=self.trace_basis,
+                max_coord_deriv=self.max_coord_deriv,
             )
         return out
 

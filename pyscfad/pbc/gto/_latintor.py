@@ -33,6 +33,7 @@ from pyscfad.gto.moleintor_lite import (
 from pyscfad.gto._basis_deriv import (
     basis_jvp_cs,
     basis_jvp_exp,
+    next_coord_deriv,
     _resolve_bas_concrete,
     _resolve_shls_slice,
 )
@@ -65,6 +66,7 @@ if TYPE_CHECKING:
         "trace_basis",
         "aoslices",
         "basis_array_metadata",
+        "max_coord_deriv",
     ),
 )
 def _lattice_intor(
@@ -82,6 +84,7 @@ def _lattice_intor(
     trace_basis: bool = False,
     aoslices: ArrayLike | None = None, # for padding
     basis_array_metadata: BasisArrayMetadata | None = None, # for padding
+    max_coord_deriv: int | None = None,
 ) -> Array:
     shape = _get_shape(
         intor_name,
@@ -172,6 +175,7 @@ def _gen_int1e_jvp_r0(
     intor_a, intor_b, Ls, Ls_mask, atm, bas, env, env_dot,
     shls_slice, comp, hermi, ao_loc,
     trace_coords, trace_basis, aoslices=None, basis_array_metadata=None,
+    max_coord_deriv=None,
 ):
     Ls = Ls.reshape(-1,3)
     nL = len(Ls)
@@ -179,11 +183,16 @@ def _gen_int1e_jvp_r0(
     if comp is not None:
         comp = comp * 3
 
+    nested_coord_deriv, nested_trace_coords = next_coord_deriv(
+        max_coord_deriv, trace_coords
+    )
+
     s1a = -_lattice_intor(
         intor_a, Ls, Ls_mask, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
-        trace_coords=trace_coords, trace_basis=trace_basis,
+        trace_coords=nested_trace_coords, trace_basis=trace_basis,
         aoslices=aoslices, basis_array_metadata=basis_array_metadata,
+        max_coord_deriv=nested_coord_deriv,
     )
 
     naoi, naoj = s1a.shape[-2:]
@@ -210,8 +219,9 @@ def _gen_int1e_jvp_r0(
     s1b = -_lattice_intor(
         intor_b, Ls, Ls_mask, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
-        trace_coords=trace_coords, trace_basis=trace_basis,
+        trace_coords=nested_trace_coords, trace_basis=trace_basis,
         aoslices=aoslices, basis_array_metadata=basis_array_metadata,
+        max_coord_deriv=nested_coord_deriv,
     )
     s1b = s1b.reshape(nL,3**order_a,3,-1,naoi,naoj)
     s1b = s1b.transpose(0,2,1,3,4,5).reshape(nL,3,-1,naoi,naoj)
@@ -226,6 +236,7 @@ def _gen_int1e_jvp_Ls(
     intor_b, Ls, Ls_mask, atm, bas, env, Ls_dot,
     shls_slice, comp, hermi, ao_loc,
     trace_coords, trace_basis, aoslices=None, basis_array_metadata=None,
+    max_coord_deriv=None,
 ):
     """Tangent of the per-image integrals w.r.t. the lattice shifts ``Ls``.
 
@@ -239,12 +250,17 @@ def _gen_int1e_jvp_Ls(
     if comp is not None:
         comp = comp * 3
 
+    nested_coord_deriv, nested_trace_coords = next_coord_deriv(
+        max_coord_deriv, trace_coords
+    )
+
     order_a = int1e_get_dr_order(intor_b)[0]
     s1b = -_lattice_intor(
         intor_b, Ls, Ls_mask, atm, bas, env,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
-        trace_coords=trace_coords, trace_basis=trace_basis,
+        trace_coords=nested_trace_coords, trace_basis=trace_basis,
         aoslices=aoslices, basis_array_metadata=basis_array_metadata,
+        max_coord_deriv=nested_coord_deriv,
     )
     naoi, naoj = s1b.shape[-2:]
     s1b = s1b.reshape(nL, 3**order_a, 3, -1, naoi, naoj)
@@ -315,7 +331,7 @@ def _lattice_intor_jvp(
     intor_name, Ls_mask, atm, bas,
     shls_slice, comp, hermi, ao_loc,
     trace_coords, trace_basis, aoslices, basis_array_metadata,
-    primals, tangents,
+    max_coord_deriv, primals, tangents,
 ):
     Ls, env = primals
     Ls_dot, env_dot = tangents
@@ -325,6 +341,7 @@ def _lattice_intor_jvp(
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
         trace_coords=trace_coords, trace_basis=trace_basis, aoslices=aoslices,
         basis_array_metadata=basis_array_metadata,
+        max_coord_deriv=max_coord_deriv,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -340,6 +357,7 @@ def _lattice_intor_jvp(
                 Ls, Ls_mask, atm, bas, env, env_dot,
                 shls_slice, comp, hermi, ao_loc,
                 trace_coords, trace_basis, aoslices, basis_array_metadata,
+                max_coord_deriv,
             ).reshape(tangent_out.shape)
         if trace_basis:
             tangent_out += _gen_int1e_jvp_basis(
@@ -357,6 +375,7 @@ def _lattice_intor_jvp(
             Ls, Ls_mask, atm, bas, env, Ls_dot,
             shls_slice, comp, hermi, ao_loc,
             trace_coords, trace_basis, aoslices, basis_array_metadata,
+            max_coord_deriv,
         ).reshape(tangent_out.shape)
 
     return primal_out, tangent_out

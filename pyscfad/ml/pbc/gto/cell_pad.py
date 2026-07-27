@@ -90,6 +90,7 @@ class CellPad(MolePad):
         verbose: int = 3,
         trace_coords: bool = False,
         trace_basis: bool = False,
+        max_coord_deriv: int | None = None,
         cuint_plan: CuintPlan | None = None,
         bas0: ArrayLike = None,
         env0: ArrayLike = None,
@@ -104,6 +105,7 @@ class CellPad(MolePad):
             verbose=verbose,
             trace_coords=trace_coords,
             trace_basis=trace_basis,
+            max_coord_deriv=max_coord_deriv,
             cuint_plan=cuint_plan,
             bas0=bas0,
             env0=env0,
@@ -187,6 +189,7 @@ class CellPad(MolePad):
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
                 basis_array_metadata=self.basis.metadata,
+                max_coord_deriv=self.max_coord_deriv,
             )
         else:
             out = latintor_cuint._lattice_intor(
@@ -197,6 +200,7 @@ class CellPad(MolePad):
                 trace_coords=self.trace_coords,
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
+                max_coord_deriv=self.max_coord_deriv,
             )
         return out
 

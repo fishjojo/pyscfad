@@ -60,6 +60,9 @@ class MolePad(MoleLite):
         cart: Whether to use Cartesian Gaussian basis.
         trace_coords: Whether to trace atomic coordinates for gradient calculations.
         trace_basis: Whether to trace basis set parameters for gradient calculations.
+        max_coord_deriv: Highest order of geometry derivative the caller will
+            take (``None``: no limit); see
+            :func:`pyscfad.gto._basis_deriv.next_coord_deriv`.
     """
     def __init__(
         self,
@@ -72,6 +75,7 @@ class MolePad(MoleLite):
         verbose: int = 3,
         trace_coords: bool = False,
         trace_basis: bool = False,
+        max_coord_deriv: int | None = None,
         cuint_plan: moleintor_cuint.CuintPlan | None = None,
         bas0: ArrayLike = None,
         env0: ArrayLike = None,
@@ -85,6 +89,7 @@ class MolePad(MoleLite):
         self.verbose = verbose
         self.trace_coords = trace_coords
         self.trace_basis = trace_basis
+        self.max_coord_deriv = max_coord_deriv
         self.cuint_plan = cuint_plan
 
         self.atom_mask = np.greater(self.numbers, 0)
@@ -185,6 +190,7 @@ class MolePad(MoleLite):
                 trace_coords=self.trace_coords,
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
+                max_coord_deriv=self.max_coord_deriv,
             )
         else:
             out = moleintor_lite.getints(
@@ -201,6 +207,7 @@ class MolePad(MoleLite):
                 trace_basis=self.trace_basis,
                 aoslices=aoslices,
                 basis_array_metadata=self.basis.metadata,
+                max_coord_deriv=self.max_coord_deriv,
             )
         return out
 
