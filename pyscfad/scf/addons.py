@@ -49,7 +49,13 @@ def _smearing_solve_mu(f_occ, mo_es, nocc, sigma, mo_mask):
         nerr = np.sum(occ) - nocc
         grad = np.sum(grad)
         hess = np.sum(hess)
-        dmu = -nerr * grad / (grad**2 - .5 * hess * nerr)
+        # A fully masked (zero-electron) system has no states to move charge
+        # between: grad == 0 and the Halley step is 0/0. Take no step and
+        # report nerr = 0 so the loop exits instead of iterating on NaN.
+        denom = grad**2 - .5 * hess * nerr
+        safe = np.abs(denom) > 0.
+        dmu = np.where(safe, -nerr * grad / np.where(safe, denom, 1.), 0.)
+        nerr = np.where(safe, nerr, 0.)
         return mu + dmu, nerr
 
     mu, _ = while_loop(cond_fun, body_fun, (mo_es[nocc-1], 1e2))
@@ -63,7 +69,12 @@ def _smearing_solve_mu_jvp(f_occ, sigma, primals, tangents):
     mu = _smearing_solve_mu(f_occ, mo_es, nocc, sigma, mo_mask)
     occ = f_occ(mu, mo_es, sigma, mo_mask)
     dndmu = occ * (1.-occ) / sigma
-    return mu, np.dot(dndmu, dmo_e) / np.sum(dndmu)
+    # zero-electron (fully masked) systems have sum(dndmu) == 0; their mu is
+    # arbitrary, so give it a zero tangent instead of 0/0.
+    denom = np.sum(dndmu)
+    safe = denom > 0.
+    dmu = np.where(safe, np.dot(dndmu, dmo_e) / np.where(safe, denom, 1.), 0.)
+    return mu, dmu
 
 def _smearing_optimize(f_occ, mo_es, nocc, sigma, mo_mask):
     mu = _smearing_solve_mu(f_occ, mo_es, nocc, sigma, mo_mask)
