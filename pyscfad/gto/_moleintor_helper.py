@@ -1,4 +1,4 @@
-# Copyright 2021-2025 The PySCFAD Authors
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from functools import lru_cache
 import numpy
 from pyscf.gto import mole as pyscf_mole
+from pyscfad import numpy as np
 from pyscfad.gto._pyscf_moleintor import getints
+
+if TYPE_CHECKING:
+    from pyscfad.ml.gto.basis_array import BasisArrayMetadata
 
 def _intor_impl(mol, intor_name, comp=None, hermi=0, aosym='s1', out=None,
                 shls_slice=None, grids=None):
@@ -128,6 +134,20 @@ def int1e_get_dr_order(intor):
         orders = [0, 0]
     return orders
 
+def int1e_dr1_ket_comp_to_front(s1, intor):
+    """Move the new ket-derivative axis to the front.
+
+    Components of ``int1e_X_dr(a)(b)`` are laid out slowest to fastest as
+    (bra-dr^a, operator comps, ket-dr^b). Move the new ket-derivative axis
+    (right after bra and operator comps) to the front for contraction with
+    the tangent vector.
+    """
+    naoi, naoj = s1.shape[-2:]
+    order_b = int1e_get_dr_order(intor)[1]
+    lead = int(numpy.prod(s1.shape[:-2])) // 3**order_b
+    s1 = s1.reshape(lead, 3, -1, naoi, naoj)
+    return np.moveaxis(s1, 1, 0).reshape(3, -1, naoi, naoj)
+
 def int2e_get_dr_order(intor):
     fname = intor.replace('_sph', '').replace('_cart', '')
     if fname[-6:-4] == 'dr':
@@ -183,3 +203,60 @@ def int2e_dr1_name(intor):
         intor3 = fname + '_dr0010' + suffix
         intor4 = fname + '_dr0001' + suffix
     return intor1, intor2, intor3, intor4
+
+def resolve_bas_concrete(
+    bas_or_meta: numpy.ndarray | BasisArrayMetadata,
+    natm: int | None = None,
+) -> numpy.ndarray:
+    """Resolve concrete ``bas`` for shell structures.
+
+    For batched calculations, ``bas`` is derived from
+    ``basis_array_metadata``, which contains the identical
+    shell structure of each atom. ``natm`` is then required, as the
+    metadata describes one atom only.
+    Otherwise, return ``bas``, which is already static.
+
+    Notes:
+        The offsets for exponents and contraction coefficients are
+        not resolved as they are traced values.
+    """
+    from pyscfad.ml.gto.basis_array import BasisArrayMetadata
+    if isinstance(bas_or_meta, BasisArrayMetadata):
+        if natm is None:
+            raise ValueError('natm is required to resolve concrete bas '
+                             'from the basis array metadata.')
+        meta = bas_or_meta
+        ls = numpy.asarray(meta.ls, dtype=numpy.int32)
+        bas_conc = numpy.zeros((natm * ls.size, pyscf_mole.BAS_SLOTS),
+                               dtype=numpy.int32)
+        bas_conc[:,pyscf_mole.ATOM_OF] = numpy.repeat(numpy.arange(natm), ls.size)
+        bas_conc[:,pyscf_mole.ANG_OF] = numpy.tile(ls, natm)
+        bas_conc[:,pyscf_mole.NPRIM_OF] = numpy.int32(meta.nprim)
+        bas_conc[:,pyscf_mole.NCTR_OF] = numpy.int32(meta.nctr)
+    else:
+        try:
+            bas_conc = numpy.asarray(bas_or_meta)
+        except Exception as exc:
+            raise RuntimeError('bas is traced, pass basis_array_metadata '
+                               'to resolve concrete bas.') from exc
+    return bas_conc
+
+def aoslices_in_range(
+    bas_or_meta: numpy.ndarray | BasisArrayMetadata,
+    ao_loc: numpy.ndarray,
+    natm: int,
+    shl_range: tuple[int, int],
+) -> numpy.ndarray:
+    """Per-atom AO ranges of the shells [sh0, sh1),
+    relative to ao_loc[sh0].
+    """
+    bas_conc = resolve_bas_concrete(bas_or_meta, natm)
+    bas_atom = bas_conc[:,pyscf_mole.ATOM_OF]
+    sh0, sh1 = shl_range
+    assert numpy.all(numpy.diff(bas_atom[sh0:sh1]) >= 0)
+
+    nao_sh = ao_loc[sh0+1:sh1+1] - ao_loc[sh0:sh1]
+    counts = numpy.zeros(natm, dtype=numpy.int32)
+    numpy.add.at(counts, bas_atom[sh0:sh1], nao_sh)
+    ends = numpy.cumsum(counts)
+    return numpy.stack([ends - counts, ends], axis=1)

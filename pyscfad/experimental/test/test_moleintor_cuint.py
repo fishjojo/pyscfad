@@ -86,8 +86,7 @@ def test_cuint_batched(mol_batch):
     in_axes = mol_batch["in_axes"]
 
     def intor_pad(numbers, coords, plan, intor):
-        mol = MolePad(numbers, coords, basis=basis, verbose=0,
-                      trace_coords=True, cuint_plan=plan)
+        mol = MolePad(numbers, coords, basis=basis, cuint_plan=plan)
         return mol.intor(intor, hermi=1)
 
     intor_pad_jitted = jax.jit(jax.vmap(intor_pad, (0, 0, in_axes, None)), static_argnames=["intor"])
@@ -95,7 +94,7 @@ def test_cuint_batched(mol_batch):
     intor_grad_pad_jitted = jax.jit(jax.vmap(jac, (0, 0, in_axes, None)), static_argnames=["intor"])
 
     def intor_ref_pad(numbers, coords, intor):
-        mol = MolePad(numbers, coords, basis=basis, verbose=0, trace_coords=True)
+        mol = MolePad(numbers, coords, basis=basis)
         return mol.intor(intor, hermi=1)
 
     intor_ref_pad_jitted = jax.jit(jax.vmap(intor_ref_pad, (0,0,None)), static_argnames=["intor"])
@@ -121,14 +120,14 @@ def test_cuint(OH):
 
     def intor_lite(coords, plan, intor):
         mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
-                       trace_coords=True, cuint_plan=plan)
+                       cuint_plan=plan)
         return mol.intor(intor, hermi=1)
 
     intor_lite_jitted = jax.jit(intor_lite, static_argnames=["intor"])
     intor_grad_lite_jitted = jax.jit(jax.jacrev(intor_lite), static_argnames=["intor"])
 
     def intor_lite_ref(coords, intor):
-        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis, trace_coords=True)
+        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis)
         return mol.intor(intor, hermi=1)
 
     intor_lite_ref_jitted = jax.jit(intor_lite_ref, static_argnames=["intor"])
@@ -153,7 +152,7 @@ def test_rc_deriv(OH):
 
     def fn(coords, origin, plan, intor):
         mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
-                       trace_coords=True, cuint_plan=plan)
+                       cuint_plan=plan)
         with mol.with_common_origin(origin):
             s1e = mol.intor(intor, hermi=1)
         return s1e
@@ -162,7 +161,7 @@ def test_rc_deriv(OH):
     fn_grad_jitted = jax.jit(jax.jacrev(fn, 1), static_argnames=["intor"])
 
     def fn_ref(coords, origin, intor):
-        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis, trace_coords=True)
+        mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis)
         with mol.with_common_origin(origin):
             s1e = mol.intor(intor, hermi=1)
         return s1e
@@ -194,7 +193,7 @@ def test_cuint_basis_deriv(OH):
 
     def loss(basis, plan):
         mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
-                       trace_basis=True, cuint_plan=plan)
+                       cuint_plan=plan)
         s1e = mol.intor("int1e_ovlp", hermi=1)
         return np.sum(s1e ** 2)
 
@@ -232,7 +231,7 @@ def test_cuint_basis_deriv_fd(OH):
 
     def loss(basis):
         mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
-                       trace_basis=True, cuint_plan=plan)
+                       cuint_plan=plan)
         s1e = mol.intor("int1e_ovlp", hermi=1)
         return np.sum(s1e ** 2)
 
@@ -279,7 +278,7 @@ def test_cuint_basis_deriv_ipovlp(OH):
 
     def loss(basis, plan):
         mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
-                       trace_basis=True, cuint_plan=plan)
+                       cuint_plan=plan)
         # both backends return the full (antisymmetric) matrix; cuint only
         # implements hermi=1, the CPU path builds it with hermi=0
         s1e = mol.intor("int1e_ipovlp", hermi=1 if plan is not None else 0)
@@ -295,12 +294,11 @@ def test_cuint_basis_deriv_ipovlp(OH):
         assert abs(a - b).max() < 1e-12
 
 
-def _mixed_loss(numbers, spin, mcd=1):
+def _mixed_loss(numbers, spin):
     """sum(S**2) as a function of (coords, basis), traced for both."""
     def loss(coords, basis, plan):
         mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
-                       trace_coords=True, trace_basis=True,
-                       max_coord_deriv=mcd, cuint_plan=plan)
+                       cuint_plan=plan)
         return np.sum(mol.intor("int1e_ovlp", hermi=1) ** 2)
     return loss
 
@@ -352,10 +350,19 @@ def test_cuint_mixed_coord_basis_deriv(OH):
             assert abs(got - fd).max() < 1e-6 * max(1.0, abs(fd).max())
 
 
-def test_cuint_mixed_coord_basis_deriv_needs_max_coord_deriv(OH):
-    """Without ``max_coord_deriv=1`` the nested gradient integral keeps
-    tracing coordinates, and the second geometry derivative it then asks for
-    is not implemented on cuint -- it must fail loudly, not silently.
+def test_cuint_second_coord_deriv_not_implemented(OH):
+    """cuint implements one coordinate derivative only, so a geometry
+    Hessian must fail loudly rather than quietly return something.
+
+    This replaces the old ``max_coord_deriv`` budget. That kwarg existed
+    because the basis tangent used to route its cross integrals through a
+    nested ``getints`` that kept tracing coordinates and so asked for
+    ``int1e_ovlp_dr20_sph``. The tangent now evaluates the cross integrals
+    directly (``gen_overlap_cross`` on a stopped ``env``), so a mixed
+    coordinate/basis derivative never reaches the second geometry
+    derivative and needs no budget -- see
+    :func:`test_cuint_mixed_coord_basis_deriv`, which takes exactly that
+    derivative and checks it against finite differences.
     """
     numbers = OH["numbers"]
     spin = OH["spin"]
@@ -364,10 +371,10 @@ def test_cuint_mixed_coord_basis_deriv_needs_max_coord_deriv(OH):
 
     basis0 = MoleLite(numbers=numbers, coords=coords, spin=spin,
                       basis="ccpvdz").basis
-    loss = _mixed_loss(numbers, spin, mcd=None)
+    loss = _mixed_loss(numbers, spin)
 
     with pytest.raises(NotImplementedError):
-        jax.jacfwd(jax.grad(loss, argnums=0), argnums=1)(coords, basis0, plan)
+        jax.jacfwd(jax.grad(loss, argnums=0), argnums=0)(coords, basis0, plan)
 
 
 def test_cuint_mixed_coord_basis_deriv_batched(mol_batch):
@@ -385,9 +392,8 @@ def test_cuint_mixed_coord_basis_deriv_batched(mol_batch):
     # carries boolean mask leaves, which forward mode has no tangents for)
     def loss(data, numbers, coords, plan):
         mol = MolePad(numbers, coords,
-                      basis=dataclasses.replace(basis, data=data), verbose=0,
-                      trace_coords=True, trace_basis=True,
-                      max_coord_deriv=1, cuint_plan=plan)
+                      basis=dataclasses.replace(basis, data=data),
+                      cuint_plan=plan)
         return np.sum(mol.intor("int1e_ovlp", hermi=1) ** 2)
 
     mixed = jax.jacfwd(jax.grad(loss, argnums=2), argnums=0)
@@ -462,7 +468,7 @@ def test_cuint_basis_deriv_gradient_old_plugin(OH, monkeypatch):
 
     def loss(basis):
         mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
-                       trace_basis=True, cuint_plan=plan)
+                       cuint_plan=plan)
         return np.sum(mol.intor("int1e_ipovlp", hermi=1) ** 2)
 
     with pytest.raises(NotImplementedError, match="derivative order 3"):
@@ -471,7 +477,7 @@ def test_cuint_basis_deriv_gradient_old_plugin(OH, monkeypatch):
     # the plain overlap only needs order 2 and still works
     def loss_ovlp(basis):
         mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
-                       trace_basis=True, cuint_plan=plan)
+                       cuint_plan=plan)
         return np.sum(mol.intor("int1e_ovlp", hermi=1) ** 2)
 
     assert jax.tree.leaves(jax.grad(loss_ovlp)(basis0))
@@ -492,7 +498,7 @@ def test_cuint_basis_deriv_unsupported(OH, intor):
 
     def loss(basis):
         mol = MoleLite(numbers=numbers, coords=coords, spin=spin, basis=basis,
-                       trace_basis=True, cuint_plan=plan)
+                       cuint_plan=plan)
         return np.sum(mol.intor(intor, hermi=1) ** 2)
 
     with pytest.raises(NotImplementedError):
@@ -509,8 +515,7 @@ def test_cuint_basis_deriv_batched(mol_batch):
     in_axes = mol_batch["in_axes"]
 
     def loss(basis, numbers, coords, plan):
-        mol = MolePad(numbers, coords, basis=basis, verbose=0,
-                      trace_basis=True, cuint_plan=plan)
+        mol = MolePad(numbers, coords, basis=basis, cuint_plan=plan)
         s = mol.intor("int1e_ovlp", hermi=1)
         return np.sum(s ** 2)
 
@@ -533,8 +538,7 @@ def test_rc_deriv_batched(mol_batch):
     in_axes = mol_batch["in_axes"]
 
     def intor_pad(numbers, coords, origin, plan, intor):
-        mol = MolePad(numbers, coords, basis=basis, verbose=0,
-                      trace_coords=True, cuint_plan=plan)
+        mol = MolePad(numbers, coords, basis=basis, cuint_plan=plan)
         with mol.with_common_origin(origin):
             s1e = mol.intor(intor, hermi=1)
         return s1e
@@ -544,7 +548,7 @@ def test_rc_deriv_batched(mol_batch):
     intor_grad_pad_jitted = jax.jit(jax.vmap(jac, (0, 0, None, in_axes, None)), static_argnames=["intor"])
 
     def intor_ref_pad(numbers, coords, origin, intor):
-        mol = MolePad(numbers, coords, basis=basis, verbose=0, trace_coords=True)
+        mol = MolePad(numbers, coords, basis=basis)
         with mol.with_common_origin(origin):
             s1e = mol.intor(intor, hermi=1)
         return s1e

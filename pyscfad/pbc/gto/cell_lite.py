@@ -142,9 +142,9 @@ class Cell(MoleLite):
         out = _pbc_intor(
             intor_name, self.a, kpts, self.rcut,
             self._atm, self._bas, self._env,
+            self.r0, self.exp, self.ctr_coeff,
             shls_slice=shls_slice, comp=comp, hermi=hermi,
-            trace_coords=self.trace_coords, trace_basis=self.trace_basis,
-            dimension=self.dimension, max_coord_deriv=self.max_coord_deriv,
+            dimension=self.dimension,
         )
         return out
 
@@ -183,17 +183,15 @@ class Cell(MoleLite):
             out = _latintor._lattice_intor(
                 intor_name, Ls, Ls_mask,
                 self._atm, self._bas, self._env,
+                self.r0, self.exp, self.ctr_coeff,
                 shls_slice=shls_slice, comp=comp, hermi=hermi,
-                trace_coords=self.trace_coords, trace_basis=self.trace_basis,
-                max_coord_deriv=self.max_coord_deriv,
             )
         else:
             out = latintor_cuint._lattice_intor(
                 intor_name, Ls, Ls_mask,
                 self._atm, self._bas, self._env, cuint_plan,
+                self.r0, self.exp, self.ctr_coeff,
                 shls_slice=shls_slice, comp=comp, hermi=hermi,
-                trace_coords=self.trace_coords, trace_basis=self.trace_basis,
-                max_coord_deriv=self.max_coord_deriv,
             )
         return out
 

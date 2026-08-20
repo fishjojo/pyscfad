@@ -18,6 +18,7 @@ Lightweight :mod:`~pyscfad.gto.mole` module.
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import contextlib
+import warnings
 
 import numpy
 import pyscf
@@ -39,6 +40,7 @@ from pyscf.gto.mole import (
     PTR_COMMON_ORIG,
     PTR_RINV_ORIG,
     PTR_COORD,
+    PTR_COEFF,
     PTR_ENV_START,
     PTR_ZETA,
     NORMALIZE_GTO,
@@ -62,7 +64,8 @@ def _format_basis(basis, uniq_symbols):
     # basis is sorted against symbols and then angular momentum
     if isinstance(basis, dict):
         if all(isinstance(v, dict) for v in basis.values()):
-            return {k: {l: basis[k][l] for l in sorted(basis[k])} for k in sorted(basis)}
+            return {k: {l: basis[k][l] for l in sorted(basis[k])}
+                    for k in sorted(basis)}
 
     basis = format_basis(basis)
     return _format_basis_from_pyscf(basis, uniq_symbols)
@@ -105,13 +108,6 @@ class MoleLite(MoleBase):
         spin: 2S (number of alpha electrons minus number of beta electrons).
         cart: Whether to use Cartesian Gaussian basis.
         verbose: Printing level.
-        trace_coords: Whether to trace atomic coordinates for gradient calculations.
-        max_coord_deriv: Highest order of geometry derivative the caller will
-            take (``None``: no limit). ``1`` -- forces/stress, possibly
-            differentiated further w.r.t. basis parameters -- skips the pure
-            second-order coordinate blocks; see
-            :func:`pyscfad.gto._basis_deriv.next_coord_deriv`.
-        trace_basis: Whether to trace basis set parameters for gradient calculations.
         cuint_plan: Plan for using the cuint backend.
 
     Notes:
@@ -129,11 +125,16 @@ class MoleLite(MoleBase):
         spin: int = 0,
         cart: bool = False,
         verbose: int = 3,
-        trace_coords: bool = False,
-        trace_basis: bool = False,
-        max_coord_deriv: int | None = None,
         cuint_plan: moleintor_cuint.CuintPlan | None = None,
+        **kwargs,
     ):
+        if "trace_coords" in kwargs or "trace_basis" in kwargs:
+            warnings.warn("'trace_coords' and 'trace_basis' are deprecated. "
+                          "Whether derivative is taken w.r.t. a variable is "
+                          "dertermined based on JAX tracing only. "
+                          "If derivative is not wanted for a variable, "
+                          "use jax.stop_gradient.")
+
         if numbers is not None:
             if symbols is not None:
                 raise KeyError("Only one of 'symbols' and 'numbers' can be specified.")
@@ -141,7 +142,11 @@ class MoleLite(MoleBase):
         else:
             self.symbols = _format_symbols(symbols)
 
-        self.coords = np.asarray(coords, dtype=np.floatx)
+        if coords is None:
+            warnings.warn("Atomic coordinates are not provided.")
+            self.coords = coords
+        else:
+            self.coords = np.asarray(coords, dtype=np.floatx)
 
         if basis is not None:
             uniq_symbols = set(self.symbols)
@@ -153,19 +158,24 @@ class MoleLite(MoleBase):
         self.spin = spin
         self.cart = cart
         self.verbose = verbose
-        self.trace_coords = trace_coords
-        self.trace_basis = trace_basis
-        self.max_coord_deriv = max_coord_deriv
 
-        self._pseudo = {}
-
-        self._atm = self._bas = self._env = None
+        self._nao = 0 # no basis function by default
+        self._atm = None
+        self._bas = None
+        self._env = None
+        self.r0 = None
+        self.exp = None
+        self.ctr_coeff = None
+        self.common_origin = np.zeros(3, dtype=np.floatx)
+        self.rinv_origin = np.zeros(3, dtype=np.floatx)
         if self.basis is not None:
-            self._atm, self._bas, self._env = make_env(self)
-            self._nao = None
+            (self._atm, self._bas, self._env,
+             self.r0, self.exp, self.ctr_coeff) = make_env(self)
+            self._nao = None # nao is determined by _bas
 
         self.cuint_plan = cuint_plan
 
+        self._pseudo = {}
         self._built = True
 
     def atom_pure_symbol(
@@ -252,6 +262,12 @@ class MoleLite(MoleBase):
         if "_grids" in intor_name:
             raise NotImplementedError
 
+        origin = None
+        if intor_name.startswith("int1e_rinv"):
+            origin = self.rinv_origin
+        elif intor_name.startswith("int1e_r"):
+            origin = self.common_origin
+
         if cuint_plan is None:
             cuint_plan = self.cuint_plan
 
@@ -262,13 +278,14 @@ class MoleLite(MoleBase):
                 self._bas,
                 self._env,
                 cuint_plan,
+                self.r0,
+                self.exp,
+                self.ctr_coeff,
+                origin=origin,
                 shls_slice=shls_slice,
                 comp=comp,
                 hermi=hermi,
                 aosym=aosym,
-                trace_coords=self.trace_coords,
-                trace_basis=self.trace_basis,
-                max_coord_deriv=self.max_coord_deriv,
             )
         else:
             out = moleintor_lite.getints(
@@ -276,13 +293,14 @@ class MoleLite(MoleBase):
                 self._atm,
                 self._bas,
                 self._env,
+                self.r0,
+                self.exp,
+                self.ctr_coeff,
+                origin=origin,
                 shls_slice=shls_slice,
                 comp=comp,
                 hermi=hermi,
                 aosym=aosym,
-                trace_coords=self.trace_coords,
-                trace_basis=self.trace_basis,
-                max_coord_deriv=self.max_coord_deriv,
             )
         return out
 
@@ -290,44 +308,42 @@ class MoleLite(MoleBase):
         self,
         coord: ArrayLike,
     ) -> MoleLite:
-        if self._env is None:
-            raise RuntimeError("{self}._env is not initialized, "
-                               "possibly because basis is not set.")
-
-        self._env = ops.index_update(
-            self._env,
-            ops.index[PTR_COMMON_ORIG:PTR_COMMON_ORIG+3],
-            np.asarray(coord, dtype=self._env.dtype),
-        )
+        coord = np.asarray(coord, dtype=np.floatx)
+        self.common_origin = coord
+        if self._env is not None:
+            self._env = ops.index_update(
+                self._env,
+                ops.index[PTR_COMMON_ORIG:PTR_COMMON_ORIG+3],
+                coord,
+            )
         return self
 
     def with_common_origin(
         self,
         coord: ArrayLike,
     ):
-        coord0 = np.copy(self._env[PTR_COMMON_ORIG:PTR_COMMON_ORIG+3])
+        coord0 = self.common_origin
         return self._TemporaryMoleContext(self.set_common_origin, (coord,), (coord0,))
 
     def set_rinv_origin(
         self,
         coord: ArrayLike,
     ) -> MoleLite:
-        if self._env is None:
-            raise RuntimeError("{self}._env is not initialized, "
-                               "possibly because basis is not set.")
-
-        self._env = ops.index_update(
-            self._env,
-            ops.index[PTR_RINV_ORIG:PTR_RINV_ORIG+3],
-            np.asarray(coord, dtype=self._env.dtype),
-        )
+        coord = np.asarray(coord, dtype=np.floatx)
+        self.rinv_origin = coord
+        if self._env is not None:
+            self._env = ops.index_update(
+                self._env,
+                ops.index[PTR_RINV_ORIG:PTR_RINV_ORIG+3],
+                coord,
+            )
         return self
 
     def with_rinv_origin(
         self,
         coord: ArrayLike,
     ):
-        coord0 = np.copy(self._env[PTR_RINV_ORIG:PTR_RINV_ORIG+3])
+        coord0 = self.rinv_origin
         return self._TemporaryMoleContext(self.set_rinv_origin, (coord,), (coord0,))
 
     @contextlib.contextmanager
@@ -347,8 +363,6 @@ class MoleLite(MoleBase):
     def from_pyscf(
         cls,
         mol: MoleBase,
-        trace_coords: bool = False,
-        trace_basis: bool = False,
     ) -> MoleLite:
         """Initialize from the pyscf :class:`~pyscf.gto.mole.Mole` object.
         """
@@ -377,8 +391,6 @@ class MoleLite(MoleBase):
             spin=mol.spin,
             cart=mol.cart,
             verbose=mol.verbose,
-            trace_coords=trace_coords,
-            trace_basis=trace_basis,
         )
         return dmol
 
@@ -443,77 +455,96 @@ def _nomalize_contracted_ao(l, es, cs):
     return np.einsum("pi,i->pi", cs, s1)
 
 def make_atm_env(
-    coords,
+    coords: Array,
     symbols: tuple[str, ...],
     ptr: int = 0,
     nuclear_model: int = NUC_POINT,
     nucprop: dict | None = None,
-) -> tuple[numpy.ndarray, Array]:
-    natm = len(coords)
+) -> tuple[numpy.ndarray, Array, Array]:
+    r0 = coords.reshape(-1, 3) # shell centers
+    natm = r0.shape[0]
     nuc_charge = [get_charge(symb) for symb in symbols]
     if nuclear_model == NUC_POINT:
-        zeta = np.zeros((natm,1), dtype=np.floatx)
+        zeta = np.zeros((natm, 1), dtype=np.floatx)
     else:
         raise NotImplementedError(f"nuclear_model = {nuclear_model} is not supported")
-    _env = np.hstack((coords, zeta)).ravel()
+    env = np.hstack([r0, zeta]).ravel()
 
-    _atm = numpy.zeros((natm, ATM_SLOTS), dtype=numpy.int32)
-    _atm[:,CHARGE_OF] = numpy.asarray(nuc_charge, dtype=numpy.int32)
-    _atm[:,PTR_COORD] = numpy.arange(ptr, ptr+4*natm, 4, dtype=numpy.int32)
-    _atm[:,NUC_MOD_OF] = nuclear_model
-    _atm[:,PTR_ZETA] = _atm[:,PTR_COORD] + 3
-    return _atm, _env
+    atm = numpy.zeros((natm, ATM_SLOTS), dtype=numpy.int32)
+    atm[:,CHARGE_OF] = numpy.asarray(nuc_charge, dtype=numpy.int32)
+    atm[:,PTR_COORD] = numpy.arange(ptr, ptr+4*natm, 4, dtype=numpy.int32)
+    atm[:,NUC_MOD_OF] = nuclear_model
+    atm[:,PTR_ZETA] = atm[:,PTR_COORD] + 3
+    return atm, env, r0
 
 def make_bas_env(
-    basis_add: dict,
-    atom_id: int = 0,
+    basis: dict,
     ptr: int = 0,
-) -> tuple[numpy.ndarray, Array]:
-    _bas = []
-    _env = []
-    # TODO kappa
+) -> tuple[dict, Array, Array, Array]:
+    basdic = {}
     kappa = 0
-    for l, shells in basis_add.items():
-        for param in shells:
-            es = param[:,0]
-            cs = param[:,1:]
-            nprim, nctr = cs.shape
-            cs = np.einsum("pi,p->pi", cs, gto_norm(l, es))
-            if NORMALIZE_GTO:
-                cs = _nomalize_contracted_ao(l, es, cs)
+    exp = []
+    ctr_coeff = []
+    ptr_exp0 = ptr
+    ptr_coeff0 = 0
 
-            _env.append(es)
-            _env.append(cs.T.ravel())
-            ptr_exp = ptr
-            ptr_coeff = ptr_exp + nprim
-            ptr = ptr_coeff + nprim * nctr
-            _bas.append([atom_id, l, nprim, nctr, kappa, ptr_exp, ptr_coeff, 0])
+    for symb, basis_add in basis.items():
+        bas = []
+        for l, shells in basis_add.items():
+            for param in shells:
+                es = param[:, 0]
+                cs = param[:, 1:]
+                nprim, nctr = cs.shape
+                cs = np.einsum("pi,p->pi", cs, gto_norm(l, es))
+                if NORMALIZE_GTO:
+                    cs = _nomalize_contracted_ao(l, es, cs)
 
-    _bas = numpy.asarray(_bas, dtype=numpy.int32).reshape(-1, BAS_SLOTS)
-    _env = np.hstack(_env)
-    return _bas, _env
+                exp.append(es)
+                ctr_coeff.append(cs.T.ravel())
+
+                bas.append([0, l, nprim, nctr, kappa, ptr_exp0, ptr_coeff0, 0])
+                ptr_exp0 += nprim
+                ptr_coeff0 += nprim * nctr
+
+        bas = numpy.asarray(bas, dtype=numpy.int32).reshape(-1, BAS_SLOTS)
+        basdic[symb] = bas
+
+    for symb in basdic: # pylint: disable=consider-using-dict-items
+        basdic[symb][:, PTR_COEFF] += ptr_exp0
+
+    exp = np.hstack(exp)
+    ctr_coeff = np.hstack(ctr_coeff)
+    env = np.hstack([exp, ctr_coeff])
+    return basdic, env, exp, ctr_coeff
 
 def make_env(
     mol: MoleLite,
-) -> tuple[numpy.ndarray, numpy.ndarray, Array]:
+) -> tuple[numpy.ndarray, numpy.ndarray, Array, Array, Array, Array]:
     """Make ``_atm``, ``_bas``, and ``_env`` for
     interfacing with ``libcint``.
     """
     pre_env = np.zeros(PTR_ENV_START, dtype=np.floatx)
+    pre_env = ops.index_update(
+        pre_env,
+        ops.index[PTR_COMMON_ORIG:PTR_COMMON_ORIG+3],
+        np.asarray(mol.common_origin, dtype=np.floatx),
+    )
+    pre_env = ops.index_update(
+        pre_env,
+        ops.index[PTR_RINV_ORIG:PTR_RINV_ORIG+3],
+        np.asarray(mol.rinv_origin, dtype=np.floatx),
+    )
+
     _env = [pre_env]
     ptr_env = pre_env.size
 
     # TODO other nuclear charge models
-    _atm, env0 = make_atm_env(mol.coords, mol.symbols, ptr_env)
+    _atm, env0, r0 = make_atm_env(mol.coords, mol.symbols, ptr_env)
     _env.append(env0)
     ptr_env += env0.size
 
-    _basdic = {}
-    for symb, basis_add in mol.basis.items():
-        bas0, env0 = make_bas_env(basis_add, 0, ptr_env)
-        ptr_env += env0.size
-        _basdic[symb] = bas0
-        _env.append(env0)
+    _basdic, env0, exp, ctr_coeff = make_bas_env(mol.basis, ptr_env)
+    _env.append(env0)
 
     _bas = []
     for ia, symb in enumerate(mol.symbols):
@@ -526,4 +557,4 @@ def make_env(
 
     _bas = numpy.vstack(_bas)
     _env = np.hstack(_env)
-    return _atm, _bas, _env
+    return _atm, _bas, _env, r0, exp, ctr_coeff

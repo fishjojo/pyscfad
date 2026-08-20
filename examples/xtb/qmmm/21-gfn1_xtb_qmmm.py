@@ -56,7 +56,7 @@ else:
 
 def energy(coords, mm_coords, randparam, mm_charges, mm_radii, a):
     mol = MoleLite(numbers=numbers, coords=coords, basis=basis, charge=-1,
-                   cuint_plan=plan, trace_coords=True, verbose=4)
+                   cuint_plan=plan, verbose=4)
     mf = GFN1XTB(mol, param)
     mf = itrf.add_mm_charges(
         mf, mm_coords, a, mm_charges, mm_radii,

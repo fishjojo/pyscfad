@@ -27,7 +27,7 @@ if not _cuint:
 
 def func_norm(coords, numbers, a, basis, kmesh, cuint_plan=None):
     cell = CellLite(numbers=numbers, coords=coords, a=a, rcut=None,
-                    basis=basis, precision=1e-6, trace_coords=True)
+                    basis=basis, precision=1e-6)
     kpts = cell.make_kpts(kmesh)
     Ls = nimgs_to_lattice_Ls(cell)
     expkL = np.exp(1j*np.dot(kpts, Ls.T))
@@ -59,7 +59,7 @@ def test_latovlp():
 
     basis = "ccpvtz"
     cell = CellLite(numbers=numbers, coords=coords, a=a, rcut=None,
-                    basis=basis, precision=1e-6, trace_coords=True)
+                    basis=basis, precision=1e-6)
 
     cuint_plan = cuint_create_plan(cell)
     kmesh = [3,2,2]
@@ -91,8 +91,7 @@ def test_latovlp_basis_deriv():
 
     def loss(basis, plan):
         cell = CellLite(numbers=numbers, coords=coords, a=a, basis=basis,
-                        rcut=8.0, nimgs=nimgs, precision=1e-6, verbose=0,
-                        trace_basis=True)
+                        rcut=8.0, nimgs=nimgs, precision=1e-6)
         s1e = np.sum(cell.lattice_intor("int1e_ovlp", hermi=1, Ls=Ls,
                                         cuint_plan=plan), axis=0)
         # backend-specific storage conventions (as in kxtb):
@@ -150,8 +149,7 @@ def test_latovlp_mixed_coord_basis_deriv():
         # derivative but stops tracing coordinates (no second geometry
         # derivative, which cuint does not implement)
         cell = CellLite(numbers=numbers, coords=coords, a=a, basis=basis,
-                        rcut=8.0, nimgs=nimgs, precision=1e-6, verbose=0,
-                        trace_coords=True, trace_basis=True, max_coord_deriv=1)
+                        rcut=8.0, nimgs=nimgs, precision=1e-6)
         s1e = np.sum(cell.lattice_intor("int1e_ovlp", hermi=1, Ls=Ls,
                                         cuint_plan=plan), axis=0)
         # backend-specific storage conventions (as in kxtb):
@@ -193,7 +191,18 @@ def test_latovlp_mixed_coord_basis_deriv():
 
 def test_latovlp_mixed_coord_basis_deriv_pad():
     """Batched (padded) mixed coordinate/basis second derivatives of the
-    lattice overlap: cuint vs the CPU pad path."""
+    lattice overlap: cuint vs the CPU pad path.
+
+    Carbon diamond with the xTB basis truncated at ``Z <= 6``. This is the
+    most memory-hungry test in the file: the exponent term of the gradient
+    integral evaluates 27-component cross integrals per image, and
+    ``jacfwd`` over the whole ``BasisArray`` carries one tangent per
+    parameter, so the element range, the image count and the padding all
+    have to stay small (``Z <= 14`` needs ~6 GiB and does not fit a 6 GB
+    card). ``l = 2`` on this path is covered instead by the unpadded
+    :func:`test_latovlp_basis_deriv` and
+    :func:`test_latovlp_mixed_coord_basis_deriv`, which use Si.
+    """
     import dataclasses
     from pyscfad.xtb import basis as xtb_basis
     from pyscfad.ml.gto import make_basis_array
@@ -204,22 +213,19 @@ def test_latovlp_mixed_coord_basis_deriv_pad():
     a = numpy.array([[0.0, 2.6935, 2.6935],
                      [2.6935, 0.0, 2.6935],
                      [2.6935, 2.6935, 0.0]]) / BOHR
-    coords_si = numpy.array([[0.0, 0.0, 0.0], [1.3468] * 3]) / BOHR
-    # the exponent term of the gradient integral evaluates 27-component
-    # cross integrals per image, so keep the image count (and the padding)
-    # small here
+    coords_dia = numpy.array([[0.0, 0.0, 0.0], [1.3468] * 3]) / BOHR
     rcut = 6.0
 
     bfile = xtb_basis.get_basis_filename()
-    basis = make_basis_array(bfile, max_number=14)
+    basis = make_basis_array(bfile, max_number=6)
 
-    cell0 = CellLite(numbers=[14, 14], coords=coords_si, a=a, basis=bfile,
+    cell0 = CellLite(numbers=[6, 6], coords=coords_dia, a=a, basis=bfile,
                      rcut=rcut, precision=1e-6, verbose=0)
     Ts = make_image_grid(numpy.asarray(cell0.nimgs))
     Ls0 = Ts @ a
 
-    numbers_b = numpy.array([[14, 14], [10, 0]], dtype=numpy.int32)
-    coords_b = np.asarray(numpy.stack([coords_si, numpy.zeros((2, 3))]))
+    numbers_b = numpy.array([[6, 6], [1, 0]], dtype=numpy.int32)
+    coords_b = np.asarray(numpy.stack([coords_dia, numpy.zeros((2, 3))]))
 
     plans = []
     for nums, crds in zip(numbers_b, coords_b):
@@ -232,8 +238,7 @@ def test_latovlp_mixed_coord_basis_deriv_pad():
         cell = CellPad(numbers, coords,
                        basis=dataclasses.replace(basis, data=data),
                        a=a, Ls=Ls0, rcut=rcut, precision=1e-6, verbose=0,
-                       trace_coords=True, trace_basis=True,
-                       max_coord_deriv=1, cuint_plan=plan)
+                       cuint_plan=plan)
         s1e = np.sum(cell.lattice_intor("int1e_ovlp", hermi=1), axis=0)
         if plan is None:
             s1e = hermi_triu(s1e)
@@ -277,8 +282,7 @@ def test_kxtb_basis_grad_parity():
 
     def energy(basis, use_plan):
         cell = CellLite(numbers=numbers, coords=coords, a=a, basis=basis,
-                        rcut=15.0, precision=1e-6, verbose=0,
-                        trace_basis=True,
+                        rcut=15.0, precision=1e-6,
                         cuint_plan=plan if use_plan else None)
         mf = GFN1KXTB(cell, param=GFN1Param(), kpts=cell.make_kpts([1, 1, 1]))
         mf.conv_tol = 1e-10
@@ -336,8 +340,7 @@ def test_gfn1_kxtb_pad_cuint():
     def energy(numbers, coords, plan):
         Ls = np.asarray(Ts, dtype=np.float64) @ a
         cell = CellPad(numbers, coords, basis=basis, a=a, Ls=Ls, rcut=rcut,
-                       precision=1e-6, verbose=0, trace_coords=True,
-                       cuint_plan=plan)
+                       precision=1e-6, cuint_plan=plan)
         mf = GFN1KXTB(cell, param, kpts=cell.make_kpts([1, 1, 1]))
         mf.ewald_mesh = ewald_mesh
         mf.conv_tol = 1e-10
@@ -392,8 +395,7 @@ def test_latovlp_basis_deriv_batched():
 
     def loss(basis, numbers, coords, plan):
         cell = CellPad(numbers, coords, basis=basis, a=a, Ls=Ls0, rcut=rcut,
-                       precision=1e-6, verbose=0, trace_basis=True,
-                       cuint_plan=plan)
+                       precision=1e-6, cuint_plan=plan)
         s1e_lat = cell.lattice_intor("int1e_ovlp", hermi=1)
         s1e = np.sum(s1e_lat, axis=0)
         # backend-specific storage conventions (as in kxtb):

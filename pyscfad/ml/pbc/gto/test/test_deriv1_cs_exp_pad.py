@@ -66,7 +66,7 @@ def loss_fn(hermi=1, cart=False, shls_slice=None):
     """``BasisArray -> scalar`` for a fixed cell."""
     def loss(basis):
         cell = CellPad(NUMBERS, COORDS, basis=basis, a=A, Ls=LS, rcut=RCUT,
-                       precision=1e-6, verbose=0, cart=cart, trace_basis=True)
+                       precision=1e-6, cart=cart)
         ints = cell.lattice_intor("int1e_ovlp", hermi=hermi,
                                   shls_slice=shls_slice)
         return np.sum(ints * ints)
@@ -167,13 +167,13 @@ def test_cs_exp_shls_slice(basis, shls_slice, hermi):
     assert numpy.isfinite(numpy.asarray(grad.data)).all()
 
     cell = CellPad(NUMBERS, COORDS, basis=basis, a=A, Ls=LS, rcut=RCUT,
-                   precision=1e-6, verbose=0, trace_basis=True)
+                   precision=1e-6)
     ao_loc = numpy.asarray(cell.ao_loc)
     i0, i1, j0, j1 = shls_slice
 
     def loss_block(basis):
         cell1 = CellPad(NUMBERS, COORDS, basis=basis, a=A, Ls=LS, rcut=RCUT,
-                        precision=1e-6, verbose=0, trace_basis=True)
+                        precision=1e-6)
         ints = cell1.lattice_intor("int1e_ovlp", hermi=hermi)
         ints = ints[..., ao_loc[i0]:ao_loc[i1], ao_loc[j0]:ao_loc[j1]]
         return np.sum(ints * ints)
@@ -221,7 +221,7 @@ def test_cs_exp_traced_numbers(basis):
 
     def loss(basis, numbers, coords):
         cell = CellPad(numbers, coords, basis=basis, a=A, Ls=LS, rcut=RCUT,
-                       precision=1e-6, verbose=0, trace_basis=True)
+                       precision=1e-6)
         s = cell.lattice_intor("int1e_ovlp", hermi=1)
         return np.sum(s * s)
 

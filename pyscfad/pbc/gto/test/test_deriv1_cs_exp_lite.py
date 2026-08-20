@@ -53,7 +53,7 @@ SLICES = [((0, 2, 1, 4), 0), ((1, 4, 1, 4), 1)]
 @pytest.fixture(scope="module")
 def cell():
     return CellLite(numbers=NUMBERS, coords=COORDS, a=A, basis=BASIS,
-                    rcut=RCUT, precision=1e-6, verbose=0)
+                    rcut=RCUT, precision=1e-6)
 
 
 @pytest.fixture(scope="module")
@@ -82,8 +82,7 @@ def lattice_fn(Ls, nimgs, hermi=0, cart=False, shls_slice=None):
     """``basis -> per-image lattice integrals`` for a fixed geometry."""
     def fn(basis):
         cell_ = CellLite(numbers=NUMBERS, coords=COORDS, a=A, basis=basis,
-                         rcut=RCUT, nimgs=nimgs, precision=1e-6, verbose=0,
-                         cart=cart, trace_basis=True)
+                         rcut=RCUT, nimgs=nimgs, precision=1e-6, cart=cart)
         return cell_.lattice_intor("int1e_ovlp", hermi=hermi, Ls=Ls,
                                    shls_slice=shls_slice)
     return fn
@@ -93,8 +92,7 @@ def pbc_fn(kpts, nimgs, hermi=0, shls_slice=None):
     """``basis -> k-point integrals`` for a fixed geometry."""
     def fn(basis):
         cell_ = CellLite(numbers=NUMBERS, coords=COORDS, a=A, basis=basis,
-                         rcut=RCUT, nimgs=nimgs, precision=1e-6, verbose=0,
-                         trace_basis=True)
+                         rcut=RCUT, nimgs=nimgs, precision=1e-6)
         return cell_.pbc_intor("int1e_ovlp", hermi=hermi, kpts=kpts,
                                shls_slice=shls_slice)
     return fn

@@ -36,13 +36,11 @@ from pyscf.gto.mole import (
 
 from pyscfad import numpy as np
 from pyscfad import ops
-from pyscfad.gto.moleintor_lite import (
-    _aoslice_by_atom,
-    _extract_coords,
-)
-from pyscfad.gto._basis_deriv import next_coord_deriv
 from pyscfad.gto._pyscf_moleintor import make_loc
-from pyscfad.gto._moleintor_helper import int1e_dr1_name
+from pyscfad.gto._moleintor_helper import (
+    int1e_dr1_name,
+    aoslices_in_range,
+)
 from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
 from .moleintor_cuint import (
     CrossChunk,
@@ -65,33 +63,29 @@ if TYPE_CHECKING:
         "Ls_mask",
         "atm",
         "bas",
+        "env",
         "cuint_plan",
         "shls_slice",
         "comp",
         "hermi",
         "ao_loc",
-        "trace_coords",
-        "trace_basis",
-        "aoslices",
-        "max_coord_deriv",
     ),
 )
 def _lattice_intor(
     intor_name: str,
     Ls: ArrayLike,
     Ls_mask: ArrayLike,
-    atm: ArrayLike,
-    bas: ArrayLike,
-    env: ArrayLike,
+    atm: numpy.ndarray | Array,
+    bas: numpy.ndarray | Array,
+    env: Array,
     cuint_plan: CuintPlan,
+    r0: Array,
+    exp: Array,
+    ctr_coeff: Array,
     shls_slice: tuple[int, ...] | None = None,
     comp: int | None = None,
     hermi: int = 0,
-    ao_loc: ArrayLike | None = None,
-    trace_coords: bool = False,
-    trace_basis: bool = False,
-    aoslices: ArrayLike | None = None, # for padding
-    max_coord_deriv: int | None = None,
+    ao_loc: numpy.ndarray | None = None,
 ) -> Array:
     bas = np.asarray(bas).reshape(-1,BAS_SLOTS)
     nbas = bas.shape[0]
@@ -402,29 +396,17 @@ def _get_lat_basis_cross_plan(bas_conc, natm, nenv, budget=None):
     return plan
 
 
-def _gen_int1e_jvp_basis(
-    intor_name, Ls, Ls_mask, atm, bas, env, env_dot, ao_loc, cuint_plan,
-):
-    """Basis-set parameter tangent of the per-image lattice integrals
-    on the cuint backend (first order in the basis parameters).
+def _lat_basis_cross_setup(intor_name, Ls, atm, bas, env, cuint_plan, r0):
+    """The plan, per-call ``rows`` and the doubled system (the ket atom copy
+    displaced by L, its coordinates in an appended env block) that the two
+    lattice basis tangents share.
 
-    Handles the lattice overlap and its coordinate gradient
-    (``int1e_ovlp_dr10``/``int1e_ipovlp``, one bra derivative), so that
-    forces and stresses stay differentiable w.r.t. the basis set. The
-    exponent term uses the solid-harmonic identity
-    ``r_A^2 chi = [lap_A chi + 2 alpha (2l+3) chi] / (4 alpha^2)`` with the
-    Laplacian from ``gen_overlap`` (two extra derivative slots on the fake
-    side, on top of the integral's own bra derivative). All cross integrals
-    run per image through the kernels' native configuration batching (the
-    ket atom copy is displaced by L).
-
-    Note:
-        As in the molecular backend, the cross integrals are evaluated on the
-        stopped primal ``env``, so a mixed coordinate/basis second derivative
-        has to differentiate the coordinates first, e.g.
-        ``jacfwd(grad(f, coords), basis)``.
+    All cross integrals run per image through the kernels' native
+    configuration batching, on the **stopped** primal ``env``: the tangent is
+    first order in the basis parameters, so a mixed coordinate/basis second
+    derivative has to differentiate the coordinates first, e.g.
+    ``jacfwd(grad(f, coords), basis)``.
     """
-    del ao_loc
     n_deriv = _basis_deriv_order(intor_name, backend="cuint lattice")
     bas_conc = _plan_bas_concrete(cuint_plan, bas)
     natm = atm.shape[0]
@@ -432,18 +414,14 @@ def _gen_int1e_jvp_basis(
     Ls = Ls.reshape(-1, 3)
     nL = Ls.shape[0]
     plan = _get_lat_basis_cross_plan(bas_conc, natm, nenv)
-    nao_fake = plan.nao_fake
-    nao = plan.nao
     rows = plan.make_rows(bas)
 
-    # doubled system: ket atom copy displaced by L, coordinates in an
-    # appended env block; evaluated on the (stopped) primal env only
     atm2 = np.concatenate([np.asarray(atm, dtype=np.int32)] * 2, axis=0)
     ptr2 = plan.ptr_coords2 + 3 * np.arange(natm, dtype=np.int32)
     atm2 = ops.index_update(atm2, ops.index[natm:, PTR_COORD], ptr2)
 
     env = np.asarray(env, dtype=np.float64)
-    coords = _extract_coords(atm, env)
+    coords = np.asarray(r0, dtype=np.float64).reshape(-1, 3)
     coords_l = (coords[None, :, :] + np.asarray(Ls, dtype=np.float64)[:, None, :])
     env2 = np.concatenate(
         [
@@ -454,93 +432,123 @@ def _gen_int1e_jvp_basis(
         axis=1,
     )
     env2 = ops.stop_gradient(env2)
+    return n_deriv, plan, rows, atm2, env2
 
-    def _blocks(kind, lap):
-        """Bra- and ket-direction cross blocks of one pair group, assembled
-        over the chunks (``lap``: with the Laplacian of the exponent identity
-        applied to the fake shell, already traced).
 
-        The integral's own ``n_deriv`` derivatives always sit on the bra,
-        which is the fake shell in the bra-direction blocks and the real
-        shell in the ket-direction ones.
-        """
-        # bra-direction blocks: fake bra x real ket
+def _lat_weighted_blocks(atm2, env2, plan, rows, n_deriv, lap):
+    """Bra- and ket-direction cross blocks summed over the pair groups with
+    their weights.
+
+    The integral's own ``n_deriv`` derivatives always sit on the bra, which is
+    the fake shell in the bra-direction blocks and the real shell in the
+    ket-direction ones. ``lap`` applies the Laplacian of the exponent
+    identity to the fake shell (already traced).
+
+    The primal halves the diagonal primitive pairs (cuint's ``OVLP_SPELL``),
+    so their cross terms enter with weight 1/2 as well; folding that in here
+    rather than after the contraction keeps the (tangent-batched) contraction
+    outputs down to one per direction.
+    """
+    def _blocks(kind):
         xb = _cross_blocks(atm2, env2, plan, rows, n_deriv, lap,
                            group="bra_" + kind)
-        # ket-direction blocks: real bra x fake ket
         xk = _cross_blocks(atm2, env2, plan, rows, n_deriv, lap,
                            group="ket_" + kind, transpose=True)
         return xb, xk
 
+    xb_off, xk_off = _blocks("off")
+    xb_diag, xk_diag = _blocks("diag")
+    return xb_off + 0.5 * xb_diag, xk_off + 0.5 * xk_diag
+
+
+def _lat_scatter(plan, w):
+    """The primitive-to-contracted scatter matrix of one weight vector."""
+    t = np.zeros((plan.nao, plan.nao_fake), dtype=np.float64)
+    return ops.index_add(t, ops.index[plan.map_real_rows, plan.map_fake_rows], w)
+
+
+def _lat_contract(t, x_bra, x_ket, Ls_mask):
+    """Both cross directions contracted and masked to the live images."""
+    jvp = (np.einsum("ma,lcav->lcmv", t, x_bra)
+           + np.einsum("lcma,na->lcmn", x_ket, t))
+    Ls_mask = np.asarray(Ls_mask).reshape(-1)
+    return np.where(Ls_mask[:, None, None, None] != 0, jvp,
+                    np.zeros((), dtype=jvp.dtype))
+
+
+def _gen_int1e_jvp_cs(
+    intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
+    r0, ctr_coeff, ctr_coeff_dot,
+):
+    """Contraction-coefficient tangent of the per-image lattice integrals on
+    the cuint backend.
+
+    The integrals are linear in the contraction coefficients, so the tangent
+    is the primitive cross block itself.
+    """
+    n_deriv, plan, rows, atm2, env2 = _lat_basis_cross_setup(
+        intor_name, Ls, atm, bas, env, cuint_plan, r0)
+
+    ptr_coeff0 = env.shape[-1] - ctr_coeff.shape[-1]
+    coeff_env_idx = bas[:, PTR_COEFF][plan.map_entry_shell] + plan.map_coeff_off
+    t = _lat_scatter(plan, ctr_coeff_dot[coeff_env_idx - ptr_coeff0])
+
+    x_bra, x_ket = _lat_weighted_blocks(atm2, env2, plan, rows, n_deriv, 0)
+    return _lat_contract(t, x_bra, x_ket, Ls_mask)
+
+
+def _gen_int1e_jvp_exp(
+    intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
+    r0, exp, ctr_coeff, exp_dot,
+):
+    """Exponent tangent of the per-image lattice integrals on the cuint
+    backend.
+
+    ``d/da exp(-a r_A^2)`` brings down ``-r_A^2``, which the solid-harmonic
+    identity ``r_A^2 chi = [lap_A chi + 2 a (2l+3) chi] / (4 a^2)`` turns
+    into a Laplacian of the same shell -- two extra derivative slots on the
+    fake side, on top of the integral's own bra derivative.
+    """
+    n_deriv, plan, rows, atm2, env2 = _lat_basis_cross_setup(
+        intor_name, Ls, atm, bas, env, cuint_plan, r0)
+
+    ptr_coeff0 = env.shape[-1] - ctr_coeff.shape[-1]
+    ptr_exp0 = ptr_coeff0 - exp.shape[-1]
     ptr_exp_col = bas[:, PTR_EXP]
+    coeff_env_idx = bas[:, PTR_COEFF][plan.map_entry_shell] + plan.map_coeff_off
+    exp_env_idx = ptr_exp_col[plan.map_entry_shell] + plan.map_prim_off
+    c = ops.stop_gradient(ctr_coeff[coeff_env_idx - ptr_coeff0])
+    t = _lat_scatter(plan, c * exp_dot[exp_env_idx - ptr_exp0])
+
     alpha_env_idx = ptr_exp_col[plan.fakefn_shell] + plan.fakefn_prim
     alpha = ops.stop_gradient(env[alpha_env_idx])
-    lfac = 2.0 * (2 * plan.l_fake_fn + 3)
+    afac = 2.0 * (2 * plan.l_fake_fn + 3) * alpha
     scale = 1.0 / (4.0 * alpha ** 2)
-    afac = lfac * alpha
 
-    ptr_coeff_col = bas[:, PTR_COEFF]
-    coeff_env_idx = ptr_coeff_col[plan.map_entry_shell] + plan.map_coeff_off
-    exp_env_idx = ptr_exp_col[plan.map_entry_shell] + plan.map_prim_off
-
-    env_dot = np.asarray(env_dot, dtype=np.float64)
-    w_cs = env_dot[coeff_env_idx]
-    w_exp = ops.stop_gradient(env[coeff_env_idx]) * env_dot[exp_env_idx]
-
-    t_cs = np.zeros((nao, nao_fake), dtype=np.float64)
-    t_cs = ops.index_add(t_cs, ops.index[plan.map_real_rows, plan.map_fake_rows], w_cs)
-    t_exp = np.zeros((nao, nao_fake), dtype=np.float64)
-    t_exp = ops.index_add(t_exp, ops.index[plan.map_real_rows, plan.map_fake_rows], w_exp)
-
-    def _bra(t, x):
-        return np.einsum("ma,lcav->lcmv", t, x)
-
-    def _ket(x, t):
-        return np.einsum("lcma,na->lcmn", x, t)
-
-    def _weighted(lap):
-        """Cross blocks summed over the pair groups with their weights. The
-        primal halves the diagonal primitive pairs (cuint's OVLP_SPELL), so
-        their cross terms enter with weight 1/2 as well; folding that in here
-        rather than after the contraction keeps the (tangent-batched)
-        contraction outputs down to one per direction.
-        """
-        xb_off, xk_off = _blocks("off", lap)
-        xb_diag, xk_diag = _blocks("diag", lap)
-        return xb_off + 0.5 * xb_diag, xk_off + 0.5 * xk_diag
-
-    x0_bra, x0_ket = _weighted(0)
-    tr_bra, tr_ket = _weighted(1)
-    x_exp_bra = -(tr_bra + afac[None, None, :, None] * x0_bra) \
+    x0_bra, x0_ket = _lat_weighted_blocks(atm2, env2, plan, rows, n_deriv, 0)
+    tr_bra, tr_ket = _lat_weighted_blocks(atm2, env2, plan, rows, n_deriv, 1)
+    x_bra = -(tr_bra + afac[None, None, :, None] * x0_bra) \
         * scale[None, None, :, None]
-    x_exp_ket = -(tr_ket + x0_ket * afac[None, None, None, :]) \
+    x_ket = -(tr_ket + x0_ket * afac[None, None, None, :]) \
         * scale[None, None, None, :]
 
-    jvp = (_bra(t_cs, x0_bra) + _ket(x0_ket, t_cs)
-           + _bra(t_exp, x_exp_bra) + _ket(x_exp_ket, t_exp))
-
-    Ls_mask = np.asarray(Ls_mask).reshape(-1)
-    jvp = np.where(Ls_mask[:, None, None, None] != 0, jvp,
-                   np.zeros((), dtype=jvp.dtype))
-    return jvp
+    return _lat_contract(t, x_bra, x_ket, Ls_mask)
 
 
 def _lattice_intor_jvp(
-    intor_name, Ls_mask, atm, bas, cuint_plan,
+    intor_name, Ls_mask, atm, bas, env, cuint_plan,
     shls_slice, comp, hermi, ao_loc,
-    trace_coords, trace_basis, aoslices, max_coord_deriv,
     primals, tangents,
 ):
     assert hermi == 1
 
-    Ls, env = primals
-    Ls_dot, env_dot = tangents
+    Ls, r0, exp, ctr_coeff = primals
+    Ls_dot, r0_dot, exp_dot, ctr_coeff_dot = tangents
 
     primal_out = _lattice_intor(
         intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
+        r0, exp, ctr_coeff,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
-        trace_coords=trace_coords, trace_basis=trace_basis, aoslices=aoslices,
-        max_coord_deriv=max_coord_deriv,
     )
 
     tangent_out = np.zeros_like(primal_out)
@@ -549,63 +557,68 @@ def _lattice_intor_jvp(
     # through _lattice_intor (rather than calling the kernel directly) keeps
     # it differentiable w.r.t. the basis-set parameters, which is what makes
     # mixed coordinate/basis derivatives available
-    intor_ip_bra = int1e_dr1_name(intor_name)[0]
-    nested_coord_deriv, nested_trace_coords = next_coord_deriv(
-        max_coord_deriv, trace_coords
-    )
-    need_ip = ((not isinstance(env_dot, SymbolicZero) and trace_coords)
+    need_ip = (not isinstance(r0_dot, SymbolicZero)
                or not isinstance(Ls_dot, SymbolicZero))
     if need_ip:
+        intor_ip_bra = int1e_dr1_name(intor_name)[0]
         s1a = -_lattice_intor(
             intor_ip_bra, Ls, Ls_mask, atm, bas, env, cuint_plan,
+            r0, exp, ctr_coeff,
             shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
-            trace_coords=nested_trace_coords, trace_basis=trace_basis,
-            aoslices=aoslices, max_coord_deriv=nested_coord_deriv,
         )
 
-    if not isinstance(env_dot, SymbolicZero):
-        if trace_coords:
-            s1a_x = s1a.transpose(1,0,2,3)
+    if not isinstance(r0_dot, SymbolicZero):
+        s1a_x = s1a.transpose(1,0,2,3)
 
-            env_dot = np.asarray(env_dot, dtype=np.float64)
-            coords_dot = _extract_coords(atm, env_dot)
+        # 'bas' is traced on the padded path; the concrete shell structure
+        # comes from the plan, which recorded it at creation
+        bas_conc = _plan_bas_concrete(cuint_plan, bas)
 
-            if shls_slice is None:
-                nbas = len(bas)
-                shls_slice = (0, nbas, 0, nbas)
-            if ao_loc is None:
-                _ao_loc = make_loc(bas, intor_name)
-            else:
-                _ao_loc = ao_loc
+        if shls_slice is None:
+            nbas = len(bas_conc)
+            shls_slice = (0, nbas, 0, nbas)
+        if ao_loc is None:
+            _ao_loc = make_loc(bas_conc, intor_name)
+        else:
+            _ao_loc = ao_loc
 
-            i0, _, j0, _ = shls_slice[:4]
-            if aoslices is None:
-                aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
+        i0, i1, j0, j1 = shls_slice[:4]
+        aoslices_bra = aoslices_in_range(bas_conc, _ao_loc, len(atm), (i0, i1))
+        if (j0, j1) == (i0, i1):
+            aoslices_ket = aoslices_bra
+        else:
+            aoslices_ket = aoslices_in_range(bas_conc, _ao_loc, len(atm),
+                                             (j0, j1))
 
-            naoi, naoj = s1a_x.shape[-2:]
+        naoi, naoj = s1a_x.shape[-2:]
 
-            aoidx = np.arange(naoi)
-            jvp = _gen_int1e_fill_jvp_r0(s1a_x, coords_dot, aoslices-_ao_loc[i0],
-                                         aoidx[None,None,:,None])
+        aoidx = np.arange(naoi)
+        jvp = _gen_int1e_fill_jvp_r0(s1a_x, r0_dot, aoslices_bra,
+                                     aoidx[None,None,:,None])
 
-            aoidx = np.arange(naoj)
-            jvp += _gen_int1e_fill_jvp_r0(-s1a_x, coords_dot, aoslices-_ao_loc[j0],
-                                          aoidx[None,None,None,:])
+        aoidx = np.arange(naoj)
+        jvp += _gen_int1e_fill_jvp_r0(-s1a_x, r0_dot, aoslices_ket,
+                                      aoidx[None,None,None,:])
 
-            tangent_out += jvp.reshape(tangent_out.shape)
+        tangent_out += jvp.reshape(tangent_out.shape)
 
-        if trace_basis:
-            tangent_out += _gen_int1e_jvp_basis(
-                intor_name, Ls, Ls_mask, atm, bas, env, env_dot, ao_loc,
-                cuint_plan,
-            ).reshape(tangent_out.shape)
+    if not isinstance(exp_dot, SymbolicZero):
+        tangent_out += _gen_int1e_jvp_exp(
+            intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
+            r0, exp, ctr_coeff, exp_dot,
+        ).reshape(tangent_out.shape)
+
+    if not isinstance(ctr_coeff_dot, SymbolicZero):
+        tangent_out += _gen_int1e_jvp_cs(
+            intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
+            r0, ctr_coeff, ctr_coeff_dot,
+        ).reshape(tangent_out.shape)
 
     if not isinstance(Ls_dot, SymbolicZero):
         # Every ket function in image L is displaced rigidly by L, so
         # dS_L/dL is the ket-center derivative summed over all ket centers.
         # By pair translation invariance this equals minus the bra
         # derivative that the deriv=1 kernel provides.
-        Ls_dot = np.asarray(Ls_dot, dtype=np.float64)
         tangent_out += np.einsum("lxpq,lx->lpq", -s1a, Ls_dot).reshape(
             tangent_out.shape
         )
