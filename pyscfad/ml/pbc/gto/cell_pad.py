@@ -88,12 +88,10 @@ class CellPad(MolePad):
         spin: int = 0,
         cart: bool = False,
         verbose: int = 3,
-        trace_coords: bool = False,
-        trace_basis: bool = False,
         cuint_plan: CuintPlan | None = None,
-        bas0: ArrayLike = None,
-        env0: ArrayLike = None,
+        **kwargs,
     ):
+        # MolePad warns about the deprecated 'trace_coords'/'trace_basis'
         super().__init__(
             numbers,
             coords,
@@ -102,11 +100,8 @@ class CellPad(MolePad):
             spin=spin,
             cart=cart,
             verbose=verbose,
-            trace_coords=trace_coords,
-            trace_basis=trace_basis,
             cuint_plan=cuint_plan,
-            bas0=bas0,
-            env0=env0,
+            **kwargs,
         )
         if a is None:
             raise ValueError("CellPad requires the lattice vectors 'a'.")
@@ -175,28 +170,23 @@ class CellPad(MolePad):
             cuint_plan = self.cuint_plan
 
         ao_loc = self.ao_loc
-        aoslices = self.aoslice_by_atom(ao_loc=ao_loc)[:, 2:4]
 
         if cuint_plan is None:
             out = _latintor._lattice_intor(
                 intor_name, Ls, Ls_mask,
                 self._atm, self._bas, self._env,
+                self.r0, self.exp, self.ctr_coeff,
                 shls_slice=shls_slice, comp=comp, hermi=hermi,
                 ao_loc=ao_loc,
-                trace_coords=self.trace_coords,
-                trace_basis=self.trace_basis,
-                aoslices=aoslices,
                 basis_array_metadata=self.basis.metadata,
             )
         else:
             out = latintor_cuint._lattice_intor(
                 intor_name, Ls, Ls_mask,
                 self._atm, self._bas, self._env, cuint_plan,
+                self.r0, self.exp, self.ctr_coeff,
                 shls_slice=shls_slice, comp=comp, hermi=hermi,
                 ao_loc=ao_loc,
-                trace_coords=self.trace_coords,
-                trace_basis=self.trace_basis,
-                aoslices=aoslices,
             )
         return out
 

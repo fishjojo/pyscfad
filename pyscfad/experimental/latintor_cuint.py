@@ -36,13 +36,21 @@ from pyscf.gto.mole import (
 
 from pyscfad import numpy as np
 from pyscfad import ops
-from pyscfad.gto.moleintor_lite import (
-    _aoslice_by_atom,
-    _extract_coords,
-)
 from pyscfad.gto._pyscf_moleintor import make_loc
+from pyscfad.gto._moleintor_helper import (
+    int1e_dr1_name,
+    aoslices_in_range,
+)
 from pyscfad.gto._moleintor_jvp import _gen_int1e_fill_jvp_r0
-from .moleintor_cuint import PairInfo, gen_overlap_cross, _plan_bas_concrete
+from .moleintor_cuint import (
+    CrossChunk,
+    PairInfo,
+    chunk_budget,
+    _basis_deriv_order,
+    _cross_blocks,
+    _fake_chunks,
+    _plan_bas_concrete,
+)
 
 if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
@@ -55,31 +63,29 @@ if TYPE_CHECKING:
         "Ls_mask",
         "atm",
         "bas",
+        "env",
         "cuint_plan",
         "shls_slice",
         "comp",
         "hermi",
         "ao_loc",
-        "trace_coords",
-        "trace_basis",
-        "aoslices",
     ),
 )
 def _lattice_intor(
     intor_name: str,
     Ls: ArrayLike,
     Ls_mask: ArrayLike,
-    atm: ArrayLike,
-    bas: ArrayLike,
-    env: ArrayLike,
+    atm: numpy.ndarray | Array,
+    bas: numpy.ndarray | Array,
+    env: Array,
     cuint_plan: CuintPlan,
+    r0: Array,
+    exp: Array,
+    ctr_coeff: Array,
     shls_slice: tuple[int, ...] | None = None,
     comp: int | None = None,
     hermi: int = 0,
-    ao_loc: ArrayLike | None = None,
-    trace_coords: bool = False,
-    trace_basis: bool = False,
-    aoslices: ArrayLike | None = None, # for padding
+    ao_loc: numpy.ndarray | None = None,
 ) -> Array:
     bas = np.asarray(bas).reshape(-1,BAS_SLOTS)
     nbas = bas.shape[0]
@@ -96,9 +102,11 @@ def _lattice_intor(
 
     if intor_name == "int1e_ovlp_sph":
         out = lat_overlap(atm, env, Ls, Ls_mask, cuint_plan)
+    elif intor_name in ("int1e_ovlp_dr10_sph", "int1e_ipovlp_sph"):
+        out = lat_overlap(atm, env, Ls, Ls_mask, cuint_plan, deriv=1)
     else:
         raise NotImplementedError(
-            "Integral {intor_name} is not supported."
+            f"Integral {intor_name} is not supported."
         )
     return out
 
@@ -185,14 +193,16 @@ class LatBasisCrossPlan:
     Row layout: ``[fake_bra, real_bra, fake_ket, real_ket]``, each with one
     row per (shell, contraction, primitive); bra rows reference the
     original atoms, ket rows reference a second atom copy whose
-    coordinates live in an appended env block. Function spaces: fake
-    ``[0, nao_fake)``, real ``[nao_fake, nao_fake + nao)``.
+    coordinates live in an appended env block. The fake ``[0, nao_fake)`` and
+    real ``[0, nao)`` function spaces are independent (one indexes the rows of
+    a cross block, the other its columns) and the fake one is split over
+    :class:`~pyscfad.experimental.moleintor_cuint.CrossChunk` s.
 
     All structure is built from ``bas_conc``; the env pointer
     columns are filled from the actual (possibly traced) ``bas`` by
     :meth:`make_rows`.
     """
-    def __init__(self, bas_conc, natm, nenv):
+    def __init__(self, bas_conc, natm, nenv, budget=None):
         bas_conc = numpy.asarray(bas_conc)
         nbas = len(bas_conc)
         ls = bas_conc[:, ANG_OF]
@@ -230,7 +240,7 @@ class LatBasisCrossPlan:
                     real_rows.append([iatm, l, 1, 1, 0, 0, 0, 0])
                     f0 = fake_loc[i] + (k * nprim + j) * nl
                     fake_fn.append(f0)
-                    real_fn.append(nao_fake + ao_loc[i] + k * nl)
+                    real_fn.append(ao_loc[i] + k * nl)
                     prim_shell.append(i)
                     prim_j.append(j)
                     prim_coeff_off.append(k * nprim + j)
@@ -249,8 +259,7 @@ class LatBasisCrossPlan:
         ket_fake[:, ATOM_OF] += natm
         ket_real[:, ATOM_OF] += natm
         rows = numpy.vstack([fake_rows, real_rows, ket_fake, ket_real])
-        prim2fn = numpy.asarray(fake_fn + real_fn + fake_fn + real_fn,
-                                dtype=numpy.int32)
+        real_fn = numpy.asarray(real_fn, dtype=numpy.int32)
         n_rows = 4 * npr
 
         # ordered primal pair set: primitives enumerated with shells
@@ -269,15 +278,26 @@ class LatBasisCrossPlan:
                             numpy.searchsorted(order_l, l, "right"))
                    for l in uls}
 
-        def _groups(pair_p, pair_q, la, lb, bra_kind):
-            # bra_kind "fake": (fake_bra_p, real_ket_q)
-            # bra_kind "real": (real_bra_p, fake_ket_q)
-            if len(pair_p) == 0:
-                return None
-            if bra_kind == "fake":
-                enc = pair_p * n_rows + (3 * npr + pair_q)
-            else:
-                enc = (npr + pair_p) * n_rows + (2 * npr + pair_q)
+        # the primal ordered pair set, as (la, lb, p, q, group suffix); the
+        # encodings are built per chunk below
+        base_groups = []
+        for la in uls:
+            a0, a1 = lbounds[int(la)]
+            ra = order[a0:a1]
+            # same-l: strict upper triangle in the sorted positions
+            iu, ju = numpy.triu_indices(len(ra), k=1)
+            base_groups.append((la, la, ra[iu], ra[ju], "off"))
+            # diagonal pairs
+            base_groups.append((la, la, ra, ra, "diag"))
+            for lb in uls:
+                if lb <= la:
+                    continue
+                b0, b1 = lbounds[int(lb)]
+                rb = order[b0:b1]
+                pp, qq = numpy.meshgrid(ra, rb, indexing="ij")
+                base_groups.append((la, lb, pp.ravel(), qq.ravel(), "off"))
+
+        def _pair_info(la, lb, enc):
             return PairInfo(
                 li=numpy.int32(la),
                 lj=numpy.int32(lb),
@@ -285,48 +305,45 @@ class LatBasisCrossPlan:
                 n_pairs=numpy.int32(len(enc)),
             )
 
-        pairs_bra_off = []
-        pairs_ket_off = []
-        pairs_bra_diag = []
-        pairs_ket_diag = []
-        for la in uls:
-            a0, a1 = lbounds[int(la)]
-            ra = order[a0:a1]
-            # same-l: strict upper triangle in the sorted positions
-            iu, ju = numpy.triu_indices(len(ra), k=1)
-            g = _groups(ra[iu], ra[ju], la, la, "fake")
-            if g: pairs_bra_off.append(g)
-            g = _groups(ra[iu], ra[ju], la, la, "real")
-            if g: pairs_ket_off.append(g)
-            # diagonal pairs
-            g = _groups(ra, ra, la, la, "fake")
-            if g: pairs_bra_diag.append(g)
-            g = _groups(ra, ra, la, la, "real")
-            if g: pairs_ket_diag.append(g)
-            for lb in uls:
-                if lb <= la:
-                    continue
-                b0, b1 = lbounds[int(lb)]
-                rb = order[b0:b1]
-                pp, qq = numpy.meshgrid(ra, rb, indexing="ij")
-                g = _groups(pp.ravel(), qq.ravel(), la, lb, "fake")
-                if g: pairs_bra_off.append(g)
-                g = _groups(pp.ravel(), qq.ravel(), la, lb, "real")
-                if g: pairs_ket_off.append(g)
+        nl_per_prim = 2 * fake_rows[:, ANG_OF] + 1
+        chunks = []
+        if budget is None:
+            budget = chunk_budget(nao, nl_per_prim.max())
+        for r0, r1, fn0, n_fn in _fake_chunks(nl_per_prim, budget):
+            chunk_prim2fn = numpy.zeros(n_rows, dtype=numpy.int32)
+            fake_off = numpy.asarray(fake_fn, dtype=numpy.int32)[r0:r1] - fn0
+            chunk_prim2fn[r0:r1] = fake_off               # fake bra copy
+            chunk_prim2fn[2*npr+r0:2*npr+r1] = fake_off   # fake ket copy
+            chunk_prim2fn[npr:2*npr] = real_fn            # real bra copy
+            chunk_prim2fn[3*npr:] = real_fn               # real ket copy
+            pairs = {"bra_off": [], "bra_diag": [],
+                     "ket_off": [], "ket_diag": []}
+            for la, lb, p, q, kind in base_groups:
+                # bra direction (fake_bra_p, real_ket_q): chunk on the bra
+                m = (p >= r0) & (p < r1)
+                if m.any():
+                    enc = p[m] * n_rows + (3 * npr + q[m])
+                    pairs["bra_" + kind].append(_pair_info(la, lb, enc))
+                # ket direction (real_bra_p, fake_ket_q): chunk on the ket
+                m = (q >= r0) & (q < r1)
+                if m.any():
+                    enc = (npr + p[m]) * n_rows + (2 * npr + q[m])
+                    pairs["ket_" + kind].append(_pair_info(la, lb, enc))
+            chunks.append(CrossChunk(
+                fn_start=fn0, n_fn=n_fn,
+                n_functions=numpy.int32(max(n_fn, nao)),
+                primitive_to_function=chunk_prim2fn,
+                pairs={k: tuple(v) for k, v in pairs.items()},
+            ))
 
         self.rows_static = rows
-        self.primitive_to_function = prim2fn
-        self.n_functions = nao_fake + nao
+        self.chunks = chunks
         self.n_primitives = n_rows
         self.nao_fake = nao_fake
         self.nao = nao
         self.npr = npr
         self.natm = int(natm)
         self.ptr_coords2 = ptr_coords2
-        self.pairs_bra_off = pairs_bra_off
-        self.pairs_ket_off = pairs_ket_off
-        self.pairs_bra_diag = pairs_bra_diag
-        self.pairs_ket_diag = pairs_ket_diag
 
         # env pointer gather descriptors (per (shell, ctr, prim) row)
         self.prim_shell = numpy.asarray(prim_shell)
@@ -370,52 +387,41 @@ class LatBasisCrossPlan:
 _LAT_BASIS_CROSS_PLAN_CACHE = {}
 
 
-def _get_lat_basis_cross_plan(bas_conc, natm, nenv):
-    key = (bas_conc.tobytes(), bas_conc.shape, int(natm), int(nenv))
+def _get_lat_basis_cross_plan(bas_conc, natm, nenv, budget=None):
+    key = (bas_conc.tobytes(), bas_conc.shape, int(natm), int(nenv), budget)
     plan = _LAT_BASIS_CROSS_PLAN_CACHE.get(key)
     if plan is None:
-        plan = LatBasisCrossPlan(bas_conc, natm, nenv)
+        plan = LatBasisCrossPlan(bas_conc, natm, nenv, budget)
         _LAT_BASIS_CROSS_PLAN_CACHE[key] = plan
     return plan
 
 
-def _gen_int1e_jvp_basis(
-    intor_name, Ls, Ls_mask, atm, bas, env, env_dot, ao_loc, cuint_plan,
-):
-    """Basis-set parameter tangent of the per-image lattice integrals
-    on the cuint backend (first order in the basis parameters).
+def _lat_basis_cross_setup(intor_name, Ls, atm, bas, env, cuint_plan, r0):
+    """The plan, per-call ``rows`` and the doubled system (the ket atom copy
+    displaced by L, its coordinates in an appended env block) that the two
+    lattice basis tangents share.
 
-    The exponent term uses the solid-harmonic identity
-    ``r_A^2 chi = [lap_A chi + 2 alpha (2l+3) chi] / (4 alpha^2)`` with
-    the Laplacian from ``gen_overlap`` (``i_deriv``/``j_deriv`` = 2 on the
-    fake side). All cross integrals run per image through the kernels'
-    native configuration batching (the ket atom copy is displaced by L).
+    All cross integrals run per image through the kernels' native
+    configuration batching, on the **stopped** primal ``env``: the tangent is
+    first order in the basis parameters, so a mixed coordinate/basis second
+    derivative has to differentiate the coordinates first, e.g.
+    ``jacfwd(grad(f, coords), basis)``.
     """
-    del ao_loc
-    if intor_name != "int1e_ovlp_sph":
-        raise NotImplementedError(
-            "Basis-set parameter derivatives on the cuint lattice backend "
-            f"are only supported for int1e_ovlp_sph, got {intor_name}."
-        )
+    n_deriv = _basis_deriv_order(intor_name, backend="cuint lattice")
     bas_conc = _plan_bas_concrete(cuint_plan, bas)
     natm = atm.shape[0]
     nenv = env.shape[-1]
-    plan = _get_lat_basis_cross_plan(bas_conc, natm, nenv)
-    nao_fake = plan.nao_fake
-    nao = plan.nao
-    rows = plan.make_rows(bas)
-
     Ls = Ls.reshape(-1, 3)
     nL = Ls.shape[0]
+    plan = _get_lat_basis_cross_plan(bas_conc, natm, nenv)
+    rows = plan.make_rows(bas)
 
-    # doubled system: ket atom copy displaced by L, coordinates in an
-    # appended env block; evaluated on the (stopped) primal env only
     atm2 = np.concatenate([np.asarray(atm, dtype=np.int32)] * 2, axis=0)
     ptr2 = plan.ptr_coords2 + 3 * np.arange(natm, dtype=np.int32)
     atm2 = ops.index_update(atm2, ops.index[natm:, PTR_COORD], ptr2)
 
     env = np.asarray(env, dtype=np.float64)
-    coords = _extract_coords(atm, env)
+    coords = np.asarray(r0, dtype=np.float64).reshape(-1, 3)
     coords_l = (coords[None, :, :] + np.asarray(Ls, dtype=np.float64)[:, None, :])
     env2 = np.concatenate(
         [
@@ -426,139 +432,193 @@ def _gen_int1e_jvp_basis(
         axis=1,
     )
     env2 = ops.stop_gradient(env2)
+    return n_deriv, plan, rows, atm2, env2
 
-    def _blocks(pairs_bra, pairs_ket, i_deriv):
-        # bra-direction blocks [0:nao_fake, nao_fake:], with optional bra Laplacian
-        xb = gen_overlap_cross(atm2, env2, plan, rows, i_deriv=i_deriv,
-                               pairs=pairs_bra)
-        # ket-direction blocks [nao_fake:, 0:nao_fake], with the ket Laplacian
-        xk = gen_overlap_cross(atm2, env2, plan, rows, j_deriv=i_deriv,
-                               pairs=pairs_ket)
-        return xb[..., :nao_fake, nao_fake:], xk[..., nao_fake:, :nao_fake]
 
-    x0_bra_off, x0_ket_off = _blocks(plan.pairs_bra_off, plan.pairs_ket_off, 0)
-    x0_bra_diag, x0_ket_diag = _blocks(plan.pairs_bra_diag, plan.pairs_ket_diag, 0)
-    d2_bra_off, d2_ket_off = _blocks(plan.pairs_bra_off, plan.pairs_ket_off, 2)
-    d2_bra_diag, d2_ket_diag = _blocks(plan.pairs_bra_diag, plan.pairs_ket_diag, 2)
+def _lat_weighted_blocks(atm2, env2, plan, rows, n_deriv, lap):
+    """Bra- and ket-direction cross blocks summed over the pair groups with
+    their weights.
 
+    The integral's own ``n_deriv`` derivatives always sit on the bra, which is
+    the fake shell in the bra-direction blocks and the real shell in the
+    ket-direction ones. ``lap`` applies the Laplacian of the exponent
+    identity to the fake shell (already traced).
+
+    The primal halves the diagonal primitive pairs (cuint's ``OVLP_SPELL``),
+    so their cross terms enter with weight 1/2 as well; folding that in here
+    rather than after the contraction keeps the (tangent-batched) contraction
+    outputs down to one per direction.
+    """
+    def _blocks(kind):
+        xb = _cross_blocks(atm2, env2, plan, rows, n_deriv, lap,
+                           group="bra_" + kind)
+        xk = _cross_blocks(atm2, env2, plan, rows, n_deriv, lap,
+                           group="ket_" + kind, transpose=True)
+        return xb, xk
+
+    xb_off, xk_off = _blocks("off")
+    xb_diag, xk_diag = _blocks("diag")
+    return xb_off + 0.5 * xb_diag, xk_off + 0.5 * xk_diag
+
+
+def _lat_scatter(plan, w):
+    """The primitive-to-contracted scatter matrix of one weight vector."""
+    t = np.zeros((plan.nao, plan.nao_fake), dtype=np.float64)
+    return ops.index_add(t, ops.index[plan.map_real_rows, plan.map_fake_rows], w)
+
+
+def _lat_contract(t, x_bra, x_ket, Ls_mask):
+    """Both cross directions contracted and masked to the live images."""
+    jvp = (np.einsum("ma,lcav->lcmv", t, x_bra)
+           + np.einsum("lcma,na->lcmn", x_ket, t))
+    Ls_mask = np.asarray(Ls_mask).reshape(-1)
+    return np.where(Ls_mask[:, None, None, None] != 0, jvp,
+                    np.zeros((), dtype=jvp.dtype))
+
+
+def _gen_int1e_jvp_cs(
+    intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
+    r0, ctr_coeff, ctr_coeff_dot,
+):
+    """Contraction-coefficient tangent of the per-image lattice integrals on
+    the cuint backend.
+
+    The integrals are linear in the contraction coefficients, so the tangent
+    is the primitive cross block itself.
+    """
+    n_deriv, plan, rows, atm2, env2 = _lat_basis_cross_setup(
+        intor_name, Ls, atm, bas, env, cuint_plan, r0)
+
+    ptr_coeff0 = env.shape[-1] - ctr_coeff.shape[-1]
+    coeff_env_idx = bas[:, PTR_COEFF][plan.map_entry_shell] + plan.map_coeff_off
+    t = _lat_scatter(plan, ctr_coeff_dot[coeff_env_idx - ptr_coeff0])
+
+    x_bra, x_ket = _lat_weighted_blocks(atm2, env2, plan, rows, n_deriv, 0)
+    return _lat_contract(t, x_bra, x_ket, Ls_mask)
+
+
+def _gen_int1e_jvp_exp(
+    intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
+    r0, exp, ctr_coeff, exp_dot,
+):
+    """Exponent tangent of the per-image lattice integrals on the cuint
+    backend.
+
+    ``d/da exp(-a r_A^2)`` brings down ``-r_A^2``, which the solid-harmonic
+    identity ``r_A^2 chi = [lap_A chi + 2 a (2l+3) chi] / (4 a^2)`` turns
+    into a Laplacian of the same shell -- two extra derivative slots on the
+    fake side, on top of the integral's own bra derivative.
+    """
+    n_deriv, plan, rows, atm2, env2 = _lat_basis_cross_setup(
+        intor_name, Ls, atm, bas, env, cuint_plan, r0)
+
+    ptr_coeff0 = env.shape[-1] - ctr_coeff.shape[-1]
+    ptr_exp0 = ptr_coeff0 - exp.shape[-1]
     ptr_exp_col = bas[:, PTR_EXP]
+    coeff_env_idx = bas[:, PTR_COEFF][plan.map_entry_shell] + plan.map_coeff_off
+    exp_env_idx = ptr_exp_col[plan.map_entry_shell] + plan.map_prim_off
+    c = ops.stop_gradient(ctr_coeff[coeff_env_idx - ptr_coeff0])
+    t = _lat_scatter(plan, c * exp_dot[exp_env_idx - ptr_exp0])
+
     alpha_env_idx = ptr_exp_col[plan.fakefn_shell] + plan.fakefn_prim
     alpha = ops.stop_gradient(env[alpha_env_idx])
-    lfac = 2.0 * (2 * plan.l_fake_fn + 3)
+    afac = 2.0 * (2 * plan.l_fake_fn + 3) * alpha
     scale = 1.0 / (4.0 * alpha ** 2)
-    afac = lfac * alpha
 
-    def _x_exp_bra(d2, x0):
-        tr = d2[:, 0] + d2[:, 4] + d2[:, 8]
-        return -(tr + afac[None, :, None] * x0[:, 0]) * scale[None, :, None]
+    x0_bra, x0_ket = _lat_weighted_blocks(atm2, env2, plan, rows, n_deriv, 0)
+    tr_bra, tr_ket = _lat_weighted_blocks(atm2, env2, plan, rows, n_deriv, 1)
+    x_bra = -(tr_bra + afac[None, None, :, None] * x0_bra) \
+        * scale[None, None, :, None]
+    x_ket = -(tr_ket + x0_ket * afac[None, None, None, :]) \
+        * scale[None, None, None, :]
 
-    def _x_exp_ket(d2, x0):
-        tr = d2[:, 0] + d2[:, 4] + d2[:, 8]
-        return -(tr + x0[:, 0] * afac[None, None, :]) * scale[None, None, :]
-
-    x_exp_bra_off = _x_exp_bra(d2_bra_off, x0_bra_off)
-    x_exp_bra_diag = _x_exp_bra(d2_bra_diag, x0_bra_diag)
-    x_exp_ket_off = _x_exp_ket(d2_ket_off, x0_ket_off)
-    x_exp_ket_diag = _x_exp_ket(d2_ket_diag, x0_ket_diag)
-
-    ptr_coeff_col = bas[:, PTR_COEFF]
-    coeff_env_idx = ptr_coeff_col[plan.map_entry_shell] + plan.map_coeff_off
-    exp_env_idx = ptr_exp_col[plan.map_entry_shell] + plan.map_prim_off
-
-    env_dot = np.asarray(env_dot, dtype=np.float64)
-    w_cs = env_dot[coeff_env_idx]
-    w_exp = ops.stop_gradient(env[coeff_env_idx]) * env_dot[exp_env_idx]
-
-    t_cs = np.zeros((nao, nao_fake), dtype=np.float64)
-    t_cs = ops.index_add(t_cs, ops.index[plan.map_real_rows, plan.map_fake_rows], w_cs)
-    t_exp = np.zeros((nao, nao_fake), dtype=np.float64)
-    t_exp = ops.index_add(t_exp, ops.index[plan.map_real_rows, plan.map_fake_rows], w_exp)
-
-    def _bra(t, x):
-        return np.einsum("ma,lav->lmv", t, x)
-
-    def _ket(x, t):
-        return np.einsum("lma,na->lmn", x, t)
-
-    jvp = (
-        _bra(t_cs, x0_bra_off[:, 0]) + _ket(x0_ket_off[:, 0], t_cs)
-        + 0.5 * (_bra(t_cs, x0_bra_diag[:, 0]) + _ket(x0_ket_diag[:, 0], t_cs))
-        + _bra(t_exp, x_exp_bra_off) + _ket(x_exp_ket_off, t_exp)
-        + 0.5 * (_bra(t_exp, x_exp_bra_diag) + _ket(x_exp_ket_diag, t_exp))
-    )
-
-    Ls_mask = np.asarray(Ls_mask).reshape(-1)
-    jvp = np.where(Ls_mask[:, None, None] != 0, jvp,
-                   np.zeros((), dtype=jvp.dtype))
-    return jvp
+    return _lat_contract(t, x_bra, x_ket, Ls_mask)
 
 
 def _lattice_intor_jvp(
-    intor_name, Ls_mask, atm, bas, cuint_plan,
+    intor_name, Ls_mask, atm, bas, env, cuint_plan,
     shls_slice, comp, hermi, ao_loc,
-    trace_coords, trace_basis, aoslices,
     primals, tangents,
 ):
-    if not intor_name == "int1e_ovlp_sph":
-        raise NotImplementedError
     assert hermi == 1
 
-    Ls, env = primals
-    Ls_dot, env_dot = tangents
+    Ls, r0, exp, ctr_coeff = primals
+    Ls_dot, r0_dot, exp_dot, ctr_coeff_dot = tangents
 
     primal_out = _lattice_intor(
         intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
+        r0, exp, ctr_coeff,
         shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
-        trace_coords=trace_coords, trace_basis=trace_basis, aoslices=aoslices,
     )
 
     tangent_out = np.zeros_like(primal_out)
 
-    if not isinstance(env_dot, SymbolicZero):
-        if trace_coords:
-            s1a = -lat_overlap(atm, env, Ls, Ls_mask, cuint_plan, deriv=1)
-            s1a = s1a.transpose(1,0,2,3)
+    # the bra-derivative integral drives both geometry tangents; going
+    # through _lattice_intor (rather than calling the kernel directly) keeps
+    # it differentiable w.r.t. the basis-set parameters, which is what makes
+    # mixed coordinate/basis derivatives available
+    need_ip = (not isinstance(r0_dot, SymbolicZero)
+               or not isinstance(Ls_dot, SymbolicZero))
+    if need_ip:
+        intor_ip_bra = int1e_dr1_name(intor_name)[0]
+        s1a = -_lattice_intor(
+            intor_ip_bra, Ls, Ls_mask, atm, bas, env, cuint_plan,
+            r0, exp, ctr_coeff,
+            shls_slice=shls_slice, comp=comp, hermi=hermi, ao_loc=ao_loc,
+        )
 
-            env_dot = np.asarray(env_dot, dtype=np.float64)
-            coords_dot = _extract_coords(atm, env_dot)
+    if not isinstance(r0_dot, SymbolicZero):
+        s1a_x = s1a.transpose(1,0,2,3)
 
-            if shls_slice is None:
-                nbas = len(bas)
-                shls_slice = (0, nbas, 0, nbas)
-            if ao_loc is None:
-                _ao_loc = make_loc(bas, intor_name)
-            else:
-                _ao_loc = ao_loc
+        # 'bas' is traced on the padded path; the concrete shell structure
+        # comes from the plan, which recorded it at creation
+        bas_conc = _plan_bas_concrete(cuint_plan, bas)
 
-            i0, _, j0, _ = shls_slice[:4]
-            if aoslices is None:
-                aoslices = _aoslice_by_atom(atm, bas, _ao_loc)
+        if shls_slice is None:
+            nbas = len(bas_conc)
+            shls_slice = (0, nbas, 0, nbas)
+        if ao_loc is None:
+            _ao_loc = make_loc(bas_conc, intor_name)
+        else:
+            _ao_loc = ao_loc
 
-            naoi, naoj = s1a.shape[-2:]
+        i0, i1, j0, j1 = shls_slice[:4]
+        aoslices_bra = aoslices_in_range(bas_conc, _ao_loc, len(atm), (i0, i1))
+        if (j0, j1) == (i0, i1):
+            aoslices_ket = aoslices_bra
+        else:
+            aoslices_ket = aoslices_in_range(bas_conc, _ao_loc, len(atm),
+                                             (j0, j1))
 
-            aoidx = np.arange(naoi)
-            jvp = _gen_int1e_fill_jvp_r0(s1a, coords_dot, aoslices-_ao_loc[i0],
-                                         aoidx[None,None,:,None])
+        naoi, naoj = s1a_x.shape[-2:]
 
-            aoidx = np.arange(naoj)
-            jvp += _gen_int1e_fill_jvp_r0(-s1a, coords_dot, aoslices-_ao_loc[j0],
-                                          aoidx[None,None,None,:])
+        aoidx = np.arange(naoi)
+        jvp = _gen_int1e_fill_jvp_r0(s1a_x, r0_dot, aoslices_bra,
+                                     aoidx[None,None,:,None])
 
-            tangent_out += jvp.reshape(tangent_out.shape)
+        aoidx = np.arange(naoj)
+        jvp += _gen_int1e_fill_jvp_r0(-s1a_x, r0_dot, aoslices_ket,
+                                      aoidx[None,None,None,:])
 
-        if trace_basis:
-            tangent_out += _gen_int1e_jvp_basis(
-                intor_name, Ls, Ls_mask, atm, bas, env, env_dot, ao_loc,
-                cuint_plan,
-            ).reshape(tangent_out.shape)
+        tangent_out += jvp.reshape(tangent_out.shape)
+
+    if not isinstance(exp_dot, SymbolicZero):
+        tangent_out += _gen_int1e_jvp_exp(
+            intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
+            r0, exp, ctr_coeff, exp_dot,
+        ).reshape(tangent_out.shape)
+
+    if not isinstance(ctr_coeff_dot, SymbolicZero):
+        tangent_out += _gen_int1e_jvp_cs(
+            intor_name, Ls, Ls_mask, atm, bas, env, cuint_plan,
+            r0, ctr_coeff, ctr_coeff_dot,
+        ).reshape(tangent_out.shape)
 
     if not isinstance(Ls_dot, SymbolicZero):
         # Every ket function in image L is displaced rigidly by L, so
         # dS_L/dL is the ket-center derivative summed over all ket centers.
         # By pair translation invariance this equals minus the bra
         # derivative that the deriv=1 kernel provides.
-        s1a = -lat_overlap(atm, env, Ls, Ls_mask, cuint_plan, deriv=1)
-        Ls_dot = np.asarray(Ls_dot, dtype=np.float64)
         tangent_out += np.einsum("lxpq,lx->lpq", -s1a, Ls_dot).reshape(
             tangent_out.shape
         )

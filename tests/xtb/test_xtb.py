@@ -33,7 +33,7 @@ def test_gfn1_xtb_energy_force(setup, H2O_GFN1_ref, NH3_GFN1_ref):
         numbers, coords, e0, g0, *_ = vals
 
         def energy(coords, sigma=None, diis=None):
-            mol = Mole(numbers=numbers, coords=coords, basis=basis, trace_coords=True)
+            mol = Mole(numbers=numbers, coords=coords, basis=basis)
             mf = GFN1XTB(mol, param=param)
             mf.diis = diis
             mf.sigma = sigma
@@ -50,7 +50,7 @@ def test_gfn1_xtb_energy_force(setup, H2O_GFN1_ref, NH3_GFN1_ref):
             assert abs(g1 - g0).max() < 1e-6
 
         def energy_sp2(coords):
-            mol = Mole(numbers=numbers, coords=coords, basis=basis, trace_coords=True)
+            mol = Mole(numbers=numbers, coords=coords, basis=basis)
             mf = GFN1XTB(mol, param=param)
             mf.use_sp2 = True
             return mf.kernel()
@@ -66,7 +66,7 @@ def test_gfn1_xtb_dip_polar(setup, H2O_GFN1_ref, NH3_GFN1_ref):
         numbers, coords, _, _, mu0, alpha0 = vals
 
         def energy(numbers, coords, E0, sigma=None, diis=None):
-            mol = Mole(numbers=numbers, coords=coords, basis=basis, trace_coords=False)
+            mol = Mole(numbers=numbers, coords=coords, basis=basis)
             mf = GFN1XTB(mol, param=param)
             mf.diis = diis
             mf.sigma = sigma
@@ -104,7 +104,7 @@ for mol_in in IN["mols"]:
     coords = np.asarray(mol_in["coords"])
 
     def energy(coords, sigma, diis, numbers=numbers):
-        mol = Mole(numbers=numbers, coords=coords, basis=basis, trace_coords=True)
+        mol = Mole(numbers=numbers, coords=coords, basis=basis)
         mf = GFN1XTB(mol, param=param)
         mf.conv_tol = 1e-5
         mf.sigma = sigma

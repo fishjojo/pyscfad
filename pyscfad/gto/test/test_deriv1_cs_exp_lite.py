@@ -17,16 +17,13 @@ parameters of a :class:`~pyscfad.gto.MoleLite`, i.e. w.r.t. ``MoleLite.basis``.
 
 ``MoleLite.basis`` is a ``{symbol: {l: [block]}}`` tree whose leaves are the
 ``(nprim, 1 + nctr)`` parameter blocks of one shell: column 0 holds the
-exponents and columns ``1:`` the contraction coefficients. The derivative
-therefore splits into the ``exp`` and ``cs`` parts of every leaf, the
-:class:`~pyscfad.gto.MoleLite` counterpart of ``jac.exp`` / ``jac.ctr_coeff``
-in :mod:`~pyscfad.gto.test.test_deriv1_cs_exp`.
+exponents and columns ``1:`` the contraction coefficients.
+The derivative therefore splits into the ``exp`` and ``ctr_coeff`` parts as in
+:class:`~pyscfad.gto.Mole`.
 
-Note that the derivative is taken w.r.t. the basis parameters as given by the
-user, so it runs through the shell normalization applied when building
-``_env`` as well. The normalization makes the ``env`` contraction coefficients
-depend on the exponents, so the exponent column of a leaf is not a pure
-``exp`` derivative: a broken coefficient derivative shows up in both columns.
+Note that the derivative is taken w.r.t. the raw basis parameters,
+so it runs through the shell normalization when building ``_env``.
+The normalization makes ``ctr_coeff`` depend on the ``exp``.
 """
 import contextlib
 
@@ -37,19 +34,16 @@ import jax
 from pyscfad import numpy as np
 from pyscfad.gto import MoleLite
 
-# H1 carries a general contraction (nprim = nctr = 2) and a p shell; the
-# two atoms use different basis sets, so both shared and distinct env slots
-# are exercised.
 SYMBOLS = ("H1", "H2")
 BASIS = {
     "H1": [
         [0, [3.42, 0.15, 0.06], [0.62, 0.55, 0.35]],
         [1, [0.9, 1.0]],
+        [2, [0.1, 1.0]],
     ],
     "H2": "sto3g",
 }
 COORDS = numpy.array([[0.0, 0.0, 0.0], [0.1, 0.0, 1.4]])
-# gauge origin of int1e_r / int1e_rinv, off both nuclei
 ORIGIN = numpy.array([0.3, -0.2, 0.6])
 
 INTORS = [
@@ -64,7 +58,6 @@ INTORS = [
 
 @pytest.fixture(scope="module")
 def basis():
-    """The formatted ``MoleLite.basis`` tree."""
     return MoleLite(symbols=SYMBOLS, coords=np.asarray(COORDS),
                     basis=BASIS).basis
 
@@ -82,7 +75,7 @@ def intor_fn(intor, hermi=0, cart=False, shls_slice=None, origin=None):
     """
     def fn(basis):
         mol = MoleLite(symbols=SYMBOLS, coords=np.asarray(COORDS),
-                       basis=basis, cart=cart, trace_basis=True)
+                       basis=basis, cart=cart)
         if origin == "common":
             ctx = mol.with_common_origin(ORIGIN)
         elif origin == "rinv":
@@ -174,9 +167,6 @@ def test_cs_exp_cart(basis, intor):
     assert_cs_exp_close(jac, grad_fd, 1e-7)
 
 
-# shell 0 is the H1 s block (nctr = 2, AOs 0:2), shell 1 the H1 p block
-# (AOs 2:5) and shell 2 the H2 s block (AO 5); hermi = 1 is only defined
-# for a diagonal shell block.
 SLICES = [
     ((0, 2, 1, 3), 0),  # rectangular off-diagonal block
     ((1, 3, 1, 3), 1),  # diagonal block, hermitian
@@ -218,20 +208,37 @@ def test_cs_exp_jit(basis):
 
 
 def test_cs_exp_mixed_coords_basis(basis):
-    """d/d(basis) of the coordinate-gradient norm (coords inner, basis outer),
-    mirroring the legacy ``test_chain_deriv`` oracle.
+    """d/d(basis) of the coordinate-gradient norm (coords inner, basis outer).
     """
     coords = np.asarray(COORDS)
 
     def gnorm(basis):
         def inner(coords_):
-            mol = MoleLite(symbols=SYMBOLS, coords=coords_, basis=basis,
-                           trace_coords=True, trace_basis=True)
+            mol = MoleLite(symbols=SYMBOLS, coords=coords_, basis=basis)
             return np.linalg.norm(mol.intor("int1e_ovlp", hermi=1))
         return np.linalg.norm(jax.grad(inner)(coords))
 
     grad = jax.grad(gnorm)(basis)
     assert_cs_exp_close(grad, four_point_fd(gnorm, basis), 1e-6)
+
+
+@pytest.mark.parametrize("hermi", [1, 0])
+def test_cs_exp_mixed_basis_coords(basis, hermi):
+    """d/d(coords) of the basis-gradient norm (basis inner, coords outer).
+    """
+    coords = np.asarray(COORDS)
+
+    def gnorm(coords_):
+        def inner(basis_):
+            mol = MoleLite(symbols=SYMBOLS, coords=coords_, basis=basis_)
+            return np.linalg.norm(mol.intor("int1e_ovlp", hermi=hermi))
+        grad = jax.grad(inner)(basis)
+        return np.sqrt(sum(np.sum(leaf ** 2) for leaf in jax.tree.leaves(grad)))
+
+    grad = numpy.asarray(jax.grad(gnorm)(coords))
+    grad_fd = four_point_fd(gnorm, coords)[0]
+    assert grad.shape == grad_fd.shape
+    assert abs(grad - grad_fd).max() < 1e-6
 
 
 @pytest.mark.parametrize("intor", ["int1e_nuc", "int2e"])

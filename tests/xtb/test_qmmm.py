@@ -43,7 +43,7 @@ def setup():
 
 def _make_energy(basis, param, numbers, a, mm_coords, mm_charges, mm_radii):
     def energy(coords):
-        mol = Mole(numbers=numbers, coords=coords, basis=basis, trace_coords=True)
+        mol = Mole(numbers=numbers, coords=coords, basis=basis)
         mf = GFN1XTB(mol, param=param)
         mf = add_mm_charges(mf, mm_coords, a, mm_charges, mm_radii, unit='Bohr')
         mf.diis = None
@@ -84,7 +84,7 @@ basis = xtb_basis.get_basis_filename()
 param = GFN1Param()
 
 def energy(coords):
-    mol = Mole(numbers=numbers, coords=coords, basis=basis, trace_coords=True)
+    mol = Mole(numbers=numbers, coords=coords, basis=basis)
     mf = GFN1XTB(mol, param=param)
     mf = add_mm_charges(mf, mm_coords, a, mm_charges, mm_radii, unit='Bohr')
     mf.diis = None

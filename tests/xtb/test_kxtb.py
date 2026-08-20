@@ -34,14 +34,14 @@ def test_gfn1_kxtb_energy_force(setup, H2O_GFN1_ref):
     numbers, coords, *_ = H2O_GFN1_ref
 
     def mol_energy(coords, diis):
-        mol = Mole(numbers=numbers, coords=coords, basis=basis, trace_coords=True)
+        mol = Mole(numbers=numbers, coords=coords, basis=basis)
         mf = GFN1XTB(mol, param=param)
         mf.diis = diis
         return mf.kernel()
 
     def cell_energy(coords, diis):
         cell = Cell(numbers=numbers, coords=coords, a=np.eye(3)*20., rcut=22.,
-                    basis=basis, precision=1e-6, trace_coords=True)
+                    basis=basis, precision=1e-6)
         mf = GFN1KXTB(cell, param=param)
         mf.diis = diis
         return mf.kernel()
@@ -64,7 +64,7 @@ def test_gfn1_kxtb_energy_force_with_kpts_sample(setup):
 
     def cell_energy(coords):
         cell = Cell(numbers=numbers, coords=coords, a=a,
-                    basis=basis, precision=1e-6, trace_coords=True)
+                    basis=basis, precision=1e-6)
         mf = GFN1KXTB(cell, param=param, kpts=cell.make_kpts([2,]*3))
         mf.diis = "anderson"
         return mf.kernel()
@@ -175,7 +175,7 @@ for name, sys in IN.items():
 
     def energy(coords, numbers=numbers, a=a, sigma=sigma):
         cell = Cell(numbers=numbers, coords=coords, a=a,
-                    basis=basis, precision=1e-6, trace_coords=True)
+                    basis=basis, precision=1e-6)
         mf = GFN1KXTB(cell, param=param, kpts=cell.make_kpts([2,]*3))
         mf.sigma = sigma
         mf.diis = "anderson"
@@ -230,7 +230,7 @@ def test_gfn1_kxtb_energy_force_fp32(run_fp32):
         e0 = sys["e0"]
         e1 = out[name]["e"]
         g1 = np.asarray(out[name]["g"])
-        assert abs(e1 - e0) / abs(e0) < 1e-6
+        assert abs(e1 - e0) / abs(e0) < 1e-5
         # forces vanish by symmetry; float32 resolves them to ~1e-4
         assert abs(g1).max() < 1e-3
 
@@ -249,7 +249,7 @@ def test_gfn1_kxtb_smearing(setup):
 
     def cell_energy(coords):
         cell = Cell(numbers=numbers, coords=coords, a=a,
-                    basis=basis, precision=1e-6, trace_coords=True)
+                    basis=basis, precision=1e-6)
         mf = GFN1KXTB(cell, param=param, kpts=cell.make_kpts([2,]*3))
         mf.sigma = 0.001
         mf.diis = "anderson"

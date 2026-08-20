@@ -57,6 +57,11 @@ def main():
                     help="Prebuilt local cuint install (with include/ and lib/) to "
                          "link instead of fetching+building cuint from GitHub. For "
                          "local development against in-tree cuint changes.")
+    ap.add_argument("--cuint-max-deriv", default=None,
+                    help="Highest total derivative order compiled into the cuint "
+                         "overlap kernels (default: 3, needed for basis-set "
+                         "parameter derivatives of the coordinate gradients). "
+                         "2 builds faster but disables those.")
     ap.add_argument("--output-path", default=str(pathlib.Path.cwd() / "dist"),
                     help="Directory the wheel is written to (default: ./dist).")
     ap.add_argument("--build-dir", default=None,
@@ -90,6 +95,8 @@ def main():
         configure.append(f"-DCMAKE_CUDA_ARCHITECTURES={args.cuda_arch}")
     if args.cuint_root:
         configure.append(f"-DCUINT_ROOT={pathlib.Path(args.cuint_root).resolve()}")
+    if args.cuint_max_deriv:
+        configure.append(f"-DCUINT_MAX_DERIV={args.cuint_max_deriv}")
     run(configure)
     run(["cmake", "--build", str(build_dir), "-j", args.jobs])
     run(["cmake", "--install", str(build_dir), "--prefix", str(src_tree)])

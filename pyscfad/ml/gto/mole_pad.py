@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import warnings
 
 import numpy
 from pyscf.gto.mole import (
@@ -23,11 +24,11 @@ from pyscf.gto.mole import (
     CHARGE_OF,
     NUC_MOD_OF,
     NUC_POINT,
+    PTR_COMMON_ORIG,
+    PTR_RINV_ORIG,
     PTR_COORD,
     PTR_ENV_START,
     PTR_ZETA,
-    PTR_EXP,
-    PTR_COEFF,
 )
 
 from pyscfad import numpy as np
@@ -58,8 +59,6 @@ class MolePad(MoleLite):
         charge: Total charge.
         spin: 2S (number of alpha electrons minus number of beta electrons).
         cart: Whether to use Cartesian Gaussian basis.
-        trace_coords: Whether to trace atomic coordinates for gradient calculations.
-        trace_basis: Whether to trace basis set parameters for gradient calculations.
     """
     def __init__(
         self,
@@ -70,12 +69,16 @@ class MolePad(MoleLite):
         spin: int = 0,
         cart: bool = False,
         verbose: int = 3,
-        trace_coords: bool = False,
-        trace_basis: bool = False,
         cuint_plan: moleintor_cuint.CuintPlan | None = None,
-        bas0: ArrayLike = None,
-        env0: ArrayLike = None,
+        **kwargs,
     ):
+        if "trace_coords" in kwargs or "trace_basis" in kwargs:
+            warnings.warn("'trace_coords' and 'trace_basis' are deprecated. "
+                          "Whether derivative is taken w.r.t. a variable is "
+                          "dertermined based on JAX tracing only. "
+                          "If derivative is not wanted for a variable, "
+                          "use jax.stop_gradient.")
+
         self.numbers = np.asarray(numbers, dtype=np.int32)
         self.coords = np.asarray(coords, dtype=np.floatx)
         self.basis = basis
@@ -83,16 +86,24 @@ class MolePad(MoleLite):
         self.spin = spin
         self.cart = cart
         self.verbose = verbose
-        self.trace_coords = trace_coords
-        self.trace_basis = trace_basis
         self.cuint_plan = cuint_plan
 
         self.atom_mask = np.greater(self.numbers, 0)
         self.shl_mask = None
         self.ao_mask = None
-        self._atm = self._bas = self._env = None
+
+        self._nao = 0
+        self._atm = None
+        self._bas = None
+        self._env = None
+        self.r0 = None
+        self.exp = None
+        self.ctr_coeff = None
+        self.common_origin = np.zeros(3, dtype=np.floatx)
+        self.rinv_origin = np.zeros(3, dtype=np.floatx)
         if self.basis is not None:
-            self._atm, self._bas, self._env = make_env(self, bas0=bas0, env0=env0)
+            (self._atm, self._bas, self._env,
+             self.r0, self.exp, self.ctr_coeff) = make_env(self)
 
             self.shl_mask = self.basis.mask_shl[self.numbers].ravel()
             self.ao_mask = self.basis.make_ao_mask(
@@ -100,8 +111,8 @@ class MolePad(MoleLite):
                 self.basis.mask_ctr[self.numbers],
                 cart=self.cart,
             )
+            self._nao = None
 
-        self._nao = None
         self._pseudo = {}
         self._ecpbas = numpy.zeros((0,8), dtype=numpy.int32)
         self._built = True
@@ -164,8 +175,13 @@ class MolePad(MoleLite):
         if "_grids" in intor_name:
             raise NotImplementedError
 
+        origin = None
+        if intor_name.startswith("int1e_rinv"):
+            origin = self.rinv_origin
+        elif intor_name.startswith("int1e_r"):
+            origin = self.common_origin
+
         ao_loc = self.ao_loc
-        aoslices = self.aoslice_by_atom(ao_loc=ao_loc)[:,2:4]
 
         if cuint_plan is None:
             cuint_plan = self.cuint_plan
@@ -177,14 +193,15 @@ class MolePad(MoleLite):
                 self._bas,
                 self._env,
                 cuint_plan,
+                self.r0,
+                self.exp,
+                self.ctr_coeff,
+                origin=origin,
                 shls_slice=shls_slice,
                 comp=comp,
                 hermi=hermi,
                 aosym=aosym,
                 ao_loc=ao_loc,
-                trace_coords=self.trace_coords,
-                trace_basis=self.trace_basis,
-                aoslices=aoslices,
             )
         else:
             out = moleintor_lite.getints(
@@ -192,14 +209,15 @@ class MolePad(MoleLite):
                 self._atm,
                 self._bas,
                 self._env,
+                self.r0,
+                self.exp,
+                self.ctr_coeff,
+                origin=origin,
                 shls_slice=shls_slice,
                 comp=comp,
                 hermi=hermi,
                 aosym=aosym,
                 ao_loc=ao_loc,
-                trace_coords=self.trace_coords,
-                trace_basis=self.trace_basis,
-                aoslices=aoslices,
                 basis_array_metadata=self.basis.metadata,
             )
         return out
@@ -225,55 +243,58 @@ class MolePad(MoleLite):
     to_pyscf = NotImplemented
 
 def make_atm_env(
-    coords: ArrayLike,
-    numbers: ArrayLike,
+    coords: Array,
+    numbers: Array,
     ptr: int = 0,
     nuclear_model: int = NUC_POINT,
     nucprop: dict | None = None,
-) -> tuple[Array, Array]:
-    coords = np.asarray(coords, dtype=np.floatx).reshape(-1,3)
-    natm = len(coords)
-    nuc_charge = np.asarray(numbers, dtype=np.int32)
+) -> tuple[Array, Array, Array]:
+    r0 = coords.reshape(-1, 3)
+    natm = r0.shape[0]
+    nuc_charge = numbers
     if nuclear_model == NUC_POINT:
         zeta = np.zeros((natm,1), dtype=np.floatx)
     else:
         raise NotImplementedError(f"nuclear_model = {nuclear_model} is not supported")
-    _env = np.hstack((coords, zeta)).ravel()
+    env = np.hstack([r0, zeta]).ravel()
 
-    _atm = np.zeros((natm, ATM_SLOTS), dtype=np.int32)
-    _atm = ops.index_update(_atm, ops.index[:,CHARGE_OF], nuc_charge)
-    _atm = ops.index_update(_atm, ops.index[:,PTR_COORD],
-                            np.arange(ptr, ptr+4*natm, 4, dtype=np.int32))
-    _atm = ops.index_update(_atm, ops.index[:,NUC_MOD_OF],
-                            np.arange(nuclear_model, dtype=np.int32))
-    _atm = ops.index_update(_atm, ops.index[:,PTR_ZETA],
-                            _atm[:,PTR_COORD] + np.array(3, dtype=np.int32))
-    return _atm, _env
+    atm = np.zeros((natm, ATM_SLOTS), dtype=np.int32)
+    atm = ops.index_update(atm, ops.index[:,CHARGE_OF], nuc_charge)
+    atm = ops.index_update(atm, ops.index[:,PTR_COORD],
+                           np.arange(ptr, ptr+4*natm, 4, dtype=np.int32))
+    atm = ops.index_update(atm, ops.index[:,NUC_MOD_OF],
+                           np.array(nuclear_model, dtype=np.int32))
+    atm = ops.index_update(atm, ops.index[:,PTR_ZETA],
+                           atm[:,PTR_COORD] + np.array(3, dtype=np.int32))
+    return atm, env, r0
 
 def make_env(
     mol: MolePad,
-    bas0: ArrayLike | None = None,
-    env0: ArrayLike | None = None,
-) -> tuple[Array, Array, Array]:
+) -> tuple[Array, ...]:
     """Make ``_atm``, ``_bas``, and ``_env`` for
     interfacing with libcint.
     """
     pre_env = np.zeros(PTR_ENV_START, dtype=np.floatx)
+    pre_env = ops.index_update(
+        pre_env,
+        ops.index[PTR_COMMON_ORIG:PTR_COMMON_ORIG+3],
+        np.asarray(mol.common_origin, dtype=np.floatx),
+    )
+    pre_env = ops.index_update(
+        pre_env,
+        ops.index[PTR_RINV_ORIG:PTR_RINV_ORIG+3],
+        np.asarray(mol.rinv_origin, dtype=np.floatx),
+    )
+
     _env = [pre_env]
     ptr_env = pre_env.size
 
     # TODO other nuclear charge models
-    _atm, env1 = make_atm_env(mol.coords, mol.numbers, ptr_env)
+    _atm, env1, r0 = make_atm_env(mol.coords, mol.numbers, ptr_env)
     _env.append(env1)
     ptr_env += env1.size
 
-    if bas0 is None or env0 is None:
-        bas0, env0 = mol.basis.make_bas_env(ptr_env)
-    else:
-        bas0 = ops.index_add(bas0, ops.index[:,:,PTR_EXP],
-                             np.array(ptr_env, dtype=np.int32))
-        bas0 = ops.index_add(bas0, ops.index[:,:,PTR_COEFF],
-                             np.array(ptr_env, dtype=np.int32))
+    bas0, env0, exp, ctr_coeff = mol.basis.make_bas_env(ptr_env)
 
     _bas = bas0[mol.numbers]
     _bas = ops.index_update(_bas, ops.index[:,:,ATOM_OF],
@@ -281,5 +302,4 @@ def make_env(
     _bas = _bas.reshape(-1, BAS_SLOTS)
     _env = np.hstack(_env)
     _env = np.hstack([_env, env0])
-    return _atm, _bas, _env
-
+    return _atm, _bas, _env, r0, exp, ctr_coeff

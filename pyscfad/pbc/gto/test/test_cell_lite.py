@@ -52,7 +52,7 @@ def test_int1e():
         s1e = cell.pbc_intor(intor, kpts=kpts)
 
         def func(coords):
-            cell = CellLite(numbers=[14,14], coords=coords, basis="sto3g", a=a/BOHR, trace_coords=True)
+            cell = CellLite(numbers=[14,14], coords=coords, basis="sto3g", a=a/BOHR)
             kpts = cell.make_kpts(kmesh)
             return func_norm(cell, intor, kpts=kpts)
         g1 = np.asarray(jax.jacrev(func)(coords))

@@ -127,8 +127,7 @@ N_LOWEST_BANDS = 8
 def _ref(bfile, nimgs, ewald_mesh, scaled_kpts, numbers, coords, a):
     """Unbatched reference with the same static grids as the padded path."""
     cell = CellLite(numbers=numbers, coords=coords, a=a, rcut=RCUT,
-                    nimgs=nimgs, basis=bfile, precision=1e-6,
-                    trace_coords=True, verbose=0)
+                    nimgs=nimgs, basis=bfile, precision=1e-6)
     mf = GFN1KXTBRef(cell, param=GFN1Param(),
                      kpts=_abs_kpts(scaled_kpts, a))
     mf.ewald_mesh = ewald_mesh
@@ -187,7 +186,7 @@ def test_gfn1_kxtb_pad_energy_force_bands(setup, refs):
     def energy(numbers, coords, a, kpts, kpts_band):
         Ls = np.asarray(Ts, dtype=np.float64) @ a
         cell = CellPad(numbers, coords, basis=basis, a=a, Ls=Ls, rcut=RCUT,
-                       precision=1e-6, verbose=0, trace_coords=True)
+                       precision=1e-6)
         mf = GFN1KXTB(cell, param, kpts=kpts)
         mf.ewald_mesh = ewald_mesh
         mf.diis = "anderson"
@@ -291,7 +290,7 @@ param = make_param_array(basis, max_number=IN["max_number"])
 def energy(numbers, coords, a, kpts, kpts_band):
     Ls = np.asarray(Ts, dtype=np.floatx) @ a
     cell = CellPad(numbers, coords, basis=basis, a=a, Ls=Ls, rcut=RCUT,
-                   precision=1e-6, verbose=0, trace_coords=True)
+                   precision=1e-6)
     mf = GFN1KXTB(cell, param, kpts=kpts)
     mf.ewald_mesh = ewald_mesh
     mf.diis = "anderson"

@@ -27,8 +27,7 @@ coords = np.array([np.array([[0.00000,  0.00000,  0.00000],
                              [-1.32340, -0.54779, -0.69350]])/0.529])
 
 def energy(numbers, coords, plan=None):
-    mol = MolePad(numbers, coords, basis=basis, verbose=0,
-                  trace_coords=True, cuint_plan=plan)
+    mol = MolePad(numbers, coords, basis=basis, verbose=0, cuint_plan=plan)
     mf = GFN1XTB(mol, param)
     e = mf.kernel()
     mu = mf.dip_moment()

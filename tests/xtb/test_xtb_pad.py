@@ -49,7 +49,7 @@ def test_gfn1_xtb_pad_energy_force(setup, H2O_GFN1_ref, NH3_GFN1_ref):
     g0 = np.asarray([g1, g2])
 
     def energy(numbers, coords, diis=None):
-        mol = MolePad(numbers, coords, basis=basis, trace_coords=True)
+        mol = MolePad(numbers, coords, basis=basis)
         mf = GFN1XTB(mol, param)
         mf.diis = diis
         e = mf.kernel()
@@ -77,7 +77,7 @@ basis = make_basis_array(bfile, max_number=8)
 param = make_param_array(basis, max_number=8)
 
 def energy(numbers, coords, diis=None):
-    mol = MolePad(numbers, coords, basis=basis, trace_coords=True)
+    mol = MolePad(numbers, coords, basis=basis)
     mf = GFN1XTB(mol, param)
     mf.diis = diis
     mf.conv_tol = 1e-5
@@ -119,7 +119,7 @@ def test_gfn1_xtb_pad_dip_pol(setup, H2O_GFN1_ref, NH3_GFN1_ref):
     alpha0 = np.asarray([alpha1, alpha2])
 
     def energy(numbers, coords, E0, diis=None):
-        mol = MolePad(numbers, coords, basis=basis, trace_coords=False)
+        mol = MolePad(numbers, coords, basis=basis)
         mf = GFN1XTB(mol, param)
         mf.diis = diis
         h0 = mf.get_hcore()

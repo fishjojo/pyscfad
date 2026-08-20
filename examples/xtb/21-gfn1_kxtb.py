@@ -48,7 +48,7 @@ else:
 
 def xtb_energy(coords, param, kpts, cuint_plan=None):
     cell = CellLite(numbers=numbers, coords=coords, a=a, nimgs=nimgs,
-                    basis=basis, precision=1e-6, trace_coords=True,
+                    basis=basis, precision=1e-6,
                     cuint_plan=cuint_plan, verbose=4)
     mf = GFN1KXTB(cell, param=param, kpts=kpts)
     mf.ewald_eta = ewald_eta
