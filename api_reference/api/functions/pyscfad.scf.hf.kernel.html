@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Jul 26, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 20, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -1069,9 +1069,9 @@ to small.</p>
 </dl>
 <p>Examples:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pyscf</span><span class="w"> </span><span class="kn">import</span> <span class="n">gto</span><span class="p">,</span> <span class="n">scf</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">mol</span> <span class="o">=</span> <span class="n">gto</span><span class="o">.</span><span class="n">M</span><span class="p">(</span><span class="n">atom</span><span class="o">=</span><span class="s1">&#39;H 0 0 0; H 0 0 1.1&#39;</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="s1">&#39;cc-pvdz&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mol</span> <span class="o">=</span> <span class="n">gto</span><span class="o">.</span><span class="n">M</span><span class="p">(</span><span class="n">atom</span><span class="o">=</span><span class="s1">'H 0 0 0; H 0 0 1.1'</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="s1">'cc-pvdz'</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">conv</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">mo_e</span><span class="p">,</span> <span class="n">mo</span><span class="p">,</span> <span class="n">mo_occ</span> <span class="o">=</span> <span class="n">scf</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">kernel</span><span class="p">(</span><span class="n">scf</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">SCF</span><span class="p">(</span><span class="n">mol</span><span class="p">),</span> <span class="n">dm0</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">nao_nr</span><span class="p">()))</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;conv = </span><span class="si">%s</span><span class="s1">, E(HF) = </span><span class="si">%.12f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">conv</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="s1">'conv = </span><span class="si">%s</span><span class="s1">, E(HF) = </span><span class="si">%.12f</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">conv</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
 <span class="go">conv = True, E(HF) = -1.081170784378</span>
 </pre></div>
 </div>

@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Jul 26, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 20, 2026"/>
   
     
     <script src="../../../../_static/searchtools.js"></script>
@@ -1014,10 +1014,10 @@
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">==========================</span>  <span class="o">=======================</span>
 <span class="n">Function</span>                    <span class="n">Expression</span>
 <span class="o">==========================</span>  <span class="o">=======================</span>
-<span class="s2">&quot;GTOval_sph&quot;</span>                \<span class="n">sum_T</span> <span class="n">exp</span><span class="p">(</span><span class="n">ik</span><span class="o">*</span><span class="n">T</span><span class="p">)</span> <span class="o">|</span><span class="n">AO</span><span class="o">&gt;</span>
-<span class="s2">&quot;GTOval_ip_sph&quot;</span>             <span class="n">nabla</span> \<span class="n">sum_T</span> <span class="n">exp</span><span class="p">(</span><span class="n">ik</span><span class="o">*</span><span class="n">T</span><span class="p">)</span> <span class="o">|</span><span class="n">AO</span><span class="o">&gt;</span>
-<span class="s2">&quot;GTOval_cart&quot;</span>               \<span class="n">sum_T</span> <span class="n">exp</span><span class="p">(</span><span class="n">ik</span><span class="o">*</span><span class="n">T</span><span class="p">)</span> <span class="o">|</span><span class="n">AO</span><span class="o">&gt;</span>
-<span class="s2">&quot;GTOval_ip_cart&quot;</span>            <span class="n">nabla</span> \<span class="n">sum_T</span> <span class="n">exp</span><span class="p">(</span><span class="n">ik</span><span class="o">*</span><span class="n">T</span><span class="p">)</span> <span class="o">|</span><span class="n">AO</span><span class="o">&gt;</span>
+<span class="s2">"GTOval_sph"</span>                \<span class="n">sum_T</span> <span class="n">exp</span><span class="p">(</span><span class="n">ik</span><span class="o">*</span><span class="n">T</span><span class="p">)</span> <span class="o">|</span><span class="n">AO</span><span class="o">&gt;</span>
+<span class="s2">"GTOval_ip_sph"</span>             <span class="n">nabla</span> \<span class="n">sum_T</span> <span class="n">exp</span><span class="p">(</span><span class="n">ik</span><span class="o">*</span><span class="n">T</span><span class="p">)</span> <span class="o">|</span><span class="n">AO</span><span class="o">&gt;</span>
+<span class="s2">"GTOval_cart"</span>               \<span class="n">sum_T</span> <span class="n">exp</span><span class="p">(</span><span class="n">ik</span><span class="o">*</span><span class="n">T</span><span class="p">)</span> <span class="o">|</span><span class="n">AO</span><span class="o">&gt;</span>
+<span class="s2">"GTOval_ip_cart"</span>            <span class="n">nabla</span> \<span class="n">sum_T</span> <span class="n">exp</span><span class="p">(</span><span class="n">ik</span><span class="o">*</span><span class="n">T</span><span class="p">)</span> <span class="o">|</span><span class="n">AO</span><span class="o">&gt;</span>
 <span class="o">==========================</span>  <span class="o">=======================</span>
 </pre></div>
 </div>
@@ -1058,15 +1058,15 @@ element of the list corresponds to a k-point and it has the shape
 </dd>
 </dl>
 <p>Examples:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cell</span> <span class="o">=</span> <span class="n">pbc</span><span class="o">.</span><span class="n">gto</span><span class="o">.</span><span class="n">M</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">*</span><span class="mi">4</span><span class="p">,</span> <span class="n">atom</span><span class="o">=</span><span class="s1">&#39;He 1 1 1&#39;</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="s1">&#39;6-31g&#39;</span><span class="p">)</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">cell</span> <span class="o">=</span> <span class="n">pbc</span><span class="o">.</span><span class="n">gto</span><span class="o">.</span><span class="n">M</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="n">numpy</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">*</span><span class="mi">4</span><span class="p">,</span> <span class="n">atom</span><span class="o">=</span><span class="s1">'He 1 1 1'</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="s1">'6-31g'</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">coords</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">get_uniform_grids</span><span class="p">([</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">])</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">kpts</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">make_kpts</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">])</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">&quot;GTOval_sph&quot;</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">"GTOval_sph"</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">ao_value</span><span class="p">)</span>
 <span class="go">27</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
 <span class="go">(1000, 2)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">&quot;GTOval_ig_sph&quot;</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">,</span> <span class="n">comp</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ao_value</span> <span class="o">=</span> <span class="n">cell</span><span class="o">.</span><span class="n">pbc_eval_gto</span><span class="p">(</span><span class="s2">"GTOval_ig_sph"</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">kpts</span><span class="p">,</span> <span class="n">comp</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">ao_value</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">ao_value</span><span class="p">)</span>
 <span class="go">27</span>

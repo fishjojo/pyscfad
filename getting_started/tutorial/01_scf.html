@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Jul 26, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 20, 2026"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -464,8 +464,8 @@ Currently, three parameters are supported, including nuclear coordinates <code c
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pyscfad</span><span class="w"> </span><span class="kn">import</span> <span class="n">gto</span>
 <span class="n">mol</span> <span class="o">=</span> <span class="n">gto</span><span class="o">.</span><span class="n">Mole</span><span class="p">()</span>
-<span class="n">mol</span><span class="o">.</span><span class="n">atom</span> <span class="o">=</span> <span class="s2">&quot;H 0 0 0; H 0 0 0.74&quot;</span>
-<span class="n">mol</span><span class="o">.</span><span class="n">basis</span> <span class="o">=</span> <span class="s2">&quot;6-31G*&quot;</span>
+<span class="n">mol</span><span class="o">.</span><span class="n">atom</span> <span class="o">=</span> <span class="s2">"H 0 0 0; H 0 0 0.74"</span>
+<span class="n">mol</span><span class="o">.</span><span class="n">basis</span> <span class="o">=</span> <span class="s2">"6-31G*"</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">trace_coords</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">trace_exp</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">trace_ctr_coeff</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
@@ -495,7 +495,7 @@ Currently, three parameters are supported, including nuclear coordinates <code c
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">jax</span>
 <span class="n">ehf</span><span class="p">,</span> <span class="n">grad</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">value_and_grad</span><span class="p">(</span><span class="n">hf_energy</span><span class="p">)(</span><span class="n">mol</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;RHF energy (in Eh): </span><span class="si">{</span><span class="n">ehf</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'RHF energy (in Eh): </span><span class="si">{</span><span class="n">ehf</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -520,7 +520,7 @@ Currently, three parameters are supported, including nuclear coordinates <code c
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Nuclear gradient:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">coords</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Nuclear gradient:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">coords</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -534,7 +534,7 @@ Currently, three parameters are supported, including nuclear coordinates <code c
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Energy gradient w.r.t. basis function exponents:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">exp</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Energy gradient w.r.t. basis function exponents:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">exp</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -547,7 +547,7 @@ Currently, three parameters are supported, including nuclear coordinates <code c
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Energy gradient w.r.t. basis function contraction coefficients:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">ctr_coeff</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Energy gradient w.r.t. basis function contraction coefficients:</span><span class="se">\n</span><span class="si">{</span><span class="n">grad</span><span class="o">.</span><span class="n">ctr_coeff</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -568,10 +568,10 @@ compute the Jacobian with forward- and reverse-mode differentiation, respectivel
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">hessian</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jacfwd</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">hf_energy</span><span class="p">))(</span><span class="n">mol</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Energy Hessians</span><span class="se">\n</span><span class="s1">&#39;</span>
-      <span class="sa">f</span><span class="s1">&#39;∂^2E/∂R^2: </span><span class="si">{</span><span class="n">hessian</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span>
-      <span class="sa">f</span><span class="s1">&#39;∂^2E/∂R∂ε: </span><span class="si">{</span><span class="n">hessian</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">exp</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span>
-      <span class="sa">f</span><span class="s1">&#39;∂^2E/∂R∂c: </span><span class="si">{</span><span class="n">hessian</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">ctr_coeff</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'Energy Hessians</span><span class="se">\n</span><span class="s1">'</span>
+      <span class="sa">f</span><span class="s1">'∂^2E/∂R^2: </span><span class="si">{</span><span class="n">hessian</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="se">\n</span><span class="s1">'</span>
+      <span class="sa">f</span><span class="s1">'∂^2E/∂R∂ε: </span><span class="si">{</span><span class="n">hessian</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">exp</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="se">\n</span><span class="s1">'</span>
+      <span class="sa">f</span><span class="s1">'∂^2E/∂R∂c: </span><span class="si">{</span><span class="n">hessian</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">ctr_coeff</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="se">\n</span><span class="s1">'</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -592,7 +592,7 @@ compute the Jacobian with forward- and reverse-mode differentiation, respectivel
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">third_order_deriv</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jacfwd</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">jacfwd</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">hf_energy</span><span class="p">)))(</span><span class="n">mol</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;∂^3E/∂R^3: </span><span class="si">{</span><span class="n">third_order_deriv</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">'∂^3E/∂R^3: </span><span class="si">{</span><span class="n">third_order_deriv</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>

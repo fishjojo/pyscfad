@@ -61,7 +61,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Jul 26, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 20, 2026"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -471,10 +471,10 @@ so we turn off the tracing of them.</p>
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pyscfad</span><span class="w"> </span><span class="kn">import</span> <span class="n">gto</span>
 
 <span class="n">mol</span> <span class="o">=</span> <span class="n">gto</span><span class="o">.</span><span class="n">Mole</span><span class="p">()</span>
-<span class="n">mol</span><span class="o">.</span><span class="n">atom</span> <span class="o">=</span> <span class="s1">&#39;&#39;&#39;B  ,  0.   0.   0.</span>
-<span class="s1">              H  ,  0.   0.   2.36328&#39;&#39;&#39;</span>
-<span class="n">mol</span><span class="o">.</span><span class="n">basis</span> <span class="o">=</span> <span class="s1">&#39;aug-cc-pvdz&#39;</span>
-<span class="n">mol</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;B&#39;</span>
+<span class="n">mol</span><span class="o">.</span><span class="n">atom</span> <span class="o">=</span> <span class="s1">'''B  ,  0.   0.   0.</span>
+<span class="s1">              H  ,  0.   0.   2.36328'''</span>
+<span class="n">mol</span><span class="o">.</span><span class="n">basis</span> <span class="o">=</span> <span class="s1">'aug-cc-pvdz'</span>
+<span class="n">mol</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="s1">'B'</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="mi">0</span>
 <span class="c1"># do not trace mol.exp and mol.ctr_coeff</span>
 <span class="n">mol</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">trace_exp</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">trace_ctr_coeff</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -499,7 +499,7 @@ pyscfad provides a differentiable implementation of CCSD, which is used here.</p
 
 <span class="c1"># CCSD energy with external electric field applied</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">apply_E</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">E</span><span class="p">):</span>
-    <span class="n">field</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;x,xij-&gt;ij&#39;</span><span class="p">,</span> <span class="n">E</span><span class="p">,</span> <span class="n">mol</span><span class="o">.</span><span class="n">intor</span><span class="p">(</span><span class="s1">&#39;int1e_r&#39;</span><span class="p">))</span>
+    <span class="n">field</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s1">'x,xij-&gt;ij'</span><span class="p">,</span> <span class="n">E</span><span class="p">,</span> <span class="n">mol</span><span class="o">.</span><span class="n">intor</span><span class="p">(</span><span class="s1">'int1e_r'</span><span class="p">))</span>
     <span class="n">mf</span> <span class="o">=</span> <span class="n">scf</span><span class="o">.</span><span class="n">RHF</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
     <span class="n">h1</span> <span class="o">=</span> <span class="n">mf</span><span class="o">.</span><span class="n">get_hcore</span><span class="p">()</span> <span class="o">+</span> <span class="n">field</span>
     <span class="n">mf</span><span class="o">.</span><span class="n">get_hcore</span> <span class="o">=</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">h1</span>
@@ -537,12 +537,12 @@ This is due to the limitation that the 2nd order nuclear derivative of the integ
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pyscfad.prop.thermo</span><span class="w"> </span><span class="kn">import</span> <span class="n">vib</span>
 
 <span class="n">vibration</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">raman</span> <span class="o">=</span> <span class="n">vib</span><span class="o">.</span><span class="n">harmonic_analysis</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">hess</span><span class="p">,</span> <span class="n">raman_tensor</span><span class="o">=</span><span class="n">chi</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Vibrational frequency in cm^-1:&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">vibration</span><span class="p">[</span><span class="s1">&#39;freq_wavenumber&#39;</span><span class="p">])</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Raman activity in A^4/amu:&#39;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">raman</span><span class="p">[</span><span class="s1">&#39;activity&#39;</span><span class="p">])</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Depolarization ration:&#39;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">raman</span><span class="p">[</span><span class="s1">&#39;depolar_ratio&#39;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"Vibrational frequency in cm^-1:"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">vibration</span><span class="p">[</span><span class="s1">'freq_wavenumber'</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'Raman activity in A^4/amu:'</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">raman</span><span class="p">[</span><span class="s1">'activity'</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'Depolarization ration:'</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">raman</span><span class="p">[</span><span class="s1">'depolar_ratio'</span><span class="p">])</span>
 </pre></div>
 </div>
 </div>

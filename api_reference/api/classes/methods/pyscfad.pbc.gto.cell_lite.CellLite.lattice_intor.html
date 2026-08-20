@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Jul 26, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 20, 2026"/>
   
     
     <script src="../../../../_static/searchtools.js"></script>
@@ -1011,7 +1011,7 @@
 <p>When <code class="docutils literal notranslate"><span class="pre">hermi=1</span></code>, the CPU backend will output the lower triangle
 (including the diagonal); the cuint backend will output irregular blocks
 with the diagonal blocks halved, which should be used as follows</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">s1e</span> <span class="o">=</span> <span class="n">einsum</span><span class="p">(</span><span class="s1">&#39;kl,lpq-&gt;kpq&#39;</span><span class="p">,</span> <span class="n">expkL</span><span class="p">,</span> <span class="n">s1e_lat</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">s1e</span> <span class="o">=</span> <span class="n">einsum</span><span class="p">(</span><span class="s1">'kl,lpq-&gt;kpq'</span><span class="p">,</span> <span class="n">expkL</span><span class="p">,</span> <span class="n">s1e_lat</span><span class="p">)</span>
 <span class="n">s1e</span> <span class="o">=</span> <span class="n">s1e</span> <span class="o">+</span> <span class="n">s1e</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">conj</span><span class="p">()</span>
 </pre></div>
 </div>

@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Jul 26, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 20, 2026"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -581,12 +581,12 @@ modules and fetches the <code class="docutils literal notranslate"><span class="
 from <code class="docutils literal notranslate"><span class="pre">nvcc</span></code>) selects both the wheel name and the matching <code class="docutils literal notranslate"><span class="pre">nvidia-*</span></code> runtime
 dependencies. Device architectures default to up to <code class="docutils literal notranslate"><span class="pre">sm_120</span></code> for the CUDA major;
 override them with <code class="docutils literal notranslate"><span class="pre">--cuda-arch</span></code>, e.g.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">plugins</span><span class="o">/</span><span class="n">cuda</span><span class="o">/</span><span class="n">build_plugin</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">cuda</span><span class="o">-</span><span class="n">major</span> <span class="mi">12</span> <span class="o">--</span><span class="n">cuda</span><span class="o">-</span><span class="n">arch</span> <span class="s2">&quot;70-real;80-real;90-real&quot;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">plugins</span><span class="o">/</span><span class="n">cuda</span><span class="o">/</span><span class="n">build_plugin</span><span class="o">.</span><span class="n">py</span> <span class="o">--</span><span class="n">cuda</span><span class="o">-</span><span class="n">major</span> <span class="mi">12</span> <span class="o">--</span><span class="n">cuda</span><span class="o">-</span><span class="n">arch</span> <span class="s2">"70-real;80-real;90-real"</span>
 </pre></div>
 </div>
 <p>To also install the CUDA runtime libraries (cuSOLVER, cuBLAS, etc.) from PyPI alongside
 the plugin, install the wheel with the <code class="docutils literal notranslate"><span class="pre">with_cuda</span></code> extra:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="s2">&quot;dist/pyscfad_cuda13_plugin*.whl[with_cuda]&quot;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="s2">"dist/pyscfad_cuda13_plugin*.whl[with_cuda]"</span>
 </pre></div>
 </div>
 </section>

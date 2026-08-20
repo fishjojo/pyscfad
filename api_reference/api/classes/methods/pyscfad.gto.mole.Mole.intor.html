@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Jul 26, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 20, 2026"/>
   
     
     <script src="../../../../_static/searchtools.js"></script>
@@ -1038,15 +1038,15 @@ tensor (ij|kl) = intor(‘int2e’) are specified as
 </dd>
 </dl>
 <p>Examples:</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">mol</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">atom</span><span class="o">=</span><span class="s1">&#39;H 0 0 0; H 0 0 1.1&#39;</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="s1">&#39;sto-3g&#39;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">mol</span><span class="o">.</span><span class="n">intor</span><span class="p">(</span><span class="s1">&#39;int1e_ipnuc_sph&#39;</span><span class="p">,</span> <span class="n">comp</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># &lt;nabla i | V_nuc | j&gt;</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">mol</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="n">atom</span><span class="o">=</span><span class="s1">'H 0 0 0; H 0 0 1.1'</span><span class="p">,</span> <span class="n">basis</span><span class="o">=</span><span class="s1">'sto-3g'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mol</span><span class="o">.</span><span class="n">intor</span><span class="p">(</span><span class="s1">'int1e_ipnuc_sph'</span><span class="p">,</span> <span class="n">comp</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># &lt;nabla i | V_nuc | j&gt;</span>
 <span class="go">[[[ 0.          0.        ]</span>
 <span class="go">  [ 0.          0.        ]]</span>
 <span class="go"> [[ 0.          0.        ]</span>
 <span class="go">  [ 0.          0.        ]]</span>
 <span class="go"> [[ 0.10289944  0.48176097]</span>
 <span class="go">  [-0.48176097 -0.10289944]]]</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">mol</span><span class="o">.</span><span class="n">intor</span><span class="p">(</span><span class="s1">&#39;int1e_nuc_spinor&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mol</span><span class="o">.</span><span class="n">intor</span><span class="p">(</span><span class="s1">'int1e_nuc_spinor'</span><span class="p">)</span>
 <span class="go">[[-1.69771092+0.j  0.00000000+0.j -0.67146312+0.j  0.00000000+0.j]</span>
 <span class="go"> [ 0.00000000+0.j -1.69771092+0.j  0.00000000+0.j -0.67146312+0.j]</span>
 <span class="go"> [-0.67146312+0.j  0.00000000+0.j -1.69771092+0.j  0.00000000+0.j]</span>
