@@ -20,7 +20,9 @@ import numpy
 from jax.custom_derivatives import SymbolicZero
 from pyscf.gto.mole import (
     ATOM_OF,
+    CHARGE_OF,
     PTR_COORD,
+    PTR_RINV_ORIG,
 )
 
 from pyscfad import ops
@@ -206,8 +208,7 @@ def getints_jvp(
     basis_array_metadata,
     primals, tangents,
 ):
-    if (not intor_name.startswith("int1e") or
-        "nuc" in intor_name):
+    if not intor_name.startswith("int1e"):
         raise NotImplementedError(f"Autodiff not implemented for {intor_name}")
 
     r0, exp, ctr_coeff, origin = primals
@@ -238,6 +239,17 @@ def getints_jvp(
             shls_slice, comp, hermi, aosym, ao_loc,
             basis_array_metadata,
         ).reshape(tangent_out.shape)
+
+        if "nuc" in intor_name:
+            intor_ip_bra = intor_ip_bra.replace("nuc", "rinv")
+            intor_ip_ket = intor_ip_ket.replace("nuc", "rinv")
+            tangent_out += _gen_int1e_nuc_jvp_rc(
+                intor_ip_bra, intor_ip_ket,
+                atm, bas, env,
+                r0, exp, ctr_coeff, origin, r0_dot,
+                shls_slice, comp, hermi, aosym, ao_loc,
+                basis_array_metadata,
+            ).reshape(tangent_out.shape)
 
     if not isinstance(exp_dot, SymbolicZero):
         tangent_out += _gen_int1e_jvp_exp(
@@ -330,6 +342,48 @@ def _gen_int1e_jvp_r0(
             jvp -= np.einsum("xyij,x->yij", s1b, origin_dot)
 
     elif hermi == 1:
+        jvp += jvp.transpose(0,2,1)
+    return jvp
+
+def _gen_int1e_nuc_jvp_rc(
+    intor_a, intor_b,
+    atm, bas, env,
+    r0, exp, ctr_coeff, origin, r0_dot,
+    shls_slice, comp, hermi, aosym, ao_loc,
+    basis_array_metadata,
+):
+    if comp is not None:
+        comp = comp * 3
+
+    def _rinv(rc, rc_dot, z, env):
+        env = ops.index_update(env,
+                               ops.index[PTR_RINV_ORIG:PTR_RINV_ORIG+3],
+                               rc)
+
+        s1a = getints(intor_a,
+                      atm, bas, env,
+                      r0, exp, ctr_coeff, origin=rc,
+                      shls_slice=shls_slice,
+                      comp=comp, hermi=0, aosym="s1", ao_loc=ao_loc,
+                      basis_array_metadata=basis_array_metadata)
+        naoi, naoj = s1a.shape[-2:]
+        s1a = s1a.reshape(3,-1,naoi,naoj)
+
+        if hermi == 0:
+            s1b = getints(intor_b,
+                          atm, bas, env,
+                          r0, exp, ctr_coeff, origin=rc,
+                          shls_slice=shls_slice,
+                          comp=comp, hermi=0, aosym="s1", ao_loc=ao_loc,
+                          basis_array_metadata=basis_array_metadata)
+            s1b = int1e_dr1_ket_comp_to_front(s1b, intor_b)
+            s1a += s1b
+        return -z * np.einsum("xyij,x->yij", s1a, rc_dot)
+
+    jvp = ops.vmap(_rinv, (0,0,0,None))(r0, r0_dot, atm[:,CHARGE_OF], env)
+    jvp = np.sum(jvp, axis=0)
+
+    if hermi == 1:
         jvp += jvp.transpose(0,2,1)
     return jvp
 
