@@ -49,10 +49,13 @@ ORIGIN = numpy.array([0.3, -0.2, 0.6])
 INTORS = [
     "int1e_ovlp",
     "int1e_kin",
+    "int1e_nuc",
     "int1e_ovlp_dr10",
     "int1e_ovlp_dr01",
     "int1e_kin_dr10",
     "int1e_kin_dr01",
+    "int1e_nuc_dr10",
+    "int1e_nuc_dr01",
 ]
 
 
@@ -155,7 +158,7 @@ def test_cs_exp_origin(basis, intor, origin):
         assert abs(numpy.asarray(l_fwd) - numpy.asarray(l_rev)).max() < 1e-12
 
 
-@pytest.mark.parametrize("intor", ["int1e_ovlp", "int1e_kin"])
+@pytest.mark.parametrize("intor", ["int1e_ovlp", "int1e_kin", "int1e_nuc"])
 def test_cs_exp_cart(basis, intor):
     """Cartesian AOs skip the cartesian-to-spherical transformation of the
     exponent derivative.
@@ -241,7 +244,7 @@ def test_cs_exp_mixed_basis_coords(basis, hermi):
     assert abs(grad - grad_fd).max() < 1e-6
 
 
-@pytest.mark.parametrize("intor", ["int1e_nuc", "int2e"])
+@pytest.mark.parametrize("intor", ["int2e"])
 def test_unsupported_intor(basis, intor):
     with pytest.raises(NotImplementedError):
         jax.jacfwd(intor_fn(intor))(basis)

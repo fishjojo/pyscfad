@@ -49,7 +49,7 @@ def test_int1e(atom, basis, unit):
     mol.unit = unit
     mol.build(trace_exp=False, trace_ctr_coeff=False)
 
-    for intor in ["int1e_ovlp", "int1e_kin"]:
+    for intor in ["int1e_ovlp", "int1e_kin", "int1e_nuc"]:
         for shls_slice, hermi in zip((None, (0, 1, 2, 3)), (1, 0)):
             fn = partial(int1e_norm, intor=intor,
                          shls_slice=shls_slice, hermi=hermi)

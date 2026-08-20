@@ -60,7 +60,7 @@ ORIGIN = numpy.array([0.3, -0.2, 0.6])
 
 BASIS = make_basis_array("sto-3g", max_number=8)
 
-INTORS = ["int1e_ovlp", "int1e_kin", "int1e_ovlp_dr10"]
+INTORS = ["int1e_ovlp", "int1e_kin", "int1e_nuc", "int1e_ovlp_dr10"]
 
 
 @pytest.fixture(scope="module")
@@ -363,7 +363,7 @@ def test_cs_exp_traced_numbers(data):
         assert abs(numpy.asarray(g_vmap)[i] - g_ref[i]).max() < 1e-12
 
 
-@pytest.mark.parametrize("intor", ["int1e_nuc", "int2e"])
+@pytest.mark.parametrize("intor", ["int2e"])
 def test_unsupported_intor(data, intor):
     with pytest.raises(NotImplementedError):
         jax.jacfwd(intor_fn(intor))(data)
