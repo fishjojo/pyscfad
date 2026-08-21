@@ -29,6 +29,7 @@ pyscfad.scf.hf\_lite
       :toctree: functions/
 
    
+      dot_eri_dm
       get_grad
       get_homo_lumo_energy
       get_occ

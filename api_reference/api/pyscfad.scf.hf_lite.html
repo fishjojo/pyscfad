@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Aug 20, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 21, 2026"/>
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -591,6 +591,8 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="pyscfad.gto.moleintor_lite.html">pyscfad.gto.moleintor_lite</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.gto.moleintor_lite.getints_jvp.html">pyscfad.gto.moleintor_lite.getints_jvp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.gto.moleintor_lite.intor2c_jvp.html">pyscfad.gto.moleintor_lite.intor2c_jvp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.gto.moleintor_lite.intor4c_jvp.html">pyscfad.gto.moleintor_lite.intor4c_jvp</a></li>
 </ul>
 </details></li>
 </ul>
@@ -772,6 +774,7 @@
 <li class="toctree-l3 current active has-children"><a class="current reference internal" href="#">pyscfad.scf.hf_lite</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="classes/pyscfad.scf.hf_lite.SCF.html">pyscfad.scf.hf_lite.SCF</a></li>
 <li class="toctree-l4"><a class="reference internal" href="classes/pyscfad.scf.hf_lite.SCFLite.html">pyscfad.scf.hf_lite.SCFLite</a></li>
+<li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.scf.hf_lite.dot_eri_dm.html">pyscfad.scf.hf_lite.dot_eri_dm</a></li>
 <li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.scf.hf_lite.get_grad.html">pyscfad.scf.hf_lite.get_grad</a></li>
 <li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.scf.hf_lite.get_homo_lumo_energy.html">pyscfad.scf.hf_lite.get_homo_lumo_energy</a></li>
 <li class="toctree-l4"><a class="reference internal" href="functions/pyscfad.scf.hf_lite.get_occ.html">pyscfad.scf.hf_lite.get_occ</a></li>
@@ -1010,19 +1013,22 @@
 <p class="rubric">Functions</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf_lite.get_grad.html#pyscfad.scf.hf_lite.get_grad" title="pyscfad.scf.hf_lite.get_grad"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_grad</span></code></a>(mo_coeff, mo_occ, fock_ao)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf_lite.dot_eri_dm.html#pyscfad.scf.hf_lite.dot_eri_dm" title="pyscfad.scf.hf_lite.dot_eri_dm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dot_eri_dm</span></code></a>(eri, dm[, hermi, with_j, with_k])</p></td>
+<td><p>Contract the AO integrals with the density matrix.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf_lite.get_grad.html#pyscfad.scf.hf_lite.get_grad" title="pyscfad.scf.hf_lite.get_grad"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_grad</span></code></a>(mo_coeff, mo_occ, fock_ao)</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf_lite.get_homo_lumo_energy.html#pyscfad.scf.hf_lite.get_homo_lumo_energy" title="pyscfad.scf.hf_lite.get_homo_lumo_energy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_homo_lumo_energy</span></code></a>(mf[, mo_energy, mo_coeff])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf_lite.get_homo_lumo_energy.html#pyscfad.scf.hf_lite.get_homo_lumo_energy" title="pyscfad.scf.hf_lite.get_homo_lumo_energy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_homo_lumo_energy</span></code></a>(mf[, mo_energy, mo_coeff])</p></td>
 <td><p>Get HOMO and LUMO energies.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf_lite.get_occ.html#pyscfad.scf.hf_lite.get_occ" title="pyscfad.scf.hf_lite.get_occ"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_occ</span></code></a>(mf[, mo_energy, mo_coeff])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf_lite.get_occ.html#pyscfad.scf.hf_lite.get_occ" title="pyscfad.scf.hf_lite.get_occ"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_occ</span></code></a>(mf[, mo_energy, mo_coeff])</p></td>
 <td><p>Get MO occupations.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf_lite.kernel.html#pyscfad.scf.hf_lite.kernel" title="pyscfad.scf.hf_lite.kernel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">kernel</span></code></a>(mf[, conv_tol, conv_tol_grad, dm0])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf_lite.kernel.html#pyscfad.scf.hf_lite.kernel" title="pyscfad.scf.hf_lite.kernel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">kernel</span></code></a>(mf[, conv_tol, conv_tol_grad, dm0])</p></td>
 <td><p></p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf_lite.update_dm.html#pyscfad.scf.hf_lite.update_dm" title="pyscfad.scf.hf_lite.update_dm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_dm</span></code></a>(mf, h1e, s1e, vhf, dm, cycle, ...)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="functions/pyscfad.scf.hf_lite.update_dm.html#pyscfad.scf.hf_lite.update_dm" title="pyscfad.scf.hf_lite.update_dm"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_dm</span></code></a>(mf, h1e, s1e, vhf, dm, cycle, ...)</p></td>
 <td><p>Single SCF step updating the density matrix.</p></td>
 </tr>
 </tbody>

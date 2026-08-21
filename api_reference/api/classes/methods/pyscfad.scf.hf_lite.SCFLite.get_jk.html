@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Aug 20, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 21, 2026"/>
   
     
     <script src="../../../../_static/searchtools.js"></script>
@@ -591,6 +591,8 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.gto.moleintor_lite.html">pyscfad.gto.moleintor_lite</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.gto.moleintor_lite.getints_jvp.html">pyscfad.gto.moleintor_lite.getints_jvp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.gto.moleintor_lite.intor2c_jvp.html">pyscfad.gto.moleintor_lite.intor2c_jvp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.gto.moleintor_lite.intor4c_jvp.html">pyscfad.gto.moleintor_lite.intor4c_jvp</a></li>
 </ul>
 </details></li>
 </ul>
@@ -772,6 +774,7 @@
 <li class="toctree-l3 current active has-children"><a class="reference internal" href="../../pyscfad.scf.hf_lite.html">pyscfad.scf.hf_lite</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l4"><a class="reference internal" href="../pyscfad.scf.hf_lite.SCF.html">pyscfad.scf.hf_lite.SCF</a></li>
 <li class="toctree-l4 current active"><a class="reference internal" href="../pyscfad.scf.hf_lite.SCFLite.html">pyscfad.scf.hf_lite.SCFLite</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.hf_lite.dot_eri_dm.html">pyscfad.scf.hf_lite.dot_eri_dm</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.hf_lite.get_grad.html">pyscfad.scf.hf_lite.get_grad</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.hf_lite.get_homo_lumo_energy.html">pyscfad.scf.hf_lite.get_homo_lumo_energy</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.hf_lite.get_occ.html">pyscfad.scf.hf_lite.get_occ</a></li>
@@ -1002,15 +1005,22 @@
 <h1>pyscfad.scf.hf_lite.SCFLite.get_jk<a class="headerlink" href="#pyscfad-scf-hf-lite-scflite-get-jk" title="Link to this heading">#</a></h1>
 <dl class="py method">
 <dt class="sig sig-object py" id="pyscfad.scf.hf_lite.SCFLite.get_jk">
-<span class="sig-prename descclassname"><span class="pre">SCFLite.</span></span><span class="sig-name descname"><span class="pre">get_jk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_j</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">omega</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf.py#L375-L392"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf_lite.SCFLite.get_jk" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">SCFLite.</span></span><span class="sig-name descname"><span class="pre">get_jk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_j</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">omega</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf_lite.py#L641-L663"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf_lite.SCFLite.get_jk" title="Link to this definition">#</a></dt>
 <dd><p>Compute J, K matrices for all input density matrices</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>mol</strong> – an instance of <code class="xref py py-class docutils literal notranslate"><span class="pre">Mole</span></code></p></li>
-<li><p><strong>dm</strong> – ndarray or list of ndarrays
+<li><p><strong>mol</strong> (<a class="reference internal" href="../pyscfad.gto.mole_lite.MoleLite.html#pyscfad.gto.mole_lite.MoleLite" title="pyscfad.gto.mole_lite.MoleLite"><em>MoleLite</em></a><em> | </em><em>None</em>) – an instance of <code class="xref py py-class docutils literal notranslate"><span class="pre">Mole</span></code></p></li>
+<li><p><strong>dm</strong> (<em>Array</em><em> | </em><em>None</em>) – ndarray or list of ndarrays
 A density matrix or a list of density matrices</p></li>
+<li><p><strong>hermi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>with_j</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>with_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>omega</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><em>None</em>)</p></li>
 </ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[Array, Array]</p>
 </dd>
 </dl>
 <dl>
@@ -1043,6 +1053,19 @@ than 0, short-range Coulomb potential erfc( omega * r12 ) / r12 is applied.</p>
 <dd class="field-odd"><p>Depending on the given dm, the function returns one J and one K matrix,
 or a list of J matrices and a list of K matrices, corresponding to the
 input density matrices.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>mol</strong> (<a class="reference internal" href="../pyscfad.gto.mole_lite.MoleLite.html#pyscfad.gto.mole_lite.MoleLite" title="pyscfad.gto.mole_lite.MoleLite"><em>MoleLite</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>dm</strong> (<em>Array</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>hermi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>with_j</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>with_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>omega</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[Array, Array]</p>
 </dd>
 </dl>
 <p>Examples:</p>

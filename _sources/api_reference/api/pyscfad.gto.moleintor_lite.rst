@@ -20,6 +20,8 @@ pyscfad.gto.moleintor\_lite
 
    
       getints_jvp
+      intor2c_jvp
+      intor4c_jvp
 
    
    

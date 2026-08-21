@@ -54,12 +54,12 @@
     <link rel="icon" href="../../../_static/pyscfad_logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="GW methods" href="../../gw.html" />
+    <link rel="next" title="pyscfad.gto.moleintor_lite.intor2c_jvp" href="pyscfad.gto.moleintor_lite.intor2c_jvp.html" />
     <link rel="prev" title="pyscfad.gto.moleintor_lite" href="../pyscfad.gto.moleintor_lite.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Aug 20, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 21, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -591,6 +591,8 @@
 </details></li>
 <li class="toctree-l3 current active has-children"><a class="reference internal" href="../pyscfad.gto.moleintor_lite.html">pyscfad.gto.moleintor_lite</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l4 current active"><a class="current reference internal" href="#">pyscfad.gto.moleintor_lite.getints_jvp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.gto.moleintor_lite.intor2c_jvp.html">pyscfad.gto.moleintor_lite.intor2c_jvp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.gto.moleintor_lite.intor4c_jvp.html">pyscfad.gto.moleintor_lite.intor4c_jvp</a></li>
 </ul>
 </details></li>
 </ul>
@@ -772,6 +774,7 @@
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.hf_lite.html">pyscfad.scf.hf_lite</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.hf_lite.SCF.html">pyscfad.scf.hf_lite.SCF</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.hf_lite.SCFLite.html">pyscfad.scf.hf_lite.SCFLite</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf_lite.dot_eri_dm.html">pyscfad.scf.hf_lite.dot_eri_dm</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf_lite.get_grad.html">pyscfad.scf.hf_lite.get_grad</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf_lite.get_homo_lumo_energy.html">pyscfad.scf.hf_lite.get_homo_lumo_energy</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.hf_lite.get_occ.html">pyscfad.scf.hf_lite.get_occ</a></li>
@@ -999,7 +1002,7 @@
 <h1>pyscfad.gto.moleintor_lite.getints_jvp<a class="headerlink" href="#pyscfad-gto-moleintor-lite-getints-jvp" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="pyscfad.gto.moleintor_lite.getints_jvp">
-<span class="sig-prename descclassname"><span class="pre">pyscfad.gto.moleintor_lite.</span></span><span class="sig-name descname"><span class="pre">getints_jvp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intor_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bas</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shls_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aosym</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ao_loc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">basis_array_metadata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">primals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tangents</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/gto/moleintor_lite.py#L205-L270"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.gto.moleintor_lite.getints_jvp" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyscfad.gto.moleintor_lite.</span></span><span class="sig-name descname"><span class="pre">getints_jvp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">intor_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bas</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">env</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shls_slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aosym</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ao_loc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">basis_array_metadata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">primals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tangents</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/gto/moleintor_lite.py#L213-L230"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.gto.moleintor_lite.getints_jvp" title="Link to this definition">#</a></dt>
 <dd></dd></dl>
 
 </section>
@@ -1024,11 +1027,11 @@
       </div>
     </a>
     <a class="right-next"
-       href="../../gw.html"
+       href="pyscfad.gto.moleintor_lite.intor2c_jvp.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">GW methods</p>
+        <p class="prev-next-title">pyscfad.gto.moleintor_lite.intor2c_jvp</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
