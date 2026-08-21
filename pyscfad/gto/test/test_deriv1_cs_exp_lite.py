@@ -71,7 +71,8 @@ def ao_loc(basis):
                     basis=basis).ao_loc
 
 
-def intor_fn(intor, hermi=0, cart=False, shls_slice=None, origin=None):
+def intor_fn(intor, hermi=0, cart=False, shls_slice=None, origin=None,
+             aosym="s1"):
     """``basis -> integral`` for a fixed geometry. ``origin`` places the
     gauge origin of the operator at :data:`ORIGIN`, "common" for
     ``int1e_r``-type and "rinv" for ``int1e_rinv``-type integrals.
@@ -86,7 +87,8 @@ def intor_fn(intor, hermi=0, cart=False, shls_slice=None, origin=None):
         else:
             ctx = contextlib.nullcontext()
         with ctx:
-            return mol.intor(intor, hermi=hermi, shls_slice=shls_slice)
+            return mol.intor(intor, hermi=hermi, shls_slice=shls_slice,
+                             aosym=aosym)
     return fn
 
 
@@ -244,7 +246,77 @@ def test_cs_exp_mixed_basis_coords(basis, hermi):
     assert abs(grad - grad_fd).max() < 1e-6
 
 
-@pytest.mark.parametrize("intor", ["int2e"])
-def test_unsupported_intor(basis, intor):
+@pytest.mark.parametrize("aosym", ["s4", "s8"])
+def test_cs_exp_int2e(basis, aosym):
+    """Basis derivatives of the packed two-electron integrals. Every one of
+    the four indices carries the derivative; the permutation symmetry of
+    ``(ij|kl)`` maps three of the four terms onto the first.
+    """
+    fn = intor_fn("int2e", aosym=aosym)
+
+    jac = jax.jacfwd(fn)(basis)
+    assert_cs_exp_close(jac, four_point_fd(fn, basis), 1e-7)
+
+    # reverse mode, checked on a scalar contraction of the same jacobian
+    out = numpy.asarray(fn(basis))
+    grad = jax.grad(lambda b: np.sum(fn(b) ** 2))(basis)
+    for leaf, leaf_fwd in zip(jax.tree.leaves(grad), jax.tree.leaves(jac)):
+        ref = 2. * numpy.tensordot(out, numpy.asarray(leaf_fwd), axes=out.ndim)
+        assert abs(numpy.asarray(leaf) - ref).max() < 1e-10
+
+
+def test_cs_exp_int2e_cart(basis):
+    """Cartesian AOs skip the cartesian-to-spherical transformation of the
+    three spectator indices of the exponent derivative.
+    """
+    fn = intor_fn("int2e", aosym="s4", cart=True)
+
+    jac = jax.jacfwd(fn)(basis)
+    assert_cs_exp_close(jac, four_point_fd(fn, basis), 1e-7)
+
+
+def test_cs_exp_int2e_shls_slice(basis):
+    """A block whose bra and ket pair span different shells: the ket-side
+    terms are their own cross integrals rather than a transpose.
+    """
+    fn = intor_fn("int2e", aosym="s4", shls_slice=(0, 3, 0, 3, 3, 4, 3, 4))
+
+    jac = jax.jacfwd(fn)(basis)
+    assert_cs_exp_close(jac, four_point_fd(fn, basis), 1e-7)
+
+
+def test_cs_exp_int2e_mixed_unsupported(basis):
+    """Mixed coordinate and basis derivatives of ``int2e``.
+
+    Either nesting reaches an integral whose tangent is not available: with
+    the coordinates inside, the basis tangent of a differentiated integral
+    would need the permutation symmetry that the derivative has broken;
+    with the basis inside, the cross integrals of a packed pair are not
+    themselves packed the way the coordinate tangent expects.
+    """
+    coords = np.asarray(COORDS)
+
+    def coords_inner(basis_):
+        def inner(coords_):
+            mol = MoleLite(symbols=SYMBOLS, coords=coords_, basis=basis_)
+            return np.linalg.norm(mol.intor("int2e", aosym="s8"))
+        return np.linalg.norm(jax.grad(inner)(coords))
+
+    def basis_inner(coords_):
+        def inner(basis_):
+            mol = MoleLite(symbols=SYMBOLS, coords=coords_, basis=basis_)
+            return np.linalg.norm(mol.intor("int2e", aosym="s8"))
+        grad = jax.grad(inner)(basis)
+        return np.sqrt(sum(np.sum(leaf ** 2) for leaf in jax.tree.leaves(grad)))
+
     with pytest.raises(NotImplementedError):
-        jax.jacfwd(intor_fn(intor))(basis)
+        jax.grad(coords_inner)(basis)
+    with pytest.raises(NotImplementedError):
+        jax.grad(basis_inner)(coords)
+
+
+# int2e carries derivatives with aosym='s4' and 's8' only
+@pytest.mark.parametrize("intor,aosym", [("int2e", "s1"), ("int2e", "s2ij")])
+def test_unsupported_intor(basis, intor, aosym):
+    with pytest.raises(NotImplementedError):
+        jax.jacfwd(intor_fn(intor, aosym=aosym))(basis)

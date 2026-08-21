@@ -176,6 +176,7 @@ class MoleLite(MoleBase):
         self.cuint_plan = cuint_plan
 
         self._pseudo = {}
+        self._ecpbas = numpy.zeros((0,8), dtype=numpy.int32)
         self._built = True
 
     def atom_pure_symbol(

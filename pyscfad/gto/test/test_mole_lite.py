@@ -19,16 +19,20 @@ import jax
 import pyscf
 from pyscfad import numpy as np
 from pyscfad.gto import Mole, MoleLite
+from pyscfad.gto._pyscf_moleintor import _INTOR_FUNCTIONS
 
-@pytest.fixture
+def rng_tangent(shape, seed=0):
+    return numpy.random.default_rng(seed).standard_normal(shape)
+
+@pytest.fixture(scope="module")
 def atom():
     yield "h1 0 0 0; h2 0 0 2"
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def basis():
     yield {"H1" : "sto3g", "H2" : "631G**"}
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def unit():
     yield "AU"
 
@@ -174,3 +178,180 @@ def test_from_to_pyscf(atom, basis, unit):
     pmol1 = mol.to_pyscf()
 
     assert jax.tree.all(jax.tree.map(np.allclose, pmol._basis, pmol1._basis))
+
+@pytest.fixture(scope="module")
+def coords():
+    yield np.array([[0,0,0], [0,0,2]], dtype=float)
+
+@pytest.fixture(scope="module")
+def int2e_jac_ref(atom, basis, unit):
+    """``d(ij|kl)/dR`` of the unpacked integral of the legacy ``Mole``."""
+    mol = Mole()
+    mol.atom = atom
+    mol.basis = basis
+    mol.unit = unit
+    mol.build(trace_exp=False, trace_ctr_coeff=False)
+    jac = jax.jacfwd(lambda m: m.intor("int2e", aosym="s1"))(mol)
+    return numpy.asarray(jac.coords)
+
+@pytest.fixture(scope="module")
+def int2e_hess_ref(atom, basis, unit):
+    """``d2(ij|kl)/dR2`` of the unpacked integral of the legacy ``Mole``."""
+    mol = Mole()
+    mol.atom = atom
+    mol.basis = basis
+    mol.unit = unit
+    mol.build(trace_exp=False, trace_ctr_coeff=False)
+    hess = jax.jacfwd(jax.jacfwd(lambda m: m.intor("int2e", aosym="s1")))(mol)
+    return numpy.asarray(hess.coords.coords)
+
+def int2e_packed(coords, basis, aosym="s4", shls_slice=None, intor="int2e"):
+    mol = MoleLite(symbols=("h1", "h2"), coords=coords, basis=basis)
+    return mol.intor(intor, aosym=aosym, shls_slice=shls_slice)
+
+def restore(aosym, eri_s1):
+    """Pack the index pairs of an 8-fold symmetric ``(ij|kl)`` block,
+    keeping any trailing (derivative) axes.
+    """
+    naoi, _, naok = eri_s1.shape[:3]
+    i, j = numpy.tril_indices(naoi)
+    k, l = numpy.tril_indices(naok)
+    eri = eri_s1[i,j][:,k,l]
+    if aosym == "s8":
+        # the s8 vector is the lower triangle of the s4 matrix
+        p, q = numpy.tril_indices(eri.shape[0])
+        eri = eri[p,q]
+    return eri
+
+@pytest.mark.parametrize("aosym", ["s4", "s8"])
+def test_int2e(coords, basis, atom, unit, int2e_jac_ref, aosym):
+    mol0 = pyscf.M(atom=atom, basis=basis, unit=unit)
+    fn = partial(int2e_packed, aosym=aosym)
+
+    eri = fn(coords, basis)
+    assert abs(eri - mol0.intor("int2e", aosym=aosym)).max() < 1e-10
+
+    jac0 = restore(aosym, int2e_jac_ref)
+    jac = numpy.asarray(jax.jacfwd(fn)(coords, basis))
+    assert jac.shape == jac0.shape
+    assert abs(jac - jac0).max() < 1e-10
+
+    jac_rev = numpy.asarray(jax.jacrev(fn)(coords, basis))
+    assert abs(jac_rev - jac0).max() < 1e-10
+
+    norm = lambda x: np.linalg.norm(fn(x, basis))
+    grad = numpy.asarray(jax.grad(norm)(coords))
+    grad_jit = numpy.asarray(jax.jit(jax.grad(norm))(coords))
+    assert abs(grad_jit - grad).max() < 1e-12
+
+# H1 carries a single s shell, H2 an s, s, p sequence
+SLICES_2E = [
+    (0, 1, 0, 1, 1, 4, 1, 4),  # bra pair on H1, ket pair on H2
+    (1, 4, 1, 4, 0, 1, 0, 1),  # the transposed block
+    (1, 4, 1, 4, 1, 4, 1, 4),  # bra range = ket range, all indices on H2
+]
+
+@pytest.mark.parametrize("shls_slice", SLICES_2E)
+def test_int2e_s4_shls_slice(coords, basis, atom, unit, int2e_jac_ref,
+                             shls_slice):
+    """Partial shell blocks, only available with ``s4``. When the bra and
+    the ket pair select different shell ranges, the ket-side derivative is
+    a second integral rather than the transpose of the bra-side one; the
+    last block instead has all four indices on one atom, so its derivative
+    vanishes.
+    """
+    mol0 = pyscf.M(atom=atom, basis=basis, unit=unit)
+    eri = int2e_packed(coords, basis, shls_slice=shls_slice)
+    assert abs(eri - mol0.intor("int2e", aosym="s4",
+                                shls_slice=shls_slice)).max() < 1e-10
+
+    # the sliced derivative is the matching block of the full one
+    i0, i1, k0, k1 = shls_slice[0], shls_slice[1], shls_slice[4], shls_slice[5]
+    ao_loc = mol0.ao_loc_nr()
+    jac0 = restore("s4", int2e_jac_ref[ao_loc[i0]:ao_loc[i1],
+                                       ao_loc[i0]:ao_loc[i1],
+                                       ao_loc[k0]:ao_loc[k1],
+                                       ao_loc[k0]:ao_loc[k1]])
+    jac = numpy.asarray(jax.jacfwd(int2e_packed)(coords, basis,
+                                                 shls_slice=shls_slice))
+    assert jac.shape == jac0.shape
+    assert abs(jac - jac0).max() < 1e-10
+
+@pytest.mark.parametrize("aosym", ["s4", "s8"])
+def test_int2e_nuc_hess(coords, basis, int2e_hess_ref, aosym):
+    """Second coordinate derivative. A differentiated integral has lost the
+    permutation symmetry of ``(ij|kl)``, so every center contributes its own
+    derivative integral, unpacked, and the packed elements are selected.
+    """
+    fn = partial(int2e_packed, aosym=aosym)
+
+    hess0 = restore(aosym, int2e_hess_ref)
+    hess = numpy.asarray(jax.jacfwd(jax.jacfwd(fn))(coords, basis))
+    assert hess.shape == hess0.shape
+    assert abs(hess - hess0).max() < 1e-10
+
+def test_int2e_nuc_hess_shls_slice(coords, basis, atom, unit, int2e_hess_ref):
+    """Second derivative of a block whose bra and ket pair span different
+    shells: its first derivative needs both ``int2e_dr1000`` and
+    ``int2e_dr0010``, whose own derivatives take opposite branches of the
+    transposed-term shortcut.
+    """
+    shls_slice = SLICES_2E[0]
+    i0, i1, k0, k1 = shls_slice[0], shls_slice[1], shls_slice[4], shls_slice[5]
+    ao_loc = pyscf.M(atom=atom, basis=basis, unit=unit).ao_loc_nr()
+
+    hess0 = restore("s4", int2e_hess_ref[ao_loc[i0]:ao_loc[i1],
+                                        ao_loc[i0]:ao_loc[i1],
+                                        ao_loc[k0]:ao_loc[k1],
+                                        ao_loc[k0]:ao_loc[k1]])
+    fn = partial(int2e_packed, shls_slice=shls_slice)
+    hess = numpy.asarray(jax.jacfwd(jax.jacfwd(fn))(coords, basis))
+    assert hess.shape == hess0.shape
+    assert abs(hess - hess0).max() < 1e-10
+
+def test_int2e_nuc_deriv3_high_cost(coords, basis, atom, unit):
+    """Third coordinate derivative, where every center of the twice
+    differentiated integrals contributes its own derivative integral.
+    """
+    mol = Mole()
+    mol.atom = atom
+    mol.basis = basis
+    mol.unit = unit
+    mol.build(trace_exp=False, trace_ctr_coeff=False)
+    d3 = jax.jacfwd(jax.jacfwd(jax.jacfwd(
+        lambda m: m.intor("int2e", aosym="s1"))))(mol)
+    ref = restore("s8", numpy.asarray(d3.coords.coords.coords))
+
+    fn = partial(int2e_packed, aosym="s8")
+    got = numpy.asarray(jax.jacfwd(jax.jacfwd(jax.jacfwd(fn)))(coords, basis))
+    assert got.shape == ref.shape
+    assert abs(got - ref).max() < 1e-10
+
+@pytest.mark.skipif("int4c1e_dr1000" not in _INTOR_FUNCTIONS,
+                    reason="libcint provides no int4c1e derivatives: it is "
+                           "built without WITH_4C1E and auto_intor_ad.cl "
+                           "generates no int4c1e_dr names")
+@pytest.mark.parametrize("aosym", ["s4", "s8"])
+def test_int4c1e_nuc_grad(coords, basis, aosym):
+    """``int4c1e`` carries the same 8-fold permutation symmetry as ``int2e``
+    and goes through the same packed derivative machinery. Only the libcint
+    kernels are missing.
+    """
+    fn = partial(int2e_packed, aosym=aosym, intor="int4c1e")
+
+    tangent = numpy.asarray(rng_tangent(coords.shape))
+    jvp = numpy.asarray(jax.jvp(lambda x: fn(x, basis), (coords,),
+                                (np.asarray(tangent),))[1])
+
+    def at(disp):
+        return numpy.asarray(fn(coords + disp * tangent, basis))
+    d = 1e-5
+    fd = (8. * (at(d) - at(-d)) - (at(2*d) - at(-2*d))) / (12. * d)
+    assert abs(jvp - fd).max() < 1e-8
+
+@pytest.mark.parametrize("aosym", ["s1", "s2ij", "s2kl"])
+def test_int2e_unsupported_aosym(coords, basis, aosym):
+    with pytest.raises(NotImplementedError):
+        jax.grad(lambda x: np.linalg.norm(
+            MoleLite(symbols=("h1", "h2"), coords=x,
+                     basis=basis).intor("int2e", aosym=aosym)))(coords)

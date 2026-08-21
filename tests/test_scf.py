@@ -15,9 +15,12 @@
 """Tests for pyscfad.scf
 """
 import numpy
+import pytest
 import jax
 from pyscfad import config_update
 from pyscfad import scf
+from pyscfad.gto import MoleLite
+from pyscfad.scf import hf_lite
 from .util import (
     hf_energy,
     df_hf_energy,
@@ -95,3 +98,65 @@ def test_df_ghf_nuc_grad(mol_H2O):
 def test_to_pyscf(mol_N2):
     ehf = scf.UHF(mol_N2()).density_fit().to_pyscf().kernel()
     assert abs(ehf - -108.867850114325) < 1e-8
+
+@pytest.mark.parametrize("aosym", ["s4", "s8"])
+@pytest.mark.parametrize("hermi", [1, 0])
+def test_dot_eri_dm_packed(hermi, aosym):
+    """The packed J/K builds reproduce the unpacked ``s1`` one, for a
+    symmetric (``hermi=1``) and a general (``hermi=0``) density matrix.
+    """
+    mol = MoleLite(("H", "F"), [[0., 0., 0.], [0., 0., 1.1]],
+                   basis="631g", verbose=0)
+    eri_s1 = mol.intor("int2e", aosym="s1")
+    eri = mol.intor("int2e", aosym=aosym)
+
+    rng = numpy.random.default_rng(0)
+    dm = rng.standard_normal((2, mol.nao, mol.nao))
+    if hermi == 1:
+        dm = dm + dm.transpose(0,2,1)
+
+    vj0, vk0 = hf_lite.dot_eri_dm(eri_s1, dm, hermi)
+    vj1, vk1 = hf_lite.dot_eri_dm(eri, dm, hermi)
+    assert abs(vj1 - vj0).max() < 1e-12
+    assert abs(vk1 - vk0).max() < 1e-12
+
+    # with_j and with_k select the requested matrices only
+    vj1, vk1 = hf_lite.dot_eri_dm(eri, dm, hermi, with_k=False)
+    assert vk1 is None
+    assert abs(vj1 - vj0).max() < 1e-12
+    vj1, vk1 = hf_lite.dot_eri_dm(eri, dm, hermi, with_j=False)
+    assert vj1 is None
+    assert abs(vk1 - vk0).max() < 1e-12
+
+    # the index bookkeeping must not upcast a lower working precision
+    vj1, vk1 = hf_lite.dot_eri_dm(eri.astype(numpy.float32),
+                                  numpy.float32(dm), hermi)
+    assert vj1.dtype == numpy.float32
+    assert vk1.dtype == numpy.float32
+
+@pytest.mark.parametrize("aosym", ["s8", "s4"])
+def test_rhf_lite_packed_nuc_grad(aosym):
+    """SCFLite feeds the packed integral array of MoleLite through
+    ``dot_eri_dm``, under jit and through the implicit derivative.
+    """
+    symbols = ("O", "H", "H")
+    coords = numpy.array([[0., 0., 0.23],
+                          [0., 1.43, -0.92],
+                          [0., -1.43, -0.92]])
+
+    def energy(coords):
+        mol = MoleLite(symbols, coords, basis="sto3g", verbose=0)
+        mf = hf_lite.SCFLite(mol)
+        mf.eri_aosym = aosym
+        mf.init_guess = "hcore"
+        mf.diis = "anderson"
+        return mf.kernel()
+
+    mf0 = MoleLite(symbols, coords, basis="sto3g", verbose=0).to_pyscf().RHF()
+    mf0.kernel()
+
+    e = jax.jit(energy)(coords)
+    assert abs(e - mf0.e_tot) < 1e-8
+
+    g = jax.jit(jax.grad(energy))(coords)
+    assert abs(g - mf0.nuc_grad_method().kernel()).max() < 1e-6
