@@ -136,8 +136,10 @@ def test_dot_eri_dm_packed(hermi, aosym):
 
 @pytest.mark.parametrize("aosym", ["s8", "s4"])
 def test_rhf_lite_packed_nuc_grad(aosym):
-    """SCFLite feeds the packed integral array of MoleLite through
-    ``dot_eri_dm``, under jit and through the implicit derivative.
+    """SCFLite feeds a packed integral array through ``dot_eri_dm``, under
+    jit and through the implicit derivative. ``get_jk`` builds an ``s8``
+    array itself; any layout ``dot_eri_dm`` accepts can be preloaded into
+    ``_eri`` instead.
     """
     symbols = ("O", "H", "H")
     coords = numpy.array([[0., 0., 0.23],
@@ -147,7 +149,7 @@ def test_rhf_lite_packed_nuc_grad(aosym):
     def energy(coords):
         mol = MoleLite(symbols, coords, basis="sto3g", verbose=0)
         mf = hf_lite.SCFLite(mol)
-        mf.eri_aosym = aosym
+        mf._eri = mol.intor("int2e", aosym=aosym)
         mf.init_guess = "hcore"
         mf.diis = "anderson"
         return mf.kernel()
