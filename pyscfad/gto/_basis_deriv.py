@@ -14,7 +14,7 @@
 
 """
 Helpers for basis-set parameter (exponent and contraction
-coefficient) derivatives of one-electron integrals for
+coefficient) derivatives of one- and two-electron integrals for
 :class:`~pyscfad.gto.MoleLite`.
 
 The derivatives are formulated as cross integrals between a "fake" basis
@@ -201,6 +201,21 @@ def _contract_ket(s, maps, w, dtype):
     out = np.zeros(s.shape[:-1] + (maps.nao,), dtype=dtype)
     return ops.index_add(out, ops.index[..., maps.real_rows],
                          w * s[..., maps.fake_rows])
+
+
+def _contract_axis(s, axis, maps, w, dtype):
+    """:func:`_contract_ket` on an arbitrary axis of ``s``."""
+    s = np.moveaxis(s, axis, -1)
+    s = _contract_ket(s, maps, w, dtype)
+    return np.moveaxis(s, -1, axis)
+
+
+def _contract_leading(s, maps, w, dtype):
+    """:func:`_contract_bra` on the leading axis of ``s``, whatever its
+    remaining shape.
+    """
+    out = _contract_bra(s.reshape(s.shape[0], -1), maps, w, dtype)
+    return out.reshape((maps.nao,) + s.shape[1:])
 
 
 def _nf(ls, cart):
@@ -522,3 +537,159 @@ def basis_jvp_exp(
             jvp_ket = _contract_bra(jvp_ket, *c2s_bra, env.dtype)
         jvp += jvp_ket
     return jvp
+
+
+def _cross_shls_2e(
+    slot: int,
+    shls_slice: tuple[int, ...],
+    prim_shl_loc: numpy.ndarray,
+    nbas_prim: int,
+) -> tuple[int, ...]:
+    """Shell ranges of a two-electron cross integral: the primitive shells
+    of the differentiated slot, the real shells for the other three.
+    """
+    real = tuple(nbas_prim + sh for sh in shls_slice)
+    if slot == 0:
+        prim = (prim_shl_loc[shls_slice[0]], prim_shl_loc[shls_slice[1]])
+        return prim + real[2:]
+    if slot == 2:
+        prim = (prim_shl_loc[shls_slice[4]], prim_shl_loc[shls_slice[5]])
+        return real[:4] + prim + real[6:]
+    raise NotImplementedError(f"slot = {slot} is not supported")
+
+
+def _deriv_shl_range(slot: int, shls_slice: tuple[int, ...]) -> tuple[int, int]:
+    """Shell range of the differentiated slot."""
+    return shls_slice[0:2] if slot == 0 else shls_slice[4:6]
+
+
+def basis_jvp_cs_2e(
+    intor_cross: Callable,
+    atm: numpy.ndarray | Array,
+    bas: numpy.ndarray | Array,
+    env: Array,
+    ctr_coeff: Array,
+    ctr_coeff_dot: Array,
+    cart: bool,
+    slot: int,
+    shls_slice: tuple[int, ...],
+    basis_array_metadata: BasisArrayMetadata | None = None, # used for padding
+) -> Array:
+    """Contraction-coefficient tangent of one slot of ``(ij|kl)``.
+
+    ``slot`` is ``0`` for the first bra index and ``2`` for the first ket
+    index; the other three indices keep the real basis. The spectator pair
+    is packed by the cross integral itself (``s2kl`` for ``slot=0``,
+    ``s2ij`` for ``slot=2``), so the result is ``(naoi, naoj, nkl)``
+    respectively ``(nij, naok, naol)``. The two remaining slots follow from
+    the permutation symmetry of the integral and are the caller's business.
+    """
+    natm = len(atm)
+    nbas = len(bas)
+    if basis_array_metadata is None:
+        bas_conc = resolve_bas_concrete(bas)
+    else:
+        bas_conc = resolve_bas_concrete(basis_array_metadata, natm)
+
+    ptr_ones = env.shape[-1]
+    basc, basc_conc = conc_prim_bas(bas_conc, bas, ptr_ones)
+    nbas_prim = len(basc) - nbas
+
+    ptr_coeff0 = env.shape[-1] - ctr_coeff.shape[-1]
+    ctr_coeffc = np.append(ctr_coeff, 1.0)
+    envc = np.append(env, 1.0)
+
+    ao_loc = make_loc(basc_conc, "cart" if cart else "sph")
+    prim_shl_loc = primitive_shell_loc(bas_conc)
+
+    maps = cs_scatter_maps(bas_conc, cart, _deriv_shl_range(slot, shls_slice))
+    coeff_env_idx = bas[:,PTR_COEFF][maps.entry_shell] + maps.coeff_off
+    w = ctr_coeff_dot[coeff_env_idx - ptr_coeff0]
+
+    shls = _cross_shls_2e(slot, shls_slice, prim_shl_loc, nbas_prim)
+    aosym = "s2kl" if slot == 0 else "s2ij"
+    s = intor_cross(basc, envc, ctr_coeffc, shls, aosym, ao_loc, basc_conc)
+
+    if slot == 0:
+        return _contract_leading(s, maps, w, env.dtype)
+    # the fake index is already axis -2
+    return _contract_bra(s, maps, w, env.dtype)
+
+
+def basis_jvp_exp_2e(
+    intor_cross: Callable,
+    atm: numpy.ndarray | Array,
+    bas: numpy.ndarray | Array,
+    env: Array,
+    exp: Array,
+    ctr_coeff: Array,
+    exp_dot: Array,
+    cart: bool,
+    slot: int,
+    shls_slice: tuple[int, ...],
+    basis_array_metadata: BasisArrayMetadata | None = None, # used for padding
+) -> Array:
+    """Exponent tangent of one slot of ``(ij|kl)``, laid out as in
+    :func:`basis_jvp_cs_2e`.
+
+    The ``l+2`` promotion of the differentiated shell needs Cartesian
+    functions, and a Cartesian index pair cannot be transformed to the
+    spherical basis while it is packed, so the cross integrals are
+    Cartesian and unpacked (``aosym='s1'``) -- ``nao_fake*nao**3`` is the
+    peak intermediate of the whole tangent. The differentiated index comes
+    back in the AO basis (its transformation is folded into the scatter
+    weights); the three spectator indices are transformed afterwards and
+    the spectator pair is packed last.
+    """
+    natm = len(atm)
+    nbas = len(bas)
+    if basis_array_metadata is None:
+        bas_conc = resolve_bas_concrete(bas)
+    else:
+        bas_conc = resolve_bas_concrete(basis_array_metadata, natm)
+
+    ptr_ones = env.shape[-1]
+    basc, basc_conc = conc_prim_bas(bas_conc, bas, ptr_ones, order=2)
+    nbas_prim = len(basc) - nbas
+
+    ptr_coeff0 = env.shape[-1] - ctr_coeff.shape[-1]
+    ptr_exp0 = ptr_coeff0 - exp.shape[-1]
+    ctr_coeffc = np.append(ctr_coeff, 1.0)
+    envc = np.append(env, 1.0)
+
+    ao_loc = make_loc(basc_conc, "cart")
+    prim_shl_loc = primitive_shell_loc(bas_conc)
+
+    maps = exp_scatter_maps(bas_conc, cart, _deriv_shl_range(slot, shls_slice))
+    coeff_env_idx = bas[:,PTR_COEFF][maps.entry_shell] + maps.coeff_off
+    exp_env_idx = bas[:,PTR_EXP][maps.entry_shell] + maps.prim_off
+    c = ctr_coeff[coeff_env_idx - ptr_coeff0]
+    w = -(maps.fac * c) * exp_dot[exp_env_idx - ptr_exp0]
+
+    shls = _cross_shls_2e(slot, shls_slice, prim_shl_loc, nbas_prim)
+    s = intor_cross(basc, envc, ctr_coeffc, shls, "s1", ao_loc, basc_conc)
+
+    if slot == 0:
+        jvp = _contract_leading(s, maps, w, env.dtype)
+        spectators = ((1, shls_slice[2:4]), (2, shls_slice[4:6]),
+                      (3, shls_slice[6:8]))
+    else:
+        # the fake index is already axis -2
+        jvp = _contract_bra(s, maps, w, env.dtype)
+        spectators = ((0, shls_slice[0:2]), (1, shls_slice[2:4]),
+                      (3, shls_slice[6:8]))
+
+    if not cart:
+        c2s = {}
+        for axis, shl_range in spectators:
+            if shl_range not in c2s:
+                cmaps, fac = cart2sph_scatter_maps(bas_conc, shl_range)
+                c2s[shl_range] = (cmaps, np.asarray(fac, dtype=env.dtype))
+            jvp = _contract_axis(jvp, axis, *c2s[shl_range], env.dtype)
+
+    # pack the spectator pair
+    if slot == 0:
+        idx_k, idx_l = numpy.tril_indices(jvp.shape[-1])
+        return jvp[..., idx_k, idx_l]
+    idx_i, idx_j = numpy.tril_indices(jvp.shape[0])
+    return jvp[idx_i, idx_j]

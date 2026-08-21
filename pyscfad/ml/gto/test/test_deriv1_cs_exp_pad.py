@@ -86,7 +86,7 @@ def with_data(data):
 
 
 def intor_fn(intor, hermi=0, cart=False, shls_slice=None, origin=None,
-             numbers=NUMBERS, coords=COORDS):
+             numbers=NUMBERS, coords=COORDS, aosym="s1"):
     """``data -> integral`` for a fixed geometry. ``origin`` places the gauge
     origin of the operator at :data:`ORIGIN`, "common" for ``int1e_r``-type
     and "rinv" for ``int1e_rinv``-type integrals.
@@ -101,7 +101,8 @@ def intor_fn(intor, hermi=0, cart=False, shls_slice=None, origin=None,
         else:
             ctx = contextlib.nullcontext()
         with ctx:
-            return mol.intor(intor, hermi=hermi, shls_slice=shls_slice)
+            return mol.intor(intor, hermi=hermi, shls_slice=shls_slice,
+                             aosym=aosym)
     return fn
 
 
@@ -363,7 +364,22 @@ def test_cs_exp_traced_numbers(data):
         assert abs(numpy.asarray(g_vmap)[i] - g_ref[i]).max() < 1e-12
 
 
-@pytest.mark.parametrize("intor", ["int2e"])
-def test_unsupported_intor(data, intor):
+@pytest.mark.parametrize("aosym", ["s4", "s8"])
+def test_cs_exp_int2e(data, slots, aosym):
+    """Basis derivatives of the packed two-electron integrals. With a traced
+    ``bas`` the cross basis of every one of the four slots is built from the
+    metadata rather than from a concrete ``bas``.
+    """
+    fn = intor_fn("int2e", aosym=aosym)
+
+    jac = jax.jacfwd(fn)(data)
+    assert numpy.isfinite(numpy.asarray(jac)).all()
+    assert_cs_exp_close(jac, four_point_fd(fn, data, slots),
+                        numpy.shape(data)[-1])
+
+
+# int2e carries derivatives with aosym='s4' and 's8' only
+@pytest.mark.parametrize("intor,aosym", [("int2e", "s1"), ("int2e", "s2ij")])
+def test_unsupported_intor(data, intor, aosym):
     with pytest.raises(NotImplementedError):
-        jax.jacfwd(intor_fn(intor))(data)
+        jax.jacfwd(intor_fn(intor, aosym=aosym))(data)
