@@ -16,6 +16,7 @@ from packaging.version import Version
 import pytest
 import numpy
 import jax
+from jax import numpy as jnp
 import pyscf
 from pyscf.pbc import gto as pyscf_gto
 from pyscf.pbc import scf as pyscf_scf
@@ -142,3 +143,22 @@ def test_rhf(get_cell):
     g0 = mf_grad.kernel()
     assert abs(e_tot - e_tot_ref) < 1e-7
     assert abs(jac_bwd.coords - g0).max() < 1e-7
+
+def test_get_veff_traced(cell_H2, monkeypatch):
+    # See issue #161 and test_khf.test_get_veff_get_occ_traced: pyscf's
+    # SCF.get_veff tags the returned potential with the Coulomb energy
+    # evaluated by numpy, which does not work on traced arrays.
+    cell = cell_H2
+    mf = scf.RHF(cell, exxdiv=None)
+
+    def _not_traceable(*args, **kwargs):
+        raise AssertionError('pyscf SCF.get_veff must not be called')
+    monkeypatch.setattr(pyscf_scf.hf.SCF, 'get_veff', _not_traceable)
+
+    nao = cell.nao
+    dm0 = jnp.asarray(numpy.eye(nao) * (cell.nelectron / nao))
+    veff, tangent = jax.jvp(lambda dm: mf.get_veff(dm=dm), (dm0,), (dm0,))
+    vj, vk = mf.get_jk(dm=dm0)
+    assert abs(veff - (vj - vk * .5)).max() < 1e-10
+    # veff is linear in the density matrix
+    assert abs(tangent - veff).max() < 1e-10
