@@ -66,14 +66,11 @@ def energy_elec(mf, dm_kpts=None, h1e_kpts=None, vhf_kpts=None):
     return (e1+e_coul).real, e_coul.real
 
 def get_occ(mf, mo_energy_kpts=None, mo_coeff_kpts=None):
-    # NOTE the MO occupations are not differentiated. pyscf's get_occ
-    # requires plain numpy arrays, so the traced arrays are detached
-    # from the graph and converted here.
+    # NOTE the MO occupations are not differentiated.
+    # pyscf get_occ requires plain numpy arrays.
     if mo_energy_kpts is None:
         mo_energy_kpts = mf.mo_energy
-    mo_energy_kpts = to_numpy(mo_energy_kpts)
-    mo_coeff_kpts = to_numpy(mo_coeff_kpts)
-    return pyscf_khf.KSCF.get_occ(mf, mo_energy_kpts, mo_coeff_kpts)
+    return pyscf_khf.KSCF.get_occ(mf, to_numpy(mo_energy_kpts), mo_coeff_kpts)
 
 def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
              diis_start_cycle=None, level_shift_factor=None, damp_factor=None,
@@ -178,9 +175,6 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
 
     def get_veff(self, cell=None, dm_kpts=None, dm_last=0, vhf_last=0, hermi=1,
                  kpts=None, kpts_band=None, **kwargs):
-        # NOTE cannot call pyscf's KSCF.get_veff, which attaches the Coulomb
-        # energy to the returned array with numpy operations, breaking tracing.
-        # The Coulomb energy is evaluated in energy_elec instead.
         if dm_kpts is None:
             dm_kpts = self.make_rdm1()
         vj, vk = self.get_jk(cell, dm_kpts, hermi, kpts, kpts_band)
