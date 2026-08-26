@@ -151,9 +151,8 @@ class SCF(mol_hf.SCF, pyscf_pbc_hf.SCF):
 
     def get_veff(self, cell=None, dm=None, dm_last=0, vhf_last=0, hermi=1,
                  kpt=None, kpts_band=None, **kwargs):
-        # NOTE cannot call pyscf's SCF.get_veff, which attaches the Coulomb
-        # energy to the returned array with numpy operations, breaking tracing.
-        # The Coulomb energy is evaluated in energy_elec instead.
+        # NOTE since pyscf 5da68a9, Coulomb energy is attached to
+        # the returned array with numpy operations, breaking tracing.
         if cell is None:
             cell = self.cell
         if dm is None:
