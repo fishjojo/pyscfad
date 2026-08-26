@@ -32,6 +32,7 @@ pyscfad.pbc.scf.khf
       energy_elec
       get_fock
       get_hcore
+      get_occ
       get_ovlp
       make_rdm1
 
