@@ -18,7 +18,7 @@ import numpy
 from pyscf import __config__
 from pyscf.pbc.scf import khf as pyscf_khf
 from pyscfad import numpy as np
-from pyscfad.ops import stop_grad, stop_trace, vmap
+from pyscfad.ops import stop_grad, stop_trace, to_numpy, vmap
 from pyscfad.lib import logger
 from pyscfad.scf import hf as mol_hf
 from pyscfad.pbc import df
@@ -64,6 +64,13 @@ def energy_elec(mf, dm_kpts=None, h1e_kpts=None, vhf_kpts=None):
                     'Coulomb integrals (e-e, e-N) may not converge !',
                     e_coul.imag)
     return (e1+e_coul).real, e_coul.real
+
+def get_occ(mf, mo_energy_kpts=None, mo_coeff_kpts=None):
+    # NOTE the MO occupations are not differentiated.
+    # pyscf get_occ requires plain numpy arrays.
+    if mo_energy_kpts is None:
+        mo_energy_kpts = mf.mo_energy
+    return pyscf_khf.KSCF.get_occ(mf, to_numpy(mo_energy_kpts), mo_coeff_kpts)
 
 def get_fock(mf, h1e=None, s1e=None, vhf=None, dm=None, cycle=-1, diis=None,
              diis_start_cycle=None, level_shift_factor=None, damp_factor=None,
@@ -168,14 +175,15 @@ class KSCF(pbchf.SCF, pyscf_khf.KSCF):
 
     def get_veff(self, cell=None, dm_kpts=None, dm_last=0, vhf_last=0, hermi=1,
                  kpts=None, kpts_band=None, **kwargs):
-        return pyscf_khf.KSCF.get_veff(
-                    self, cell=cell, dm_kpts=dm_kpts, dm_last=dm_last,
-                    vhf_last=vhf_last, hermi=hermi, kpts=kpts, kpts_band=kpts_band)
+        if dm_kpts is None:
+            dm_kpts = self.make_rdm1()
+        vj, vk = self.get_jk(cell, dm_kpts, hermi, kpts, kpts_band)
+        return vj - vk * .5
 
     get_hcore = get_hcore
     get_ovlp = get_ovlp
     get_fock = get_fock
-    get_occ = stop_trace(pyscf_khf.KSCF.get_occ)
+    get_occ = get_occ
     energy_elec = energy_elec
     get_fermi = pyscf_khf.KSCF.get_fermi
 

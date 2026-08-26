@@ -158,3 +158,31 @@ def test_krhf(get_cell, get_cell_ref):
     assert abs(e_tot - e_tot_ref) < 1e-7
     #assert abs(jac_fwd.coords - g0).max() < 1e-7
     assert abs(jac_bwd.coords - g0).max() < 1e-7
+
+def test_get_veff_get_occ_traced(cell_H2, monkeypatch):
+    # pyscf's KSCF.get_veff attaches the Coulomb energy to the returned
+    # potential with numpy.einsum, and its get_occ requires numpy arrays of
+    # MO energies. Neither works on traced arrays, so pyscfad must build veff
+    # itself and detach the MO energies. See issue #161.
+    cell = cell_H2
+    kpts = numpy.zeros((1,3))
+    nkpts = len(kpts)
+    mf = scf.KRHF(cell, kpts=kpts, exxdiv=None)
+
+    def _not_traceable(*args, **kwargs):
+        raise AssertionError('pyscf KSCF.get_veff must not be called')
+    monkeypatch.setattr(pyscf_scf.khf.KSCF, 'get_veff', _not_traceable)
+
+    nao = cell.nao
+    dm0 = jnp.asarray(numpy.eye(nao)[None] * (cell.nelectron / nao))
+    veff, tangent = jax.jvp(lambda dm: mf.get_veff(dm_kpts=dm), (dm0,), (dm0,))
+    vj, vk = mf.get_jk(dm_kpts=dm0)
+    assert abs(veff - (vj - vk * .5)).max() < 1e-10
+    # veff is linear in the density matrix
+    assert abs(tangent - veff).max() < 1e-10
+
+    mo_energy = jnp.asarray(numpy.arange(nkpts*nao, dtype=float).reshape(nkpts,nao))
+    mo_occ = numpy.asarray(mf.get_occ(mo_energy))
+    occ0 = numpy.zeros(nkpts*nao)
+    occ0[:cell.tot_electrons(nkpts)//2] = 2
+    assert abs(mo_occ.ravel() - occ0).max() < 1e-10
