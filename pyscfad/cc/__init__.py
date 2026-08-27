@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,10 @@ Coupled cluster
 """
 from . import rccsd
 from . import dfccsd
+from .rccsd import RCCSDLite
 
 def RCCSD(mf, *args, **kwargs):
+    from pyscfad.scf.hf_lite import SCFLite
+    if isinstance(mf, SCFLite):
+        return rccsd.RCCSDLite(mf, *args, **kwargs)
     return rccsd.RCCSD(mf, *args, **kwargs)

@@ -141,11 +141,13 @@ def make_bas_env(
     ptr_exp0 = ptr
     ptr_coeff0 = 0
 
-    # Padding entries (``mask_data`` False) are placeholders -- exponent 1e12
-    # and zero coefficient -- so they contribute nothing to any integral. Their
-    # derivative, on the other hand, is pure noise: ``gto_norm(l, 1e12)`` is
-    # ~1e21 and multiplies cross integrals of ~1e-19 that no backend resolves
-    # to that relative accuracy. Freeze them, leaving the values untouched.
+    # Padding entries (``mask_data`` False) carry a zero contraction
+    # coefficient, and an exponent repeating the shell's most diffuse real one
+    # (see :func:`make_basis_array`), so they contribute nothing to any
+    # integral. They are not basis parameters either -- a derivative with
+    # respect to a padded coefficient would otherwise be a perfectly finite,
+    # and perfectly meaningless, cross integral. Freeze them, leaving the
+    # values untouched.
     data = np.where(basis.mask_data, basis.data,
                     ops.stop_gradient(basis.data))
     ls = basis.ls
@@ -221,7 +223,7 @@ def make_ao_mask(
     cart: bool = False,
 ) -> Array:
     ls = basis.ls
-    mask_shl_ctr = np.einsum("zs,zc->zsc", mask_shl, mask_ctr)
+    mask_shl_ctr = mask_shl[:,:,None] & mask_ctr
 
     def _scatter_sph(mask):
         out = [np.repeat(mask[i], l * 2 + 1) for i, l in enumerate(ls)]
@@ -283,11 +285,9 @@ def make_basis_array(
                          numpy.cumsum(numpy.bincount(ls), dtype=numpy.int32))
 
     a = numpy.zeros([max_number+1, len(ls), max_nexp, max_nc1], dtype=np.floatx)
-    # preset exponents to a large number
-    # for FP32 l can be up to 4
-    a[:,:,:,0] = 1e12 if np.floatx==np.float64 else 1e6
+    a[:,:,:,0] = 1.0
     mask_shl = numpy.zeros([max_number+1, len(ls)], dtype=bool)
-    mask_ctr = numpy.zeros([max_number+1, max_nc1-1], dtype=bool)
+    mask_ctr = numpy.zeros([max_number+1, len(ls), max_nc1-1], dtype=bool)
     mask_data = numpy.zeros_like(a, dtype=bool)
     for z in range(max_number+1):
         if z == 0: # dummy atom
@@ -300,8 +300,24 @@ def make_basis_array(
                 nexp, nc1 = b.shape
                 a[z, l_idx, :nexp, :nc1] = b.astype(np.floatx)
                 mask_shl[z, l_idx] = True
-                mask_ctr[z, :nc1-1] = True
+                mask_ctr[z, l_idx, :nc1-1] = True
                 mask_data[z, l_idx, :nexp, :nc1] = True
+
+    # A padded primitive slot carries a zero contraction coefficient, so it
+    # enters no integral, but its exponent still matters. libcint bounds the
+    # prefactor of a whole shell pair from the *last* stored exponent of each
+    # shell (``CINTset_pairdata``), taking the exponents to be in descending
+    # order so that the last one is the most diffuse and the bound is an upper
+    # one. A placeholder above the real exponents makes that bound too small
+    # and screens the shell pair's *real* primitive pairs away along with the
+    # padded ones. Repeating the shell's most diffuse exponent keeps the stored
+    # sequence non-increasing and the bound exact. Shells with no real
+    # primitive at all keep the 1.0 preset above.
+    es = a[:,:,:,0]
+    real = mask_data[:,:,:,0]
+    e_min = numpy.min(numpy.where(real, es, numpy.inf), axis=-1)
+    e_min = numpy.where(numpy.isfinite(e_min), e_min, 1.)
+    a[:,:,:,0] = numpy.where(real, es, e_min[:,:,None])
 
     return BasisArray(data=np.asarray(a, dtype=np.floatx),
                       mask_shl=np.asarray(mask_shl),
