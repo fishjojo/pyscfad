@@ -16,4 +16,5 @@
 Wrappers for functions in pyscf.lib
 """
 from pyscfad.lib import diis
+from pyscfad.lib import diis_lite
 from pyscfad.lib.numpy_helper import *
