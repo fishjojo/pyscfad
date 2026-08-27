@@ -54,12 +54,12 @@
     <link rel="icon" href="../../../_static/pyscfad_logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="pyscfad.cc.rccsd.update_amps" href="pyscfad.cc.rccsd.update_amps.html" />
-    <link rel="prev" title="pyscfad.cc.rccsd.RCCSD.update_amps" href="../classes/methods/pyscfad.cc.rccsd.RCCSD.update_amps.html" />
+    <link rel="next" title="pyscfad.cc.rccsd.init_amps" href="pyscfad.cc.rccsd.init_amps.html" />
+    <link rel="prev" title="pyscfad.cc.rccsd.RCCSDLite.update_amps" href="../classes/methods/pyscfad.cc.rccsd.RCCSDLite.update_amps.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Aug 26, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 27, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -442,7 +442,12 @@
 </details></li>
 <li class="toctree-l3 current active has-children"><a class="reference internal" href="../pyscfad.cc.rccsd.html">pyscfad.cc.rccsd</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.cc.rccsd.RCCSD.html">pyscfad.cc.rccsd.RCCSD</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.cc.rccsd.RCCSDLite.html">pyscfad.cc.rccsd.RCCSDLite</a></li>
 <li class="toctree-l4 current active"><a class="current reference internal" href="#">pyscfad.cc.rccsd.amplitude_equation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.init_amps.html">pyscfad.cc.rccsd.init_amps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.kernel.html">pyscfad.cc.rccsd.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.mo_energy_denominators.html">pyscfad.cc.rccsd.mo_energy_denominators</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.restore_eri_s1.html">pyscfad.cc.rccsd.restore_eri_s1</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.update_amps.html">pyscfad.cc.rccsd.update_amps</a></li>
 </ul>
 </details></li>
@@ -1002,7 +1007,7 @@
 <h1>pyscfad.cc.rccsd.amplitude_equation<a class="headerlink" href="#pyscfad-cc-rccsd-amplitude-equation" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="pyscfad.cc.rccsd.amplitude_equation">
-<span class="sig-prename descclassname"><span class="pre">pyscfad.cc.rccsd.</span></span><span class="sig-name descname"><span class="pre">amplitude_equation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eris</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/cc/rccsd.py#L59-L144"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.cc.rccsd.amplitude_equation" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyscfad.cc.rccsd.</span></span><span class="sig-name descname"><span class="pre">amplitude_equation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eris</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/cc/rccsd.py#L119-L203"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.cc.rccsd.amplitude_equation" title="Link to this definition">#</a></dt>
 <dd></dd></dl>
 
 </section>
@@ -1018,20 +1023,20 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../classes/methods/pyscfad.cc.rccsd.RCCSD.update_amps.html"
+       href="../classes/methods/pyscfad.cc.rccsd.RCCSDLite.update_amps.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">pyscfad.cc.rccsd.RCCSD.update_amps</p>
+        <p class="prev-next-title">pyscfad.cc.rccsd.RCCSDLite.update_amps</p>
       </div>
     </a>
     <a class="right-next"
-       href="pyscfad.cc.rccsd.update_amps.html"
+       href="pyscfad.cc.rccsd.init_amps.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">pyscfad.cc.rccsd.update_amps</p>
+        <p class="prev-next-title">pyscfad.cc.rccsd.init_amps</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

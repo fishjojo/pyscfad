@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Aug 26, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 27, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -442,7 +442,12 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.cc.rccsd.html">pyscfad.cc.rccsd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.cc.rccsd.RCCSD.html">pyscfad.cc.rccsd.RCCSD</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.cc.rccsd.RCCSDLite.html">pyscfad.cc.rccsd.RCCSDLite</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.amplitude_equation.html">pyscfad.cc.rccsd.amplitude_equation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.init_amps.html">pyscfad.cc.rccsd.init_amps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.kernel.html">pyscfad.cc.rccsd.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.mo_energy_denominators.html">pyscfad.cc.rccsd.mo_energy_denominators</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.restore_eri_s1.html">pyscfad.cc.rccsd.restore_eri_s1</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.update_amps.html">pyscfad.cc.rccsd.update_amps</a></li>
 </ul>
 </details></li>
@@ -1002,20 +1007,20 @@
 <h1>pyscfad.scf.anderson.update_history<a class="headerlink" href="#pyscfad-scf-anderson-update-history" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="pyscfad.scf.anderson.update_history">
-<span class="sig-prename descclassname"><span class="pre">pyscfad.scf.anderson.</span></span><span class="sig-name descname"><span class="pre">update_history</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param_hist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">res_hist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">res_gram</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">residual</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/anderson.py#L74-L89"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.anderson.update_history" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyscfad.scf.anderson.</span></span><span class="sig-name descname"><span class="pre">update_history</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param_hist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">res_hist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">res_gram</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">residual</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/anderson.py#L79-L94"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.anderson.update_history" title="Link to this definition">#</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>pos</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>param_hist</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>res_hist</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>res_gram</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>param</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>residual</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>param_hist</strong> (<em>Any</em>)</p></li>
+<li><p><strong>res_hist</strong> (<em>Any</em>)</p></li>
+<li><p><strong>res_gram</strong> (<em>Array</em>)</p></li>
+<li><p><strong>param</strong> (<em>Any</em>)</p></li>
+<li><p><strong>residual</strong> (<em>Any</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[Any, Any, Array]</p>
 </dd>
 </dl>
 </dd></dl>

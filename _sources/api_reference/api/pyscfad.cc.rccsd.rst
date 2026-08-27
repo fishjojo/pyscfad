@@ -16,6 +16,7 @@ pyscfad.cc.rccsd
 
    
       RCCSD
+      RCCSDLite
 
    
    
@@ -29,6 +30,10 @@ pyscfad.cc.rccsd
 
    
       amplitude_equation
+      init_amps
+      kernel
+      mo_energy_denominators
+      restore_eri_s1
       update_amps
 
    

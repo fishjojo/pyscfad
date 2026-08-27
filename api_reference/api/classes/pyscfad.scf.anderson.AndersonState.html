@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Aug 26, 2026"/>
+    <meta name="docbuild:last-update" content="Aug 27, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -442,7 +442,12 @@
 </details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.cc.rccsd.html">pyscfad.cc.rccsd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.RCCSD.html">pyscfad.cc.rccsd.RCCSD</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.cc.rccsd.RCCSDLite.html">pyscfad.cc.rccsd.RCCSDLite</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.cc.rccsd.amplitude_equation.html">pyscfad.cc.rccsd.amplitude_equation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.cc.rccsd.init_amps.html">pyscfad.cc.rccsd.init_amps</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.cc.rccsd.kernel.html">pyscfad.cc.rccsd.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.cc.rccsd.mo_energy_denominators.html">pyscfad.cc.rccsd.mo_energy_denominators</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.cc.rccsd.restore_eri_s1.html">pyscfad.cc.rccsd.restore_eri_s1</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.cc.rccsd.update_amps.html">pyscfad.cc.rccsd.update_amps</a></li>
 </ul>
 </details></li>
@@ -1002,7 +1007,7 @@
 <h1>pyscfad.scf.anderson.AndersonState<a class="headerlink" href="#pyscfad-scf-anderson-andersonstate" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyscfad.scf.anderson.AndersonState">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyscfad.scf.anderson.</span></span><span class="sig-name descname"><span class="pre">AndersonState</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cycle</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param_hist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">res_hist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">res_gram</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/anderson.py#L91-L95"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.anderson.AndersonState" title="Link to this definition">#</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyscfad.scf.anderson.</span></span><span class="sig-name descname"><span class="pre">AndersonState</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cycle</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param_hist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">res_hist</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">res_gram</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/anderson.py#L96-L100"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.anderson.AndersonState" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.NamedTuple" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">NamedTuple</span></code></a></p>
 <p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
@@ -1014,9 +1019,9 @@
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>cycle</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>param_hist</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>res_hist</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
-<li><p><strong>res_gram</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>param_hist</strong> (<em>Any</em>)</p></li>
+<li><p><strong>res_hist</strong> (<em>Any</em>)</p></li>
+<li><p><strong>res_gram</strong> (<em>Array</em>)</p></li>
 </ul>
 </dd>
 </dl>
