@@ -427,7 +427,7 @@ def _solve_amps(
         t1new, t2new = mycc.update_amps(t1, t2, eris)
         normt = _amp_norm(t1new-t1, t2new-t2)
         alpha = mycc.iterative_damping
-        if alpha < 1. and alpha > 0.:
+        if 0 < alpha < 1:
             t1new = (1.-alpha) * t1 + alpha * t1new
             t2new = (1.-alpha) * t2 + alpha * t2new
         (t1, t2), diis = mycc.run_diis((t1new, t2new), (t1, t2), diis)
