@@ -32,8 +32,7 @@ basis = {
 def energy(coords, basis):
     mol = MoleLite(["H", "H"], coords, basis=basis, verbose=4)
     mf = SCFLite(mol)
-    mf.init_guess = "hcore"
-    mf.diis = "anderson"
+    mf.init_guess = "hcore" # only supported guess at the moment
     return mf.kernel()
 
 gfn = jax.grad(energy, (0, 1))
