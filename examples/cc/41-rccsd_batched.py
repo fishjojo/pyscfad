@@ -45,7 +45,6 @@ def energy(numbers, coords, basis):
     mol = MolePad(numbers, coords, basis=basis, verbose=0)
     mf = SCFPad(mol)
     mf.init_guess = "hcore"
-    mf.diis = "anderson"
     mf.kernel()
     # the amplitudes are extrapolated with DIIS and the amplitude equations
     # are differentiated implicitly, through jax.lax.custom_root, rather than

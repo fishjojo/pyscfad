@@ -36,7 +36,6 @@ def energy(coords, basis):
     mol = MoleLite(["H", "H"], coords, basis=basis, verbose=4)
     mf = SCFLite(mol)
     mf.init_guess = "hcore"
-    mf.diis = "anderson"
     mf.kernel()
 
     mycc = RCCSDLite(mf)

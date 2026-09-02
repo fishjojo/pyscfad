@@ -32,11 +32,13 @@ from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad import lib
 from pyscfad.lib import logger
+from pyscfad.lib.diis_lite import DIISLite
 from pyscfad.scf import hf
 from pyscfad.scf.anderson import Anderson
 #from pyscfad.tools.linear_solver import gen_gmres
 from pyscfad.scipy.sparse.linalg import gmres_const_atol
 from pyscfad.scf.addons import get_occ_smearing
+from pyscfad.scf.diis_lite import CDIIS
 
 if TYPE_CHECKING:
     from typing import Any
@@ -173,13 +175,18 @@ def _scf(
         return cycle+1, de, norm_gorb, dm, vhf, fock, e_tot, diis
 
     fock = mf.get_fock(h1e, s1e, vhf, dm)
-    if isinstance(mf.diis, str) and mf.diis.lower() == "anderson":
-        diis = Anderson(
-            lib.pack_tril(fock),
-            space=mf.diis_space,
-            damp=mf.diis_damp,
-            start_cycle=mf.diis_start_cycle
-        )
+    if isinstance(mf.diis, str):
+        if mf.diis.lower() == "anderson":
+            diis = Anderson(
+                lib.pack_tril(fock),
+                space=mf.diis_space,
+                damp=mf.diis_damp,
+                start_cycle=mf.diis_start_cycle
+            )
+        elif mf.diis.lower() in ("diis", "cdiis"):
+            diis = CDIIS(fock, space=mf.diis_space)
+    elif isinstance(mf.diis, DIISLite):
+        diis = mf.diis
     else:
         diis = None
     init_val = (0, e_tot, 1e3, dm, vhf, fock, e_tot, diis)
@@ -404,7 +411,7 @@ class SCF(SCFBase):
         mol: Molecular information.
 
     Attributes:
-        diis: SCF solver. Default uses the Anderson mixing.
+        diis: SCF solver. Default uses CDIIS, and can also be Anderson mixing.
         use_sp2: Whether to use the SP2 density purification solver.
         conv_tol_dm: Convergence threshold used for the SP2 solver.
         sigma: Smearning temperature :math:`k_B T` in Eh.
@@ -412,7 +419,7 @@ class SCF(SCFBase):
             Only Fermi-Dirac (``fermi``) distribution is supported.
         veff_with_ecoul: Whether ``get_veff`` returns a :class:`~pyscfad.dft.rks.VXC` object.
     """
-    diis: Any | None = None
+    diis: str | DIISLite | None = "cdiis"
     use_sp2: bool = False
     conv_tol_dm: float | None = None
     sigma: float | None = None
@@ -474,17 +481,20 @@ class SCF(SCFBase):
 
     def get_fock(
         self,
-        h1e: ArrayLike | None = None,
-        s1e: ArrayLike | None = None,
-        vhf: ArrayLike | None = None,
-        dm: ArrayLike | None = None,
+        h1e: Array | None = None,
+        s1e: Array | None = None,
+        vhf: Any | None = None,
+        dm: Array | None = None,
         cycle: int = -1,
         diis: Any | None = None,
         diis_start_cycle: int | None = None,
         level_shift_factor: float | None = None,
         damp_factor: float | None = None,
-        fock_last: ArrayLike | None = None,
+        fock_last: Array | None = None,
     ) -> Array:
+        del cycle, diis_start_cycle, level_shift_factor, damp_factor
+        if s1e is None:
+            s1e = self.get_ovlp()
         if h1e is None:
             h1e = self.get_hcore()
         if vhf is None:
@@ -493,12 +503,16 @@ class SCF(SCFBase):
         # hack for DFT
         vhf = getattr(vhf, "vxc", vhf)
         f = h1e + vhf
+
         if diis is None:
             pass
 
         elif isinstance(diis, Anderson):
             f_tril = diis.update(lib.pack_tril(f), lib.pack_tril(fock_last))
             f = lib.unpack_tril(f_tril)
+
+        elif isinstance(diis, CDIIS):
+            f = diis.update(s1e, dm, f, f_prev=fock_last)
 
         else:
             raise NotImplementedError(f"Unsupported diis type {type(diis)}")

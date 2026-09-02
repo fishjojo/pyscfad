@@ -33,7 +33,6 @@ def energy(numbers, coords, basis):
     mol = MolePad(numbers, coords, basis=basis, verbose=4)
     mf = SCFPad(mol)
     mf.init_guess = "hcore"
-    mf.diis = "anderson"
     return mf.kernel()
 
 # the batch shares one basis (in_axes None), so its gradient comes back per
