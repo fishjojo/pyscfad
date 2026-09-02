@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Aug 27, 2026"/>
+    <meta name="docbuild:last-update" content="Sep 02, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -757,6 +757,16 @@
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.diis.get_err_vec_orth.html">pyscfad.scf.diis.get_err_vec_orth</a></li>
 </ul>
 </details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.diis_lite.html">pyscfad.scf.diis_lite</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.diis_lite.CDIIS.html">pyscfad.scf.diis_lite.CDIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.diis_lite.DIIS.html">pyscfad.scf.diis_lite.DIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.diis_lite.SCFDIIS.html">pyscfad.scf.diis_lite.SCFDIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.diis_lite.SCF_DIIS.html">pyscfad.scf.diis_lite.SCF_DIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.diis_lite.get_err_vec.html">pyscfad.scf.diis_lite.get_err_vec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.diis_lite.get_err_vec_orig.html">pyscfad.scf.diis_lite.get_err_vec_orig</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.diis_lite.get_err_vec_orth.html">pyscfad.scf.diis_lite.get_err_vec_orth</a></li>
+</ul>
+</details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.ghf.html">pyscfad.scf.ghf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.scf.ghf.GHF.html">pyscfad.scf.ghf.GHF</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.ghf.dip_moment.html">pyscfad.scf.ghf.dip_moment</a></li>
@@ -1007,7 +1017,7 @@
 <h1>pyscfad.scf.hf_lite.dot_eri_dm<a class="headerlink" href="#pyscfad-scf-hf-lite-dot-eri-dm" title="Link to this heading">#</a></h1>
 <dl class="py function">
 <dt class="sig sig-object py" id="pyscfad.scf.hf_lite.dot_eri_dm">
-<span class="sig-prename descclassname"><span class="pre">pyscfad.scf.hf_lite.</span></span><span class="sig-name descname"><span class="pre">dot_eri_dm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eri</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_j</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf_lite.py#L373-L398"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf_lite.dot_eri_dm" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyscfad.scf.hf_lite.</span></span><span class="sig-name descname"><span class="pre">dot_eri_dm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">eri</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hermi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_j</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_k</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf_lite.py#L380-L405"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf_lite.dot_eri_dm" title="Link to this definition">#</a></dt>
 <dd><p>Contract the AO integrals with the density matrix.</p>
 <p><code class="docutils literal notranslate"><span class="pre">eri</span></code> is the full <code class="docutils literal notranslate"><span class="pre">(nao,)*4</span></code> tensor (<code class="docutils literal notranslate"><span class="pre">aosym='s1'</span></code>), the
 <code class="docutils literal notranslate"><span class="pre">(nao_pair,</span> <span class="pre">nao_pair)</span></code> matrix of the pair-packed integrals

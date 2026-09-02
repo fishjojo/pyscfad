@@ -56,6 +56,9 @@ pyscfad.scf
    diis
    
    
+   diis_lite
+   
+   
    ghf
    
    

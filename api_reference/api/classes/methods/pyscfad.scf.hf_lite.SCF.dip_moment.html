@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Aug 27, 2026"/>
+    <meta name="docbuild:last-update" content="Sep 02, 2026"/>
   
     
     <script src="../../../../_static/searchtools.js"></script>
@@ -757,6 +757,16 @@
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.diis.get_err_vec_orth.html">pyscfad.scf.diis.get_err_vec_orth</a></li>
 </ul>
 </details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.scf.diis_lite.html">pyscfad.scf.diis_lite</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.scf.diis_lite.CDIIS.html">pyscfad.scf.diis_lite.CDIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.scf.diis_lite.DIIS.html">pyscfad.scf.diis_lite.DIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.scf.diis_lite.SCFDIIS.html">pyscfad.scf.diis_lite.SCFDIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.scf.diis_lite.SCF_DIIS.html">pyscfad.scf.diis_lite.SCF_DIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.diis_lite.get_err_vec.html">pyscfad.scf.diis_lite.get_err_vec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.diis_lite.get_err_vec_orig.html">pyscfad.scf.diis_lite.get_err_vec_orig</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.diis_lite.get_err_vec_orth.html">pyscfad.scf.diis_lite.get_err_vec_orth</a></li>
+</ul>
+</details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.scf.ghf.html">pyscfad.scf.ghf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../pyscfad.scf.ghf.GHF.html">pyscfad.scf.ghf.GHF</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.scf.ghf.dip_moment.html">pyscfad.scf.ghf.dip_moment</a></li>
@@ -1010,7 +1020,7 @@
 <h1>pyscfad.scf.hf_lite.SCF.dip_moment<a class="headerlink" href="#pyscfad-scf-hf-lite-scf-dip-moment" title="Link to this heading">#</a></h1>
 <dl class="py method">
 <dt class="sig sig-object py" id="pyscfad.scf.hf_lite.SCF.dip_moment">
-<span class="sig-prename descclassname"><span class="pre">SCF.</span></span><span class="sig-name descname"><span class="pre">dip_moment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Debye'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">charges</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf_lite.py#L552-L597"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf_lite.SCF.dip_moment" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">SCF.</span></span><span class="sig-name descname"><span class="pre">dip_moment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Debye'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">origin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">charges</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf_lite.py#L566-L611"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf_lite.SCF.dip_moment" title="Link to this definition">#</a></dt>
 <dd><p>Molecular dipole moment.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>

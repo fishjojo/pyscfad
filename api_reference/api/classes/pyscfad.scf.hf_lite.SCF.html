@@ -61,7 +61,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Aug 27, 2026"/>
+    <meta name="docbuild:last-update" content="Sep 02, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -759,6 +759,16 @@
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.diis.get_err_vec_orth.html">pyscfad.scf.diis.get_err_vec_orth</a></li>
 </ul>
 </details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.diis_lite.html">pyscfad.scf.diis_lite</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.diis_lite.CDIIS.html">pyscfad.scf.diis_lite.CDIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.diis_lite.DIIS.html">pyscfad.scf.diis_lite.DIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.diis_lite.SCFDIIS.html">pyscfad.scf.diis_lite.SCFDIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.diis_lite.SCF_DIIS.html">pyscfad.scf.diis_lite.SCF_DIIS</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.diis_lite.get_err_vec.html">pyscfad.scf.diis_lite.get_err_vec</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.diis_lite.get_err_vec_orig.html">pyscfad.scf.diis_lite.get_err_vec_orig</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.diis_lite.get_err_vec_orth.html">pyscfad.scf.diis_lite.get_err_vec_orth</a></li>
+</ul>
+</details></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.scf.ghf.html">pyscfad.scf.ghf</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.scf.ghf.GHF.html">pyscfad.scf.ghf.GHF</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.scf.ghf.dip_moment.html">pyscfad.scf.ghf.dip_moment</a></li>
@@ -1009,7 +1019,7 @@
 <h1>pyscfad.scf.hf_lite.SCF<a class="headerlink" href="#pyscfad-scf-hf-lite-scf" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyscfad.scf.hf_lite.SCF">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyscfad.scf.hf_lite.</span></span><span class="sig-name descname"><span class="pre">SCF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf_lite.py#L400-L670"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf_lite.SCF" title="Link to this definition">#</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyscfad.scf.hf_lite.</span></span><span class="sig-name descname"><span class="pre">SCF</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/scf/hf_lite.py#L407-L684"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.scf.hf_lite.SCF" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://pyscf.org/pyscf_api_docs/pyscf.scf.html#pyscf.scf.hf.SCF" title="(in PySCF v2.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">SCF</span></code></a></p>
 <p>Molecular SCF (mean-field) methods.</p>
 <dl class="field-list simple">
@@ -1018,7 +1028,7 @@
 </dd>
 <dt class="field-even">Attributes<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
-<li><p><strong>diis</strong> (<em>Any | None</em>) – SCF solver. Default uses the Anderson mixing.</p></li>
+<li><p><strong>diis</strong> (<em>str | DIISLite | None</em>) – SCF solver. Default uses CDIIS, and can also be Anderson mixing.</p></li>
 <li><p><strong>use_sp2</strong> (<em>bool</em>) – Whether to use the SP2 density purification solver.</p></li>
 <li><p><strong>conv_tol_dm</strong> (<em>float | None</em>) – Convergence threshold used for the SP2 solver.</p></li>
 <li><p><strong>sigma</strong> (<em>float | None</em>) – Smearning temperature <span class="math notranslate nohighlight">\(k_B T\)</span> in Eh.</p></li>
