@@ -13,5 +13,20 @@
 # limitations under the License.
 
 from pyscfad.mp import mp2
+from pyscfad.mp import ump2
 from pyscfad.mp import dfmp2
-from pyscfad.mp.mp2 import MP2
+from pyscfad.mp.mp2 import RMP2
+from pyscfad.mp.ump2 import UMP2
+
+def MP2(mf, frozen=None, mo_coeff=None, mo_occ=None):
+    """Create the MP2 object matching the mean-field reference ``mf``.
+
+    Returns an instance of :class:`~pyscfad.mp.ump2.UMP2` for an
+    unrestricted reference, and of :class:`~pyscfad.mp.mp2.RMP2` otherwise.
+    """
+    if mf.istype('UHF'):
+        return UMP2(mf, frozen, mo_coeff, mo_occ)
+    elif mf.istype('GHF'):
+        raise NotImplementedError('GMP2 is not implemented.')
+    else:
+        return RMP2(mf, frozen, mo_coeff, mo_occ)

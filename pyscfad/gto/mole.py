@@ -16,6 +16,7 @@ from functools import wraps
 from pyscf.gto import mole as pyscf_mole
 from pyscf.lib import logger, param
 from pyscfad import numpy as np
+from pyscfad import ops
 from pyscfad import pytree
 from pyscfad.gto.moleintor import intor_cross, intor #pylint: disable=unused-import
 from pyscfad.gto.eval_gto import eval_gto
@@ -159,3 +160,39 @@ class Mole(pytree.PytreeNode, pyscf_mole.Mole):
         del mol.ctr_coeff
         del mol.r0
         return mol
+
+    def dumps(self):
+        '''Serialize the object to a JSON formatted str.
+
+        The traced attributes are backend arrays, which PySCF cannot
+        serialize. They are converted to numpy arrays here, which PySCF
+        dumps as nested lists. Tracers, as encountered when this is called
+        inside ``jax.jit``, carry no concrete value and are dropped.
+        '''
+        mol = self.view(self.__class__)
+        for key, val in list(vars(mol).items()):
+            if not ops.is_array(val):
+                continue
+            try:
+                vars(mol)[key] = ops.to_numpy(val)
+            except Exception: #pylint: disable=broad-except
+                del vars(mol)[key]
+        return super(Mole, mol).dumps()
+
+    def loads_(self, molstr):
+        '''Deserialize a str containing a JSON document into this object.'''
+        super().loads_(molstr)
+        for key in self._dynamic_attr:
+            val = vars(self).get(key)
+            if val is not None:
+                setattr(self, key, np.asarray(val))
+        return self
+
+    @classmethod
+    def loads(cls, molstr):
+        '''Deserialize a str containing a JSON document to an object.'''
+        return cls().loads_(molstr)
+
+    # when pickling, serialize as a JSON-formatted string
+    __getstate__ = dumps
+    __setstate__ = loads_

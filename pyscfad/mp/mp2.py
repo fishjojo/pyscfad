@@ -80,8 +80,8 @@ def _iterative_kernel(mp, eris, verbose=None):
             t2 = None
             t2new = adiis.update(t2new)
         else: # UMP2
-            normt = np.linalg.norm([np.linalg.norm(t2new[i] - t2[i])
-                                     for i in range(3)])
+            normt = np.linalg.norm(np.asarray(
+                        [np.linalg.norm(t2new[i] - t2[i]) for i in range(3)]))
             t2 = None
             t2shape = [x.shape for x in t2new]
             t2new = np.hstack([x.ravel() for x in t2new])

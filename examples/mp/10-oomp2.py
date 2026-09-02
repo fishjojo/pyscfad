@@ -4,11 +4,11 @@ from jax import numpy as np
 from pyscfad.tools import rotate_mo1
 from pyscfad import gto, scf, mp
 
-class OOMP2(mp.MP2):
+class OOMP2(mp.RMP2):
     _dynamic_attr = {'x'}
 
     def __init__(self, mf, x=None):
-        mp.MP2.__init__(self, mf)
+        mp.RMP2.__init__(self, mf)
         self.x = x
         if self.x is None:
             nao = self.mol.nao
