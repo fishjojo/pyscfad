@@ -9,6 +9,13 @@ either has no differentiable counterpart in pyscfad, or is only usable
 through `mol.to_pyscf()` / `mf.to_pyscf()`, which strips the traced
 attributes and returns a plain pyscf object.
 
+Most of the methods below are built on the legacy `gto.Mole`. That path
+is gradually being transitioned to the fully jittable `gto.MoleLite` path
+(the `*Lite` classes listed in the tables), and new methods may not be
+added to the legacy path. New code is encouraged to use `gto.MoleLite`
+and its `*Lite` methods wherever a counterpart exists, falling back to
+the legacy `gto.Mole` only for the methods that have not been ported yet.
+
 ## Mean field
 
 | Method | Class | Notes |
@@ -78,3 +85,16 @@ traced attributes of `gto.Mole` (`coords`, `exp`, `ctr_coeff`) are
 supported. Higher order derivatives are covered by the test suite for the
 molecular integrals, the SCF and DFT methods, and RCCSD; elsewhere they
 may work but are not tested.
+
+```{warning}
+Basis parameter derivatives on the legacy `gto.Mole` path are **not**
+taken with respect to the raw parameters of the basis set. `exp` and
+`ctr_coeff` are read out of the already built `mol._env`, into which pyscf
+has folded the primitive and contracted-AO normalization: `ctr_coeff`
+holds the normalized contraction coefficients rather than the ones in the
+basis set definition, and the `exp` derivative is taken with those
+coefficients held fixed, so it misses the dependence of the normalization
+factors on the exponent. `gto.MoleLite` instead builds the basis inside
+the traced computation, and so differentiates the raw exponents and
+coefficients.
+```
