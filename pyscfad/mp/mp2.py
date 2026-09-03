@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from functools import wraps
+"""
+RMP2
+"""
 import jax
 from pyscf import __config__ as pyscf_config
 from pyscf.lib import split_reshape
@@ -26,7 +27,6 @@ from pyscfad import ao2mo
 
 WITH_T2 = getattr(pyscf_config, 'mp_mp2_with_t2', True)
 
-@wraps(pyscf_mp2.kernel)
 def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2, verbose=None):
     if mo_energy is not None or mo_coeff is not None:
         assert (mp.frozen == 0 or mp.frozen is None)
@@ -100,7 +100,6 @@ def _iterative_kernel(mp, eris, verbose=None):
     del log
     return conv, emp2, t2
 
-@wraps(pyscf_mp2.energy)
 def energy(mp, t2, eris):
     nocc, nvir = t2.shape[1:3]
     eris_ovov = np.asarray(eris.ovov).reshape(nocc,nvir,nocc,nvir)
@@ -108,7 +107,6 @@ def energy(mp, t2, eris):
     emp2 -= np.einsum('ijab,ibja', t2, eris_ovov)
     return emp2.real
 
-@wraps(pyscf_mp2.update_amps)
 def update_amps(mp, t2, eris):
     #assert (isinstance(eris, _ChemistsERIs))
     nocc, nvir = t2.shape[1:3]

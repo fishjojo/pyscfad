@@ -1,4 +1,4 @@
-# Copyright 2021-2026 Xing Zhang
+# Copyright 2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
 """
 UMP2 with spatial integrals
 """
-
-from functools import wraps
 from pyscf import __config__ as pyscf_config
 from pyscf.mp import ump2 as pyscf_ump2
 from pyscfad import numpy as np
@@ -35,7 +33,6 @@ def _t2_amplitudes(g, eia_i, eia_j):
     d = eia_i[:,None,:,None] + eia_j[None,:,None,:]
     return g.conj() / d, g
 
-@wraps(pyscf_ump2.kernel)
 def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2, verbose=None):
     if mo_energy is not None or mo_coeff is not None:
         assert (mp.frozen == 0 or mp.frozen is None)
@@ -80,7 +77,6 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2, verbos
         t2 = None
     return emp2_ss + emp2_os, t2
 
-@wraps(pyscf_ump2.energy)
 def energy(mp, t2, eris):
     t2aa, t2ab, t2bb = t2
     nocca, noccb, nvira, nvirb = t2ab.shape
@@ -94,7 +90,6 @@ def energy(mp, t2, eris):
     eos  =        np.einsum('iJaB,iaJB->', t2ab, eris_ovOV)
     return (ess + eos).real
 
-@wraps(pyscf_ump2.update_amps)
 def update_amps(mp, t2, eris):
     t2aa, t2ab, t2bb = t2
     nocca, noccb, nvira, nvirb = t2ab.shape
