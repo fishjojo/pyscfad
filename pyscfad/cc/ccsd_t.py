@@ -99,6 +99,12 @@ def _ccsd_t_energy_vjp(eris, t1, t2, et_bar, max_memory):
     vooo = numpy.asarray(vooo, order='C')
     vooo_bar = numpy.zeros_like(vooo)
 
+    # ``eris.ovvv`` may either be stored unpacked, with shape
+    # (nocc,nvir,nvir,nvir), or packed over the virtual pair index, with
+    # shape (nocc,nvir,nvir*(nvir+1)//2). The cotangent has to be returned
+    # in the same layout as the primal.
+    ovvv_packed = numpy.ndim(eris.ovvv) == 3
+
     vvop = numpy.empty((nvir,nvir,nocc,nmo))
     vvop[:,:,:,:nocc] = numpy.asarray(eris.ovov).conj().transpose(1,3,0,2)
     vvop[:,:,:,nocc:] = eris.get_ovvv().conj().transpose(1,3,0,2)
@@ -183,10 +189,14 @@ def _ccsd_t_energy_vjp(eris, t1, t2, et_bar, max_memory):
 
     ovoo_bar = numpy.asarray(vooo_bar.transpose(1,0,3,2))
     ovov_bar = numpy.asarray(vvop_bar[:,:,:,:nocc].transpose(2,0,3,1))
-    ovvv_bar = vvop_bar[:,:,:,nocc:].transpose(2,0,3,1)
-    ovvv_bar += ovvv_bar.transpose(0,1,3,2)
-    idx, idy = numpy.diag_indices(nvir)
-    ovvv_bar[:,:,idx,idy] *= .5
-    idx, idy = numpy.tril_indices(nvir)
-    ovvv_tril_bar = numpy.asarray(ovvv_bar[:,:,idx,idy])
-    return t1_bar, t2_bar, fock_bar, mo_energy_bar, ovoo_bar, ovov_bar, ovvv_tril_bar
+    ovvv_bar = vvop_bar[:,:,:,nocc:].transpose(2,0,3,1).copy()
+    if ovvv_packed:
+        # The unpacked ovvv seen by the primal is symmetric with respect to
+        # the two virtual indices, so both halves contribute to each
+        # off-diagonal element of the packed array.
+        ovvv_bar += ovvv_bar.transpose(0,1,3,2)
+        idx, idy = numpy.diag_indices(nvir)
+        ovvv_bar[:,:,idx,idy] *= .5
+        idx, idy = numpy.tril_indices(nvir)
+        ovvv_bar = numpy.asarray(ovvv_bar[:,:,idx,idy])
+    return t1_bar, t2_bar, fock_bar, mo_energy_bar, ovoo_bar, ovov_bar, ovvv_bar

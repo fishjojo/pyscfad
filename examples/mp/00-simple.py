@@ -26,3 +26,13 @@ jac = jax.grad(mp2)(mol)
 print(f'Nuclaer gradient:\n{jac.coords}')
 print(f'Gradient wrt basis exponents:\n{jac.exp}')
 print(f'Gradient wrt basis contraction coefficients:\n{jac.ctr_coeff}')
+
+def ump2(mol):
+    mf = scf.UHF(mol)
+    mf.kernel()
+    mymp = mp.MP2(mf)
+    mymp.kernel()
+    return mymp.e_tot
+
+jac = jax.grad(ump2)(mol)
+print(f'Nuclaer gradient:\n{jac.coords}')
