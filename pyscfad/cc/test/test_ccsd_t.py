@@ -12,12 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for the perturbative triples correction
-"""
+import pytest
 import jax
 from pyscfad import config_update
-from pyscfad import scf, cc
+from pyscfad import gto, scf, cc
 from pyscfad.cc import ccsd_t, ccsd_t_slow
+
+@pytest.fixture
+def get_mol_h2o():
+    mol = gto.Mole()
+    mol.atom = 'O 0. 0. 0.; H 0. -0.757 0.587; H 0. 0.757 0.587'
+    mol.basis = 'sto3g'
+    mol.verbose = 0
+    mol.incore_anyway = True
+    mol.max_memory = 7000
+    mol.build(trace_exp=False, trace_ctr_coeff=False)
+    return mol
 
 def _energy_t(kernel):
     def energy(mol):
@@ -29,11 +39,14 @@ def _energy_t(kernel):
         return kernel(mycc, eris, t1, t2)
     return energy
 
-def test_ccsd_t_nuc_grad(mol_H2O):
+def test_ccsd_t_nuc_grad(get_mol_h2o):
     """The C kernel and its VJP must agree with the pure python
     implementation, which is differentiated by JAX directly.
+
+    ``rccsd`` stores the ``ovvv`` integrals unpacked, which used to make
+    the VJP return a cotangent of the wrong shape.
     """
-    mol = mol_H2O(basis='sto3g')
+    mol = get_mol_h2o
     with config_update('pyscfad_scf_implicit_diff', True), \
          config_update('pyscfad_ccsd_implicit_diff', True):
         e1, g1 = jax.value_and_grad(_energy_t(ccsd_t.kernel))(mol)
