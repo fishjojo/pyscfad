@@ -13,6 +13,15 @@ pyscfad.mp
 
    
    
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree: functions/
+
+   
+      MP2
+
+   
    
 
 
@@ -34,5 +43,8 @@ pyscfad.mp
    
    mp2
    
+   
+   
+   ump2
    
 

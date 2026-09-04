@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Sep 02, 2026"/>
+    <meta name="docbuild:last-update" content="Sep 04, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -646,6 +646,7 @@
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../mp.html">MP2 methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.mp.html">pyscfad.mp</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../functions/pyscfad.mp.MP2.html">pyscfad.mp.MP2</a></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.mp.dfmp2.html">pyscfad.mp.dfmp2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.dfmp2.MP2.html">pyscfad.mp.dfmp2.MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.mp.dfmp2.kernel.html">pyscfad.mp.dfmp2.kernel</a></li>
@@ -654,7 +655,18 @@
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.mp.mp2.html">pyscfad.mp.mp2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.mp2.MP2.html">pyscfad.mp.mp2.MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.mp2.RMP2.html">pyscfad.mp.mp2.RMP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.mp.mp2.energy.html">pyscfad.mp.mp2.energy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.mp.mp2.kernel.html">pyscfad.mp.mp2.kernel</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.mp.mp2.make_rdm1.html">pyscfad.mp.mp2.make_rdm1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.mp.mp2.update_amps.html">pyscfad.mp.mp2.update_amps</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.mp.ump2.html">pyscfad.mp.ump2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.ump2.MP2.html">pyscfad.mp.ump2.MP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.ump2.UMP2.html">pyscfad.mp.ump2.UMP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.mp.ump2.energy.html">pyscfad.mp.ump2.energy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.mp.ump2.kernel.html">pyscfad.mp.ump2.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.mp.ump2.update_amps.html">pyscfad.mp.ump2.update_amps</a></li>
 </ul>
 </details></li>
 </ul>
@@ -1017,7 +1029,7 @@
 <h1>pyscfad.gto.mole.Mole<a class="headerlink" href="#pyscfad-gto-mole-mole" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="pyscfad.gto.mole.Mole">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyscfad.gto.mole.</span></span><span class="sig-name descname"><span class="pre">Mole</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/gto/mole.py#L80-L161"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.gto.mole.Mole" title="Link to this definition">#</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyscfad.gto.mole.</span></span><span class="sig-name descname"><span class="pre">Mole</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/gto/mole.py#L81-L198"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.gto.mole.Mole" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">PytreeNode</span></code>, <a class="reference external" href="https://pyscf.org/pyscf_api_docs/pyscf.gto.html#pyscf.gto.mole.Mole" title="(in PySCF v2.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mole</span></code></a></p>
 <p>Subclass of <code class="xref py py-class docutils literal notranslate"><span class="pre">pyscf.gto.Mole</span></code> with traceable attributes.</p>
 <dl class="field-list simple">
@@ -1041,22 +1053,31 @@ is a placeholder for floating Gaussian basis sets.</p></li>
 <tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.build.html#pyscfad.gto.mole.Mole.build" title="pyscfad.gto.mole.Mole.build"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build</span></code></a>(*args, **kwargs)</p></td>
 <td><p>Setup molecule and initialize some control parameters.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.energy_nuc.html#pyscfad.gto.mole.Mole.energy_nuc" title="pyscfad.gto.mole.Mole.energy_nuc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">energy_nuc</span></code></a>([charges, coords])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.dumps.html#pyscfad.gto.mole.Mole.dumps" title="pyscfad.gto.mole.Mole.dumps"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dumps</span></code></a>()</p></td>
+<td><p>Serialize the object to a JSON formatted str.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.energy_nuc.html#pyscfad.gto.mole.Mole.energy_nuc" title="pyscfad.gto.mole.Mole.energy_nuc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">energy_nuc</span></code></a>([charges, coords])</p></td>
 <td><p>Compute nuclear repulsion energy (AU) or static Coulomb energy</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.eval_ao.html#pyscfad.gto.mole.Mole.eval_ao" title="pyscfad.gto.mole.Mole.eval_ao"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eval_ao</span></code></a>(eval_name, grid_coords[, comp, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.eval_ao.html#pyscfad.gto.mole.Mole.eval_ao" title="pyscfad.gto.mole.Mole.eval_ao"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eval_ao</span></code></a>(eval_name, grid_coords[, comp, ...])</p></td>
 <td><p>Evaluate AO function value on the given grids,</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.eval_gto.html#pyscfad.gto.mole.Mole.eval_gto" title="pyscfad.gto.mole.Mole.eval_gto"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eval_gto</span></code></a>(eval_name, grid_coords[, comp, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.eval_gto.html#pyscfad.gto.mole.Mole.eval_gto" title="pyscfad.gto.mole.Mole.eval_gto"><code class="xref py py-obj docutils literal notranslate"><span class="pre">eval_gto</span></code></a>(eval_name, grid_coords[, comp, ...])</p></td>
 <td><p>Evaluate AO function value on the given grids,</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.intor.html#pyscfad.gto.mole.Mole.intor" title="pyscfad.gto.mole.Mole.intor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">intor</span></code></a>(intor[, comp, hermi, aosym, out, ...])</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.intor.html#pyscfad.gto.mole.Mole.intor" title="pyscfad.gto.mole.Mole.intor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">intor</span></code></a>(intor[, comp, hermi, aosym, out, ...])</p></td>
 <td><p>Integral generator.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.set_geom_.html#pyscfad.gto.mole.Mole.set_geom_" title="pyscfad.gto.mole.Mole.set_geom_"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_geom_</span></code></a>(atoms_or_coords[, unit, symmetry, ...])</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.loads.html#pyscfad.gto.mole.Mole.loads" title="pyscfad.gto.mole.Mole.loads"><code class="xref py py-obj docutils literal notranslate"><span class="pre">loads</span></code></a>(molstr)</p></td>
+<td><p>Deserialize a str containing a JSON document to an object.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.loads_.html#pyscfad.gto.mole.Mole.loads_" title="pyscfad.gto.mole.Mole.loads_"><code class="xref py py-obj docutils literal notranslate"><span class="pre">loads_</span></code></a>(molstr)</p></td>
+<td><p>Deserialize a str containing a JSON document into this object.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.set_geom_.html#pyscfad.gto.mole.Mole.set_geom_" title="pyscfad.gto.mole.Mole.set_geom_"><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_geom_</span></code></a>(atoms_or_coords[, unit, symmetry, ...])</p></td>
 <td><p>Update geometry</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.to_pyscf.html#pyscfad.gto.mole.Mole.to_pyscf" title="pyscfad.gto.mole.Mole.to_pyscf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_pyscf</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="methods/pyscfad.gto.mole.Mole.to_pyscf.html#pyscfad.gto.mole.Mole.to_pyscf" title="pyscfad.gto.mole.Mole.to_pyscf"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_pyscf</span></code></a>()</p></td>
 <td><p></p></td>
 </tr>
 </tbody>

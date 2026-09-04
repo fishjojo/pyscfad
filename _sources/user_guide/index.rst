@@ -12,3 +12,4 @@ The user guide offers in depth guidelines for using pyscfad and developing custo
 
    backends
    custom_methods
+   method_coverage

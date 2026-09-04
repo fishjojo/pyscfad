@@ -54,12 +54,12 @@
     <link rel="icon" href="../../../../_static/pyscfad_logo.svg"/>
     <link rel="index" title="Index" href="../../../../genindex.html" />
     <link rel="search" title="Search" href="../../../../search.html" />
-    <link rel="next" title="pyscfad.gto.mole.Mole.energy_nuc" href="pyscfad.gto.mole.Mole.energy_nuc.html" />
+    <link rel="next" title="pyscfad.gto.mole.Mole.dumps" href="pyscfad.gto.mole.Mole.dumps.html" />
     <link rel="prev" title="pyscfad.gto.mole.Mole.atom_coords" href="pyscfad.gto.mole.Mole.atom_coords.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Sep 02, 2026"/>
+    <meta name="docbuild:last-update" content="Sep 04, 2026"/>
   
     
     <script src="../../../../_static/searchtools.js"></script>
@@ -646,6 +646,7 @@
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../mp.html">MP2 methods</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../pyscfad.mp.html">pyscfad.mp</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../functions/pyscfad.mp.MP2.html">pyscfad.mp.MP2</a></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.mp.dfmp2.html">pyscfad.mp.dfmp2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../pyscfad.mp.dfmp2.MP2.html">pyscfad.mp.dfmp2.MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.mp.dfmp2.kernel.html">pyscfad.mp.dfmp2.kernel</a></li>
@@ -654,7 +655,18 @@
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.mp.mp2.html">pyscfad.mp.mp2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l4"><a class="reference internal" href="../pyscfad.mp.mp2.MP2.html">pyscfad.mp.mp2.MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../pyscfad.mp.mp2.RMP2.html">pyscfad.mp.mp2.RMP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.mp.mp2.energy.html">pyscfad.mp.mp2.energy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.mp.mp2.kernel.html">pyscfad.mp.mp2.kernel</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.mp.mp2.make_rdm1.html">pyscfad.mp.mp2.make_rdm1</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.mp.mp2.update_amps.html">pyscfad.mp.mp2.update_amps</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.mp.ump2.html">pyscfad.mp.ump2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.mp.ump2.MP2.html">pyscfad.mp.ump2.MP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.mp.ump2.UMP2.html">pyscfad.mp.ump2.UMP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.mp.ump2.energy.html">pyscfad.mp.ump2.energy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.mp.ump2.kernel.html">pyscfad.mp.ump2.kernel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.mp.ump2.update_amps.html">pyscfad.mp.ump2.update_amps</a></li>
 </ul>
 </details></li>
 </ul>
@@ -1020,7 +1032,7 @@
 <h1>pyscfad.gto.mole.Mole.build<a class="headerlink" href="#pyscfad-gto-mole-mole-build" title="Link to this heading">#</a></h1>
 <dl class="py method">
 <dt class="sig sig-object py" id="pyscfad.gto.mole.Mole.build">
-<span class="sig-prename descclassname"><span class="pre">Mole.</span></span><span class="sig-name descname"><span class="pre">build</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/gto/mole.py#L126-L141"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.gto.mole.Mole.build" title="Link to this definition">#</a></dt>
+<span class="sig-prename descclassname"><span class="pre">Mole.</span></span><span class="sig-name descname"><span class="pre">build</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/gto/mole.py#L127-L142"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.gto.mole.Mole.build" title="Link to this definition">#</a></dt>
 <dd><p>Setup molecule and initialize some control parameters.  Whenever you
 change the value of the attributes of <a class="reference internal" href="../pyscfad.gto.mole.Mole.html#pyscfad.gto.mole.Mole" title="pyscfad.gto.mole.Mole"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mole</span></code></a>, you need call
 this function to refresh the internal data of Mole.</p>
@@ -1082,11 +1094,11 @@ name, the given point group symmetry will be used.</p>
       </div>
     </a>
     <a class="right-next"
-       href="pyscfad.gto.mole.Mole.energy_nuc.html"
+       href="pyscfad.gto.mole.Mole.dumps.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">pyscfad.gto.mole.Mole.energy_nuc</p>
+        <p class="prev-next-title">pyscfad.gto.mole.Mole.dumps</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

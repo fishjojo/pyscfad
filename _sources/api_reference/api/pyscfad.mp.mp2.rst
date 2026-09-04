@@ -29,7 +29,10 @@ pyscfad.mp.mp2
       :toctree: functions/
 
    
+      energy
+      kernel
       make_rdm1
+      update_amps
 
    
    

@@ -64,6 +64,8 @@ pyscfad.gto.mole.Mole
          
          
          
+           ~Mole.dumps
+         
          
            ~Mole.energy_nuc
          
@@ -97,6 +99,10 @@ pyscfad.gto.mole.Mole
          
          
          
+           ~Mole.loads
+         
+         
+           ~Mole.loads_
          
          
          
