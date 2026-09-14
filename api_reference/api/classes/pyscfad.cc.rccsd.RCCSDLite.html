@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Sep 04, 2026"/>
+    <meta name="docbuild:last-update" content="Sep 14, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -648,6 +648,8 @@
 <li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.mp.html">pyscfad.mp</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../functions/pyscfad.mp.MP2.html">pyscfad.mp.MP2</a></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.mp.dfmp2.html">pyscfad.mp.dfmp2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.dfmp2.DFRMP2.html">pyscfad.mp.dfmp2.DFRMP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.dfmp2.E_CORR_MP2.html">pyscfad.mp.dfmp2.E_CORR_MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.dfmp2.MP2.html">pyscfad.mp.dfmp2.MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.mp.dfmp2.kernel.html">pyscfad.mp.dfmp2.kernel</a></li>
 </ul>
@@ -1030,7 +1032,7 @@
 <dl class="py class">
 <dt class="sig sig-object py" id="pyscfad.cc.rccsd.RCCSDLite">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pyscfad.cc.rccsd.</span></span><span class="sig-name descname"><span class="pre">RCCSDLite</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mo_coeff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mo_occ</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nocc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference external" href="https://github.com/fishjojo/pyscfad/blob/doc/pyscfad/cc/rccsd.py#L514-L681"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pyscfad.cc.rccsd.RCCSDLite" title="Link to this definition">#</a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Restricted CCSD for the lightweight molecule and mean-field objects.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -1039,7 +1041,7 @@
 <code class="xref py py-class docutils literal notranslate"><span class="pre">SCFPad</span></code>) mean field.</p></li>
 <li><p><strong>mo_coeff</strong> (<em>Array</em><em> | </em><em>None</em>) – MO coefficients. Defaults to <code class="docutils literal notranslate"><span class="pre">mf.mo_coeff</span></code>.</p></li>
 <li><p><strong>mo_occ</strong> (<em>Array</em><em> | </em><em>None</em>) – MO occupations. Defaults to <code class="docutils literal notranslate"><span class="pre">mf.mo_occ</span></code>.</p></li>
-<li><p><strong>nocc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Number of doubly occupied orbitals. Static; inferred from the
+<li><p><strong>nocc</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Number of doubly occupied orbitals. Static; inferred from the
 molecular electron count when not given, which requires that
 count to be concrete. For a padded molecule it may exceed the
 true occupation – as a batch of padded molecules requires –

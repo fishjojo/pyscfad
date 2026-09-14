@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Sep 04, 2026"/>
+    <meta name="docbuild:last-update" content="Sep 14, 2026"/>
   
     
     <script src="../../../../_static/searchtools.js"></script>
@@ -648,6 +648,8 @@
 <li class="toctree-l2 has-children"><a class="reference internal" href="../../pyscfad.mp.html">pyscfad.mp</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../functions/pyscfad.mp.MP2.html">pyscfad.mp.MP2</a></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../../pyscfad.mp.dfmp2.html">pyscfad.mp.dfmp2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.mp.dfmp2.DFRMP2.html">pyscfad.mp.dfmp2.DFRMP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../pyscfad.mp.dfmp2.E_CORR_MP2.html">pyscfad.mp.dfmp2.E_CORR_MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../pyscfad.mp.dfmp2.MP2.html">pyscfad.mp.dfmp2.MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../functions/pyscfad.mp.dfmp2.kernel.html">pyscfad.mp.dfmp2.kernel</a></li>
 </ul>
@@ -1040,14 +1042,14 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>intor_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the integral.</p></li>
-<li><p><strong>comp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Components of the integrals, e.g. <code class="docutils literal notranslate"><span class="pre">int1e_ovlp_dr10</span></code> has 3 components.</p></li>
-<li><p><strong>hermi</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Hermitian symmetry of 1e integrals, can be
+<li><p><strong>intor_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the integral.</p></li>
+<li><p><strong>comp</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Components of the integrals, e.g. <code class="docutils literal notranslate"><span class="pre">int1e_ovlp_dr10</span></code> has 3 components.</p></li>
+<li><p><strong>hermi</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Hermitian symmetry of 1e integrals, can be
 <cite>0</cite> (no symmetry), <cite>1</cite> (hermitian), and <cite>2</cite> (anti-hermitian).</p></li>
-<li><p><strong>aosym</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Permutation symmetry of 2e integrals, can be
+<li><p><strong>aosym</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Permutation symmetry of 2e integrals, can be
 <cite>s1</cite>, <cite>s2</cite>, <cite>s4</cite>, and <cite>s8</cite>.</p></li>
 <li><p><strong>out</strong> (<em>ArrayLike</em><em> | </em><em>None</em>) – Unused.</p></li>
-<li><p><strong>shls_slice</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>] </em><em>| </em><em>None</em>) – Label the start-stop shells for each index in the integral.
+<li><p><strong>shls_slice</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>] </em><em>| </em><em>None</em>) – Label the start-stop shells for each index in the integral.
 For example, the 8-element tuple for the 2e integral
 tensor <code class="docutils literal notranslate"><span class="pre">(ij|kl)</span> <span class="pre">=</span> <span class="pre">intor('int2e')</span></code> are specified as
 <code class="docutils literal notranslate"><span class="pre">(i0,</span> <span class="pre">i1,</span> <span class="pre">j0,</span> <span class="pre">j1,</span> <span class="pre">k0,</span> <span class="pre">k1,</span> <span class="pre">l0,</span> <span class="pre">l1)</span></code>.</p></li>

@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Sep 04, 2026"/>
+    <meta name="docbuild:last-update" content="Sep 14, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -648,6 +648,8 @@
 <li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.mp.html">pyscfad.mp</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="../functions/pyscfad.mp.MP2.html">pyscfad.mp.MP2</a></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.mp.dfmp2.html">pyscfad.mp.dfmp2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.dfmp2.DFRMP2.html">pyscfad.mp.dfmp2.DFRMP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.dfmp2.E_CORR_MP2.html">pyscfad.mp.dfmp2.E_CORR_MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.dfmp2.MP2.html">pyscfad.mp.dfmp2.MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../functions/pyscfad.mp.dfmp2.kernel.html">pyscfad.mp.dfmp2.kernel</a></li>
 </ul>
@@ -1050,18 +1052,18 @@ traced (e.g. for batching over solids).</p></li>
 <code class="docutils literal notranslate"><span class="pre">make_image_grid(nimgs)</span> <span class="pre">&#64;</span> <span class="pre">a</span></code> with a static, batch-wide <code class="docutils literal notranslate"><span class="pre">nimgs</span></code>
 so every cell in a batch shares the same <code class="docutils literal notranslate"><span class="pre">nL</span></code>; per-cell validity
 is handled at integral time through <a class="reference internal" href="methods/pyscfad.ml.pbc.gto.cell_pad.CellPad.get_Ls_mask.html#pyscfad.ml.pbc.gto.cell_pad.CellPad.get_Ls_mask" title="pyscfad.ml.pbc.gto.cell_pad.CellPad.get_Ls_mask"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_Ls_mask()</span></code></a>.</p></li>
-<li><p><strong>rcut</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><em>None</em>) – Static lattice-sum cutoff radius (Bohr). Choose the maximum over
+<li><p><strong>rcut</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em> | </em><em>None</em>) – Static lattice-sum cutoff radius (Bohr). Choose the maximum over
 the batch (e.g. from <code class="docutils literal notranslate"><span class="pre">pyscfad.pbc.gto.cell.estimate_rcut</span></code> on a
 representative unpadded cell).</p></li>
 <li><p><strong>numbers</strong> (<em>ArrayLike</em>)</p></li>
 <li><p><strong>coords</strong> (<em>ArrayLike</em>)</p></li>
 <li><p><strong>basis</strong> (<a class="reference internal" href="pyscfad.ml.gto.basis_array.BasisArray.html#pyscfad.ml.gto.basis_array.BasisArray" title="pyscfad.ml.gto.basis_array.BasisArray"><em>BasisArray</em></a><em> | </em><em>None</em>)</p></li>
-<li><p><strong>precision</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
-<li><p><strong>dimension</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>charge</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>spin</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-<li><p><strong>cart</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
-<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>precision</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+<li><p><strong>dimension</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>charge</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>spin</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>cart</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
 <li><p><strong>cuint_plan</strong> (<em>CuintPlan</em><em> | </em><em>None</em>)</p></li>
 </ul>
 </dd>

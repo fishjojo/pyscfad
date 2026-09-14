@@ -59,7 +59,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="0.3.3" />
-    <meta name="docbuild:last-update" content="Sep 04, 2026"/>
+    <meta name="docbuild:last-update" content="Sep 14, 2026"/>
   
     
     <script src="../../../_static/searchtools.js"></script>
@@ -648,6 +648,8 @@
 <li class="toctree-l2 has-children"><a class="reference internal" href="../pyscfad.mp.html">pyscfad.mp</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l3"><a class="reference internal" href="pyscfad.mp.MP2.html">pyscfad.mp.MP2</a></li>
 <li class="toctree-l3 has-children"><a class="reference internal" href="../pyscfad.mp.dfmp2.html">pyscfad.mp.dfmp2</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.mp.dfmp2.DFRMP2.html">pyscfad.mp.dfmp2.DFRMP2</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.mp.dfmp2.E_CORR_MP2.html">pyscfad.mp.dfmp2.E_CORR_MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="../classes/pyscfad.mp.dfmp2.MP2.html">pyscfad.mp.dfmp2.MP2</a></li>
 <li class="toctree-l4"><a class="reference internal" href="pyscfad.mp.dfmp2.kernel.html">pyscfad.mp.dfmp2.kernel</a></li>
 </ul>
@@ -1033,12 +1035,12 @@ for the definition of pytrees.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>leaf_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a>) – Attributes of the class that are traced as pytree leaves.</p></li>
-<li><p><strong>num_args</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of positional arguments in <code class="docutils literal notranslate"><span class="pre">leaf_names</span></code>.
+<li><p><strong>leaf_names</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a>) – Attributes of the class that are traced as pytree leaves.</p></li>
+<li><p><strong>num_args</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of positional arguments in <code class="docutils literal notranslate"><span class="pre">leaf_names</span></code>.
 This is useful when the <code class="docutils literal notranslate"><span class="pre">__init__</span></code> method of the class
 has positional arguments that are named differently than
 the actual attribute names. Default value is 0.</p></li>
-<li><p><strong>exclude_aux_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>, </em><em>default=</em><em>(</em><em>)</em>) – A set of static attribute names that are not used for comparing
+<li><p><strong>exclude_aux_name</strong> (<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em>, </em><em>default=</em><em>(</em><em>)</em>) – A set of static attribute names that are not used for comparing
 the pytrees. Note that <code class="docutils literal notranslate"><span class="pre">jax.jit</span></code> recompiles the function for input
 pytrees with different static attribute values.</p></li>
 </ul>
