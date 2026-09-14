@@ -15,6 +15,7 @@ basis = 'ccpvdz'
 frozen = 2
 
 mol = gto.Mole(atom=atom, basis=basis)
+mol.max_memory = 8000
 mol.verbose = 4
 mol.build(trace_exp=False, trace_ctr_coeff=False)
 

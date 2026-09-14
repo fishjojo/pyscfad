@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,15 @@
 # limitations under the License.
 
 from functools import partial
+from dataclasses import dataclass
+
 import numpy
 import jax
 from jax import custom_vjp
+
 from pyscf import __config__
 from pyscf.lib import direct_sum, current_memory
-#from pyscf.mp.mp2 import _ChemistsERIs
-from pyscfad import config
+
 from pyscfad import numpy as np
 from pyscfad.ops import vmap
 from pyscfad.lib import logger
@@ -27,6 +29,14 @@ from pyscfad.ao2mo import _ao2mo
 from pyscfad.mp import mp2
 
 WITH_T2 = getattr(__config__, 'mp_dfmp2_with_t2', True)
+
+@dataclass
+class E_CORR_MP2:
+    e_corr:    float = 0.
+    e_corr_ss: float = 0.
+    e_corr_os: float = 0.
+
+jax.tree_util.register_dataclass(E_CORR_MP2)
 
 def _contract(Lov, mo_energy, nocc, nvir, with_t2=True):
     def body(Lv, Lov, ea, eia):
@@ -115,11 +125,8 @@ def _contract_opt_bwd(nocc, nvir, with_t2,
 _contract_opt.defvjp(_contract_opt_fwd, _contract_opt_bwd)
 
 def _contract_scan(Lov, mo_energy, nocc, nvir, with_t2=True):
-    if with_t2:
-        t2 = numpy.empty((nocc,nocc,nvir,nvir))
-    else:
-        t2 = None
     eia = mo_energy[:nocc,None] - mo_energy[None,nocc:]
+    emp2 = E_CORR_MP2()
 
     @jax.checkpoint
     def _fn(emp2, x):
@@ -127,13 +134,16 @@ def _contract_scan(Lov, mo_energy, nocc, nvir, with_t2=True):
         gi = np.dot(La.T, Lov).reshape((nvir,nocc,nvir))
         gi = gi.transpose(1,0,2)
         t2i = gi / (eia[:,:,None] + ea[None,None,:])
-        emp2 += np.einsum('jab,jab', t2i, gi) * 2
-        emp2 -= np.einsum('jab,jba', t2i, gi)
+        edi = np.einsum('jab,jab', t2i, gi) * 2
+        exi = -np.einsum('jab,jba', t2i, gi)
+        emp2.e_corr_ss += edi * 0.5 + exi
+        emp2.e_corr_os += edi * 0.5
         if not with_t2:
             t2i = None
         return emp2, t2i
 
-    emp2, t2 = jax.lax.scan(_fn, 0., (Lov.reshape((-1,nocc,nvir)).transpose(1,0,2), eia))
+    emp2, t2 = jax.lax.scan(_fn, emp2, (Lov.reshape((-1,nocc,nvir)).transpose(1,0,2), eia))
+    emp2.e_corr = emp2.e_corr_ss + emp2.e_corr_os
     if not with_t2:
         t2 = None
     return emp2, t2
@@ -155,15 +165,10 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
     #naux = mp.with_df.get_naoaux()
 
     Lov = mp.loop_ao2mo(mo_coeff, nocc, with_t2)
-
-    if config.moleintor_opt:
-        #emp2, t2 = _contract_opt(Lov, mo_energy, nocc, nvir, with_t2)
-        emp2, t2 = _contract_scan(Lov, mo_energy, nocc, nvir, with_t2)
-    else:
-        emp2, t2 = _contract(Lov, mo_energy, nocc, nvir, with_t2)
+    emp2, t2 = _contract_scan(Lov, mo_energy, nocc, nvir, with_t2)
     return emp2, t2
 
-class MP2(mp2.MP2):
+class DFRMP2(mp2.RMP2):
     _dynamic_attr = _keys = {'with_df'}
 
     def __init__(self, mf, frozen=None, mo_coeff=None, mo_occ=None):
@@ -209,17 +214,19 @@ class MP2(mp2.MP2):
             eris = self.ao2mo(mo_coeff)
 
         if self._scf.converged:
-            self.e_corr, self.t2 = self.init_amps(mo_energy, mo_coeff, eris, with_t2)
+            e_corr, self.t2 = self.init_amps(mo_energy, mo_coeff, eris, with_t2)
         else:
             raise NotImplementedError
 
-        # TODO SCS-MP2
-        self.e_corr_ss = 0
-        self.e_corr_os = 0
+        self.e_corr_ss = e_corr.e_corr_ss
+        self.e_corr_os = e_corr.e_corr_os
+        self.e_corr = e_corr.e_corr
         self._finalize()
         return self.e_corr, self.t2
 
     def init_amps(self, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2):
         return kernel(self, mo_energy, mo_coeff, eris, with_t2)
+
+MP2 = DFRMP2
 
 del WITH_T2
