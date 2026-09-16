@@ -22,12 +22,14 @@ from pyscf.lib import logger
 from pyscf.gto.moleintor import (
     ascint3,
     make_loc,
-    make_cintopt,
-    getints3c,
 )
 
 #libcgto = pyscf_lib.load_library('libcgto')
 from pyscfadlib import libcgto_vjp as libcgto
+# NOTE the integral driver and its optimizer have to come from the same
+# library as the vjp drivers below (pyscf's libcgto truncates the
+# per-component stride of the 3-center integrals to int32).
+from pyscfad.gto._pyscf_moleintor import make_cintopt, getints3c
 
 @partial(custom_vjp, nondiff_argnums=(2,3,4,5,6))
 def int3c_cross(mol, auxmol, intor='int3c2e', comp=1, aosym='s2ij',

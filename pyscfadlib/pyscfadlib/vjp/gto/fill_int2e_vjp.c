@@ -236,7 +236,10 @@ void GTOnr2e_fill_r0_vjp(int (*intor)(), void (*fill)(), int (*fprescreen)(),
 
     int ij, i, j;
     double *buf = malloc(sizeof(double) * (di*di*di*di*comp + cache_size));
-    #pragma omp for nowait schedule(dynamic)
+    // NOTE no nowait here: thread 0 accumulates directly into the shared vjp
+    // array, so all threads must finish the loop before the partial sums below
+    // are added, otherwise entire contributions can be lost.
+    #pragma omp for schedule(dynamic)
     for (ij = 0; ij < nish*njsh; ij++) {
         i = ij / njsh;
         j = ij % njsh;

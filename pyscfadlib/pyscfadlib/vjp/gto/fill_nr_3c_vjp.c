@@ -119,8 +119,8 @@ void GTOnr3c_ij_r0_vjp_s2ij(int (*intor)(), double *vjp, double* ybar, double *b
         const int i0 = ao_loc[ish0];
         const int i1 = ao_loc[ish1];
         //const size_t naok = ao_loc[ksh1] - ao_loc[ksh0];
-        const size_t off = i0 * (i0 + 1) / 2;
-        const size_t nij = i1 * (i1 + 1) / 2 - off;
+        const size_t off = (size_t)i0 * (i0 + 1) / 2;
+        const size_t nij = (size_t)i1 * (i1 + 1) / 2 - off;
 
         const int dk = ao_loc[ksh+1] - ao_loc[ksh];
         const int k0 = ao_loc[ksh] - ao_loc[ksh0];
@@ -151,7 +151,7 @@ void GTOnr3c_ij_r0_vjp_s2ij(int (*intor)(), double *vjp, double* ybar, double *b
 
                 (*intor)(buf, NULL, shls, atm, natm, bas, nbas, env, cintopt, cache);
 
-                ptr_ybar = ybar + (ip * (ip + 1) / 2 - off + jp);
+                ptr_ybar = ybar + ((size_t)ip * (ip + 1) / 2 - off + jp);
                 if (ish != jsh) {
                         fill_ij_r0_s2_igtj(ptr_vjp_i, buf, ptr_ybar, comp, ip, nij, di, dj, dk);
                 } else {
@@ -200,7 +200,10 @@ void GTOnr3c_ij_r0_vjp(int (*intor)(), void (*fill)(), double *vjp, double *ybar
             vjp_loc = calloc(natm_ij*comp, sizeof(double));
         }
 
-        #pragma omp for nowait schedule(dynamic)
+        // NOTE no nowait here: thread 0 accumulates directly into the shared
+        // vjp array, so all threads must finish the loop before the partial
+        // sums below are added, otherwise entire contributions can be lost.
+        #pragma omp for schedule(dynamic)
         for (jobid = 0; jobid < njobs; jobid++) {
                 (*fill)(intor, vjp_loc, ybar, buf, comp, jobid, shls_slice, ao_loc,
                         cintopt, atm, natm, bas, nbas, env);
