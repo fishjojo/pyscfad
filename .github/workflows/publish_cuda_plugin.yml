@@ -115,7 +115,16 @@ jobs:
               ln -sf "$PYBIN/python3" /usr/local/bin/python3
 
               cd /project/pyscfadlib
-              python3 plugins/cuda/build_plugin.py --cuda-major "${CUDA_MAJOR}" --output-path dist
+              # Serial build (-j 1): with CUINT_MAX_DERIV=3 and the templated
+              # VRR/HRR kernels in cuint, the nvcc frontend (cicc) needs more
+              # memory for overlap.cu than a 4-vCPU/16 GB runner can give it
+              # alongside three other CUDA translation units, so it gets
+              # OOM-killed (cicc died due to signal 9). Parallelism buys little
+              # here anyway: the stage is gated by overlap.cu alone.
+              # NB: no apostrophes in this block -- it lives inside the
+              # single-quoted bash -lc script above.
+              python3 plugins/cuda/build_plugin.py --cuda-major "${CUDA_MAJOR}" \
+                --jobs 1 --output-path dist
 
               # Slim wheel: do not bundle the CUDA libraries; they are resolved at
               # runtime from the nvidia-*-cu<major> dependencies. This mirrors the
