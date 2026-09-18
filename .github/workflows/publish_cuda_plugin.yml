@@ -130,14 +130,6 @@ jobs:
               ln -sf "$PYBIN/python3" /usr/local/bin/python3
 
               cd /project/pyscfadlib
-              # Serial build (-j 1): with CUINT_MAX_DERIV=3 and the templated
-              # VRR/HRR kernels in cuint, the nvcc frontend (cicc) needs more
-              # memory for overlap.cu than a 4-vCPU/16 GB runner can give it
-              # alongside three other CUDA translation units, so it gets
-              # OOM-killed (cicc died due to signal 9). Parallelism buys little
-              # here anyway: the stage is gated by overlap.cu alone.
-              # NB: no apostrophes in this block -- it lives inside the
-              # single-quoted bash -lc script above.
               python3 plugins/cuda/build_plugin.py --cuda-major "${CUDA_MAJOR}" \
                 --jobs 1 --output-path dist
 
@@ -154,18 +146,6 @@ jobs:
                 --exclude "libnvJitLink.so.*"
             '
 
-      - name: Diagnose build failure
-        if: ${{ failure() && steps.decide.outputs.should_build == 'true' }}
-        shell: bash
-        run: |
-          echo "=== memory ==="
-          free -h
-          echo "=== kernel OOM kills (proves/refutes the OOM diagnosis) ==="
-          sudo dmesg | grep -iE "out of memory|killed process|oom-kill" | tail -20 \
-            || echo "no OOM records in dmesg"
-          echo "=== disk ==="
-          df -h / /mnt
-
       - name: Upload wheel
         if: ${{ steps.decide.outputs.should_build == 'true' }}
         uses: actions/upload-artifact@v4
@@ -176,16 +156,6 @@ jobs:
 
   publish_pypi_linux:
     needs: build_wheel_linux
-    # Publish only a COMPLETE matrix. Under `always()` this job ran even when
-    # matrix jobs failed, uploading whatever subset built (fail-fast is off, so
-    # a partial matrix is the normal shape of a failure) and then reporting
-    # success -- a half-published release with a green run and nothing to flag
-    # it. Users on a missing (python, arch, cuda) combination find no compatible
-    # file and silently resolve back to the previous version, or hard-fail on a
-    # pinned one. Such a gap IS recoverable by re-running (skip-existing skips
-    # what is already uploaded and adds the rest; PyPI allows adding new files
-    # to an existing version) -- but only if someone notices, which a green run
-    # actively discourages. `always()` also fired on cancellation.
     if: ${{ !cancelled() && needs.build_wheel_linux.result == 'success' }}
     runs-on: ubuntu-latest
     environment: release
