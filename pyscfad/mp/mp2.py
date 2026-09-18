@@ -14,6 +14,7 @@
 """
 RMP2
 """
+from dataclasses import dataclass
 import jax
 from pyscf import __config__ as pyscf_config
 from pyscf.lib import split_reshape
@@ -26,6 +27,14 @@ from pyscfad import ops
 from pyscfad import ao2mo
 
 WITH_T2 = getattr(pyscf_config, 'mp_mp2_with_t2', True)
+
+@dataclass
+class E_CORR_MP2:
+    e_corr:    float = 0.
+    e_corr_ss: float = 0.
+    e_corr_os: float = 0.
+
+jax.tree_util.register_dataclass(E_CORR_MP2)
 
 def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2, verbose=None):
     if mo_energy is not None or mo_coeff is not None:
@@ -46,7 +55,7 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2, verbos
     else:
         t2 = None
 
-    emp2 = 0
+    emp2_ss = emp2_os = 0
     for i in range(nocc):
         if hasattr(eris.ovov, 'ndim') and eris.ovov.ndim == 4:
             gi = eris.ovov[i]
@@ -55,19 +64,25 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2, verbos
 
         gi = gi.reshape(nvir,nocc,nvir).transpose(1,0,2)
         t2i = gi.conj()/(eia[:,:,None] + eia[i][None,None,:])
-        emp2 += np.einsum('jab,jab', t2i, gi) * 2
-        emp2 -= np.einsum('jab,jba', t2i, gi)
+        edi = np.einsum('jab,jab', t2i, gi) * 2
+        exi = -np.einsum('jab,jba', t2i, gi)
+        emp2_ss += edi * 0.5 + exi
+        emp2_os += edi * 0.5
         if with_t2:
             t2 = ops.index_update(t2, ops.index[i], t2i)
 
-    return emp2.real, t2
+    emp2 = E_CORR_MP2()
+    emp2.e_corr_ss = emp2_ss.real
+    emp2.e_corr_os = emp2_os.real
+    emp2.e_corr = emp2.e_corr_ss + emp2.e_corr_os
+    return emp2, t2
 
 def _iterative_kernel(mp, eris, verbose=None):
     cput1 = cput0 = (logger.process_clock(), logger.perf_counter())
     log = logger.new_logger(mp, verbose)
 
     emp2, t2 = mp.init_amps(eris=eris)
-    log.info('Init E(MP2) = %.15g', emp2)
+    log.info('Init E(MP2) = %.15g', emp2.e_corr)
 
     adiis = lib.diis.DIIS(mp)
 
@@ -91,9 +106,9 @@ def _iterative_kernel(mp, eris, verbose=None):
         t2, t2new = t2new, None
         emp2, e_last = mp.energy(t2, eris), emp2
         log.info('cycle = %d  E_corr(MP2) = %.15g  dE = %.9g  norm(t2) = %.6g',
-                 istep+1, emp2, emp2 - e_last, normt)
+                 istep+1, emp2.e_corr, emp2.e_corr - e_last.e_corr, normt)
         cput1 = log.timer('MP2 iter', *cput1)
-        if abs(emp2-e_last) < mp.conv_tol and normt < mp.conv_tol_normt:
+        if abs(emp2.e_corr-e_last.e_corr) < mp.conv_tol and normt < mp.conv_tol_normt:
             conv = True
             break
     log.timer('MP2', *cput0)
@@ -103,9 +118,14 @@ def _iterative_kernel(mp, eris, verbose=None):
 def energy(mp, t2, eris):
     nocc, nvir = t2.shape[1:3]
     eris_ovov = np.asarray(eris.ovov).reshape(nocc,nvir,nocc,nvir)
-    emp2  = np.einsum('ijab,iajb', t2, eris_ovov) * 2
-    emp2 -= np.einsum('ijab,ibja', t2, eris_ovov)
-    return emp2.real
+    ed = np.einsum('ijab,iajb', t2, eris_ovov) * 2
+    ex = -np.einsum('ijab,ibja', t2, eris_ovov)
+
+    emp2 = E_CORR_MP2()
+    emp2.e_corr_ss = (ed * 0.5 + ex).real
+    emp2.e_corr_os = ed.real * 0.5
+    emp2.e_corr = emp2.e_corr_ss + emp2.e_corr_os
+    return emp2
 
 def update_amps(mp, t2, eris):
     #assert (isinstance(eris, _ChemistsERIs))
@@ -185,14 +205,13 @@ class MP2(pytree.PytreeNode, pyscf_mp2.MP2):
             eris = self.ao2mo(mo_coeff)
 
         if self._scf.converged:
-            self.e_corr, self.t2 = self.init_amps(mo_energy, mo_coeff, eris, with_t2)
+            e_corr, self.t2 = self.init_amps(mo_energy, mo_coeff, eris, with_t2)
         else:
-            self.converged, self.e_corr, self.t2 = self._iterative_kernel(eris)
+            self.converged, e_corr, self.t2 = self._iterative_kernel(eris)
 
-        # TODO SCS-MP2
-        self.e_corr_ss = 0
-        self.e_corr_os = 0
-
+        self.e_corr_ss = e_corr.e_corr_ss
+        self.e_corr_os = e_corr.e_corr_os
+        self.e_corr = e_corr.e_corr
         self._finalize()
         return self.e_corr, self.t2
 

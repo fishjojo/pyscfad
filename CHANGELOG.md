@@ -11,7 +11,7 @@
   * Add batched (padded) periodic GFN1-xTB with k-point sampling.
   * Add FP32 working precision for periodic GFN1-xTB.
   * Add UMP2 (`Mole` path).
-  * Report the spin-component correlation energies from DF-MP2.
+  * Report the spin-component correlation energies for MP2 methods.
 
 * Bug fixes
   * Fix pbc SCF derivatives with pyscf >= 2.12 (#161).

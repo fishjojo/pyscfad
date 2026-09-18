@@ -30,14 +30,6 @@ from pyscfad.mp import mp2
 
 WITH_T2 = getattr(__config__, 'mp_dfmp2_with_t2', True)
 
-@dataclass
-class E_CORR_MP2:
-    e_corr:    float = 0.
-    e_corr_ss: float = 0.
-    e_corr_os: float = 0.
-
-jax.tree_util.register_dataclass(E_CORR_MP2)
-
 def _contract(Lov, mo_energy, nocc, nvir, with_t2=True):
     def body(Lv, Lov, ea, eia):
         gi = np.einsum('la,ljb->jab', Lv, Lov)
@@ -126,7 +118,7 @@ _contract_opt.defvjp(_contract_opt_fwd, _contract_opt_bwd)
 
 def _contract_scan(Lov, mo_energy, nocc, nvir, with_t2=True):
     eia = mo_energy[:nocc,None] - mo_energy[None,nocc:]
-    emp2 = E_CORR_MP2()
+    emp2 = mp2.E_CORR_MP2()
 
     @jax.checkpoint
     def _fn(emp2, x):
@@ -143,6 +135,8 @@ def _contract_scan(Lov, mo_energy, nocc, nvir, with_t2=True):
         return emp2, t2i
 
     emp2, t2 = jax.lax.scan(_fn, emp2, (Lov.reshape((-1,nocc,nvir)).transpose(1,0,2), eia))
+    emp2.e_corr_ss = emp2.e_corr_ss.real
+    emp2.e_corr_os = emp2.e_corr_os.real
     emp2.e_corr = emp2.e_corr_ss + emp2.e_corr_os
     if not with_t2:
         t2 = None
