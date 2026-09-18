@@ -169,8 +169,6 @@ void AO2MOnr_e2_vjp_drv(void (*ftrans)(), int (*fmmm)(),
     envs.nmo = nmo;
     envs.mo_coeff = mo_coeff;
 
-    // NOTE sized with the actual team size; a fixed upper bound would
-    // overflow when the process runs with more OpenMP threads than that.
     double **mo_coeff_bar_bufs = NULL;
     #pragma omp parallel
     {
@@ -178,9 +176,10 @@ void AO2MOnr_e2_vjp_drv(void (*ftrans)(), int (*fmmm)(),
         int i_count = envs.bra_count;
         int j_count = envs.ket_count;
         int thread_id = omp_get_thread_num();
+        int nthreads = omp_get_num_threads(); 
         #pragma omp single
         {
-            mo_coeff_bar_bufs = malloc(sizeof(double *) * omp_get_num_threads());
+            mo_coeff_bar_bufs = malloc(sizeof(double *) * nthreads);
         }
         double *mo_coeff_bar_priv;
         if (thread_id == 0) {

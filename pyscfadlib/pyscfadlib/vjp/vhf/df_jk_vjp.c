@@ -52,16 +52,15 @@ void df_vk_vjp(double *eri_tril_bar, double *dm_bar,
 {
     const size_t nao2 = (size_t)nao * nao;
     const size_t nao_pair = (size_t)nao * (nao+1) /2;
-    // NOTE sized with the actual team size; a fixed upper bound would
-    // overflow when the process runs with more OpenMP threads than that.
     double **dm_bar_bufs = NULL;
     #pragma omp parallel
     {
         int i;
         int thread_id = omp_get_thread_num();
+        int nthreads = omp_get_num_threads();
         #pragma omp single
         {
-            dm_bar_bufs = malloc(sizeof(double *) * omp_get_num_threads());
+            dm_bar_bufs = malloc(sizeof(double *) * nthreads);
         }
         double *dm_bar_priv;
         if (thread_id == 0) {

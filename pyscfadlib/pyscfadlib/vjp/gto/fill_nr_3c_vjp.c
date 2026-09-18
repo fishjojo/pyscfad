@@ -16,6 +16,7 @@
 #include "config.h"
 #include "cint.h"
 #include "gto/gto.h"
+#include "vjp/util/util.h"
 
 #define MIN(X, Y)       ((X) < (Y) ? (X) : (Y))
 #define MAX(X, Y)       ((X) > (Y) ? (X) : (Y))
@@ -23,7 +24,7 @@
 #define BLKSIZE 8
 
 static void fill_ij_r0_s2_igtj(double *vjp, double *in, double* ybar, int comp,
-                            size_t ip, size_t nij, int di, int dj, int dk)
+                               int ip, size_t nij, int di, int dj, int dk)
 {
         const size_t dij = di * dj;
         const size_t ip1 = ip + 1;
@@ -45,7 +46,7 @@ static void fill_ij_r0_s2_igtj(double *vjp, double *in, double* ybar, int comp,
 }
 
 static void fill_ij_r0_s2_jgti(double *vjp, double *in, double* ybar, int comp,
-                            size_t ip, size_t nij, int di, int dj, int dk)
+                               int ip, size_t nij, int di, int dj, int dk)
 {
         const size_t dij = di * dj;
         const size_t ip1 = ip + 1;
@@ -67,7 +68,7 @@ static void fill_ij_r0_s2_jgti(double *vjp, double *in, double* ybar, int comp,
 }
 
 static void fill_ij_r0_s2_ieqj(double *vjp, double *in, double* ybar, int comp,
-                            size_t ip, size_t nij, int di, int dj, int dk)
+                               int ip, size_t nij, int di, int dj, int dk)
 {
         const size_t dij = di * dj;
         const size_t ip1 = ip + 1;
@@ -188,21 +189,26 @@ void GTOnr3c_ij_r0_vjp(int (*intor)(), void (*fill)(), double *vjp, double *ybar
                                                  atm, natm, bas, nbas, env);
         const int njobs = (MAX(nish,njsh) / BLKSIZE + 1) * nksh;
 
+        double **vjp_bufs = NULL;
+
 #pragma omp parallel
 {
         int i, jobid;
         double *buf = malloc(sizeof(double) * (di*di*di*comp + cache_size));
         int thread_id = omp_get_thread_num();
+        int nthreads = omp_get_num_threads();
+        #pragma omp single
+        {
+                vjp_bufs = malloc(sizeof(double *) * nthreads);
+        }
         double *vjp_loc;
         if (thread_id == 0) {
-            vjp_loc = vjp;
+                vjp_loc = vjp;
         } else {
-            vjp_loc = calloc(natm_ij*comp, sizeof(double));
+                vjp_loc = calloc(natm_ij*comp, sizeof(double));
         }
+        vjp_bufs[thread_id] = vjp_loc;
 
-        // NOTE no nowait here: thread 0 accumulates directly into the shared
-        // vjp array, so all threads must finish the loop before the partial
-        // sums below are added, otherwise entire contributions can be lost.
         #pragma omp for schedule(dynamic)
         for (jobid = 0; jobid < njobs; jobid++) {
                 (*fill)(intor, vjp_loc, ybar, buf, comp, jobid, shls_slice, ao_loc,
@@ -210,13 +216,12 @@ void GTOnr3c_ij_r0_vjp(int (*intor)(), void (*fill)(), double *vjp, double *ybar
         }
         free(buf);
 
+        omp_dsum_reduce_inplace(vjp_bufs, natm_ij*comp);
         if (thread_id != 0) {
-            for (i = 0; i < natm_ij*comp; i++) {
-                #pragma omp atomic
-                vjp[i] += vjp_loc[i];
-            }
-            free(vjp_loc);
+                free(vjp_loc);
         }
 }
+
+        free(vjp_bufs);
 }
 

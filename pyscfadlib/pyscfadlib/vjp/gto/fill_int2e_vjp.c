@@ -76,7 +76,7 @@ void GTOnr2e_fill_r0_vjp_s4(
     int ksh1 = shls_slice[5];
     int lsh0 = shls_slice[6];
     int nk = ao_loc[ksh1] - ao_loc[ksh0];
-    size_t nkl = nk * (nk+1) / 2;
+    size_t nkl = (size_t)nk * (nk+1) / 2;
 
     int ish = ishp + ish0;
     int jsh = jshp + jsh0;
@@ -84,9 +84,9 @@ void GTOnr2e_fill_r0_vjp_s4(
     int j0 = ao_loc[jsh] - ao_loc[jsh0];
 
     if (ish >= jsh) {
-        ybar += nkl * (i0*(i0+1)/2 + j0);
+        ybar += nkl * ((size_t)i0*(i0+1)/2 + j0);
     } else {
-        ybar += nkl * (j0*(j0+1)/2 + i0);
+        ybar += nkl * ((size_t)j0*(j0+1)/2 + i0);
     }
 
     int iatm = bas[ATOM_OF+ish*BAS_SLOTS];
@@ -119,7 +119,7 @@ void GTOnr2e_fill_r0_vjp_s4(
         cache = buf + dijkl * comp;
         if ((*fprescreen)(shls, atm, bas, env) &&
             (*intor)(buf, NULL, shls, atm, natm, bas, nbas, env, cintopt, cache)) {
-            ybar0 = ybar + k0*(k0+1)/2+l0;
+            ybar0 = ybar + (size_t)k0*(k0+1)/2+l0;
             buf0 = buf;
             for (icomp = 0; icomp < comp; icomp++) {
                 pybar0 = ybar0;
@@ -236,9 +236,6 @@ void GTOnr2e_fill_r0_vjp(int (*intor)(), void (*fill)(), int (*fprescreen)(),
 
     int ij, i, j;
     double *buf = malloc(sizeof(double) * (di*di*di*di*comp + cache_size));
-    // NOTE no nowait here: thread 0 accumulates directly into the shared vjp
-    // array, so all threads must finish the loop before the partial sums below
-    // are added, otherwise entire contributions can be lost.
     #pragma omp for schedule(dynamic)
     for (ij = 0; ij < nish*njsh; ij++) {
         i = ij / njsh;
@@ -249,8 +246,8 @@ void GTOnr2e_fill_r0_vjp(int (*intor)(), void (*fill)(), int (*fprescreen)(),
     free(buf);
 
     if (thread_id != 0) {
+        #pragma omp critical
         for (i = 0; i < natm*comp; i++) {
-            #pragma omp atomic
             vjp[i] += vjp_loc[i];
         }
         free(vjp_loc);

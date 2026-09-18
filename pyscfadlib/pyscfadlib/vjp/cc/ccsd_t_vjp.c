@@ -4,10 +4,6 @@
 #include "vjp/cc/ccsd_t.h"
 #include "vjp/util/util.h"
 
-// number of per-thread reduction buffers used by ccsd_t_vjp
-#define NBAR_BUFS 9
-
-
 static void get_wz(double *w0, double* z0,
                    int nocc, int nvir, int a, int b, int c,
                    double *mo_energy, double *t1T, double *t2T,
@@ -367,9 +363,6 @@ void ccsd_t_energy_vjp(double *mo_energy, double *t1T, double *t2T,
         fvohalf[k] = fvo[k] * .5;
     }
 
-    // NOTE the per-thread buffer tables are sized with the actual team size;
-    // a fixed upper bound would overflow when the process runs with more
-    // OpenMP threads than that.
     double **bar_bufs = NULL;
 
     #pragma omp parallel
@@ -378,13 +371,13 @@ void ccsd_t_energy_vjp(double *mo_energy, double *t1T, double *t2T,
         int nthreads = omp_get_num_threads();
         #pragma omp single
         {
-            bar_bufs = malloc(sizeof(double *) * NBAR_BUFS * omp_get_num_threads());
+            bar_bufs = malloc(sizeof(double *) * nthreads * 9);
         }
-        double **mo_energy_bar_bufs  = bar_bufs + 0 * nthreads;
-        double **t1T_bar_bufs        = bar_bufs + 1 * nthreads;
-        double **t2T_bar_bufs        = bar_bufs + 2 * nthreads;
-        double **vooo_bar_bufs       = bar_bufs + 3 * nthreads;
-        double **fvo_bar_bufs        = bar_bufs + 4 * nthreads;
+        double **mo_energy_bar_bufs   = bar_bufs;
+        double **t1T_bar_bufs         = bar_bufs + 1 * nthreads;
+        double **t2T_bar_bufs         = bar_bufs + 2 * nthreads;
+        double **vooo_bar_bufs        = bar_bufs + 3 * nthreads;
+        double **fvo_bar_bufs         = bar_bufs + 4 * nthreads;
         double **cache_row_a_bar_bufs = bar_bufs + 5 * nthreads;
         double **cache_col_a_bar_bufs = bar_bufs + 6 * nthreads;
         double **cache_row_b_bar_bufs = bar_bufs + 7 * nthreads;
@@ -502,6 +495,7 @@ void ccsd_t_energy_vjp(double *mo_energy, double *t1T, double *t2T,
             }
         }
     }
+
     free(bar_bufs);
     free(jobs);
     free(permute_idx);

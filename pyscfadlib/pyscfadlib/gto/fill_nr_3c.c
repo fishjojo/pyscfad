@@ -72,7 +72,7 @@ void GTOnr3c_fill_s1(int (*intor)(), double *out, double *buf,
 
 
 static void dcopy_s2_igtj(double *out, double *in, int comp,
-                          size_t ip, size_t nij, size_t nijk,
+                          int ip, size_t nij, size_t nijk,
                           int di, int dj, int dk)
 {
         const size_t dij = di * dj;
@@ -95,7 +95,7 @@ static void dcopy_s2_igtj(double *out, double *in, int comp,
         }
 }
 static void dcopy_s2_ieqj(double *out, double *in, int comp,
-                          size_t ip, size_t nij, size_t nijk,
+                          int ip, size_t nij, size_t nijk,
                           int di, int dj, int dk)
 {
         const size_t dij = di * dj;
