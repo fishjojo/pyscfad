@@ -1,5 +1,27 @@
 # Change log
 
+## pyscfad 0.3.4 (September 17, 2026)
+
+* Changes
+  * Add basis parameter derivatives for the `MoleLite` paths.
+  * Deprecate the `trace_coords`/`trace_basis` flags for the `MoleLite` paths.
+  * Add derivatives of the packed two-electron integrals (`aosym` s4/s8) for the `MoleLite` paths.
+  * Add fully jittable RHF and DIIS/CDIIS.
+  * Add fully jittable RCCSD.
+  * Add batched (padded) periodic GFN1-xTB with k-point sampling.
+  * Add FP32 working precision for periodic GFN1-xTB.
+  * Add UMP2 (`Mole` path).
+  * Report the spin-component correlation energies for MP2 methods.
+
+* Bug fixes
+  * Fix pbc SCF derivatives with pyscf >= 2.12 (#161).
+  * Fix data races in the pyscfadlib VJP drivers, int32 stride overflow for large integral arrays, and crashes with more than 128 OpenMP threads (#168).
+  * Fix the CCSD(T) VJP cotangent layout for `ovvv` (#165).
+  * Fix `mol.dumps()` warning once per traced attribute (#165).
+  * Fix `ml.gto.basis_array` for generally contracted basis sets and `int2e`.
+  * Fix the coordination numbers (`xtb.param.cn_d3`) for periodic GFN1-xTB.
+  * Fix NaN gradients from the smearing chemical-potential solve for zero-electron (fully padded) systems.
+
 ## pyscfad 0.3.3 (June 29, 2026)
 
 * Changes

@@ -65,17 +65,16 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2, verbos
     emp2_ss += np.einsum('ijab,ijab', t2bb, gbb) * .5
     emp2_os  = np.einsum('iJaB,iJaB', t2ab, gab)
 
-    # PySCF tags the same/opposite spin components onto the energy with
-    # lib.tag_array, which would break the AD. They are stored on ``mp``
-    # instead, as done by MP2Base.kernel.
-    mp.e_corr_ss = emp2_ss = emp2_ss.real
-    mp.e_corr_os = emp2_os = emp2_os.real
+    emp2 = mp2.E_CORR_MP2()
+    emp2.e_corr_ss = emp2_ss.real
+    emp2.e_corr_os = emp2_os.real
+    emp2.e_corr = emp2.e_corr_ss + emp2.e_corr_os
 
     if with_t2:
         t2 = (t2aa, t2ab, t2bb)
     else:
         t2 = None
-    return emp2_ss + emp2_os, t2
+    return emp2, t2
 
 def energy(mp, t2, eris):
     t2aa, t2ab, t2bb = t2
@@ -88,7 +87,12 @@ def energy(mp, t2, eris):
     ess += 0.25 * np.einsum('ijab,iajb->', t2bb, eris_OVOV)
     ess -= 0.25 * np.einsum('ijab,ibja->', t2bb, eris_OVOV)
     eos  =        np.einsum('iJaB,iaJB->', t2ab, eris_ovOV)
-    return (ess + eos).real
+
+    emp2 = mp2.E_CORR_MP2()
+    emp2.e_corr_ss = ess.real
+    emp2.e_corr_os = eos.real
+    emp2.e_corr = emp2.e_corr_ss + emp2.e_corr_os
+    return emp2
 
 def update_amps(mp, t2, eris):
     t2aa, t2ab, t2bb = t2
@@ -161,14 +165,13 @@ class UMP2(pytree.PytreeNode, pyscf_ump2.UMP2):
             eris = self.ao2mo(mo_coeff)
 
         if self._scf.converged:
-            # init_amps also sets e_corr_ss and e_corr_os
-            self.e_corr, self.t2 = self.init_amps(mo_energy, mo_coeff, eris, with_t2)
+            e_corr, self.t2 = self.init_amps(mo_energy, mo_coeff, eris, with_t2)
         else:
-            self.converged, self.e_corr, self.t2 = self._iterative_kernel(eris)
-            # TODO SCS-MP2 for the non-canonical case
-            self.e_corr_ss = 0
-            self.e_corr_os = 0
+            self.converged, e_corr, self.t2 = self._iterative_kernel(eris)
 
+        self.e_corr_ss = e_corr.e_corr_ss
+        self.e_corr_os = e_corr.e_corr_os
+        self.e_corr = e_corr.e_corr
         self._finalize()
         return self.e_corr, self.t2
 

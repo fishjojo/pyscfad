@@ -41,7 +41,7 @@ def func(x0, mf):
 nao = mol.nao
 size = nao*(nao-1)//2
 x0 = np.zeros((size,))
-options = {"gtol":1e-5}
+options = {"gtol":1e-4}
 res = minimize(func, x0, args=(mf,), jac=True, method="BFGS", options = options)
 e = func(res.x, mf)[0]
 print(e)
