@@ -15,6 +15,7 @@ pyscfad.mp.mp2
       :toctree: classes/
 
    
+      E_CORR_MP2
       MP2
       RMP2
 

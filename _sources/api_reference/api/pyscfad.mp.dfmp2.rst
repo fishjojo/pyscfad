@@ -16,7 +16,6 @@ pyscfad.mp.dfmp2
 
    
       DFRMP2
-      E_CORR_MP2
       MP2
 
    

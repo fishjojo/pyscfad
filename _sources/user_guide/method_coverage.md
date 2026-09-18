@@ -4,7 +4,7 @@ pyscfad re-implements a subset of pyscf's methods so that they can be
 differentiated. This page lists what that subset currently is, so that a
 missing method can be told apart from a bug.
 
-The tables below are a snapshot of pyscfad 0.3.3. Anything not listed
+The tables below are a snapshot of pyscfad 0.3.4. Anything not listed
 either has no differentiable counterpart in pyscfad, or is only usable
 through `mol.to_pyscf()` / `mf.to_pyscf()`, which strips the traced
 attributes and returns a plain pyscf object.

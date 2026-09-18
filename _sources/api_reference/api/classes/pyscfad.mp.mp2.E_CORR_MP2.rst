@@ -1,7 +1,7 @@
-pyscfad.mp.dfmp2.E\_CORR\_MP2
-=============================
+pyscfad.mp.mp2.E\_CORR\_MP2
+===========================
 
-.. currentmodule:: pyscfad.mp.dfmp2
+.. currentmodule:: pyscfad.mp.mp2
 
 .. autoclass:: E_CORR_MP2
    :show-inheritance:
