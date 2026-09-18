@@ -24,7 +24,7 @@ The repo contains three packages:
   - **CRITICAL**: only needed when running on NVIDIA GPUs.
   - **Build from source** (CMake): needs a matching CUDA toolkit on `PATH`
     (CUDA 12.8+ for the cuda12 wheel, 13.x for cuda13) plus the `cmake`, `nanobind`,
-    `jax<0.11`, and `build` Python packages. From `pyscfadlib/`:
+    `jax`, and `build` Python packages. From `pyscfadlib/`:
     ```bash
     python plugins/cuda/build_plugin.py --cuda-major 13   # or --cuda-major 12
     pip install dist/pyscfad_cuda13_plugin*.whl

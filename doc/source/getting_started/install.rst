@@ -108,7 +108,7 @@ running on NVIDIA GPUs. They are built with CMake and provide the ``_solver``
 
 Building from source requires a CUDA toolkit on ``PATH`` whose major matches the wheel
 (CUDA 12.8+ for the cuda12 plugin, 13.x for the cuda13 plugin), together with the
-``cmake``, ``nanobind``, ``jax<0.11``, and ``build`` Python packages. From the ``pyscfadlib``
+``cmake``, ``nanobind``, ``jax``, and ``build`` Python packages. From the ``pyscfadlib``
 directory:
 
 .. code::

@@ -3,26 +3,23 @@
 ## pyscfad 0.3.4 (September 17, 2026)
 
 * Changes
-  * Add basis-set parameter derivatives (exponents and contraction coefficients) for the lite integral paths (`MoleLite`/`MolePad`, `CellLite`/`CellPad`) on CPU and the cuint GPU backend, including mixed coordinate/basis derivatives.
-  * Split the integral primals into `(r0, exp, ctr_coeff, origin)`, replacing the fused environment tangent and the `trace_coords`/`trace_basis` flags.
-  * Add derivatives of the packed two-electron integrals (`aosym` s4/s8) for the lite paths, and build J and K from the packed arrays in `scf.hf_lite`.
-  * Add `int1e_nuc` to `gto.moleintor_lite`.
-  * Add a fully jittable RCCSD (`cc.RCCSDLite`) and a jittable DIIS (`lib.diis_lite`); `SCFLite` now uses CDIIS by default.
-  * Add batched (padded) periodic GFN1-xTB with k-point sampling (`ml.pbc.gto.CellPad`, `ml.pbc.scf.khf_pad`, `ml.xtb.kxtb_pad`).
-  * Add `get_bands` to the fully jittable k-point SCF, and lattice-vector derivatives for periodic xTB.
-  * Add FP32 working precision for periodic GFN1-xTB (`kxtb` and `kxtb_pad`), and `numpy.complexx`.
-  * Add UMP2 (`mp.UMP2`); `mp.MP2` now dispatches on the mean-field reference.
+  * Add basis parameter derivatives for the `MoleLite` paths.
+  * Deprecate the `trace_coords`/`trace_basis` flags for the `MoleLite` paths.
+  * Add derivatives of the packed two-electron integrals (`aosym` s4/s8) for the `MoleLite` paths.
+  * Add fully jittable RHF and DIIS/CDIIS.
+  * Add fully jittable RCCSD.
+  * Add batched (padded) periodic GFN1-xTB with k-point sampling.
+  * Add FP32 working precision for periodic GFN1-xTB.
+  * Add UMP2 (`Mole` path).
   * Report the spin-component correlation energies from DF-MP2.
-  * Require `jax<0.11` in pyscfadlib and for the CUDA plugin build, matching pyscfad.
-  * Add a method coverage page to the user guide.
 
 * Bug fixes
-  * Fix pbc SCF derivatives with pyscf >= 2.12 (`get_veff`/`get_occ` are no longer handed traced arrays).
-  * Fix data races in the pyscfadlib VJP drivers, int32 stride overflow for large integral arrays, and crashes with more than 128 OpenMP threads.
-  * Fix the CCSD(T) VJP cotangent layout for `ovvv`, which did not match the layout `cc.RCCSD` stores.
-  * Fix `mol.dumps()` warning once per traced attribute.
+  * Fix pbc SCF derivatives with pyscf >= 2.12 (#161).
+  * Fix data races in the pyscfadlib VJP drivers, int32 stride overflow for large integral arrays, and crashes with more than 128 OpenMP threads (#168).
+  * Fix the CCSD(T) VJP cotangent layout for `ovvv` (#165).
+  * Fix `mol.dumps()` warning once per traced attribute (#165).
   * Fix `ml.gto.basis_array` for generally contracted basis sets and `int2e`.
-  * Fix the periodic coordination numbers (`xtb.param.cn_d3`) for the lite and padded cells.
+  * Fix the coordination numbers (`xtb.param.cn_d3`) for periodic GFN1-xTB.
   * Fix NaN gradients from the smearing chemical-potential solve for zero-electron (fully padded) systems.
 
 ## pyscfad 0.3.3 (June 29, 2026)
