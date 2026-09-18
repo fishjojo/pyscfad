@@ -176,7 +176,10 @@ jobs:
 
   publish_pypi_linux:
     needs: build_wheel_linux
-    if: always()
+    # Publish only a COMPLETE matrix. With skip-existing: true a partial upload
+    # cannot be backfilled under the same version, so `always()` risked pinning
+    # a release to whatever subset happened to build.
+    if: ${{ !cancelled() && needs.build_wheel_linux.result == 'success' }}
     runs-on: ubuntu-latest
     environment: release
     permissions:
