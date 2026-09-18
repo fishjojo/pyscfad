@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from functools import partial
-from dataclasses import dataclass
 
 import numpy
 import jax
