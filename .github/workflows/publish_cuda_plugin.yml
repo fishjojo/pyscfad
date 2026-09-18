@@ -61,6 +61,21 @@ jobs:
 
           echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
 
+      - name: Add swap space
+        if: ${{ steps.decide.outputs.should_build == 'true' }}
+        shell: bash
+        run: |
+          # The templated cuint overlap kernels need several GB in the nvcc
+          # frontend (cicc) per translation unit, and the 16 GB runner OOM-kills
+          # it even at -j 1. Back the build with a swapfile on the /mnt scratch
+          # disk (the container shares the host kernel, so host swap applies).
+          sudo fallocate -l 24G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+          df -h /mnt
+
       - name: Build ${{ matrix.arch }} cuda${{ matrix.cuda.major }} wheel for Python ${{ matrix.py }}
         if: ${{ steps.decide.outputs.should_build == 'true' }}
         run: |
@@ -111,11 +126,12 @@ jobs:
 
               PYBIN=/opt/python/cp${TAG}-cp${TAG}/bin
               "$PYBIN/pip" install --no-cache-dir --upgrade pip build auditwheel \
-                                   cmake ninja nanobind 'jax<0.11' numpy
+                                   cmake ninja nanobind "jax<0.11" numpy
               ln -sf "$PYBIN/python3" /usr/local/bin/python3
 
               cd /project/pyscfadlib
-              python3 plugins/cuda/build_plugin.py --cuda-major "${CUDA_MAJOR}" --output-path dist
+              python3 plugins/cuda/build_plugin.py --cuda-major "${CUDA_MAJOR}" \
+                --jobs 1 --output-path dist
 
               # Slim wheel: do not bundle the CUDA libraries; they are resolved at
               # runtime from the nvidia-*-cu<major> dependencies. This mirrors the
@@ -140,7 +156,7 @@ jobs:
 
   publish_pypi_linux:
     needs: build_wheel_linux
-    if: always()
+    if: ${{ !cancelled() && needs.build_wheel_linux.result == 'success' }}
     runs-on: ubuntu-latest
     environment: release
     permissions:
