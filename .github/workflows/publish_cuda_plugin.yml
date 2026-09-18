@@ -176,9 +176,16 @@ jobs:
 
   publish_pypi_linux:
     needs: build_wheel_linux
-    # Publish only a COMPLETE matrix. With skip-existing: true a partial upload
-    # cannot be backfilled under the same version, so `always()` risked pinning
-    # a release to whatever subset happened to build.
+    # Publish only a COMPLETE matrix. Under `always()` this job ran even when
+    # matrix jobs failed, uploading whatever subset built (fail-fast is off, so
+    # a partial matrix is the normal shape of a failure) and then reporting
+    # success -- a half-published release with a green run and nothing to flag
+    # it. Users on a missing (python, arch, cuda) combination find no compatible
+    # file and silently resolve back to the previous version, or hard-fail on a
+    # pinned one. Such a gap IS recoverable by re-running (skip-existing skips
+    # what is already uploaded and adds the rest; PyPI allows adding new files
+    # to an existing version) -- but only if someone notices, which a green run
+    # actively discourages. `always()` also fired on cancellation.
     if: ${{ !cancelled() && needs.build_wheel_linux.result == 'success' }}
     runs-on: ubuntu-latest
     environment: release
