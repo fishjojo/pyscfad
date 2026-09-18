@@ -110,8 +110,11 @@ jobs:
               export CUDAToolkit_ROOT=${CUDA_HOME_DIR}
 
               PYBIN=/opt/python/cp${TAG}-cp${TAG}/bin
+              # jax is pinned to the range pyscfad supports: the plugin compiles
+              # against the installed jax XLA FFI headers, so it must not be built
+              # against a jax the runtime will refuse to install.
               "$PYBIN/pip" install --no-cache-dir --upgrade pip build auditwheel \
-                                   cmake ninja nanobind jax numpy
+                                   cmake ninja nanobind 'jax<0.11' numpy
               ln -sf "$PYBIN/python3" /usr/local/bin/python3
 
               cd /project/pyscfadlib
