@@ -61,6 +61,21 @@ jobs:
 
           echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
 
+      - name: Add swap space
+        if: ${{ steps.decide.outputs.should_build == 'true' }}
+        shell: bash
+        run: |
+          # The templated cuint overlap kernels need several GB in the nvcc
+          # frontend (cicc) per translation unit, and the 16 GB runner OOM-kills
+          # it even at -j 1. Back the build with a swapfile on the /mnt scratch
+          # disk (the container shares the host kernel, so host swap applies).
+          sudo fallocate -l 24G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+          df -h /mnt
+
       - name: Build ${{ matrix.arch }} cuda${{ matrix.cuda.major }} wheel for Python ${{ matrix.py }}
         if: ${{ steps.decide.outputs.should_build == 'true' }}
         run: |
@@ -138,6 +153,18 @@ jobs:
                 --exclude "libcusparse.so.*" \
                 --exclude "libnvJitLink.so.*"
             '
+
+      - name: Diagnose build failure
+        if: ${{ failure() && steps.decide.outputs.should_build == 'true' }}
+        shell: bash
+        run: |
+          echo "=== memory ==="
+          free -h
+          echo "=== kernel OOM kills (proves/refutes the OOM diagnosis) ==="
+          sudo dmesg | grep -iE "out of memory|killed process|oom-kill" | tail -20 \
+            || echo "no OOM records in dmesg"
+          echo "=== disk ==="
+          df -h / /mnt
 
       - name: Upload wheel
         if: ${{ steps.decide.outputs.should_build == 'true' }}
