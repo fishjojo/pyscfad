@@ -8,7 +8,7 @@ add_library(cgto_vjp SHARED
 set_target_properties(cgto_vjp PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
-target_link_libraries(cgto_vjp cgto_ad ${OPENMP_C_PROPERTIES})
+target_link_libraries(cgto_vjp cgto_ad vjp_util ${OPENMP_C_PROPERTIES})
 
 #np_helper
 add_library(np_helper_vjp SHARED

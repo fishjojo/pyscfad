@@ -119,7 +119,7 @@ static double contract_ij_ij(double* x, double* y, int comp,
     double sum = 0;
     double *py;
     for (ic = 0; ic < comp; ic++) {
-        py = y + ic * size_y + i0 * ldy + j0;
+        py = y + ic * size_y + (size_t)i0 * ldy + j0;
         for (irow = 0; irow < nrow; irow++) {
             for (jcol = 0; jcol < ncol; jcol++) {
                 sum += x[irow+jcol*nrow] * py[jcol];
@@ -141,7 +141,7 @@ static double contract_ij_ji(double* x, double* y, int comp,
     double sum = 0;
     double *py;
     for (ic = 0; ic < comp; ic++) {
-        py = y + ic * size_y + j0 * ldy + i0;
+        py = y + ic * size_y + (size_t)j0 * ldy + i0;
         for (jcol = 0; jcol < ncol; jcol++) {
             for (irow = 0; irow < nrow; irow++) {
                 sum += x[irow+jcol*nrow] * py[irow];
@@ -444,8 +444,8 @@ void GTOint2c_r0_vjp(int (*intor)(), double* vjp, double* ybar,
     free(cache);
 
     if (thread_id != 0) {
+        #pragma omp critical
         for (i = 0; i < natm*ndim; i++) {
-            #pragma omp atomic
             vjp[i] += vjp_loc[i];
         }
         free(vjp_loc);
@@ -504,8 +504,8 @@ void GTOint2c_rc_vjp(int (*intor)(), double* vjp, double* ybar,
     free(cache);
 
     if (thread_id != 0) {
+        #pragma omp critical
         for (i = 0; i < ndim; i++) {
-            #pragma omp atomic
             vjp[i] += vjp_loc[i];
         }
         free(vjp_loc);
@@ -569,8 +569,8 @@ void GTOint2c_exp_vjp(int (*intor)(), //intor is always *_cart
     free(cache);
 
     if (thread_id != 0) {
+        #pragma omp critical
         for (i = 0; i < nes; i++) {
-            #pragma omp atomic
             vjp[i] += vjp_loc[i];
         }
         free(vjp_loc);
@@ -634,8 +634,8 @@ void GTOint2c_coeff_vjp(int (*intor)(),
     free(cache);
 
     if (thread_id != 0) {
+        #pragma omp critical
         for (i = 0; i < ncs; i++) {
-            #pragma omp atomic
             vjp[i] += vjp_loc[i];
         }
         free(vjp_loc);

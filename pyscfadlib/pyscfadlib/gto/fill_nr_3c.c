@@ -72,7 +72,8 @@ void GTOnr3c_fill_s1(int (*intor)(), double *out, double *buf,
 
 
 static void dcopy_s2_igtj(double *out, double *in, int comp,
-                          int ip, int nij, int nijk, int di, int dj, int dk)
+                          int ip, size_t nij, size_t nijk,
+                          int di, int dj, int dk)
 {
         const size_t dij = di * dj;
         const size_t ip1 = ip + 1;
@@ -94,7 +95,8 @@ static void dcopy_s2_igtj(double *out, double *in, int comp,
         }
 }
 static void dcopy_s2_ieqj(double *out, double *in, int comp,
-                          int ip, int nij, int nijk, int di, int dj, int dk)
+                          int ip, size_t nij, size_t nijk,
+                          int di, int dj, int dk)
 {
         const size_t dij = di * dj;
         const size_t ip1 = ip + 1;
@@ -147,8 +149,8 @@ void GTOnr3c_fill_s2ij(int (*intor)(), double *out, double *buf,
         const int i0 = ao_loc[ish0];
         const int i1 = ao_loc[ish1];
         const size_t naok = ao_loc[ksh1] - ao_loc[ksh0];
-        const size_t off = i0 * (i0 + 1) / 2;
-        const size_t nij = i1 * (i1 + 1) / 2 - off;
+        const size_t off = (size_t)i0 * (i0 + 1) / 2;
+        const size_t nij = (size_t)i1 * (i1 + 1) / 2 - off;
         const size_t nijk = nij * naok;
 
         const int dk = ao_loc[ksh+1] - ao_loc[ksh];
@@ -175,7 +177,7 @@ void GTOnr3c_fill_s2ij(int (*intor)(), double *out, double *buf,
 
                 (*intor)(buf, NULL, shls, atm, natm, bas, nbas, env, cintopt, cache);
 
-                pout = out + ip * (ip + 1) / 2 - off + jp;
+                pout = out + (size_t)ip * (ip + 1) / 2 - off + jp;
                 if (ip != jp) {
                         dcopy_s2_igtj(pout, buf, comp, ip, nij, nijk, di, dj, dk);
                 } else {

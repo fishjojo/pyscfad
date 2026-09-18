@@ -4,7 +4,6 @@
 #include "vhf/fblas.h"
 #include "vjp/util/util.h"
 
-#define MAX_THREADS     128
 #define OUTPUTIJ        1
 #define INPUT_IJ        2
 
@@ -170,13 +169,18 @@ void AO2MOnr_e2_vjp_drv(void (*ftrans)(), int (*fmmm)(),
     envs.nmo = nmo;
     envs.mo_coeff = mo_coeff;
 
-    double *mo_coeff_bar_bufs[MAX_THREADS];
+    double **mo_coeff_bar_bufs = NULL;
     #pragma omp parallel
     {
         int i;
         int i_count = envs.bra_count;
         int j_count = envs.ket_count;
         int thread_id = omp_get_thread_num();
+        int nthreads = omp_get_num_threads(); 
+        #pragma omp single
+        {
+            mo_coeff_bar_bufs = malloc(sizeof(double *) * nthreads);
+        }
         double *mo_coeff_bar_priv;
         if (thread_id == 0) {
             mo_coeff_bar_priv = mo_coeff_bar;
@@ -196,4 +200,5 @@ void AO2MOnr_e2_vjp_drv(void (*ftrans)(), int (*fmmm)(),
             free(mo_coeff_bar_priv);
         }
     }
+    free(mo_coeff_bar_bufs);
 }
