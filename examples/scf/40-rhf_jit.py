@@ -32,11 +32,13 @@ basis = {
 def energy(coords, basis):
     mol = MoleLite(["H", "H"], coords, basis=basis, verbose=4)
     mf = SCFLite(mol)
-    mf.init_guess = "hcore" # only supported guess at the moment
+    # Only the hcore guess works inside jit.
+    # Other guesses can be used outside jit,
+    # and then passed to mf.kernel as dm0.
+    mf.init_guess = "hcore"
     return mf.kernel()
 
 gfn = jax.grad(energy, (0, 1))
 g = jax.jit(gfn)(coords, basis)
 print("Nuclear gradient:\n", g[0])
 print("Basis gradient:\n", g[1])
-

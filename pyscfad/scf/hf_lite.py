@@ -640,16 +640,8 @@ class SCF(SCFBase):
         key: str = "minao",
         **kwargs,
     ) -> Array:
-        if not isinstance(key, str):
-            return key
-        key = key.lower()
-
-        if mol is None:
-            mol = self.mol
-        if key == "1e" or key == "hcore":
-            dm = self.init_guess_by_1e(mol)
-        else:
-            raise NotImplementedError(f"SCF initial guess with {key} is not supported")
+        dm = super().get_init_guess(mol=mol, key=key, **kwargs)
+        dm = np.asarray(dm)
         return dm
 
     def get_jk(
