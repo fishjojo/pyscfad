@@ -21,6 +21,8 @@ import contextlib
 import warnings
 
 import numpy
+from jax.errors import ConcretizationTypeError
+
 import pyscf
 from pyscf.lib import with_doc
 from pyscf.data.elements import (
@@ -175,7 +177,18 @@ class MoleLite(MoleBase):
 
         self.cuint_plan = cuint_plan
 
+        try:
+            # tolist only works outside jit
+            self._atom = [[symb, coord.tolist()]
+                          for symb, coord in zip(self.symbols, self.atom_coords())]
+        except ConcretizationTypeError:
+            self._atom = [[symb, coord]
+                          for symb, coord in zip(self.symbols, self.atom_coords())]
+
+        self._nelectron = None
+        self.pseudo = None
         self._pseudo = {}
+        self.ecp = {}
         self._ecpbas = numpy.zeros((0,8), dtype=numpy.int32)
         self._built = True
 
