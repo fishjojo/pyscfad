@@ -49,11 +49,7 @@ pyscfad.ml.xtb.kxtb\_pad.GFN1KXTB
          
          
          
-           ~GFN1KXTB.get_hcore
          
-         
-         
-           ~GFN1KXTB.get_init_guess
          
          
          

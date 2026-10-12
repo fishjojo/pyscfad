@@ -23,16 +23,6 @@ pyscfad.ml.xtb.kxtb\_pad
 
    
    
-   .. rubric:: Functions
-
-   .. autosummary::
-      :toctree: functions/
-
-   
-      EHT_PI_GFN1
-      tot_valence_electrons
-
-   
    
 
 
