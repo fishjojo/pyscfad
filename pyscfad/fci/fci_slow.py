@@ -188,8 +188,7 @@ def kernel(h1e, eri, norb, nelec, ecore=0, nroots=1):
         from pyscf.fci.direct_spin1 import pspace
         addrs, _ = pspace(to_numpy(h1e), to_numpy(eri),
                            norb, nelec, to_numpy(hdiag), nroots)
-    # pylint: disable=broad-exception-caught
-    except Exception:
+    except Exception: # pylint: disable=broad-exception-caught
         addrs = numpy.argsort(hdiag)[:nroots]
     ci0 = []
     for addr in addrs:
