@@ -135,6 +135,7 @@ class GFN1ParamArray(ParamArray):
     quadgam: Array | None = None
 
     def to_mol_param(self, mol: MolePad) -> GFN1MoleParam:
+        # pylint: disable=unsubscriptable-object
         kf = self.kf
         kEN = self.kEN
         EN = self.EN[mol.numbers]

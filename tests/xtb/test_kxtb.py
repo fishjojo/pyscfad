@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import partial
 import pytest
 import jax
 from pyscf.data.nist import BOHR
@@ -22,12 +23,37 @@ from pyscfad.xtb import GFN1XTB
 from pyscfad.xtb.param import GFN1Param
 from pyscfad.pbc.gto import CellLite as Cell
 from pyscfad.xtb.kxtb import GFN1KXTB
+from pyscfad.xtb.util import ke_cutoff_ewald
 
 @pytest.fixture
 def setup():
     basis = xtb_basis.get_basis_filename()
     param = GFN1Param()
     yield basis, param
+
+@pytest.fixture
+def cell_H3O_cation(setup):
+    """H3O+ in each cell of a 9 Bohr cubic lattice sampled with 2 k-points.
+    Yields a cell builder (cell.charge is that of the k-point supercell), the
+    k-points, and the static Ewald mesh for a given alpha, so that the SCF can be jitted."""
+    basis, _ = setup
+    numbers = [8, 1, 1, 1]
+    coords = np.array([[0., 0., 0.], [1.43355, 0., -0.95296],
+                       [1.43355, 0., 0.95296], [-0.8, 0.1, 1.6]])
+    a = np.eye(3) * 9.
+    cell0 = Cell(numbers=numbers, coords=coords, a=a, basis=basis, rcut=12., precision=1e-6)
+    nimgs = tuple(int(x) for x in cell0.nimgs)
+    kpts = cell0.make_kpts([2, 1, 1])
+
+    def make_cell():
+        return Cell(numbers=numbers, coords=coords, a=a, basis=basis, rcut=12.,
+                    nimgs=nimgs, precision=1e-6, charge=len(kpts))
+
+    def ewald_mesh(alpha):
+        return tuple(int(x) for x in cell0.cutoff_to_mesh(
+            ke_cutoff_ewald(alpha, cell0.precision * cell0.vol)))
+
+    yield make_cell, kpts, ewald_mesh
 
 def test_gfn1_kxtb_energy_force(setup, H2O_GFN1_ref):
     basis, param = setup
@@ -71,7 +97,7 @@ def test_gfn1_kxtb_energy_force_with_kpts_sample(setup):
 
     # reference with periodic coordination numbers (cn_d3 over cell.Ls);
     # forces vanish by symmetry for the ideal diamond structure
-    e0 = -3.83117442207487
+    e0 = -3.62605206380876
     g0 = np.zeros((2, 3))
 
     e1, g1 = jax.value_and_grad(cell_energy)(coords)
@@ -203,7 +229,7 @@ def test_gfn1_kxtb_energy_force_fp32(run_fp32):
                               [2.6935121974, 0.0, 2.6935121974],
                               [2.6935121974, 2.6935121974, 0.0]]) / BOHR),
             "sigma": None,
-            "e0": -3.83117442207487,
+            "e0": -3.62605206380876,
         },
         "cu": {
             "numbers": [29, 29],
@@ -215,7 +241,7 @@ def test_gfn1_kxtb_energy_force_fp32(run_fp32):
                  [0.        , 4.81045737, 0.        ],
                  [0.        , 0.        , 6.80301405],]),
             "sigma": 0.001,
-            "e0": -9.22283523848542,
+            "e0": -9.066494431417272,
         },
     }
 
@@ -257,9 +283,101 @@ def test_gfn1_kxtb_smearing(setup):
         mf.diis_space = 6
         return mf.kernel()
 
-    e0 = -9.22283523848542
+    e0 = -9.066494431417272
     g0 = np.zeros((2,3))
 
     e1, g1 = jax.value_and_grad(cell_energy)(coords)
     assert abs(e1 - e0) < 1e-6
     assert abs(g1 - g0).max() < 1e-6
+
+def test_gfn1_kxtb_charged_kpts_qbroyden(setup, cell_H3O_cation):
+    """Charged cell with several k-points: the charge-Broyden solver normalizes the
+    per-cell shell charges to cell.charge / nkpts and agrees with Anderson mixing."""
+    _, param = setup
+    make_cell, kpts, ewald_mesh = cell_H3O_cation
+    mesh = ewald_mesh(GFN1KXTB.ewald_alpha)
+
+    @partial(jax.jit, static_argnums=0)
+    def energy(diis):
+        mf = GFN1KXTB(make_cell(), param=param, kpts=kpts)
+        mf.ewald_mesh = mesh
+        mf.diis = diis
+        mf.conv_tol = 1e-10
+        e = mf.kernel()
+        return e, mf.converged
+
+    e0, _ = energy("anderson")
+    e1, conv = energy("qbroyden")
+    assert conv
+    assert abs(e1 - e0) < 1e-8
+
+def test_gfn1_kxtb_charged_mo_energy_ewald_alpha(setup, cell_H3O_cation):
+    """ewald_alpha only splits the lattice Coulomb sum. For a charged cell the
+    neutralizing background must enter the shell potential as well as the energy;
+    otherwise the MO energies shift by pi Q / (alpha^2 V) (1.5e-2 Eh between the two
+    alphas here) while the energy does not."""
+    _, param = setup
+    make_cell, kpts, ewald_mesh = cell_H3O_cation
+
+    def run(alpha):
+        mesh = ewald_mesh(alpha)
+
+        @jax.jit
+        def kernel():
+            mf = GFN1KXTB(make_cell(), param=param, kpts=kpts)
+            mf.ewald_alpha = alpha
+            mf.ewald_mesh = mesh
+            mf.diis = "anderson"
+            mf.conv_tol = 1e-10
+            e = mf.kernel()
+            return e, mf.mo_energy
+        return kernel()
+
+    # both erfc cutoffs (9.7 and 6.3 Bohr) are within the 12 Bohr image set
+    e0, mo0 = run(0.4)
+    e1, mo1 = run(0.6)
+    assert abs(e1 - e0) < 1e-6
+    assert abs(mo1 - mo0).max() < 1e-6
+
+def test_gfn1_kxtb_supercell_consistency(setup):
+    """A primitive cell with 2 k-points and the 2x1x1 supercell at Gamma describe the
+    same crystal, so E(supercell) = 2 E(primitive). The short (6 Bohr) lattice vector
+    makes the pairs of an atom with its own periodic images matter; these pairs are
+    off-site, as the corresponding pairs of different atoms in the supercell. The
+    charged case also checks the per-cell charge (cell.charge is that of the k-point
+    supercell, so both cells carry charge 2)."""
+    import numpy
+    basis, param = setup
+    numbers = numpy.array([8, 1, 1, 1])
+    coords = numpy.array([[0., 0., 0.], [1.43355, 0., -0.95296],
+                          [1.43355, 0., 0.95296], [-0.8, 0.1, 1.6]])
+    a_prim = numpy.diag([6., 9., 9.])
+    a_super = numpy.diag([12., 9., 9.])
+    shift = numpy.array([6., 0., 0.])
+    rcut, precision = 16., 1e-8
+
+    def energy(numbers, coords, a, charge, kmesh):
+        cell0 = Cell(numbers=numbers, coords=coords, a=a, basis=basis, rcut=rcut,
+                     precision=precision)
+        nimgs = tuple(int(x) for x in cell0.nimgs)
+        mesh = tuple(int(x) for x in cell0.cutoff_to_mesh(
+            ke_cutoff_ewald(GFN1KXTB.ewald_alpha, precision * cell0.vol)))
+        kpts = cell0.make_kpts(kmesh)
+
+        @jax.jit
+        def e():
+            cell = Cell(numbers=numbers, coords=coords, a=a, basis=basis, rcut=rcut,
+                        nimgs=nimgs, precision=precision, charge=charge)
+            mf = GFN1KXTB(cell, param=param, kpts=kpts)
+            mf.ewald_mesh = mesh
+            mf.diis = "anderson"
+            mf.conv_tol = 1e-12
+            return mf.kernel()
+        return e()
+
+    for natm, charge in ((3, 0), (4, 2)):   # H2O, H3O+
+        n, c = numbers[:natm], coords[:natm]
+        e_prim = energy(n, c, a_prim, charge, [2, 1, 1])
+        e_super = energy(numpy.hstack([n, n]), numpy.vstack([c, c + shift]),
+                         a_super, charge, [1, 1, 1])
+        assert abs(e_super - 2 * e_prim) < 1e-6

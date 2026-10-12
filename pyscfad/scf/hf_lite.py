@@ -668,6 +668,11 @@ class SCF(SCFBase):
         vj, vk = dot_eri_dm(_eri, dm, hermi, with_j, with_k)
         return vj, vk
 
+    # Bypass pyscf.scf.hf.SCF.__getattr__, which imports
+    # all lazily attached methods (mf.MP2, mf.CCSD, ...).
+    # The SCFLite classes don't use those.
+    __getattr__ = object.__getattribute__
+
     get_veff = hf.SCF.get_veff
     energy_nuc = hf.SCF.energy_nuc
     _eigh = hf.SCF._eigh

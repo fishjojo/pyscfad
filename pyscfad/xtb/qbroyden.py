@@ -30,8 +30,8 @@ if TYPE_CHECKING:
     from pyscfad.typing import ArrayLike, Array
     from pyscfad.xtb import XTB
 
-def normalize_tot_charge(mol, q):
-    tot = mol.charge
+def normalize_tot_charge(mol, q, nkpts=1):
+    tot = mol.charge / nkpts
     nbas = mol.nbas
     shl_mask = getattr(mol, "shl_mask", np.ones(nbas, dtype=bool))
     mask_sum = np.sum(shl_mask)
@@ -45,6 +45,7 @@ def _scf_q_broyden(mf, q, dm, h1e, s1e, vhf, e_tot, conv_tol, conv_tol_grad):
     log = logger.new_logger(mf)
     mol = mf.mol
     damp = mf.diis_damp
+    nkpts = len(mf.kpts) if hasattr(mf, "kpts") else 1
 
     def cond_fun(value):
         cycle, de, norm_gorb = value[:3]
@@ -97,7 +98,7 @@ def _scf_q_broyden(mf, q, dm, h1e, s1e, vhf, e_tot, conv_tol, conv_tol_grad):
         v_hist *= rescale
 
         s1 = s1 * rescale + g1 * (1 - rescale) * (1 - damp)
-        q2 = normalize_tot_charge(mol, q1 + s1)
+        q2 = normalize_tot_charge(mol, q1 + s1, nkpts)
 
         # --- new fock from new q ---
         vhf = mf.get_veff(mol, s1e=s1e, q=q2)
@@ -116,7 +117,7 @@ def _scf_q_broyden(mf, q, dm, h1e, s1e, vhf, e_tot, conv_tol, conv_tol_grad):
     vhf = mf.get_veff(dm=dm, s1e=s1e)
     e_tot = mf.energy_tot(dm=dm, h1e=h1e, vhf=vhf)
     g0 = mf.get_q(mol, dm=dm, s1e=s1e) - q
-    q1 = normalize_tot_charge(mol, q + (1 - damp) * g0)
+    q1 = normalize_tot_charge(mol, q + (1 - damp) * g0, nkpts)
     s0 = q1 - q
     vhf = mf.get_veff(mol, s1e=s1e, q=q1)
     fock = mf.get_fock(h1e=h1e, vhf=vhf)
@@ -159,8 +160,10 @@ def _scf_implicit_q(mf, q, dm, h1e, s1e, vhf, e_tot, conv_tol, conv_tol_grad):
         #    q_bar,
         #)
 
+    nkpts = len(mf.kpts) if hasattr(mf, "kpts") else 1
     q_cnvg, (dm, dq, fock, e_tot) \
-        = custom_root(root_fn, normalize_tot_charge(mf.mol, q), oracle, tangent_solve, has_aux=True)
+        = custom_root(root_fn, normalize_tot_charge(mf.mol, q, nkpts),
+                      oracle, tangent_solve, has_aux=True)
     return q_cnvg, dm, fock, e_tot
 
 

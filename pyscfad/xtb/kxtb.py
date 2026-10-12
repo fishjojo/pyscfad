@@ -40,8 +40,8 @@ if TYPE_CHECKING:
 def EHT_PI_GFN1(
     cell: Cell,
     param: Any,
-    atomic_radii: ArrayLike = ATOMIC_RADII,
-    Ls: ArrayLike = np.zeros((1,3)),
+    atomic_radii: Array = ATOMIC_RADII,
+    Ls: Array = np.zeros((1,3)),
 ):
     shpoly = param.shpoly
 
@@ -50,6 +50,11 @@ def EHT_PI_GFN1(
     z = cell.atom_charges()
     cov_radii = atomic_radii[z]
     RAB = cov_radii[:,None] + cov_radii[None,:]
+
+    if hasattr(cell, "atom_mask"):
+        mask = np.outer(cell.atom_mask, cell.atom_mask)
+        rr = np.where(mask[None,:,:], rr, 0.)
+        RAB = np.where(mask, RAB, np.inf)
 
     rr = np.safe_sqrt(rr / RAB[None,:,:], thresh=1e-6)
 
@@ -324,8 +329,8 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
         dm_kpts = np.repeat(dm[None,:,:], nkpts, axis=0)
 
         ne = np.einsum("kij,kji->", dm_kpts, s1e).real
-        nelectron = self.tot_electrons
-        dm_kpts *= (nelectron / ne).reshape(-1,1,1)
+        scale = np.where(ne > 1e-3, self.tot_electrons / ne, 0.)
+        dm_kpts *= scale
         return dm_kpts.astype(np.complexx)
 
     def get_hcore(
@@ -339,6 +344,32 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
         if kpts is None:
             kpts = self.kpts
 
+        Ls = cell.Ls
+        if cell is self.cell:
+            s1e_lat = self.s1e_lat
+        else:
+            s1e_lat = self.get_ovlp_lat(cell=cell, Ls=Ls)
+
+        expkL = np.exp(1j*np.dot(kpts, Ls.T)).astype(np.complexx)
+        hcore = np.einsum("kl,lpq->kpq", expkL,
+                          s1e_lat * self._get_EHT_factor_lat(cell, Ls=Ls))
+
+        if cell.cuint_plan is None:
+            hcore = hermi_triu(hcore)
+        else:
+            hcore = hcore + hcore.transpose(0,2,1).conj()
+        return hcore
+
+    def _get_EHT_factor_lat(
+        self,
+        cell: Cell | None = None,
+        Ls: Array | None = None,
+    ) -> Array:
+        if cell is None:
+            cell = self.cell
+        if Ls is None:
+            Ls = cell.Ls
+
         param = self.param
 
         mask = util.mask_valence_shell_gfn1(cell)
@@ -347,29 +378,16 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
                           param.k_shlpr)
 
         hdiag = xtb.EHT_Hdiag_GFN1(cell, param)
-        mask = util.mask_atom_pairs(cell)[util.atom_to_bas_indices_2d(cell)]
-
-        Ls = cell.Ls
-        nL = len(Ls)
-        h1 = np.where(np.repeat(mask[None,:,:], nL, axis=0),
+        i, j = util.atom_to_bas_indices_2d(cell)
+        h1 = np.where(util.mask_atom_pairs(cell, Ls=Ls)[:,i,j],
                       hscale[None,:,:] * EHT_PI_GFN1(cell, param, Ls=Ls) * hdiag[None,:,:],
-                      np.repeat(hdiag[None,:,:], nL, axis=0))
+                      hdiag[None,:,:])
         h1 = np.asarray(h1, dtype=np.floatx)
+        if hasattr(cell, "shl_mask"):
+            h1 = np.where(np.outer(cell.shl_mask, cell.shl_mask)[None,:,:], h1, 0.)
 
-        if cell is self.cell:
-            s1e_lat = self.s1e_lat
-        else:
-            s1e_lat = self.get_ovlp_lat(cell=cell, Ls=Ls)
-
-        expkL = np.exp(1j*np.dot(kpts, Ls.T)).astype(np.complexx)
         i, j = util.bas_to_ao_indices_2d(cell)
-        hcore = np.einsum("kl,lpq->kpq", expkL, s1e_lat * h1[:,i,j])
-
-        if cell.cuint_plan is None:
-            hcore = hermi_triu(hcore)
-        else:
-            hcore = hcore + hcore.transpose(0,2,1).conj()
-        return hcore
+        return h1[:,i,j]
 
     def get_veff(
         self,
@@ -400,11 +418,11 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
         phi = np.dot(self.gamma, mono)
         ecoul = .5 * np.dot(mono, phi)
 
-        if cell.charge != 0:
-            Q = cell.charge / len(kpts)
-            #Q = np.sum(mono)
-            ecoul += -.5 * np.pi/(self.ewald_alpha**2 * cell.vol) * Q**2
-            #phi += -np.pi/(self.ewald_alpha**2 * cell.vol) * Q
+        # use sum of shell charges as the net charge of the cell
+        # so that MO energies do not depend on ewald_alpha
+        Q = np.sum(mono)
+        ecoul += -.5 * np.pi/(self.ewald_alpha**2 * cell.vol) * Q**2
+        phi += -np.pi/(self.ewald_alpha**2 * cell.vol) * Q
 
         # Third-order term
         atm_charge = xtb.sum_shell_charges(cell, mono)
