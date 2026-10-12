@@ -278,14 +278,22 @@ def mask_valence_shell_gfn1(mol):
     mask[H_shell_id[1::2]] = False
     return mask
 
-def mask_atom_pairs(mol, exclude_diag=True):
+def mask_atom_pairs(mol, exclude_diag=True, Ls=None):
     if hasattr(mol, "atom_mask"):
         mask = np.outer(mol.atom_mask, mol.atom_mask)
     else:
         mask = np.ones((mol.natm, mol.natm), dtype=bool)
+
     if exclude_diag:
-        mask = np.fill_diagonal(mask, False, inplace=False)
-    return mask
+        mask_offdiag = np.fill_diagonal(mask, False, inplace=False)
+    else:
+        mask_offdiag = mask
+
+    if Ls is None:
+        return mask_offdiag
+
+    mask_cell0 = np.all(np.asarray(Ls).reshape(-1,3) == 0, axis=1)
+    return np.where(mask_cell0[:,None,None], mask_offdiag, mask)
 
 def rcut_erfc_over_r(alpha, precision=1e-8):
     r"""Cutoff radius for :math:`E = erfc(\alpha r)/r`.
@@ -312,11 +320,14 @@ def rcut_enuc_GFN1(kf, zeff, arep, precision=1e-8):
         q^2 exp(-\alpha r^k) / r < \epsilon
     """
     zeff = zeff.max()
-    arep = arep.min()
+    zeff = np.maximum(zeff, 1e-3)
+    arep = np.min(np.where(arep > 0, arep, np.inf))
 
     r = 20.
     r = (-np.log(r * precision / zeff**2) / arep) ** (1/kf)
     r = (-np.log(r * precision / zeff**2) / arep) ** (1/kf)
+    # in case of empty cell
+    r = np.where(zeff > 1e-3, r, 0.0)
     return ops.stop_grad(r)
 
 def ke_cutoff_ewald(a, precision=1e-8):

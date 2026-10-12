@@ -152,11 +152,6 @@ class XTB(ABC, SCFLite):
     def tot_electrons(self) -> int:
         return tot_valence_electrons(self.mol)
 
-    @property
-    def tot_charge(self) -> float:
-        """Target sum of the shell charges (used by the charge-Broyden solver)."""
-        return self.mol.charge
-
     def dip_moment(
         self,
         mol: MoleLite | None = None,
@@ -199,7 +194,8 @@ def EHT_X_GFN1(mol: MoleLite, param: GFN1MolParam) -> Array:
     EN = param.EN
 
     EN_AB = (EN[:,None] - EN[None,:])
-    X = np.where(util.mask_atom_pairs(mol),
+    # diagonal terms are included for periodic images
+    X = np.where(util.mask_atom_pairs(mol, exclude_diag=False),
                  1. + kEN * EN_AB * EN_AB,
                  0.)
     return X[util.atom_to_bas_indices_2d(mol)]
@@ -300,6 +296,8 @@ class GFN1XTB(XTB):
         h1 = np.where(mask,
                       hscale * EHT_PI_GFN1(mol, param) * hdiag,
                       hdiag)
+        if hasattr(mol, "shl_mask"):
+            h1 = np.where(np.outer(mol.shl_mask, mol.shl_mask), h1, 0.)
         return np.asarray(h1[util.bas_to_ao_indices_2d(mol)], dtype=np.floatx)
 
     def get_veff(

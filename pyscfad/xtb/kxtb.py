@@ -40,8 +40,8 @@ if TYPE_CHECKING:
 def EHT_PI_GFN1(
     cell: Cell,
     param: Any,
-    atomic_radii: ArrayLike = ATOMIC_RADII,
-    Ls: ArrayLike = np.zeros((1,3)),
+    atomic_radii: Array = ATOMIC_RADII,
+    Ls: Array = np.zeros((1,3)),
 ):
     shpoly = param.shpoly
 
@@ -51,38 +51,17 @@ def EHT_PI_GFN1(
     cov_radii = atomic_radii[z]
     RAB = cov_radii[:,None] + cov_radii[None,:]
 
+    if hasattr(cell, "atom_mask"):
+        mask = np.outer(cell.atom_mask, cell.atom_mask)
+        rr = np.where(mask[None,:,:], rr, 0.)
+        RAB = np.where(mask, RAB, np.inf)
+
     rr = np.safe_sqrt(rr / RAB[None,:,:], thresh=1e-6)
 
     i, j = util.atom_to_bas_indices_2d(cell)
     RR = rr[:,i,j]
     PI = (1 + shpoly[None,:,None] * RR) * (1 + shpoly[None,None,:] * RR)
     return PI
-
-def offsite_shell_pairs_lat(cell: Cell, Ls: ArrayLike) -> Array:
-    """``(nL, nbas, nbas)`` mask of the shell pairs that are off-site in the lattice sum.
-
-    Shells on different atoms, and shells of an atom and its own periodic image
-    (``L != 0``), are off-site; only the pairs of the same atom in the home cell
-    (``L = 0``) are on-site. This makes the lattice sums independent of the choice
-    of unit cell (e.g., primitive cell vs. supercell), as in tblite.
-    """
-    home = np.all(np.asarray(Ls).reshape(-1,3) == 0, axis=1)
-    distinct = util.mask_atom_pairs(cell)
-    pairs = util.mask_atom_pairs(cell, exclude_diag=False)
-    mask = np.where(home[:,None,None], distinct[None], pairs[None])
-    i, j = util.atom_to_bas_indices_2d(cell)
-    return mask[:,i,j]
-
-def EHT_X_GFN1_lat(cell: Cell, param: Any) -> Array:
-    """Electronegativity factor of :func:`pyscfad.xtb.xtb.EHT_X_GFN1`, also for the
-    pairs of an atom with its own periodic images (``X = 1``)."""
-    EN = param.EN
-    EN_AB = EN[:,None] - EN[None,:]
-    X = np.where(util.mask_atom_pairs(cell, exclude_diag=False),
-                 1. + param.kEN * EN_AB * EN_AB,
-                 0.)
-    return X[util.atom_to_bas_indices_2d(cell)]
-
 
 def mulliken_charge(
     cell: Cell,
@@ -225,14 +204,6 @@ class KXTB(xtb.XTB, KSCFLite):
     def tot_electrons(self) -> Array:
         return xtb.tot_valence_electrons(self.cell, nkpts=len(self.kpts))
 
-    @property
-    def tot_charge(self) -> float:
-        """Target sum of the shell charges of one cell.
-
-        ``cell.charge`` is the charge of the k-point supercell (see :attr:`tot_electrons`).
-        """
-        return self.cell.charge / len(self.kpts)
-
     def get_ovlp(
         self,
         cell: Cell | None = None,
@@ -358,8 +329,8 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
         dm_kpts = np.repeat(dm[None,:,:], nkpts, axis=0)
 
         ne = np.einsum("kij,kji->", dm_kpts, s1e).real
-        nelectron = self.tot_electrons
-        dm_kpts *= (nelectron / ne).reshape(-1,1,1)
+        scale = np.where(ne > 1e-3, self.tot_electrons / ne, 0.)
+        dm_kpts *= scale
         return dm_kpts.astype(np.complexx)
 
     def get_hcore(
@@ -392,10 +363,8 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
     def _get_EHT_factor_lat(
         self,
         cell: Cell | None = None,
-        Ls: ArrayLike | None = None,
+        Ls: Array | None = None,
     ) -> Array:
-        """Extended-Hueckel factors of the AO pairs between the home cell and image ``L``,
-        shape ``(nL, nao, nao)``; the lattice core Hamiltonian is ``s1e_lat`` times this."""
         if cell is None:
             cell = self.cell
         if Ls is None:
@@ -405,14 +374,17 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
 
         mask = util.mask_valence_shell_gfn1(cell)
         hscale = np.where(np.outer(mask, mask),
-                          param.k_shlpr * param.kpair * EHT_X_GFN1_lat(cell, param),
+                          param.k_shlpr * param.kpair * xtb.EHT_X_GFN1(cell, param),
                           param.k_shlpr)
 
         hdiag = xtb.EHT_Hdiag_GFN1(cell, param)
-        h1 = np.where(offsite_shell_pairs_lat(cell, Ls),
+        i, j = util.atom_to_bas_indices_2d(cell)
+        h1 = np.where(util.mask_atom_pairs(cell, Ls=Ls)[:,i,j],
                       hscale[None,:,:] * EHT_PI_GFN1(cell, param, Ls=Ls) * hdiag[None,:,:],
                       hdiag[None,:,:])
         h1 = np.asarray(h1, dtype=np.floatx)
+        if hasattr(cell, "shl_mask"):
+            h1 = np.where(np.outer(cell.shl_mask, cell.shl_mask)[None,:,:], h1, 0.)
 
         i, j = util.bas_to_ao_indices_2d(cell)
         return h1[:,i,j]
@@ -446,10 +418,11 @@ class GFN1KXTB(KXTB, xtb.GFN1XTB):
         phi = np.dot(self.gamma, mono)
         ecoul = .5 * np.dot(mono, phi)
 
-        # neutralizing background of the net cell charge (zero for neutral cells);
-        # tot_charge rather than cell.charge, as it can be fractional (alchemical atoms)
-        Q = self.tot_charge
+        # use sum of shell charges as the net charge of the cell
+        # so that MO energies do not depend on ewald_alpha
+        Q = np.sum(mono)
         ecoul += -.5 * np.pi/(self.ewald_alpha**2 * cell.vol) * Q**2
+        phi += -np.pi/(self.ewald_alpha**2 * cell.vol) * Q
 
         # Third-order term
         atm_charge = xtb.sum_shell_charges(cell, mono)
