@@ -162,3 +162,32 @@ def test_rhf_lite_packed_nuc_grad(aosym):
 
     g = jax.jit(jax.grad(energy))(coords)
     assert abs(g - mf0.nuc_grad_method().kernel()).max() < 1e-6
+
+def test_rhf_lite_sp2_nuc_grad():
+    """The SP2 solver's final Fock matrix must be built from the implicitly
+    differentiated density matrix, not from the zero-tangent auxiliary
+    outputs of ``custom_root`` (issue #174).
+    """
+    symbols = ("H", "H")
+    coords = numpy.array([[0., 0., 0.], [0., 0., 1.4]])
+
+    def run(coords, use_sp2):
+        mol = MoleLite(symbols, coords, basis="sto3g", verbose=0)
+        mf = hf_lite.SCFLite(mol)
+        mf.init_guess = "hcore"
+        mf.diis = "anderson"
+        mf.use_sp2 = use_sp2
+        mf.kernel()
+        return mf
+
+    mf0 = MoleLite(symbols, coords, basis="sto3g", verbose=0).to_pyscf().RHF()
+    mf0.kernel()
+
+    energy = lambda coords: run(coords, True).e_tot
+    g = jax.jit(jax.grad(energy))(coords)
+    assert abs(g - mf0.nuc_grad_method().kernel()).max() < 1e-6
+
+    # density matrix response from the SP2 path vs. diagonalization
+    rdm1 = lambda coords, use_sp2: run(coords, use_sp2).make_rdm1()
+    jac = jax.jit(jax.jacrev(rdm1), static_argnums=1)
+    assert abs(jac(coords, True) - jac(coords, False)).max() < 1e-6
