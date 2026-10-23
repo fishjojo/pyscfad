@@ -15,6 +15,7 @@
 from functools import partial
 import ctypes
 import numpy
+from scipy.linalg.lapack import dpstrf
 from jax import custom_vjp
 from jax.tree_util import tree_flatten, tree_unflatten
 from pyscf import lib
@@ -24,8 +25,31 @@ from pyscfadlib import libcvhf_vjp as libvhf
 
 libao2mo = lib.load_library('libao2mo')
 
+def _tag_dm(dm, hermi):
+    '''Tag a positive semidefinite low-rank dm with its pivoted Cholesky
+    factor dm = mo_coeff * mo_coeff.T (mo_occ = 1), so that pyscf builds K
+    from the factor, O(naux*nocc*nao^2), instead of from dm, O(naux*nao^3).
+    '''
+    if hermi != 1 or hasattr(dm, 'mo_coeff'):
+        return dm
+    dms = numpy.asarray(dm)
+    if numpy.iscomplexobj(dms):
+        return dm
+    nao = dms.shape[-1]
+    dms = dms.reshape(-1,nao,nao)
+    mo_coeff = numpy.zeros_like(dms)
+    mo_occ = numpy.zeros(dms.shape[:2])
+    for k, d in enumerate(dms):
+        # default tol: nao * eps * max(diag(d))
+        c, piv, rank = dpstrf(d, lower=1)[:3]
+        mo_coeff[k,piv-1,:rank] = numpy.tril(c[:,:rank])
+        mo_occ[k,:rank] = 1
+    return lib.tag_array(numpy.asarray(dm), mo_coeff=mo_coeff, mo_occ=mo_occ)
+
 @partial(custom_vjp, nondiff_argnums=(2,3,4,5))
 def get_jk(dfobj, dm, hermi=1, with_j=True, with_k=True, direct_scf_tol=1e-13):
+    if with_k:
+        dm = _tag_dm(dm, hermi)
     return pyscf_df_jk.get_jk(dfobj, dm, hermi=hermi,
                               with_j=with_j, with_k=with_k,
                               direct_scf_tol=direct_scf_tol)

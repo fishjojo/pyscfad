@@ -102,13 +102,13 @@ class DF(pyscf_df.DF):
 
         with addons.load(self._cderi, 'j3c') as feri:
             if is_array(feri):
+                if to_numpy:
+                    # NOTE convert once (no copy for CPU arrays) and yield views,
+                    # as slicing the backend array copies every block
+                    feri = numpy.asarray(feri, order='C')
                 naoaux = feri.shape[0]
                 for b0, b1 in self.prange(0, naoaux, blksize):
-                    if to_numpy:
-                        out = numpy.asarray(feri[b0:b1], order='C')
-                    else:
-                        out = feri[b0:b1]
-                    yield out
+                    yield feri[b0:b1]
             else:
                 raise NotImplementedError
 
