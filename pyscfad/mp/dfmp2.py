@@ -13,19 +13,30 @@
 # limitations under the License.
 
 from functools import partial
+import ctypes
 
 import numpy
 import jax
 from jax import custom_vjp
 
 from pyscf import __config__
+from pyscf import lib as pyscf_lib
 from pyscf.lib import direct_sum, current_memory
 
+from pyscfad import config
 from pyscfad import numpy as np
 from pyscfad.ops import vmap
 from pyscfad.lib import logger
 from pyscfad.ao2mo import _ao2mo
 from pyscfad.mp import mp2
+
+try:
+    from pyscfadlib import libmp_vjp
+except ImportError:
+    # NOTE MP2_contract_d_vjp needs pyscfadlib>0.3.4
+    libmp_vjp = None
+
+libmp = pyscf_lib.load_library('libmp')
 
 WITH_T2 = getattr(__config__, 'mp_dfmp2_with_t2', True)
 
@@ -141,6 +152,65 @@ def _contract_scan(Lov, mo_energy, nocc, nvir, with_t2=True):
         t2 = None
     return emp2, t2
 
+def _to_iaL(Lov, nocc, nvir):
+    # (nocc, nvir, naux), the layout of MP2_contract_d
+    return pyscf_lib.transpose(numpy.asarray(Lov)).reshape(nocc, nvir, -1)
+
+def _ed_ex(iaL, mo_energy, nocc, nvir):
+    naux = iaL.shape[-1]
+    e_occ = mo_energy[:nocc]
+    e_vir = mo_energy[nocc:]
+    moeoo = numpy.asarray(e_occ[:,None] + e_occ, order='C')
+    moevv = numpy.asarray(e_vir[:,None] + e_vir, order='C')
+    ed = numpy.zeros(1)
+    ex = numpy.zeros(1)
+    libmp.MP2_contract_d(
+        ed.ctypes.data_as(ctypes.c_void_p),
+        ex.ctypes.data_as(ctypes.c_void_p),
+        ctypes.c_int(1),
+        iaL.ctypes.data_as(ctypes.c_void_p),
+        iaL.ctypes.data_as(ctypes.c_void_p),
+        ctypes.c_int(0), ctypes.c_int(0),
+        ctypes.c_int(nocc), ctypes.c_int(nocc),
+        ctypes.c_int(nocc), ctypes.c_int(nvir), ctypes.c_int(naux),
+        moeoo.ctypes.data_as(ctypes.c_void_p),
+        moevv.ctypes.data_as(ctypes.c_void_p),
+        pyscf_lib.c_null_ptr(), ctypes.c_int(0),
+    )
+    return ed[0], ex[0]
+
+@partial(custom_vjp, nondiff_argnums=(2,3))
+def _contract_d(Lov, mo_energy, nocc, nvir):
+    return _ed_ex(_to_iaL(Lov, nocc, nvir), numpy.asarray(mo_energy), nocc, nvir)
+
+def _contract_d_fwd(Lov, mo_energy, nocc, nvir):
+    iaL = _to_iaL(Lov, nocc, nvir)
+    mo_energy = numpy.asarray(mo_energy, order='C')
+    return _ed_ex(iaL, mo_energy, nocc, nvir), (iaL, mo_energy)
+
+def _contract_d_bwd(nocc, nvir, res, ybar):
+    iaL, mo_energy = res
+    ed_bar, ex_bar = ybar
+    naux = iaL.shape[-1]
+    iaL_bar = numpy.zeros_like(iaL)
+    e_bar = numpy.zeros_like(mo_energy)
+    e_vir_bar = e_bar[nocc:]
+    libmp_vjp.MP2_contract_d_vjp(
+        iaL_bar.ctypes.data_as(ctypes.c_void_p),
+        e_bar.ctypes.data_as(ctypes.c_void_p),
+        e_vir_bar.ctypes.data_as(ctypes.c_void_p),
+        ctypes.c_double(float(ed_bar)),
+        ctypes.c_double(float(ex_bar)),
+        iaL.ctypes.data_as(ctypes.c_void_p),
+        mo_energy.ctypes.data_as(ctypes.c_void_p),
+        mo_energy[nocc:].ctypes.data_as(ctypes.c_void_p),
+        ctypes.c_int(nocc), ctypes.c_int(nvir), ctypes.c_int(naux),
+    )
+    Lov_bar = pyscf_lib.transpose(iaL_bar.reshape(nocc*nvir, naux))
+    return Lov_bar, e_bar
+
+_contract_d.defvjp(_contract_d_fwd, _contract_d_bwd)
+
 def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
            verbose=None):
     if mo_energy is not None or mo_coeff is not None:
@@ -158,6 +228,10 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
     #naux = mp.with_df.get_naoaux()
 
     Lov = mp.loop_ao2mo(mo_coeff, nocc, with_t2)
+    if config.moleintor_opt and not with_t2 and libmp_vjp is not None:
+        ed, ex = _contract_d(Lov, mo_energy, nocc, nvir)
+        emp2 = mp2.E_CORR_MP2(e_corr=ed*2+ex, e_corr_ss=ed+ex, e_corr_os=ed)
+        return emp2, None
     emp2, t2 = _contract_scan(Lov, mo_energy, nocc, nvir, with_t2)
     return emp2, t2
 

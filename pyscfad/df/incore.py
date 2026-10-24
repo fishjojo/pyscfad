@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -305,13 +305,14 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
         shls_slice = (bstart, bend, 0, mol.nbas, mol.nbas, mol.nbas+auxmol.nbas)
 
         if config.moleintor_opt:
+            # (naoaux, nao_pair)
             ints = _int3c_cross_opt.int3c_cross(
                                mol, auxmol, intor=int3c, comp=comp, aosym=aosym,
                                shls_slice=shls_slice)
         else:
             ints = int3c_cross(mol, auxmol, intor=int3c, comp=comp, aosym=aosym,
                                shls_slice=shls_slice)
-        ints = ints.reshape((-1,naoaux)).T
+            ints = ints.reshape((-1,naoaux)).T
 
         if tag == 'cd':
             _eri = scipy.linalg.solve_triangular(

@@ -20,7 +20,7 @@ import jax
 from pyscf.df import df_jk as pyscf_df_jk
 from pyscfad import config_update
 from pyscfad import df, scf
-from pyscfad.df import _df_jk_opt
+from pyscfad.df import _df_jk_opt, df_jk
 from pyscfad.gto import MoleLite
 from pyscfad.scf import hf_lite
 from .util import (
@@ -137,6 +137,68 @@ def test_df_nuc_grad_moleintor_opt(mol_H2O, method):
          config_update('pyscfad_scf_implicit_diff', True):
         g1 = jax.grad(df_hf_energy)(mol, method).coords
     assert abs(g1 - g0).max() < 1e-6
+
+@pytest.mark.parametrize("nset", [1, 2])
+@pytest.mark.parametrize("with_j,with_k", [(True, True), (True, False), (False, True)])
+def test_df_get_jk_vjp(mol_H2O, nset, with_j, with_k):
+    """The optimized DF J/K VJP, which computes only the cotangents of
+    perturbed inputs, reproduces autodiff of the einsum J/K.
+    """
+    with config_update('pyscfad_moleintor_opt', True):
+        dfobj = df.DF(mol_H2O())
+        dfobj.build()
+    nao = dfobj.mol.nao
+
+    rng = numpy.random.default_rng(0)
+    c = rng.standard_normal((nset, nao, 5))
+    dm = numpy.einsum('xpi,xqi->xpq', c, c)
+    wj, wk = rng.standard_normal((2, nset, nao, nao))
+    if nset == 1:
+        dm, wj, wk = dm[0], wj[0], wk[0]
+
+    def loss(get_jk, wk):
+        def f(dfobj, dm):
+            vj, vk = get_jk(dfobj, dm, hermi=1, with_j=with_j, with_k=with_k)
+            return (wj * vj).sum() + (wk * vk).sum()
+        return f
+
+    # symmetric K cotangent, as produced by the SCF
+    wk_sym = wk + wk.swapaxes(-1,-2)
+    for argnums in (0, 1, (0, 1)):
+        g0 = jax.grad(loss(df_jk.get_jk_gen, wk_sym), argnums)(dfobj, dm)
+        g1 = jax.grad(loss(_df_jk_opt.get_jk, wk_sym), argnums)(dfobj, dm)
+        if not isinstance(argnums, tuple):
+            g0, g1 = (g0,), (g1,)
+        for x0, x1 in zip(g0, g1):
+            if isinstance(x0, df.DF):
+                x0, x1 = x0._cderi, x1._cderi
+            assert abs(x1 - x0).max() < 1e-10
+
+    # with or without the _cderi cotangent, dm_bar is the same
+    dm_bar = jax.grad(loss(_df_jk_opt.get_jk, wk), 1)(dfobj, dm)
+    dm_bar1 = jax.grad(loss(_df_jk_opt.get_jk, wk), (0, 1))(dfobj, dm)[1]
+    assert abs(dm_bar1 - dm_bar).max() < 1e-10
+
+@pytest.mark.parametrize("nset", [1, 2])
+def test_df_get_k_lowrank(mol_H2O, nset):
+    """K of a cotangent c y^T + y c^T, as in the SCF response, built from
+    the split of its range, and K of cotangents that fall back to the
+    full matrix, reproduce pyscf.
+    """
+    with config_update('pyscfad_moleintor_opt', True):
+        dfobj = df.DF(mol_H2O(basis='cc-pvtz'))
+        dfobj.build()
+    nao = dfobj.mol.nao
+
+    rng = numpy.random.default_rng(0)
+    c, y = rng.standard_normal((2, nset, nao, 5))
+    dm = numpy.einsum('xpi,xqi->xpq', c, c)
+    kresp = numpy.einsum('xpi,xqi->xpq', c, y)
+    kfull = rng.standard_normal((nset, nao, nao))
+    for kbar in (kresp + kresp.swapaxes(-1,-2), kfull + kfull.swapaxes(-1,-2), kfull):
+        vk0 = pyscf_df_jk.get_jk(dfobj, kbar, hermi=0, with_j=False)[1]
+        vk1 = _df_jk_opt._get_k(dfobj, dm, 1, kbar)
+        assert abs(vk1 - vk0).max() < 1e-10 * abs(vk0).max()
 
 def test_to_pyscf(mol_N2):
     ehf = scf.UHF(mol_N2()).density_fit().to_pyscf().kernel()

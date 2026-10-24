@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -90,6 +90,11 @@ class _AuxData:
         return _dict_hash(self.data_for_hash)
 
 
+# NOTE timers that pyscf logger.timer sets on the objects it is given;
+# they are not compared when comparing pytrees
+_TIMER_ATTR = ("_t0", "_w0")
+
+
 def class_as_pytree_node(cls, leaf_names, num_args=0, exclude_aux_name=()):
     def tree_flatten(obj):
         keys = obj.__dict__.keys()
@@ -104,7 +109,8 @@ def class_as_pytree_node(cls, leaf_names, num_args=0, exclude_aux_name=()):
 
         aux_keys = list(set(keys) - set(leaf_names))
         aux_data = {k : getattr(obj, k, None) for k in aux_keys}
-        metadata = (num_args, _AuxData(aux_data, exclude_name=exclude_aux_name))
+        metadata = (num_args, _AuxData(aux_data,
+                                       exclude_name=tuple(exclude_aux_name) + _TIMER_ATTR))
         return children, metadata
 
     def tree_unflatten(metadata, children):
@@ -197,6 +203,8 @@ class PytreeNode(metaclass=PytreeNodeMeta):
         Names of ignored attributes. These are typically temporary data,
         which are used before jax transformations.
         The values of them may not be carried over during jax transformations.
+        The timers ``_t0`` and ``_w0`` set by pyscf ``logger.timer``
+        are always ignored.
     _allow_missing_dynamic : bool, optional
         Whether to allow missing dynamic attributes. Default is True,
         which will assign ``None`` to missing dynamic attributes.
@@ -219,5 +227,5 @@ class PytreeNode(metaclass=PytreeNodeMeta):
                 self.config = config
                 self._cache = {}
     """
-    pass
+    _ignore_attr = _TIMER_ATTR
 

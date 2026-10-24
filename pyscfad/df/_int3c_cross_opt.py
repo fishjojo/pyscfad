@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import numpy
 from jax import custom_vjp
 from jax.tree_util import tree_flatten, tree_unflatten
 
-from pyscf import lib as pyscf_lib
 from pyscfad.lib import logger
 from pyscfad.gto._pyscf_moleintor import (
     ascint3,
@@ -46,7 +45,9 @@ def int3c_cross(mol, auxmol, intor='int3c2e', comp=1, aosym='s2ij',
     ints = getints3c(int3c, atm, bas, env,
                      shls_slice=shls_slice, comp=comp,
                      aosym=aosym, ao_loc=ao_loc, cintopt=cintopt, out=out)
-    return ints
+    # NOTE (..., naux, nao_pair), the C-order view of the F-order output,
+    # so that neither the integrals nor their cotangent are transposed
+    return ints.swapaxes(-1,-2)
 
 def int3c_cross_fwd(mol, auxmol, intor, comp, aosym, shls_slice, out):
     primal_out = int3c_cross(mol, auxmol, intor=intor, comp=comp,
@@ -78,7 +79,8 @@ def int3c_cross_bwd(intor, comp, aosym, shls_slice, out,
     natm = mol.natm
     comp = 3
     vjp = numpy.zeros((natm, comp), order='C', dtype=numpy.double)
-    ybar = numpy.asarray(ybar, order='F', dtype=numpy.double)
+    # NOTE (naux, nao_pair) in C order, the layout the driver reads
+    ybar = numpy.asarray(ybar, order='C', dtype=numpy.double)
 
     pmol = mol + auxmol
     atm = numpy.asarray(pmol._atm, dtype=numpy.int32, order='C')
@@ -97,24 +99,25 @@ def int3c_cross_bwd(intor, comp, aosym, shls_slice, out,
     drv = libcgto.GTOnr3c_ij_r0_vjp
     fill = getattr(libcgto, 'GTOnr3c_ij_r0_vjp_'+aosym)
 
-    cintopt = make_cintopt(atm, bas, env, intor1)
-    drv(getattr(libcgto, intor1), fill,
-        vjp.ctypes.data_as(ctypes.c_void_p),
-        ybar.ctypes.data_as(ctypes.c_void_p),
-        ctypes.c_int(comp), (ctypes.c_int*6)(*shls_slice),
-        ao_loc.ctypes.data_as(ctypes.c_void_p), cintopt,
-        c_atm, ctypes.c_int(len(atm)), ctypes.c_int(natm),
-        c_bas, ctypes.c_int(len(bas)), c_env)
-
-    intor2 = 'int3c2e_ip2'
-    ints1 = int3c_cross(mol, auxmol, intor=intor2, comp=3, aosym='s2ij',
-                        shls_slice=shls_slice)
-
-    vjp_aux = numpy.zeros_like(vjp)
-    aoslices = auxmol.aoslice_by_atom()
-    for ia in range(auxmol.natm):
-        p0, p1 = aoslices[ia,2:]
-        vjp_aux[ia] += pyscf_lib.einsum('xil,il->x', ints1[:,:,p0:p1], ybar[:,p0:p1])
+    # NOTE by translational invariance, the derivative of (ij|P) w.r.t. the
+    # center of P is minus those w.r.t. the centers of i and j. So the ip1
+    # contractions, run over the aux shells of one aux atom at a time,
+    # give the cotangent of that aux atom as well.
+    vjp_aux = numpy.zeros((auxmol.natm, comp))
+    for ia, (b0, b1, p0, p1) in enumerate(auxmol.aoslice_by_atom()):
+        if b0 == b1:
+            continue
+        vjp_ia = numpy.zeros_like(vjp)
+        drv(getattr(libcgto, intor1), fill,
+            vjp_ia.ctypes.data_as(ctypes.c_void_p),
+            ybar[p0:p1].ctypes.data_as(ctypes.c_void_p),
+            ctypes.c_int(comp),
+            (ctypes.c_int*6)(*shls_slice[:4], shls_slice[4]+b0, shls_slice[4]+b1),
+            ao_loc.ctypes.data_as(ctypes.c_void_p), cintopt,
+            c_atm, ctypes.c_int(len(atm)), ctypes.c_int(natm),
+            c_bas, ctypes.c_int(len(bas)), c_env)
+        vjp += vjp_ia
+        vjp_aux[ia] = -vjp_ia.sum(axis=0)
 
     _, mol_tree = tree_flatten(mol)
     mol_bar = tree_unflatten(mol_tree, [-vjp,])
