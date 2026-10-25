@@ -50,6 +50,15 @@ set_target_properties(cc_vjp PROPERTIES
 )
 target_link_libraries(cc_vjp vjp_util ${BLAS_LIBRARIES} ${OPENMP_C_PROPERTIES})
 
+#mp
+add_library(mp_vjp SHARED
+  mp/mp2_vjp.c
+)
+set_target_properties(mp_vjp PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
+target_link_libraries(mp_vjp ${BLAS_LIBRARIES} ${OPENMP_C_PROPERTIES})
+
 #util
 add_library(vjp_util SHARED
   util/omp_reduce.c

@@ -85,3 +85,62 @@ void df_vk_vjp(double *eri_tril_bar, double *dm_bar,
     }
     free(dm_bar_bufs);
 }
+
+
+// dm = x x^T, s = vk_bar + vk_bar^T, x in F order
+// y = einsum('ij,jk->ik', eri, x)
+// b = einsum('ij,jk->ik', s, y)
+// eri_bar += pack(b x^T + x b^T), with the diagonal halved
+static void _contract_vk_lowrank(double *eri_tril_bar, double *s, double *x,
+                                 double *eri_tril, int nao, int nocc,
+                                 double *cache)
+{
+    const double D0 = 0;
+    const double D1 = 1;
+    const char TRANS_N = 'N';
+    const char SIDE_L = 'L';
+    const char UPLO_U = 'U';
+    const size_t nao2 = (size_t)nao * nao;
+    double *eri = cache;
+    double *y = eri + nao2;
+    double *b = y + (size_t)nao * nocc;
+
+    NPdunpack_tril(nao, eri_tril, eri, 0);
+    dsymm_(&SIDE_L, &UPLO_U, &nao, &nocc,
+           &D1, eri, &nao, x, &nao,
+           &D0, y, &nao);
+    dsymm_(&SIDE_L, &UPLO_U, &nao, &nocc,
+           &D1, s, &nao, y, &nao,
+           &D0, b, &nao);
+    // the upper triangle in F order is the lower triangle of the packed eri
+    dsyr2k_(&UPLO_U, &TRANS_N, &nao, &nocc,
+            &D1, b, &nao, x, &nao,
+            &D0, eri, &nao);
+
+    size_t i, j, ij;
+    for (ij = 0, i = 0; i < nao; i++) {
+        for (j = 0; j < i; j++, ij++) {
+            eri_tril_bar[ij] += eri[i*nao+j];
+        }
+        eri_tril_bar[ij] += .5 * eri[i*nao+i];
+        ij++;
+    }
+}
+
+void df_vk_vjp_lowrank(double *eri_tril_bar, double *s, double *x,
+                       double *eri_tril, int naux, int nao, int nocc)
+{
+    const size_t nao_pair = (size_t)nao * (nao+1) /2;
+    #pragma omp parallel
+    {
+        int i;
+        double *cache = malloc(sizeof(double) * ((size_t)nao * nao
+                                                 + (size_t)nao * nocc * 2));
+        #pragma omp for schedule(dynamic)
+        for (i = 0; i < naux; i++) {
+            _contract_vk_lowrank(eri_tril_bar+i*nao_pair, s, x,
+                                 eri_tril+i*nao_pair, nao, nocc, cache);
+        }
+        free(cache);
+    }
+}

@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,14 +16,15 @@ import tempfile
 import numpy
 from pyscf import __config__
 from pyscf import lib as pyscf_lib
-from pyscf.lib import logger
 from pyscf.df import df as pyscf_df
-from pyscfad import util
+from pyscfad import pytree, util
 from pyscfad.ops import is_array
+from pyscfad.lib import logger
 from pyscfad.df import addons, incore, df_jk
 
-@util.pytree_node(['mol', 'auxmol', '_cderi'], num_args=1)
-class DF(pyscf_df.DF):
+class DF(pytree.PytreeNode, pyscf_df.DF):
+    _dynamic_attr = ['mol', 'auxmol', '_cderi']
+
     # pylint: disable=redefined-outer-name
     def __init__(self, mol, auxbasis=None, incore=True, **kwargs):
         pyscf_df.DF.__init__(self, mol, auxbasis=auxbasis)
@@ -102,13 +103,13 @@ class DF(pyscf_df.DF):
 
         with addons.load(self._cderi, 'j3c') as feri:
             if is_array(feri):
+                if to_numpy:
+                    # NOTE convert once (no copy for CPU arrays) and yield views,
+                    # as slicing the backend array copies every block
+                    feri = numpy.asarray(feri, order='C')
                 naoaux = feri.shape[0]
                 for b0, b1 in self.prange(0, naoaux, blksize):
-                    if to_numpy:
-                        out = numpy.asarray(feri[b0:b1], order='C')
-                    else:
-                        out = feri[b0:b1]
-                    yield out
+                    yield feri[b0:b1]
             else:
                 raise NotImplementedError
 

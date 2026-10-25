@@ -6,5 +6,6 @@ from pyscfadlib.lib import (
     libcc_vjp as libcc_vjp,
     libcgto_vjp as libcgto_vjp,
     libcvhf_vjp as libcvhf_vjp,
+    libmp_vjp as libmp_vjp,
     libnp_helper_vjp as libnp_helper_vjp,
 )

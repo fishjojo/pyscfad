@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,12 +16,11 @@ import pytest
 import numpy
 import jax
 from pyscfad import gto, scf, mp
-from pyscfad import config
+from pyscfad import config, config_update
 
 @pytest.fixture
 def get_mol():
     config.update('pyscfad_scf_implicit_diff', True)
-    #config.update('pyscfad_moleintor_opt', True)
 
     mol = gto.Mole()
     mol.atom = 'O 0. 0. 0.; H 0. , -0.757 , 0.587; H 0. , 0.757 , 0.587'
@@ -77,6 +76,25 @@ def test_df_nuc_grad(get_mol):
         return mymp.e_tot
 
     g = jax.grad(mp2)(mol).coords
+    # finite difference
+    g0 = numpy.array(
+         [[0, 0,            0.0132337328],
+          [0, 0.0088741480,-0.0066168447],
+          [0,-0.0088741480,-0.0066168447]])
+    assert abs(g-g0).max() < 1e-6
+
+def test_df_nuc_grad_moleintor_opt(get_mol):
+    """DF-MP2 energy from MP2_contract_d and its VJP kernel."""
+    mol = get_mol
+    def mp2(mol):
+        mf = scf.RHF(mol).density_fit()
+        mf.kernel()
+        mymp = mp.dfmp2.MP2(mf)
+        mymp.kernel(with_t2=False)
+        return mymp.e_tot
+
+    with config_update('pyscfad_moleintor_opt', True):
+        g = jax.grad(mp2)(mol).coords
     # finite difference
     g0 = numpy.array(
          [[0, 0,            0.0132337328],

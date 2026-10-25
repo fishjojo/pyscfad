@@ -50,7 +50,7 @@ def root_vjp(optimality_fun, sol, args, cotangent,
         else:
             _, vjp_fun_sol, optfn_aux = jax.vjp(fun_sol, sol, has_aux=True)
         if gen_precond is not None:
-            M = gen_precond(optfn_aux)
+            M = gen_precond(optfn_aux, *args)
     else:
         _, vjp_fun_sol = jax.vjp(fun_sol, sol)
 
@@ -157,6 +157,9 @@ def custom_fixed_point(fixed_point_fun, solve=None, has_aux=False,
                        custom_vjp_from_optcond=False):
 
     def optimality_fun(x0, *args):
+        if optfn_has_aux:
+            x, aux = fixed_point_fun(x0, *args)
+            return _Sub(x, x0), aux
         return _Sub(fixed_point_fun(x0, *args), x0)
 
     optimality_fun.__wrapped__ = fixed_point_fun
@@ -212,9 +215,10 @@ def make_implicit_diff(fn, implicit_diff=False, fixed_point=True,
     gen_precond : object, optional
         A function which generates the preconditioner
         for the linear solver. `gen_precond` should
-        take the auxiliary data returned by the optimality function as
-        its argument, and return the preconditioner recognized by the
-        linear solver, which is usually a function or an array.
+        take the auxiliary data returned by the optimality function,
+        followed by the arguments of the optimality function except
+        the solution, and return the preconditioner recognized by the
+        linear solver, which is usually a function or an array, or None.
 
     Returns
     -------

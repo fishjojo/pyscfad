@@ -43,8 +43,54 @@ def _scf_fixed_point(dm, mf, s1e, h1e):
     mo_energy, mo_coeff = mf.eig(fock, s1e)
     mo_occ = mf.get_occ(mo_energy, mo_coeff)
     dm = mf.make_rdm1(mo_coeff, mo_occ)
-    del mo_energy, mo_occ
-    return dm
+    # NOTE the orbitals are returned for the preconditioner, see _gen_precond
+    return dm, (mo_energy, mo_coeff, mo_occ)
+
+
+def _gen_precond(aux, mf, s1e, h1e):
+    '''Preconditioner for the GMRES solve of the implicit differentiation,
+    (J - 1) u = v, where J is the transposed Jacobian of _scf_fixed_point.
+
+    In the occupied-virtual space, 1 - J is e^-1 (A+B), the RHF orbital
+    hessian over the orbital energy differences e = e_a - e_i. M inverts
+    e + 4 (ai|L)(L|bj), the Coulomb part of A+B, with the density fitting
+    factor (see _df_jk_opt.gen_coulomb_precond), and leaves the exchange
+    to GMRES. With s = C_v^T (u + u^T) C_o the occupied-virtual part of u,
+        M u = -u + S C_v coul(s) C_o^T S.
+    Only for closed-shell HF with molecular density fitting and the scipy
+    GMRES (moleintor_opt), otherwise None. In DFT, the xc kernel partly
+    cancels the Coulomb part.
+    '''
+    # pylint: disable=import-outside-toplevel
+    from scipy.sparse.linalg import LinearOperator
+    from pyscf.lib import dot
+    from pyscfad.df.df import DF # pylint: disable=cyclic-import
+    from pyscfad.df._df_jk_opt import gen_coulomb_precond # pylint: disable=cyclic-import
+    if (not config.moleintor_opt or isinstance(mf, pyscf_hf.KohnShamDFT)
+            or not isinstance(getattr(mf, 'with_df', None), DF)):
+        return None
+    mo_energy, mo_coeff, mo_occ = [numpy.asarray(x) for x in aux]
+    if mo_coeff.ndim != 2 or not numpy.all((mo_occ == 0) | (mo_occ == 2)):
+        return None
+    orbo = mo_coeff[:,mo_occ>0]
+    orbv = mo_coeff[:,mo_occ==0]
+    e_ai = mo_energy[mo_occ==0,None] - mo_energy[mo_occ>0]
+    if e_ai.size == 0 or e_ai.min() <= 0:
+        return None
+
+    log = logger.new_logger(mf)
+    coul = gen_coulomb_precond(mf.with_df, orbo, orbv, e_ai)
+    s1e = numpy.asarray(s1e)
+    sorbo = dot(s1e, orbo)
+    sorbv = dot(s1e, orbv)
+    nao = mo_coeff.shape[0]
+    def precond(u):
+        u = u.reshape(nao,nao)
+        s = dot(orbv.T, dot(u + u.T, orbo))
+        return (dot(dot(sorbv, coul(s)), sorbo.T) - u).ravel()
+    log.timer('_gen_precond')
+    del log
+    return LinearOperator((nao*nao,)*2, matvec=precond, dtype=numpy.double)
 
 
 def _scf(dm, mf, s1e, h1e, *,
@@ -161,6 +207,8 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
         optimality_cond=_scf_fixed_point,
         solver=gen_gmres(),
         has_aux=True,
+        optimality_fun_has_aux=True,
+        gen_precond=_gen_precond,
     )
     if config.scf_implicit_diff:
         e_tot = ops.stop_grad(e_tot)
