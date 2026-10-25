@@ -28,7 +28,7 @@ from pyscfadlib import libcvhf_vjp as libvhf
 libao2mo = lib.load_library('libao2mo')
 
 def _tag_dm(dm, hermi):
-    '''Tag a positive semidefinite low-rank dm with its pivoted Cholesky
+    '''Tag a positive semidefinite dm with its pivoted Cholesky
     factor dm = mo_coeff * mo_coeff.T (mo_occ = 1), so that pyscf builds K
     from the factor, O(naux*nocc*nao^2), instead of from dm, O(naux*nao^3).
     '''
@@ -41,10 +41,23 @@ def _tag_dm(dm, hermi):
     dms = dms.reshape(-1,nao,nao)
     mo_coeff = numpy.zeros_like(dms)
     mo_occ = numpy.zeros(dms.shape[:2])
+    rng = numpy.random.default_rng(1)
     for k, d in enumerate(dms):
         # default tol: nao * eps * max(diag(d))
         c, piv, rank = dpstrf(d, lower=1)[:3]
-        mo_coeff[k,piv-1,:rank] = numpy.tril(c[:,:rank])
+
+        # test if dm is PSD
+        x = numpy.zeros((nao, rank))
+        x[piv-1] = numpy.tril(c[:,:rank])
+        # NOTE what dpstrf drops from a PSD d is below tol, but an indefinite d leaves
+        # its negative part; a few random vectors bound max|d - x x^T| from below
+        vec = rng.standard_normal((nao, 4))
+        r = lib.dot(d, vec) - lib.dot(x, lib.dot(x.T, vec))
+        tol = nao * numpy.finfo(d.dtype).eps * d.diagonal().max()
+        if abs(r).max() > 10 * tol * abs(vec).sum(axis=0).max():
+            return dm
+
+        mo_coeff[k,:,:rank] = x
         mo_occ[k,:rank] = 1
     return lib.tag_array(numpy.asarray(dm), mo_coeff=mo_coeff, mo_occ=mo_occ)
 
