@@ -15,12 +15,13 @@
 from functools import partial
 import ctypes
 import numpy
-from scipy.linalg import eigh, qr
+from scipy.linalg import cho_factor, cho_solve, eigh, qr
 from scipy.linalg.lapack import dpstrf
 from jax import custom_vjp
 from jax.custom_derivatives import CustomVJPPrimal, SymbolicZero
 from jax.tree_util import tree_map
 from pyscf import lib
+from pyscf.ao2mo import _ao2mo
 from pyscf.df import df_jk as pyscf_df_jk
 from pyscfad.lib import logger
 from pyscfadlib import libcvhf_vjp as libvhf
@@ -303,3 +304,49 @@ def _eri_dm_bar(dfobj, dm, vj_bar, vk_bar):
     return eri_bar, dm_bar
 
 get_jk.defvjp(get_jk_fwd, get_jk_bwd, symbolic_zeros=True)
+
+def gen_coulomb_precond(dfobj, orbo, orbv, e_ai):
+    '''For the Coulomb part of the RHF orbital hessian, e + 4 B^T B with
+    B[L,ai] = (L|ai) and e[a,i] = e_a - e_i > 0, returns
+    coul(s) = B^T (1/4 + B e^-1 B^T)^-1 B e^-1 s, so that by the Woodbury
+    identity (e + 4 B^T B)^-1 s = (s - coul(s)) / e. B is not stored:
+    1/4 + B e^-1 B^T is accumulated over blocks of occupied orbitals, and
+    B and B^T are applied as the two halves of a J build, so only the
+    (naux, naux) Cholesky factor is kept.
+    '''
+    nao, nocc = orbo.shape
+    nvir = orbv.shape[1]
+    naux = dfobj.get_naoaux()
+    kmat = numpy.eye(naux) * .25
+    max_memory = dfobj.max_memory - lib.current_memory()[0]
+    blksize = max(4, min(nocc, int(max_memory*.3e6/8/(naux*nvir))))
+    for i0, i1 in lib.prange(0, nocc, blksize):
+        mo = numpy.asarray(numpy.hstack((orbv, orbo[:,i0:i1])), order='F')
+        bov = numpy.empty((naux, nvir*(i1-i0)))
+        p1 = 0
+        for eri1 in dfobj.loop():
+            p0, p1 = p1, p1 + eri1.shape[0]
+            _ao2mo.nr_e2(eri1, mo, (0,nvir,nvir,nvir+i1-i0), aosym='s2',
+                         mosym='s1', out=bov[p0:p1])
+        bov /= numpy.sqrt(e_ai[:,i0:i1]).ravel()
+        lib.dot(bov, bov.T, c=kmat, beta=1)
+        bov = None
+    # NOTE the inverse, so that coul runs on lib.dot only (scipy's BLAS
+    # threads compete with those of lib.dot)
+    kmat = cho_solve(cho_factor(kmat), numpy.eye(naux))
+
+    idx = numpy.arange(nao)
+    def coul(s):
+        # B e^-1 s, with the density orbv (s/e) orbo^T as in a J build
+        x = lib.dot(lib.dot(orbv, s/e_ai), orbo.T)
+        xtril = lib.pack_tril(x + x.T)
+        xtril[idx*(idx+1)//2+idx] *= .5
+        rho = numpy.vstack([lib.dot(eri1, xtril[:,None]) for eri1 in dfobj.loop()])
+        rho = lib.dot(kmat, rho)
+        vtril = numpy.zeros((nao*(nao+1)//2,1))
+        p1 = 0
+        for eri1 in dfobj.loop():
+            p0, p1 = p1, p1 + eri1.shape[0]
+            lib.dot(eri1.T, rho[p0:p1], c=vtril, beta=1)
+        return lib.dot(orbv.T, lib.dot(lib.unpack_tril(vtril[:,0]), orbo))
+    return coul

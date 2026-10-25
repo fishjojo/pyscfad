@@ -14,9 +14,9 @@
 
 from functools import wraps
 from pyscf.df import df_jk as pyscf_df_jk
+from pyscf.lib import make_class
 from pyscfad import config
 from pyscfad import numpy as np
-from pyscfad import pytree
 from .addons import restore
 from ._df_jk_opt import get_jk as get_jk_opt
 
@@ -69,12 +69,16 @@ def density_fit(mf, auxbasis=None, with_df=None, only_dfj=False):
             mf.only_dfj = only_dfj
         return mf
 
-    _DFHF.__bases__ = (pyscf_df_jk._DFHF, mf.__class__)
-    dfmf = _DFHF(mf, with_df, only_dfj)
+    # NOTE one class per SCF class, cached by make_class. Setting the bases
+    # of _DFHF instead would change the class of every existing DF object.
+    # The class is a pytree through the metaclass of mf.__class__.
+    cls = make_class((_DFHF, mf.__class__), name='_DFHF',
+                     attrs={'__module__': __name__})
+    dfmf = cls(mf, with_df, only_dfj)
     return dfmf
 
-class _DFHF(pytree.PytreeNode, pyscf_df_jk._DFHF):
-    _dynamic_attr = {'mol', 'with_df'}
+class _DFHF(pyscf_df_jk._DFHF):
+    _dynamic_attr = ['mol', 'with_df']
 
     def get_jk(self, mol=None, dm=None, hermi=1, with_j=True, with_k=True,
                omega=None):
