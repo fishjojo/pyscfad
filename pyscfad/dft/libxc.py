@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import partial
+from functools import partial, lru_cache
+import numpy
 from pyscf.dft import libxc
 # pylint: disable=unused-import
 from pyscf.dft.libxc import (
@@ -30,6 +31,7 @@ from pyscf.dft.libxc import (
     __reference__,
 )
 from pyscfad import numpy as np
+from pyscfad import ops
 from pyscfad.ops import jit, custom_jvp
 
 def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
@@ -49,7 +51,52 @@ def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=Non
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
 def _eval_xc_comp(rho, xc_code, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
-    out = libxc.eval_xc(xc_code, rho, spin, relativity, deriv, omega, verbose)[deriv]
+    # libxc only accepts concrete arrays; calling it through pure_callback
+    # lets the XC evaluation be traced (e.g., by jit or lax.custom_root).
+    return ops.pure_callback(
+        _eval_xc_comp_callback(xc_code, spin, relativity, deriv, omega),
+        _eval_xc_comp_shape_dtypes(rho, xc_code, spin, relativity, deriv, omega),
+        rho,
+        vmap_method="sequential",
+    )
+
+@lru_cache(maxsize=None)
+def _eval_xc_comp_callback(xc_code, spin, relativity, deriv, omega):
+    # The same callback object for the same arguments, so that
+    # eager calls of the pure_callback do not recompile.
+    return partial(_eval_xc_comp_cpu, xc_code=xc_code, spin=spin,
+                   relativity=relativity, deriv=deriv, omega=omega)
+
+def _eval_xc_comp_shape_dtypes(rho, xc_code, spin, relativity, deriv, omega):
+    if isinstance(rho, (tuple, list)):
+        ngrids = rho[0].shape[-1]
+        rho_shape = tuple(r.shape[:-1] for r in rho)
+    else:
+        ngrids = rho.shape[-1]
+        rho_shape = rho.shape[:-1]
+    out = _eval_xc_comp_probe(xc_code, spin, relativity, deriv, omega, rho_shape)
+
+    def shape_dtype(x):
+        if x is None:
+            return None
+        # libxc.eval_xc puts the grid axis first in every output
+        return ops.ShapeDtypeStruct((ngrids,) + x.shape[1:], x.dtype)
+
+    if deriv == 0:
+        return shape_dtype(out)
+    return tuple(shape_dtype(x) for x in out)
+
+@lru_cache(maxsize=None)
+def _eval_xc_comp_probe(xc_code, spin, relativity, deriv, omega, rho_shape):
+    # evaluate on a single grid point to get the output structure
+    if rho_shape and isinstance(rho_shape[0], tuple):
+        rho = tuple(numpy.zeros(s + (1,)) for s in rho_shape)
+    else:
+        rho = numpy.zeros(rho_shape + (1,))
+    return _eval_xc_comp_cpu(rho, xc_code, spin, relativity, deriv, omega)
+
+def _eval_xc_comp_cpu(rho, xc_code, spin=0, relativity=0, deriv=1, omega=None):
+    out = libxc.eval_xc(xc_code, rho, spin, relativity, deriv, omega)[deriv]
     if deriv == 1:
         out = tuple(out)
         if spin == 0:

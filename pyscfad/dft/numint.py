@@ -176,7 +176,7 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
 
     for i in range(nset):
         vmat[i] = vmat[i] + vmat[i].conj().T
-    nelec = numpy.asarray(nelec)
+    nelec = np.asarray(nelec)
     excsum = np.asarray(excsum)
     vmat = np.asarray(vmat)
     if nset == 1:
@@ -195,7 +195,7 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
     make_rhoa, nset = ni._gen_rho_evaluator(mol, dma, hermi, False, grids)[:2]
     make_rhob       = ni._gen_rho_evaluator(mol, dmb, hermi, False, grids)[0]
 
-    nelec = numpy.zeros((2,nset))
+    nelec = [[0]*nset for _ in range(2)]
     excsum = [0] * nset
     vmat = [[0]*nset for _ in range(2)]
     aow    = None
@@ -307,9 +307,10 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
         vmat[0][i] = vmat[0][i] + vmat[0][i].conj().T
         vmat[1][i] = vmat[1][i] + vmat[1][i].conj().T
 
+    nelec = np.asarray(nelec)
     if getattr(dma, 'ndim', None) == 2:
         excsum = excsum[0]
-        nelec  = numpy.asarray([nelec[0], nelec[1]])
+        nelec  = nelec[:,0]
         vmat   = np.asarray([vmat[0][0], vmat[1][0]])
 
     return nelec, excsum, vmat

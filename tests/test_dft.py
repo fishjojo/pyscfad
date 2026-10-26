@@ -14,11 +14,14 @@
 
 """Tests for pyscfad.dft
 """
+import pytest
 import numpy
 import jax
 from pyscf import dft as pyscf_dft
 from pyscfad import config_update
 from pyscfad import dft
+from pyscfad.dft import numint
+from pyscfad.gto import MoleLite
 from .util import (
     hf_energy,
     dft_energy,
@@ -122,3 +125,33 @@ def test_uks_nuc_hess(mol_H2):
         hess1 = jax.hessian(dft_energy)(mol, dft.UKS, xc).coords.coords
         hess0 = dft_nuc_hess(mol, pyscf_dft.UKS, xc)
         assert abs(hess1 - hess0).max() < 1e-6
+
+@pytest.mark.parametrize("xc", LDA + GGA + MGGA)
+def test_numint_jit(mol_H2, xc):
+    # Regression test for issue #175: the XC functional was evaluated by
+    # passing the density to libxc as a NumPy array, so the numerical
+    # integration could not be traced (by jit, or by lax.custom_root as in
+    # the SCF solvers of scf.hf_lite and scf.sp2).
+    pmol = mol_H2().to_pyscf()
+    mol = MoleLite.from_pyscf(pmol)
+    grids = pyscf_dft.gen_grid.Grids(pmol).build()
+    dm = jax.numpy.asarray(pmol.RHF().get_init_guess())
+    ni = numint.NumInt()
+    ni0 = pyscf_dft.numint.NumInt()
+
+    n, exc, vxc = jax.jit(lambda dm: ni.nr_rks(mol, grids, xc, dm))(dm)
+    n0, exc0, vxc0 = ni0.nr_rks(pmol, grids, xc, numpy.asarray(dm))
+    assert abs(n - n0) < 1e-10
+    assert abs(exc - exc0) < 1e-10
+    assert abs(vxc - vxc0).max() < 1e-10
+
+    # d(exc)/d(dm) through the custom JVP of the XC functional
+    g = jax.jit(jax.grad(lambda dm: ni.nr_rks(mol, grids, xc, dm)[1]))(dm)
+    assert abs((g + g.T) * .5 - vxc0).max() < 1e-10
+
+    dms = (dm * .6, dm * .4)
+    n, exc, vxc = jax.jit(lambda dms: ni.nr_uks(mol, grids, xc, dms))(dms)
+    n0, exc0, vxc0 = ni0.nr_uks(pmol, grids, xc, numpy.asarray(dms))
+    assert abs(n - n0).max() < 1e-10
+    assert abs(exc - exc0) < 1e-10
+    assert abs(vxc - vxc0).max() < 1e-10
