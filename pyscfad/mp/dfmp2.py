@@ -189,6 +189,7 @@ def _contract_d_fwd(Lov, mo_energy, nocc, nvir):
     return _ed_ex(iaL, mo_energy, nocc, nvir), (iaL, mo_energy)
 
 def _contract_d_bwd(nocc, nvir, res, ybar):
+    log = logger.new_logger(verbose=4)
     iaL, mo_energy = res
     ed_bar, ex_bar = ybar
     naux = iaL.shape[-1]
@@ -207,6 +208,8 @@ def _contract_d_bwd(nocc, nvir, res, ybar):
         ctypes.c_int(nocc), ctypes.c_int(nvir), ctypes.c_int(naux),
     )
     Lov_bar = pyscf_lib.transpose(iaL_bar.reshape(nocc*nvir, naux))
+    log.timer('_contract_d_bwd')
+    del log
     return Lov_bar, e_bar
 
 _contract_d.defvjp(_contract_d_fwd, _contract_d_bwd)
@@ -229,8 +232,11 @@ def kernel(mp, mo_energy=None, mo_coeff=None, eris=None, with_t2=WITH_T2,
 
     Lov = mp.loop_ao2mo(mo_coeff, nocc, with_t2)
     if config.moleintor_opt and not with_t2 and libmp_vjp is not None:
+        log = logger.new_logger(mp)
         ed, ex = _contract_d(Lov, mo_energy, nocc, nvir)
         emp2 = mp2.E_CORR_MP2(e_corr=ed*2+ex, e_corr_ss=ed+ex, e_corr_os=ed)
+        log.timer(f'{mp.__class__.__name__} energy')
+        del log
         return emp2, None
     emp2, t2 = _contract_scan(Lov, mo_energy, nocc, nvir, with_t2)
     return emp2, t2
@@ -246,12 +252,16 @@ class DFRMP2(mp2.RMP2):
             raise KeyError('The mean-field object has no density fitting.')
 
     def ao2mo(self, mo_coeff=None):
+        log = logger.new_logger(self)
         eris = mp2._ChemistsERIs()
         eris._common_init_(self, mo_coeff)
+        log.timer('DFRMP2.ao2mo')
+        del log
         return eris
 
     def loop_ao2mo(self, mo_coeff, nocc, with_t2=WITH_T2):
         # NOTE return the whole 3c integral for now
+        log = logger.new_logger(self)
         nao, nmo = mo_coeff.shape
         nvir = nmo - nocc
         ijslice = (0, nocc, nocc, nmo)
@@ -265,6 +275,8 @@ class DFRMP2(mp2.RMP2):
         if (mem_incore + mem_now < self.max_memory) or self.mol.incore_anyway:
             eri1 = with_df._cderi
             Lov = _ao2mo.nr_e2(eri1, mo_coeff, ijslice, aosym='s2')
+            log.timer('DFRMP2.loop_ao2mo')
+            del log
             return Lov
         else:
             raise RuntimeError(f'{mem_incore+mem_now} MB of memory is needed.')

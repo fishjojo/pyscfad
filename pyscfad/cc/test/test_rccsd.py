@@ -15,10 +15,11 @@
 import numpy
 import pytest
 import jax
+from pyscfad import numpy as np
 from pyscfad import scf, cc
 from pyscfad.gto import MoleLite
 from pyscfad.scf import hf_lite
-from pyscfad.cc import rccsd
+from pyscfad.cc import dfccsd, rccsd
 from pyscfad.ml.gto import MolePad, make_basis_array
 from pyscfad.ml.scf import SCFPad
 
@@ -48,6 +49,82 @@ def test_df_nuc_grad(get_mol):
     g0 = numpy.array([[0., 0., -0.0873569023],
                       [0., 0.,  0.0873569023]])
     assert(abs(g1-g0).max() < 5e-6)
+
+@pytest.mark.parametrize('direct', [False, True])
+def test_df_nuc_grad_opt(get_opt_mol, direct):
+    mol = get_opt_mol
+    def energy(mol):
+        mf = scf.RHF(mol).density_fit()
+        mf.kernel()
+        mycc = cc.dfccsd.RCCSD(mf)
+        mycc.vvvv_direct = direct
+        mycc.kernel()
+        return mycc.e_tot
+    g1 = jax.grad(energy)(mol).coords
+    g0 = numpy.array([[0., 0., -0.0873569023],
+                      [0., 0.,  0.0873569023]])
+    assert(abs(g1-g0).max() < 5e-6)
+
+def _ref_ladder(tau, L):
+    # Ht2[p,x,y] = sum_zw tau[p,z,w] (zx|wy)
+    return np.einsum('pzw,Pzx,Pwy->pxy', tau, L, L)
+
+@pytest.mark.parametrize('rev', [False, True])
+@pytest.mark.parametrize('dense', [True, False])
+def test_df_ladder_derivatives(dense, rev):
+    """The DF ladder contraction and its custom JVP (or, with ``rev``, its
+    reverse-mode rule), with the dense integrals and in slabs, against
+    autodiff of the plain contraction."""
+    rng = numpy.random.default_rng(1)
+    L = rng.standard_normal((13, 9, 9))
+    L = np.asarray(L + L.transpose(0, 2, 1))
+    tau = np.asarray(rng.standard_normal((7, 9, 9)))
+    Hbar = np.asarray(rng.standard_normal((7, 9, 9)))
+
+    def ladder(tau, L):
+        U = None
+        if dense:
+            U = dfccsd._build_eris_vvvv(jax.lax.stop_gradient(L))
+        fn = dfccsd.ladder_rev if rev else dfccsd.ladder
+        return fn(tau, L, U).transpose(0, 2, 1)
+
+    assert abs(ladder(tau, L) - _ref_ladder(tau, L)).max() < 1e-12
+    tbar0, Lbar0 = jax.vjp(_ref_ladder, tau, L)[1](Hbar)
+    tbar, Lbar = jax.vjp(ladder, tau, L)[1](Hbar)
+    assert abs(tbar - tbar0).max() < 1e-12
+    assert abs(Lbar - Lbar0).max() < 1e-12
+    # only one of the inputs differentiated
+    tbar = jax.vjp(lambda t: ladder(t, L), tau)[1](Hbar)[0]
+    Lbar = jax.vjp(lambda l: ladder(tau, l), L)[1](Hbar)[0]
+    assert abs(tbar - tbar0).max() < 1e-12
+    assert abs(Lbar - Lbar0).max() < 1e-12
+    if rev:
+        return
+    # forward mode
+    tdot = np.asarray(rng.standard_normal((7, 9, 9)))
+    Ldot = rng.standard_normal((13, 9, 9))
+    Ldot = np.asarray(Ldot + Ldot.transpose(0, 2, 1))
+    Gdot0 = jax.jvp(_ref_ladder, (tau, L), (tdot, Ldot))[1]
+    Gdot = jax.jvp(ladder, (tau, L), (tdot, Ldot))[1]
+    assert abs(Gdot - Gdot0).max() < 1e-12
+
+@pytest.mark.parametrize('direct', [True, False])
+def test_df_contract_vvvv_t2(get_opt_mol, direct):
+    mol = get_opt_mol
+    mf = scf.RHF(mol).density_fit()
+    mf.kernel()
+    mycc = dfccsd.RCCSD(mf)
+    mycc.vvvv_direct = direct
+    eris = mycc.ao2mo()
+    assert (eris._vvvv_pair is None) == (direct == True)
+
+    naux = eris.Lvv.shape[0]
+    nvir = eris.ovvv.shape[1]
+    i, j = numpy.tril_indices(nvir)
+    L = np.zeros((naux, nvir, nvir)).at[:,i,j].set(eris.Lvv).at[:,j,i].set(eris.Lvv)
+    tau = np.asarray(numpy.random.default_rng(3).standard_normal((4, nvir, nvir)))
+    Ht2 = eris._contract_vvvv_t2(mycc, tau)
+    assert abs(Ht2 - _ref_ladder(tau, L)).max() < 1e-12
 
 # ---------------------------------------------------------------------------
 # Lightweight (fully jittable) implementation

@@ -15,6 +15,7 @@
 import inspect
 import operator
 from functools import partial
+import time
 import jax
 from jax.tree_util import tree_map
 from jax.scipy.sparse.linalg import gmres
@@ -31,13 +32,24 @@ def _map_back(diff_items, items, keys):
         new_items[i] = diff_items[k]
     return tuple(new_items)
 
+def _block_until_ready(tree):
+    for leaf in jax.tree_util.tree_leaves(tree):
+        if hasattr(leaf, "block_until_ready") and not isinstance(leaf, jax.core.Tracer):
+            leaf.block_until_ready()
+    return tree
+
 def root_vjp(optimality_fun, sol, args, cotangent,
              solve=gmres, nondiff_argnums=(),
              optfn_has_aux=False, solver_kwargs=None,
              gen_precond=None,
-             custom_vjp_from_optcond=False):
+             custom_vjp_from_optcond=False,
+             log=None):
+    """VJP of the solution of ``optimality_fun(sol, *args) = 0``.
+    """
     if solver_kwargs is None:
         solver_kwargs = {}
+    if log is not None:
+        t0 = (time.process_time(), time.perf_counter())
 
     def fun_sol(sol):
         return optimality_fun(sol, *args)
@@ -54,11 +66,21 @@ def root_vjp(optimality_fun, sol, args, cotangent,
     else:
         _, vjp_fun_sol = jax.vjp(fun_sol, sol)
 
+    nmatvec = [0]
     def matvec(u):
+        nmatvec[0] += 1
         return vjp_fun_sol(u)[0]
+
+    if log is not None:
+        _block_until_ready(vjp_fun_sol)
+        t0 = log.timer("implicit diff linearization", *t0)
 
     v = _Scalar_mul(-1, cotangent)
     u = solve(matvec, v, M=M, **solver_kwargs)[0]
+
+    if log is not None:
+        _block_until_ready(u)
+        t0 = log.timer(f"implicit diff linear solve ({nmatvec[0]} matvecs)", *t0)
 
     diff_args_dict = {i: arg for i, arg in enumerate(args) if i+1 not in nondiff_argnums}
     keys = diff_args_dict.keys()
@@ -70,6 +92,10 @@ def root_vjp(optimality_fun, sol, args, cotangent,
     _, vjp_fun_args = jax.vjp(fun_args, *diff_args, has_aux=optfn_has_aux)[:2]
     diff_vjps = vjp_fun_args(u)
 
+    if log is not None:
+        _block_until_ready(diff_vjps)
+        log.timer("implicit diff VJP w.r.t. arguments", *t0)
+
     vjps = [None,] * len(args)
     vjps = _map_back(diff_vjps, vjps, keys)
     return vjps
@@ -78,7 +104,8 @@ def _custom_root(solver_fun, optimality_fun, solve,
                  has_aux=False, nondiff_argnums=(), use_converged_args=None,
                  optfn_has_aux=False, solver_kwargs=None,
                  gen_precond=None,
-                 custom_vjp_from_optcond=False):
+                 custom_vjp_from_optcond=False,
+                 log=None):
     solver_fun_sig = inspect.signature(solver_fun)
     optimality_fun_sig = inspect.signature(optimality_fun)
 
@@ -117,7 +144,8 @@ def _custom_root(solver_fun, optimality_fun, solve,
                             optfn_has_aux=optfn_has_aux,
                             solver_kwargs=solver_kwargs,
                             gen_precond=gen_precond,
-                            custom_vjp_from_optcond=custom_vjp_from_optcond)
+                            custom_vjp_from_optcond=custom_vjp_from_optcond,
+                            log=log)
             vjps = (None,) + vjps
             return vjps
 
@@ -135,7 +163,8 @@ def custom_root(optimality_fun, solve=None, has_aux=False,
                 nondiff_argnums=(), use_converged_args=None,
                 optfn_has_aux=False, solver_kwargs=None,
                 gen_precond=None,
-                custom_vjp_from_optcond=False):
+                custom_vjp_from_optcond=False,
+                log=None):
     if solve is None:
         solve = gmres
 
@@ -146,7 +175,8 @@ def custom_root(optimality_fun, solve=None, has_aux=False,
                             optfn_has_aux=optfn_has_aux,
                             solver_kwargs=solver_kwargs,
                             gen_precond=gen_precond,
-                            custom_vjp_from_optcond=custom_vjp_from_optcond)
+                            custom_vjp_from_optcond=custom_vjp_from_optcond,
+                            log=log)
 
     return wrapper
 
@@ -154,7 +184,8 @@ def custom_fixed_point(fixed_point_fun, solve=None, has_aux=False,
                        nondiff_argnums=(), use_converged_args=None,
                        optfn_has_aux=False, solver_kwargs=None,
                        gen_precond=None,
-                       custom_vjp_from_optcond=False):
+                       custom_vjp_from_optcond=False,
+                       log=None):
 
     def optimality_fun(x0, *args):
         if optfn_has_aux:
@@ -170,14 +201,15 @@ def custom_fixed_point(fixed_point_fun, solve=None, has_aux=False,
                        optfn_has_aux=optfn_has_aux,
                        solver_kwargs=solver_kwargs,
                        gen_precond=gen_precond,
-                       custom_vjp_from_optcond=custom_vjp_from_optcond)
+                       custom_vjp_from_optcond=custom_vjp_from_optcond,
+                       log=log)
 
 def make_implicit_diff(fn, implicit_diff=False, fixed_point=True,
                        optimality_cond=None, solver=None, has_aux=False,
                        nondiff_argnums=(), use_converged_args=None,
                        optimality_fun_has_aux=False,
                        solver_kwargs=None, gen_precond=None,
-                       custom_vjp_from_optcond=False):
+                       custom_vjp_from_optcond=False, log=None):
     """Wrap a function for implicit differentiation.
 
     Parameters
@@ -219,6 +251,10 @@ def make_implicit_diff(fn, implicit_diff=False, fixed_point=True,
         followed by the arguments of the optimality function except
         the solution, and return the preconditioner recognized by the
         linear solver, which is usually a function or an array, or None.
+    log : :class:`pyscf.lib.logger.Logger`, optional
+        If given, the backward pass logs the time of its linearization,
+        linear solve (with the number of matrix-vector products), and VJP
+        w.r.t. the arguments. Default is ``None``.
 
     Returns
     -------
@@ -242,6 +278,7 @@ def make_implicit_diff(fn, implicit_diff=False, fixed_point=True,
                       optfn_has_aux=optimality_fun_has_aux,
                       solver_kwargs=solver_kwargs,
                       gen_precond=gen_precond,
-                      custom_vjp_from_optcond=custom_vjp_from_optcond)(fn)
+                      custom_vjp_from_optcond=custom_vjp_from_optcond,
+                      log=log)(fn)
     else:
         return fn

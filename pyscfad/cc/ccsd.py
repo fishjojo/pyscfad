@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import reduce
+from functools import reduce, partial
 import numpy
+import jax
 from pyscf.cc import ccsd as pyscf_ccsd
 from pyscf.mp.mp2 import _mo_without_core
 from pyscfad import numpy as np
@@ -21,7 +22,8 @@ from pyscfad import pytree
 from pyscfad import ops
 from pyscfad import lib
 from pyscfad.lib import logger
-#from pyscfad.ops import jit
+from pyscfad.lib.numpy_helper import _tril_position, _unpack_tril_scatter
+from pyscfad.ops import jit
 from pyscfad import config
 from pyscfad.implicit_diff import make_implicit_diff
 from pyscfad.tools.linear_solver import gen_gmres
@@ -79,6 +81,7 @@ def _iter(amp, mycc, eris, *,
 def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
            tolnormt=1e-6, verbose=None):
     log = logger.new_logger(mycc, verbose)
+    t0 = (logger.process_clock(), logger.perf_counter())
     if eris is None:
         eris = mycc.ao2mo(mycc.mo_coeff)
     if t1 is None and t2 is None:
@@ -98,32 +101,56 @@ def kernel(mycc, eris=None, t1=None, t2=None, max_cycle=50, tol=1e-8,
 
     vec, conv = make_implicit_diff(_iter, config.ccsd_implicit_diff,
                                    optimality_cond=_converged_iter,
-                                   solver=gen_gmres(), has_aux=True)(
+                                   solver=gen_gmres(), has_aux=True,
+                                   log=log)(
                                         vec, mycc, eris,
                                         diis=adiis, max_cycle=max_cycle, tol=tol,
                                         tolnormt=tolnormt, verbose=log)
 
     t1, t2 = mycc.vector_to_amplitudes(vec)
     eccsd = mycc.energy(t1, t2, eris)
-    log.timer('CCSD')
+    log.timer('CCSD', *t0)
     vec = None
     del adiis, log
     return conv, eccsd, t1, t2
 
 
-#@jit
 def update_amps(mycc, t1, t2, eris):
     if mycc.cc2:
         raise NotImplementedError
+    t2new = mycc._add_vvvv(t1, t2, eris, t2sym='jiba')
+    return _update_amps(t1, t2, t2new, eris.fock, eris.mo_energy, eris.oooo,
+                        eris.ovoo, eris.oovv, eris.ovvo, eris.ovvv,
+                        mycc.level_shift, direct=mycc.direct, dcsd=mycc.dcsd)
 
+@jax.custom_jvp
+def _unpack_oVvv(eris_ovvv):
+    '''eris_oVvv[k,a,c,b] = (kc|ab) from eris_ovvv[k,c,ab], a >= b packed,
+    gathered elementwise so that it is written once, in this layout.'''
+    nocc, nvir, nvir_pair = eris_ovvv.shape
+    kc = np.arange(nocc*nvir).reshape(nocc,1,nvir,1)
+    idx = kc * nvir_pair + _tril_position(nvir)[:,None,:]
+    return np.take(eris_ovvv.ravel(), idx, mode='clip')
+
+@_unpack_oVvv.defjvp
+def _unpack_oVvv_jvp(primals, tangents):
+    eris_ovvv, = primals
+    eris_ovvv_dot, = tangents
+    # the tangent in the scatter form, which reverse mode transposes into a
+    # gather, as in lib.unpack_tril
+    return (_unpack_oVvv(eris_ovvv),
+            _unpack_tril_scatter(eris_ovvv_dot, lib.HERMITIAN).transpose(0,2,1,3))
+
+@partial(jit, static_argnames=('direct', 'dcsd'))
+def _update_amps(t1, t2, t2new, fock, mo_energy, eris_oooo, eris_ovoo,
+                 eris_oovv, eris_ovvo, eris_ovvv, level_shift,
+                 direct=False, dcsd=False):
     nocc, nvir = t1.shape
     nvir_pair = nvir * (nvir+1) // 2
-    fock = eris.fock
-    mo_e_o = eris.mo_energy[:nocc]
-    mo_e_v = eris.mo_energy[nocc:] + mycc.level_shift
+    mo_e_o = mo_energy[:nocc]
+    mo_e_v = mo_energy[nocc:] + level_shift
 
     t1new = np.zeros_like(t1)
-    t2new = mycc._add_vvvv(t1, t2, eris, t2sym='jiba')
     t2new *= .5  # *.5 because t2+t2.transpose(1,0,3,2) in the end
 
 #** make_inter_F
@@ -137,36 +164,38 @@ def update_amps(mycc, t1, t2, eris):
     fvv -= .5 * np.einsum('ia,ib->ab', t1, fock[:nocc,nocc:])
 
     # begin _add_ovvv_
-    eris_vovv = eris.ovvv.transpose(1,0,2)
+    # eris_ovvv is read as it is (batched over k) and eris_oVvv is written
+    # once. Every contraction below sums over trailing axes of eris_oVvv,
+    # which XLA reads without a transposed copy in either the forward or the
+    # reverse pass.
     # pylint: disable=invalid-unary-operand-type
-    wooVV = -np.dot(t1, eris_vovv.reshape(nvir,-1))
+    wooVV = -np.matmul(np.broadcast_to(t1, (nocc,nocc,nvir)), eris_ovvv)
+    #: fvv += 2*np.einsum('kc,kacb->ab', t1, eris_oVvv)
+    fvv -= 2*lib.unpack_tril(np.einsum('kkp->p', wooVV))
 
-    eris_vovv = lib.unpack_tril(eris_vovv.reshape(nvir*nocc,nvir_pair))
-    eris_vovv = eris_vovv.reshape(nvir,nocc,nvir,nvir)
+    eris_oVvv = _unpack_oVvv(eris_ovvv)
 
-    fvv += 2*np.einsum('kc,ckab->ab', t1, eris_vovv)
-    fvv -= np.einsum('kc,bkca->ab', t1, eris_vovv)
-
-    if not mycc.direct:
-        vvvo = eris_vovv.transpose(0,2,3,1)#.copy()
+    if not direct:
         tau = t2 + np.einsum('ia,jb->ijab', t1, t1)
-        tmp = np.einsum('ijcd,cdbk->ijbk', tau, vvvo)
-        t2new -= np.einsum('ka,ijbk->ijab', t1, tmp)
+        tmp = np.einsum('kbcd,ijcd->kbij', eris_oVvv, tau)
+        t2new -= np.einsum('ka,kbij->ijab', t1, tmp)
 
-    wVOov = np.einsum('biac,jc->bija', eris_vovv, t1)
+    wVOov = np.einsum('iabc,jc->iabj', eris_oVvv, t1).transpose(2,0,3,1)
+    #: fvv -= np.einsum('kc,kcba->ab', t1, eris_oVvv)
+    fvv -= np.einsum('bkka->ab', wVOov)
 
-    theta = t2.transpose(1,2,0,3) * 2
-    theta -= t2.transpose(0,2,1,3)
-    t1new += np.einsum('icjb,cjba->ia', theta, eris_vovv)
+    # k is summed after the contraction: summing it in the contraction
+    # would read eris_oVvv transposed
+    theta = t2 * 2
+    theta -= t2.transpose(1,0,2,3)
+    t1new += np.einsum('kacd,kicd->kai', eris_oVvv, theta).sum(axis=0).T
 
     wooVV = lib.unpack_tril(wooVV.reshape(nocc**2,nvir_pair))
-    wVooV = wooVV.reshape(nocc,nocc,nvir,nvir).transpose(2,1,0,3)
+    wVooV = wooVV.reshape(nocc,nocc,nvir,nvir).transpose(2,0,1,3)
     # end _add_ovvv_
 
-    woooo = np.asarray(eris.oooo).transpose(0,2,1,3).copy()
+    woooo = eris_oooo.transpose(0,2,1,3)
 
-    eris_ovoo = eris.ovoo
-    eris_oovv = eris.oovv
     foo += np.einsum('kc,kcji->ij', 2*t1, eris_ovoo)
     foo += np.einsum('kc,icjk->ij',  -t1, eris_ovoo)
     tmp = np.einsum('la,jaik->lkji', t1, eris_ovoo)
@@ -177,7 +206,6 @@ def update_amps(mycc, t1, t2, eris):
 
     wVooV += np.einsum('kbij,ka->bija', eris_ovoo, t1)
 
-    eris_ovvo = eris.ovvo
     t1new -= np.einsum('jb,jiab->ia', t1, eris_oovv)
     wVooV -= eris_oovv.transpose(2,0,1,3)
     wVOov += wVooV*.5  #: bjia + bija*.5
@@ -194,7 +222,7 @@ def update_amps(mycc, t1, t2, eris):
     fov -= np.einsum('kc,akic->ia', t1, eris_voov)
 
     tau = np.einsum('ia,jb->ijab', t1*.5, t1)
-    if mycc.dcsd:
+    if dcsd:
         tau += t2 * .5
         theta = t2.transpose(1,0,2,3) - t2 * .5
         fvv_t2 = -np.einsum('cjia,cjib->ab', theta.transpose(2,1,0,3), eris_voov)
@@ -207,14 +235,14 @@ def update_amps(mycc, t1, t2, eris):
     foo += np.einsum('aikb,kjab->ij', eris_voov, theta)
 
     tau = np.einsum('ia,jb->ijab', t1, t1)
-    if mycc.dcsd:
+    if dcsd:
         woooo_t2 = np.einsum('ijab,aklb->ijkl', t2, eris_voov)
     else:
         tau += t2
     woooo += np.einsum('ijab,aklb->ijkl', tau, eris_voov)
 
     tau = np.einsum('ia,jb->ijab', t1, t1)
-    if not mycc.dcsd:
+    if not dcsd:
         tau += t2 * .5
     wVooV += np.einsum('bkic,jkca->bija', eris_voov, tau)
 
@@ -229,7 +257,7 @@ def update_amps(mycc, t1, t2, eris):
     tau -=  t2.transpose(0,3,1,2)
     tau1 = -np.einsum('ia,jb->ibja', t1*2, t1)
     tau +=  tau1
-    if mycc.dcsd:
+    if dcsd:
         wVOov += .5 * np.einsum('aikc,kcjb->aijb', eris_voov, tau)
         wVOov += .5 * np.einsum('aikc,kcjb->aijb', eris_VOov, tau1)
     else:
@@ -242,10 +270,10 @@ def update_amps(mycc, t1, t2, eris):
 
     theta = t2.transpose(1,0,2,3) * 2 - t2
     t1new += np.einsum('jb,ijba->ia', fov, theta)
-    t1new -= np.einsum('jbki,kjba->ia', eris.ovoo, theta)
+    t1new -= np.einsum('jbki,kjba->ia', eris_ovoo, theta)
 
     tau = np.einsum('ia,jb->ijab', t1, t1)
-    if mycc.dcsd:
+    if dcsd:
         t2new += .5 * np.einsum('ijkl,klab->ijab', woooo_t2, tau)
     tau += t2
     t2new += .5 * np.einsum('ijkl,klab->ijab', woooo, tau)
@@ -255,7 +283,7 @@ def update_amps(mycc, t1, t2, eris):
     t2new += np.einsum('ijac,bc->ijab', t2, ft_ab)
     t2new -= np.einsum('ki,kjab->ijab', ft_ij, t2)
 
-    if mycc.dcsd:
+    if dcsd:
         fvv += fvv_t2
         foo += foo_t2
     t1new += np.einsum('ib,ab->ia', t1, fvv)
@@ -324,7 +352,7 @@ def amplitudes_to_vector(t1, t2, out=None):
     nocc, nvir = t1.shape
     nov = nocc * nvir
     vector_t1 = t1.ravel()
-    vector_t2 = t2.transpose(0,2,1,3).reshape(nov,nov)[numpy.tril_indices(nov)]
+    vector_t2 = lib.pack_tril(t2.transpose(0,2,1,3).reshape(nov,nov))
     vector = np.concatenate((vector_t1, vector_t2), axis=None)
     return vector
 

@@ -209,6 +209,7 @@ def kernel(mf, conv_tol=1e-10, conv_tol_grad=None,
         has_aux=True,
         optimality_fun_has_aux=True,
         gen_precond=_gen_precond,
+        log=log,
     )
     if config.scf_implicit_diff:
         e_tot = ops.stop_grad(e_tot)

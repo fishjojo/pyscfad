@@ -162,6 +162,7 @@ def _dft_common_post_init_(mf):
 
 class KohnShamDFT(pyscf_rks.KohnShamDFT):
     small_rho_cutoff = getattr(__config__, 'dft_rks_RKS_small_rho_cutoff', 1e-7)
+    second_grids = None
 
     # NOTE __init__ is divided into two functions to not trace grid build
     # TODO consider grid response
