@@ -14,6 +14,7 @@
 
 from functools import partial
 import math
+import jax
 from pyscf.lib.numpy_helper import (
     PLAIN,
     HERMITIAN,
@@ -23,7 +24,6 @@ from pyscf.lib.numpy_helper import (
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.ops import jit, vmap
-from pyscfad import config
 
 __all__ = [
     'PLAIN',
@@ -73,68 +73,133 @@ def unpack_triu(triu, filltril=HERMITIAN, axis=-1, out=None):
         raise NotImplementedError
     return out
 
+# The packing indices are computed in the traced program, so that no index
+# array becomes a constant of the compiled functions or of their jitted callers.
+def _tril_position(n):
+    '''``(n, n)`` packed positions of ``(max(i,j), min(i,j))``, in PySCF
+    order ``t = i*(i+1)/2 + j`` for ``j <= i``.'''
+    i = np.arange(n, dtype=np.int64)
+    hi = np.maximum(i[:,None], i)
+    lo = np.minimum(i[:,None], i)
+    return hi * (hi + 1) // 2 + lo
+
+def _tril_flat_index(n):
+    '''Flattened positions ``i*n + j`` of the packed entries ``t``.'''
+    t = np.arange(n * (n + 1) // 2, dtype=np.int64)
+    # row of t, i = floor((sqrt(8t+1) - 1)/2); exact in float64 (pyscfad
+    # always enables x64) for rows up to at least 1e8, also at the row
+    # boundaries
+    i = np.floor((np.sqrt(8. * t + 1.) - 1.) / 2.).astype(np.int64)
+    # i*n + j with j = t - i*(i+1)/2
+    return t + i * (2 * n - i - 1) // 2
+
 @partial(jit, static_argnums=1)
-def _unpack_tril(tril, filltriu=HERMITIAN):
-    '''
-    Unpack the lower triangular part of a matrix
-    '''
-    assert tril.ndim == 1
-    nd = int(math.sqrt(2*tril.size))
-    out = np.zeros((nd,nd), dtype=tril.dtype)
-    idx = np.tril_indices(nd)
-    out = ops.index_update(out, idx, tril)
+def _unpack_tril_gather(tril, filltriu):
+    n = math.isqrt(2 * tril.shape[-1])
+    # the lower triangle, diagonal included, and its mirror
+    out = np.take(tril, _tril_position(n), axis=-1, mode='clip')
+    if filltriu == SYMMETRIC or (filltriu == HERMITIAN and not np.iscomplexobj(tril)):
+        return out
+    upper = np.triu(np.ones((n, n), dtype=bool), 1)
+    if filltriu == HERMITIAN:
+        return np.where(upper, out.conj(), out)
+    if filltriu == ANTIHERMI:
+        return np.where(upper, -out.conj(), out)
     if filltriu == PLAIN:
-        return out
-    elif filltriu == HERMITIAN:
-        out += np.triu(out.T.conj(), 1)
-        return out
-    elif filltriu == ANTIHERMI:
-        out -= out.T.conj()
-        return out
-    elif filltriu == SYMMETRIC:
-        out += np.triu(out.T, 1)
-        return out
-    else:
-        raise KeyError
+        return np.where(upper, 0, out)
+    raise KeyError(f'filltriu={filltriu}')
+
+@partial(jit, static_argnums=1)
+def _unpack_tril_scatter(tril, filltriu):
+    '''The map of :func:`_unpack_tril_gather`, scattering the lower triangles.'''
+    n = math.isqrt(2 * tril.shape[-1])
+    low = np.zeros(tril.shape[:-1] + (n * n,), dtype=tril.dtype)
+    low = low.at[..., _tril_flat_index(n)].set(tril, unique_indices=True,
+                                                 indices_are_sorted=True)
+    low = low.reshape(tril.shape[:-1] + (n, n))
+    if filltriu == PLAIN:
+        return low
+    up = np.triu(np.swapaxes(low, -1, -2), 1)
+    if filltriu == SYMMETRIC:
+        return low + up
+    if filltriu == HERMITIAN:
+        return low + up.conj()
+    if filltriu == ANTIHERMI:
+        return low - up.conj()
+    raise KeyError(f'filltriu={filltriu}')
+
+@partial(jax.custom_jvp, nondiff_argnums=(1,))
+def _unpack_tril(tril, filltriu):
+    return _unpack_tril_gather(tril, filltriu)
+
+@_unpack_tril.defjvp
+def _unpack_tril_jvp(filltriu, primals, tangents):
+    tril, = primals
+    tril_dot, = tangents
+    # the tangent in the scatter form: reverse mode transposes it into a
+    # gather, whereas the transpose of the gather is a scatter-add
+    return (_unpack_tril_gather(tril, filltriu),
+            _unpack_tril_scatter(tril_dot, filltriu))
 
 def unpack_tril(tril, filltriu=HERMITIAN, axis=-1, out=None):
-    if config.moleintor_opt and axis == -1:
-        from pyscfad.lib import _numpy_helper_opt
-        return _numpy_helper_opt._unpack_tril(tril, filltriu, axis, out)
-    if tril.ndim == 1:
-        out = _unpack_tril(tril, filltriu)
-    elif tril.ndim == 2:
-        if axis == -1 or axis == 1:
-            out = vmap(_unpack_tril, (0,None), signature='(n)->(m,m)')(tril, filltriu)
-        elif axis == 0 or axis == -2:
-            out = vmap(_unpack_tril, (1,None), signature='(n)->(m,m)')(tril, filltriu)
-    else:
-        raise NotImplementedError
-    return out
+    '''Unpack the lower triangles stored along ``axis``.
+
+    See also:
+        :func:`pyscf.lib.numpy_helper.unpack_tril`
+
+    Notes:
+        ``out`` is unused.
+    '''
+    del out
+    axis = axis % tril.ndim
+    npair = tril.shape[axis]
+    n = math.isqrt(2 * npair)
+    if n * (n + 1) // 2 != npair:
+        raise ValueError(f'{npair} is not the size of a lower triangle')
+    return _unpack_tril_along(tril, filltriu, axis)
+
+@partial(jit, static_argnums=(1, 2))
+def _unpack_tril_along(tril, filltriu, axis):
+    last = axis == tril.ndim - 1
+    if not last:
+        tril = np.moveaxis(tril, axis, -1)
+    mat = _unpack_tril(tril, filltriu)
+    if not last:
+        mat = np.moveaxis(mat, (-2, -1), (axis, axis + 1))
+    return mat
 
 def pack_tril(a, axis=-1, out=None):
-    '''
-    Lower triangular part of a matrix as a vector
-    '''
-    if config.moleintor_opt and axis == -1:
-        from pyscfad.lib import _numpy_helper_opt
-        return _numpy_helper_opt._pack_tril(a, axis, out)
-    def fn(mat):
-        idx = np.tril_indices(mat.shape[0])
-        return mat[idx].ravel()
+    '''Flatten the lower triangles in either the last
+    (``axis=-1``) or the first (``axis=0``) two axes of ``a``.
 
-    if a.ndim == 3:
-        if axis == -1:
-            tril = vmap(fn, signature='(m,m)->(n)')(a)
-        elif axis == 0:
-            tril = vmap(fn, -1, signature='(m,m)->(n)')(a)
-        else:
-            raise KeyError
-    elif a.ndim == 2:
-        tril = fn(a)
+    See also:
+        :func:`pyscf.lib.numpy_helper.pack_tril`
+
+    Notes:
+        ``out`` is unused.
+    '''
+    del out
+    if axis == 0:
+        n = a.shape[0]
+        if a.shape[1] != n:
+            raise ValueError(f'leading two axes of shape {a.shape} are not square')
+    elif axis == -1:
+        n = a.shape[-1]
+        if a.shape[-2] != n:
+            raise ValueError(f'last two axes of shape {a.shape} are not square')
     else:
-        raise NotImplementedError
-    return tril
+        raise KeyError(f'axis={axis} not supported')
+    return _pack_tril(a, axis)
+
+@partial(jit, static_argnums=1)
+def _pack_tril(a, axis):
+    if axis == 0:
+        n = a.shape[0]
+        return np.take(a.reshape((n * n,) + a.shape[2:]), _tril_flat_index(n),
+                       axis=0, mode='clip')
+    n = a.shape[-1]
+    return np.take(a.reshape(a.shape[:-2] + (n * n,)), _tril_flat_index(n),
+                   axis=-1, mode='clip')
 
 @partial(jit, static_argnums=1)
 def hermi_triu(a, hermi=HERMITIAN):

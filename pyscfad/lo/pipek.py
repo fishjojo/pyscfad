@@ -80,6 +80,13 @@ class PipekMezey(pyscf_pipek.PipekMezey):
             method = self.pop_method
         return numpy.asarray(atomic_pops(mol, mo_coeff, method, s=s))
 
+    def cost_function(self, u=None):
+        from pyscf import lib
+        if u is None: u = numpy.eye(self.mo_coeff.shape[1])
+        mo_coeff = lib.dot(self.mo_coeff, u)
+        projR = self.atomic_pops(self.mol, mo_coeff, self.pop_method).real
+        return (lib.einsum('xii->xi', projR)**self.exponent).sum()
+
     get_init_guess = boys.Boys.get_init_guess
     kernel = boys.kernel
 
