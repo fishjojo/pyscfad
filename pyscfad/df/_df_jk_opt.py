@@ -24,6 +24,7 @@ from pyscf import lib
 from pyscf.ao2mo import _ao2mo
 from pyscf.df import df_jk as pyscf_df_jk
 from pyscfad.lib import logger
+from pyscfad.lib import _cotangent_buffer
 from pyscfadlib import libcvhf_vjp as libvhf
 
 libao2mo = lib.load_library('libao2mo')
@@ -92,12 +93,17 @@ def get_jk_bwd(hermi, with_j, with_k, direct_scf_tol,
     log = logger.new_logger(dfobj)
     dfobj_bar = dm_bar = None
     if eri_perturbed:
+        # added in place to the cotangent buffer of _cderi if registered
+        eri_bar_buf = _cotangent_buffer.get(dfobj._cderi)
         if vk_bar is None or _lowrank_vk_vjp(dm, hermi):
-            eri_bar = _eri_bar(dfobj, dm, hermi, vj_bar, vk_bar)
+            eri_bar = _eri_bar(dfobj, dm, hermi, vj_bar, vk_bar, out=eri_bar_buf)
             if dm_perturbed:
                 dm_bar = _dm_bar(dfobj, dm, hermi, vj_bar, vk_bar)
         else:
-            eri_bar, dm_bar = _eri_dm_bar(dfobj, dm, vj_bar, vk_bar)
+            eri_bar, dm_bar = _eri_dm_bar(dfobj, dm, vj_bar, vk_bar,
+                                          out=eri_bar_buf)
+        if eri_bar_buf is not None:
+            eri_bar = None
         # J/K depend on mol and auxmol only through _cderi (None as zero)
         dfobj_bar = tree_map(lambda x: None, dfobj)
         dfobj_bar._cderi = eri_bar
@@ -172,9 +178,9 @@ def _lowrank_vk_vjp(dm, hermi):
     return (hermi == 1 and not numpy.iscomplexobj(dm)
             and hasattr(libvhf, 'df_vk_vjp_lowrank'))
 
-def _eri_bar(dfobj, dm, hermi, vj_bar, vk_bar):
-    '''Cotangent of _cderi alone. The K part is built from the pivoted
-    Cholesky factor of dm, O(naux*nocc*nao^2).
+def _eri_bar(dfobj, dm, hermi, vj_bar, vk_bar, out=None):
+    '''Cotangent of _cderi alone, added to out if given. The K part is
+    built from the pivoted Cholesky factor of dm, O(naux*nocc*nao^2).
     '''
     dms = numpy.asarray(dm)
     nao = dms.shape[-1]
@@ -201,7 +207,10 @@ def _eri_bar(dfobj, dm, hermi, vj_bar, vk_bar):
 
     #TODO save eri_bar on disk
     nao_pair = nao*(nao+1)//2
-    eri_bar = numpy.zeros((dfobj.get_naoaux(), nao_pair))
+    if out is None:
+        eri_bar = numpy.zeros((dfobj.get_naoaux(), nao_pair))
+    else:
+        eri_bar = out
     # NOTE no unpacked buffer per block; the kernel unpacks one row per thread
     max_memory = dfobj.max_memory - lib.current_memory()[0]
     blksize = max(4, int(min(dfobj.blockdim, max_memory*.3e6/8/nao_pair)))
@@ -229,8 +238,8 @@ def _eri_bar(dfobj, dm, hermi, vj_bar, vk_bar):
                                      ctypes.c_int(nocc))
     return eri_bar
 
-def _eri_dm_bar(dfobj, dm, vj_bar, vk_bar):
-    '''Cotangents of _cderi and dm.'''
+def _eri_dm_bar(dfobj, dm, vj_bar, vk_bar, out=None):
+    '''Cotangents of _cderi, added to out if given, and dm.'''
     fmmm = libao2mo.AO2MOmmm_bra_nr_s2
     fdrv = libao2mo.AO2MOnr_e2_drv
     ftrans = libao2mo.AO2MOtranse2_nr_s2
@@ -253,7 +262,10 @@ def _eri_dm_bar(dfobj, dm, vj_bar, vk_bar):
         vj_bar_tril[:,idx*(idx+1)//2+idx] *= .5
 
     #TODO save eri_bar on disk
-    eri_bar = numpy.zeros((dfobj.get_naoaux(), nao*(nao+1)//2))
+    if out is None:
+        eri_bar = numpy.zeros((dfobj.get_naoaux(), nao*(nao+1)//2))
+    else:
+        eri_bar = out
     # NOTE vjpdrv accumulates dms_bar in F order
     dms_bar = [numpy.zeros((nao,nao), order='F') for _ in range(nset)]
 

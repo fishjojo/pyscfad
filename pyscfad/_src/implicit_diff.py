@@ -19,6 +19,10 @@ import time
 import jax
 from jax.tree_util import tree_map
 from jax.scipy.sparse.linalg import gmres
+try:
+    from jax._src.interpreters.ad import ValAccum as _ValAccum, Zero as _Zero
+except ImportError:
+    _ValAccum = None
 from pyscfad.backend import get_backend
 
 _Sub = partial(tree_map, operator.sub)
@@ -37,6 +41,43 @@ def _block_until_ready(tree):
         if hasattr(leaf, "block_until_ready") and not isinstance(leaf, jax.core.Tracer):
             leaf.block_until_ready()
     return tree
+
+class _NoCotangent:
+    """An input cotangent to which nothing was added"""
+
+_NO_COTANGENT = _NoCotangent()
+
+if _ValAccum is not None:
+    class _ValAccumNoZero(_ValAccum):
+        # NOTE jax.vjp instantiates the Zero of an unchanged accumulator as
+        # zeros of the size of the input; this one freezes to _NO_COTANGENT.
+        # It is a ValAccum, so that jitted functions inside (pjit transpose)
+        # add their cotangents to it.
+        def freeze(self):
+            if isinstance(self.val, _Zero):
+                return _NO_COTANGENT
+            return self.val
+
+def _call_vjp(vjp_fun, primals, ct):
+    """vjp_fun(ct) with None instead of zeros as the cotangents of the arrays
+    whose cotangents are accumulated in place (see pyscfad.lib._cotangent_buffer),
+    for which jax.vjp would allocate zeros of their size, e.g. the DF tensor.
+    The cotangents of these arrays that do not go to their buffers, e.g. from
+    a function that does not use the buffer, are returned as usual.
+    """
+    # pylint: disable=import-outside-toplevel
+    from pyscfad.lib import _cotangent_buffer
+    if (_ValAccum is None or getattr(jax, "ad", None) is None
+            or not hasattr(vjp_fun, "with_refs")):
+        return vjp_fun(ct)
+    leaves, tree = jax.tree_util.tree_flatten(primals)
+    skip = [_cotangent_buffer.registered(x) for x in leaves]
+    if not any(skip):
+        return vjp_fun(ct)
+    refs = [_ValAccumNoZero(jax.typeof(x).to_ct_aval()) if s else jax.ad.GradValue()
+            for x, s in zip(leaves, skip)]
+    cts = vjp_fun.with_refs(*jax.tree_util.tree_unflatten(tree, refs))(ct)
+    return tree_map(lambda x: None if x is _NO_COTANGENT else x, cts)
 
 def root_vjp(optimality_fun, sol, args, cotangent,
              solve=gmres, nondiff_argnums=(),
@@ -90,7 +131,7 @@ def root_vjp(optimality_fun, sol, args, cotangent,
         return optimality_fun(sol, *new_args)
 
     _, vjp_fun_args = jax.vjp(fun_args, *diff_args, has_aux=optfn_has_aux)[:2]
-    diff_vjps = vjp_fun_args(u)
+    diff_vjps = _call_vjp(vjp_fun_args, diff_args, u)
 
     if log is not None:
         _block_until_ready(diff_vjps)
