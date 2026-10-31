@@ -19,6 +19,10 @@ import time
 import jax
 from jax.tree_util import tree_map
 from jax.scipy.sparse.linalg import gmres
+try:
+    from jax._src.interpreters.ad import ValAccum as _ValAccum, Zero as _Zero
+except ImportError:
+    _ValAccum = None
 from pyscfad.backend import get_backend
 
 _Sub = partial(tree_map, operator.sub)
@@ -38,13 +42,8 @@ def _block_until_ready(tree):
             leaf.block_until_ready()
     return tree
 
-try:
-    from jax._src.interpreters.ad import ValAccum as _ValAccum, Zero as _Zero
-except ImportError:
-    _ValAccum = None
-
 class _NoCotangent:
-    '''An input cotangent to which nothing was added'''
+    """An input cotangent to which nothing was added"""
 
 _NO_COTANGENT = _NoCotangent()
 
@@ -55,21 +54,21 @@ if _ValAccum is not None:
         # It is a ValAccum, so that jitted functions inside (pjit transpose)
         # add their cotangents to it.
         def freeze(self):
-            if type(self.val) is _Zero:
+            if isinstance(self.val, _Zero):
                 return _NO_COTANGENT
             return self.val
 
 def _call_vjp(vjp_fun, primals, ct):
-    '''vjp_fun(ct) with None instead of zeros as the cotangents of the arrays
+    """vjp_fun(ct) with None instead of zeros as the cotangents of the arrays
     whose cotangents are accumulated in place (see pyscfad.lib._cotangent_buffer),
     for which jax.vjp would allocate zeros of their size, e.g. the DF tensor.
     The cotangents of these arrays that do not go to their buffers, e.g. from
     a function that does not use the buffer, are returned as usual.
-    '''
+    """
     # pylint: disable=import-outside-toplevel
     from pyscfad.lib import _cotangent_buffer
-    if (_ValAccum is None or getattr(jax, 'ad', None) is None
-            or not hasattr(vjp_fun, 'with_refs')):
+    if (_ValAccum is None or getattr(jax, "ad", None) is None
+            or not hasattr(vjp_fun, "with_refs")):
         return vjp_fun(ct)
     leaves, tree = jax.tree_util.tree_flatten(primals)
     skip = [_cotangent_buffer.registered(x) for x in leaves]
