@@ -1,4 +1,4 @@
-# Copyright 2021-2025 Xing Zhang
+# Copyright 2021-2026 The PySCFAD Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy
 from pyscf.ao2mo import addons as pyscf_addons
 from pyscfad import lib
 from pyscfad.ops import is_array, vmap
 
 class load(pyscf_addons.load):
     def __enter__(self):
-        if is_array(self.eri):
+        if is_array(self.eri) or isinstance(self.eri, numpy.ndarray):
             return self.eri
         else:
             raise NotImplementedError
