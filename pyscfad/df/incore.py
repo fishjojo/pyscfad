@@ -297,6 +297,15 @@ def cholesky_eri(mol, auxmol=None, auxbasis='weigend+etb',
     shranges = _guess_shell_ranges(mol, buflen, aosym)
     log.debug1('shranges = %s', shranges)
 
+    if config.moleintor_opt and tag == 'cd' and aosym in ('s2', 's2ij'):
+        # the integrals and the triangular solve in one array, in place
+        cderi = _int3c_cross_opt.int3c2e_cholesky(
+                    mol, auxmol, low, int3c,
+                    tuple((int(b0), int(b1), int(n)) for b0, b1, n in shranges))
+        log.timer('cholesky_eri', *t0)
+        del log
+        return cderi
+
     for istep, sh_range in enumerate(shranges):
         log.debug('int3c2e [%d/%d], AO [%d:%d], nrow = %d',
                   istep+1, len(shranges), *sh_range)

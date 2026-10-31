@@ -102,7 +102,8 @@ class DF(pytree.PytreeNode, pyscf_df.DF):
             blksize = self.blockdim
 
         with addons.load(self._cderi, 'j3c') as feri:
-            if is_array(feri):
+            # NOTE a numpy array with moleintor_opt (see incore.cholesky_eri)
+            if is_array(feri) or isinstance(feri, numpy.ndarray):
                 if to_numpy:
                     # NOTE convert once (no copy for CPU arrays) and yield views,
                     # as slicing the backend array copies every block

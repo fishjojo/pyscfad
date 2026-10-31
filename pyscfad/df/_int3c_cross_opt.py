@@ -15,10 +15,14 @@
 from functools import partial
 import ctypes
 import numpy
+from scipy.linalg import blas
 from jax import custom_vjp
-from jax.tree_util import tree_flatten, tree_unflatten
+from jax.custom_derivatives import CustomVJPPrimal, SymbolicZero
+from jax.tree_util import tree_flatten, tree_unflatten, tree_map
 
+from pyscf import lib
 from pyscfad.lib import logger
+from pyscfad.lib import _cotangent_buffer
 from pyscfad.gto._pyscf_moleintor import (
     ascint3,
     make_loc,
@@ -128,3 +132,112 @@ def int3c_cross_bwd(intor, comp, aosym, shls_slice, out,
     return (mol_bar, auxmol_bar)
 
 int3c_cross.defvjp(int3c_cross_fwd, int3c_cross_bwd)
+
+
+def _trsm_inplace(low, b, trans=False):
+    '''b = low^-1 b (low^-T b if trans) in place, for the lower triangular
+    low and b of shape (naux, n) in C order.'''
+    # NOTE dtrsm(overwrite_b=1) writes into b even if it is read-only,
+    # e.g., a numpy view of a JAX array
+    assert b.flags.writeable, 'b is overwritten in place'
+    # (low^-1 b)^T = b^T low^-T, with b^T in F order
+    bt = b.T
+    x = blas.dtrsm(1., low, bt, side=1, lower=1, trans_a=int(not trans),
+                   overwrite_b=1)
+    if x.ctypes.data != bt.ctypes.data:
+        bt[:] = x
+    return b
+
+def _pair_ranges(mol, intor, shranges):
+    '''AO shell slices and ranges of packed AO pairs of shranges'''
+    ao_loc = make_loc(mol._bas, ascint3(mol._add_suffix(intor)))
+    p1 = 0
+    for bstart, bend, _ in shranges:
+        i0 = int(ao_loc[bstart])
+        i1 = int(ao_loc[bend])
+        p0, p1 = p1, p1 + (i1*(i1+1) - i0*(i0+1)) // 2
+        yield (bstart, bend, 0, mol.nbas), p0, p1
+
+def _int3c2e_cholesky(mol, auxmol, low, intor, shranges):
+    pmol = mol + auxmol
+    atm = pmol._atm
+    bas = pmol._bas
+    env = pmol._env
+    int3c = ascint3(mol._add_suffix(intor))
+    ao_loc = make_loc(bas, int3c)
+    cintopt = make_cintopt(atm, bas, env, int3c)
+    nbas = mol.nbas
+    nao = int(ao_loc[nbas])
+    naux = int(ao_loc[nbas+auxmol.nbas]) - nao
+    low = numpy.asarray(low, order='F')
+
+    cderi = numpy.empty((naux, nao*(nao+1)//2))
+    for shls_slice, p0, p1 in _pair_ranges(mol, intor, shranges):
+        shls_slice = shls_slice + (nbas, nbas+auxmol.nbas)
+        # the integrals of all AO pairs go to cderi directly
+        out = cderi if p1 - p0 == cderi.shape[1] else None
+        # (nij, naux) in F order
+        ints = getints3c(int3c, atm, bas, env, shls_slice=shls_slice, comp=1,
+                         aosym='s2ij', ao_loc=ao_loc, cintopt=cintopt, out=out)
+        _trsm_inplace(low, ints.T)
+        if out is None:
+            cderi[:,p0:p1] = ints.T
+        ints = None
+    return cderi
+
+@partial(custom_vjp, nondiff_argnums=(3,4))
+def int3c2e_cholesky(mol, auxmol, low, intor, shranges):
+    '''The density fitting tensor low^-1 (P|ij), (naux, nao_pair) in C order,
+    with low the lower triangular Cholesky factor of the 2c2e integrals and
+    shranges the ranges of AO shells (see pyscf.df.outcore._guess_shell_ranges).
+
+    Fuses int3c_cross and the triangular solve so that the tensor, and its
+    cotangent in the backward pass, are each built in place in one array.
+    The consumers add the cotangent to the buffer of the tensor in place
+    (see pyscfad.lib._cotangent_buffer).
+    '''
+    return _int3c2e_cholesky(mol, auxmol, low, intor, shranges)
+
+def int3c2e_cholesky_fwd(mol, auxmol, low, intor, shranges):
+    mol, auxmol, low = tree_map(lambda x: x.value, (mol, auxmol, low),
+                                is_leaf=lambda x: isinstance(x, CustomVJPPrimal))
+    cderi = _int3c2e_cholesky(mol, auxmol, low, intor, shranges)
+    _cotangent_buffer.register(cderi)
+    return cderi, (mol, auxmol, low, cderi)
+
+def int3c2e_cholesky_bwd(intor, shranges, res, cderi_bar):
+    mol, auxmol, low, cderi = res
+    log = logger.new_logger(mol)
+    t0 = log.get_t0()
+    ints_bar = _cotangent_buffer.pop(cderi)
+    if not isinstance(cderi_bar, SymbolicZero):
+        if ints_bar is None:
+            ints_bar = numpy.array(cderi_bar, dtype=numpy.float64, order='C')
+        else:
+            ints_bar += numpy.asarray(cderi_bar)
+    if ints_bar is None:
+        return (None, None, None)
+
+    # cderi = low^-1 ints, so that ints_bar = low^-T cderi_bar
+    # and low_bar = -tril(low^-T cderi_bar cderi^T)
+    low = numpy.asarray(low, order='F')
+    _trsm_inplace(low, ints_bar, trans=True)
+    low_bar = -numpy.tril(lib.dot(ints_bar, cderi.T))
+    log.timer_debug1('int3c2e_cholesky_bwd triangular solve', *t0)
+
+    nbas = mol.nbas
+    mol_bar = auxmol_bar = None
+    for shls_slice, p0, p1 in _pair_ranges(mol, intor, shranges):
+        shls_slice = shls_slice + (nbas, nbas+auxmol.nbas)
+        cts = int3c_cross_bwd(intor, 1, 's2ij', shls_slice, None,
+                              (mol, auxmol), ints_bar[:,p0:p1])
+        if mol_bar is None:
+            mol_bar, auxmol_bar = cts
+        else:
+            mol_bar, auxmol_bar = tree_map(numpy.add, (mol_bar, auxmol_bar), cts)
+    log.timer('int3c2e_cholesky_bwd', *t0)
+    del log
+    return mol_bar, auxmol_bar, low_bar
+
+int3c2e_cholesky.defvjp(int3c2e_cholesky_fwd, int3c2e_cholesky_bwd,
+                        symbolic_zeros=True)
