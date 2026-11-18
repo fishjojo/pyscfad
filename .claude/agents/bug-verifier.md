@@ -28,9 +28,11 @@ existing test. **Actually run code** — do not reason about it in the abstract:
 - Run inline reproductions with `python` — e.g. `python -c "..."`, or a heredoc
   (`python - <<'EOF' ... EOF`) for a multi-line script (you have no Write tool, so use
   these instead of creating a file).
-- Run test-based reproductions with `pytest` (e.g. `pytest tests/test_scf.py::test_x`).
-- If `pyscfad` is not importable in a fresh checkout, **build it first** per `CLAUDE.md`
-  (`pip install ./pyscfadlib`, then `pip install .`) before drawing any conclusion. Do
+- Run test-based reproductions from the repo root with `python -m pytest` (e.g.
+  `python -m pytest tests/test_scf.py::test_x`).
+- If `pyscfad` is not importable in a fresh checkout, **build it first** per the Build
+  section of `CLAUDE.md` (`pip install pyscfadlib`, or `pip install ./pyscfadlib` to
+  build the tree's sources, then `pip install -e .`) before drawing any conclusion. Do
   **not** report `not_reproducible` because of a missing or unbuilt environment — that is
   a setup problem, not evidence the bug is absent. Note such setup issues explicitly.
 
