@@ -12,12 +12,14 @@ Given the implemented change, the test(s) to run, and — for a bug — the orig
 reproduction (a feature request has none; Stage 0 only confirmed it was actionable):
 
 0. Ensure the package is importable before testing. On a fresh checkout (common on the
-   feature path, where no reproduction build ran), build it per `CLAUDE.md`
-   (`pip install ./pyscfadlib`, then `pip install .`). Do **not** report `fail` for a
+   feature path, where no reproduction build ran), build it per the Build section of
+   `CLAUDE.md` (`pip install pyscfadlib`, or `pip install ./pyscfadlib` to build the
+   tree's sources, then `pip install -e .`). Do **not** report `fail` for a
    missing/unbuilt environment — that is a setup problem, not a real test failure; note it
    and build, then run the tests.
-1. Run the targeted test file/module the plan specifies (e.g.
-   `pytest tests/test_scf.py`), not the full suite unless asked. Prefer fast tests.
+1. Run the targeted test file/module the plan specifies from the repo root (e.g.
+   `python -m pytest tests/test_scf.py`), not the full suite unless asked. Prefer fast
+   tests.
 2. **For a bug fix:** run the original reproduction and confirm it no longer fails.
    **For a feature:** there is no prior failing reproduction — instead run the plan's
    acceptance exercise (the test/script that demonstrates the new capability works) and
