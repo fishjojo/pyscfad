@@ -100,14 +100,14 @@ batching), and `xtb/` (GFN1-xTB).
 
 ### Differentiable classes
 
-- Write a new differentiable class as a plain, fully jittable class, modeled on
-  `MoleLite` (`pyscfad/gto/mole_lite.py`), `SCFLite` (`pyscfad/scf/hf_lite.py`),
-  `MolePad` (`pyscfad/ml/gto/mole_pad.py`), and `SCFPad` (`pyscfad/ml/scf/hf_pad.py`).
-  These are not pytrees: construct them inside the function you `jit` or `grad`, from
-  its array arguments (see `examples/scf/40-rhf_jit.py`).
-- Make data that itself has to cross a `jit`/`vmap` boundary a
-  `@jax.tree_util.register_dataclass` dataclass, like `BasisArray` in
-  `pyscfad/ml/gto/basis_array.py`.
+- Write a new class that has a PySCF parent class as a plain, fully jittable class,
+  modeled on `MoleLite` (`pyscfad/gto/mole_lite.py`), `SCFLite`
+  (`pyscfad/scf/hf_lite.py`), `MolePad` (`pyscfad/ml/gto/mole_pad.py`), and `SCFPad`
+  (`pyscfad/ml/scf/hf_pad.py`). Such a class is not a pytree: construct it inside the
+  function you `jit` or `grad`, from its array arguments (see
+  `examples/scf/40-rhf_jit.py`).
+- Use a `@jax.tree_util.register_dataclass` dataclass for a traceable container of
+  data, like `BasisArray` in `pyscfad/ml/gto/basis_array.py`.
 - `pyscfad.pytree.PytreeNode` and `@pyscfad.util.pytree_node` (deprecated) are the
   legacy way to register a class as a pytree. Much existing code still uses them (e.g.
   `gto.Mole`, `scf.SCF`); leave that code as it is, and build new classes on the two
