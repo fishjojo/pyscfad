@@ -24,7 +24,7 @@ Given the issue text and any reproduction notes, investigate and return a brief 
    classes, the specific lines that are wrong). Trace the call path, don't guess.
 3. **Reproduction** — the smallest script or existing test that triggers it, and the
    observed vs. expected result. Actually run it if cheap.
-4. **Existing tests** — related tests already in the repo (`tests/` and legacy
+4. **Existing tests** — related tests already in the repo (`tests/` and the
    in-package `test/` dirs) that cover or should cover this area.
 5. **Constraints** — `CLAUDE.md` rules the fix must honor (e.g. go through
    `pyscfad.numpy`/`ops`, don't use deprecated `pytree_node`, prefer implicit diff, keep
