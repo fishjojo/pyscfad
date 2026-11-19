@@ -251,7 +251,7 @@ def scf(
     scf_conv = False
     mo_energy = mo_coeff = mo_occ = None
 
-    dm, vhf, fock, e_tot = _scf_implicit(
+    dm, _, _, e_tot = _scf_implicit(
         mf,
         dm,
         h1e,
@@ -262,6 +262,10 @@ def scf(
         conv_tol_dm,
     )
 
+    # The auxiliary outputs of custom_root have zero tangents,
+    # so rebuild vhf and fock from the converged dm.
+    vhf = mf.get_veff(mol, dm, s1e=s1e)
+    fock = mf.get_fock(h1e, s1e, vhf, dm)
     mo_energy, mo_coeff = mf.eig(fock, s1e)
     mo_occ = mf.get_occ(mo_energy, mo_coeff)
     dm, dm_last = mf.make_rdm1(mo_coeff, mo_occ), dm

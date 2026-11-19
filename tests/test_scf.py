@@ -267,3 +267,42 @@ def test_rhf_lite_packed_nuc_grad(aosym):
 
     g = jax.jit(jax.grad(energy))(coords)
     assert abs(g - mf0.nuc_grad_method().kernel()).max() < 1e-6
+
+def test_rhf_lite_sp2_nuc_grad():
+    """The SP2 solver's final Fock matrix must be built from the implicitly
+    differentiated density matrix, not from the zero-tangent auxiliary
+    outputs of ``custom_root`` (issue #174).
+    """
+    symbols = ("He", "H")
+    coords = numpy.array([[0., 0., 0.], [0., 0., 1.46]])
+
+    def pyscf_rhf(coords):
+        mol = MoleLite(symbols, coords, basis="sto3g", charge=1, verbose=0)
+        mf = mol.to_pyscf().RHF()
+        mf.conv_tol = 1e-14
+        mf.conv_tol_grad = 1e-10
+        mf.kernel()
+        return mf
+
+    def energy_and_rdm1(coords):
+        mol = MoleLite(symbols, coords, basis="sto3g", charge=1, verbose=0)
+        mf = hf_lite.SCFLite(mol)
+        mf.init_guess = "hcore"
+        mf.diis = "anderson"
+        mf.use_sp2 = True
+        mf.kernel()
+        return mf.e_tot, mf.make_rdm1()
+
+    g, jac = jax.jit(jax.jacfwd(energy_and_rdm1))(coords)
+
+    mf0 = pyscf_rhf(coords)
+    assert abs(g - mf0.nuc_grad_method().kernel()).max() < 1e-6
+
+    # density matrix response along the bond vs. finite difference
+    disp = 1e-4
+    coords_p = coords.copy()
+    coords_p[1,2] += disp
+    coords_m = coords.copy()
+    coords_m[1,2] -= disp
+    jac0 = (pyscf_rhf(coords_p).make_rdm1() - pyscf_rhf(coords_m).make_rdm1()) / (2*disp)
+    assert abs(jac[:,:,1,2] - jac0).max() < 1e-6
