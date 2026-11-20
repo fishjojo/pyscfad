@@ -395,6 +395,98 @@ def cart2sph_scatter_maps(
     return maps, (numpy.concatenate(facs) if facs else numpy.zeros(0))
 
 
+class CrossBasis(NamedTuple):
+    """The primitive shells of a basis followed by the basis itself, for
+    the cross integrals of the basis-parameter derivatives.
+
+    Every primitive shell carries the unit contraction coefficient appended
+    to ``env`` (``envc`` and ``ctr_coeffc``).
+    """
+    bas: numpy.ndarray | Array
+    bas_conc: numpy.ndarray  # static shell structure of the basis
+    cart: bool
+    basc: numpy.ndarray | Array
+    basc_conc: numpy.ndarray  # static shell structure of ``basc``
+    envc: Array
+    ctr_coeffc: Array
+    ao_loc: numpy.ndarray  # of ``basc``
+    prim_shl_loc: numpy.ndarray
+    nbas_prim: int
+    ptr_coeff0: int  # offset of the contraction coefficients in ``env``
+
+    def prim_shls(self, sh0: int, sh1: int) -> tuple[int, int]:
+        """Range of the primitive shells of the shells ``[sh0, sh1)``."""
+        return self.prim_shl_loc[sh0], self.prim_shl_loc[sh1]
+
+    def real_shls(self, sh0: int, sh1: int) -> tuple[int, int]:
+        """Range of the shells ``[sh0, sh1)`` in ``basc``."""
+        return self.nbas_prim + sh0, self.nbas_prim + sh1
+
+
+def cross_basis(
+    atm: numpy.ndarray | Array,
+    bas: numpy.ndarray | Array,
+    env: Array,
+    ctr_coeff: Array,
+    cart: bool,
+    order: int = 0,
+    basis_array_metadata: BasisArrayMetadata | None = None, # used for padding
+) -> CrossBasis:
+    """:class:`CrossBasis` whose primitive shells have their angular
+    momentum raised by ``order``, which needs Cartesian functions.
+    """
+    if basis_array_metadata is None:
+        bas_conc = resolve_bas_concrete(bas)
+    else:
+        bas_conc = resolve_bas_concrete(basis_array_metadata, len(atm))
+    basc, basc_conc = conc_prim_bas(bas_conc, bas, env.shape[-1], order=order)
+    return CrossBasis(
+        bas=bas,
+        bas_conc=bas_conc,
+        cart=cart,
+        basc=basc,
+        basc_conc=basc_conc,
+        envc=np.append(env, 1.0),
+        ctr_coeffc=np.append(ctr_coeff, 1.0),
+        ao_loc=make_loc(basc_conc, "cart" if cart or order > 0 else "sph"),
+        prim_shl_loc=primitive_shell_loc(bas_conc),
+        nbas_prim=len(basc) - len(bas),
+        ptr_coeff0=env.shape[-1] - ctr_coeff.shape[-1],
+    )
+
+
+def cs_weights(
+    cb: CrossBasis,
+    ctr_coeff_dot: Array,
+    shl_range: tuple[int, int],
+) -> tuple[CsMaps, Array]:
+    """Scatter maps and weights of the contraction-coefficient tangent of
+    the shells ``shl_range``, i.e. the primitive to contracted coefficient
+    mapping.
+    """
+    maps = cs_scatter_maps(cb.bas_conc, cb.cart, shl_range)
+    coeff_env_idx = cb.bas[:,PTR_COEFF][maps.entry_shell] + maps.coeff_off
+    return maps, ctr_coeff_dot[coeff_env_idx - cb.ptr_coeff0]
+
+
+def exp_weights(
+    cb: CrossBasis,
+    exp: Array,
+    exp_dot: Array,
+    shl_range: tuple[int, int],
+) -> tuple[ExpMaps, Array]:
+    """Scatter maps and weights of the exponent tangent of the shells
+    ``shl_range``, i.e. ``-r^2`` brought down by ``d/da``, times the
+    contraction coefficient of the primitive.
+    """
+    maps = exp_scatter_maps(cb.bas_conc, cb.cart, shl_range)
+    ptr_exp0 = cb.ptr_coeff0 - exp.shape[-1]
+    coeff_env_idx = cb.bas[:,PTR_COEFF][maps.entry_shell] + maps.coeff_off
+    exp_env_idx = cb.bas[:,PTR_EXP][maps.entry_shell] + maps.prim_off
+    c = cb.ctr_coeffc[coeff_env_idx - cb.ptr_coeff0]
+    return maps, -(maps.fac * c) * exp_dot[exp_env_idx - ptr_exp0]
+
+
 def basis_jvp_cs(
     intor_cross: Callable,
     atm: numpy.ndarray | Array,
@@ -408,42 +500,19 @@ def basis_jvp_cs(
     basis_array_metadata: BasisArrayMetadata | None = None, # used for padding
 ) -> Array:
     assert hermi in (0, 1), f"hermi={hermi} not supported"
-    natm = len(atm)
-    nbas = len(bas)
-    if basis_array_metadata is None:
-        bas_conc = resolve_bas_concrete(bas)
-    else:
-        bas_conc = resolve_bas_concrete(basis_array_metadata, natm)
-    i0, i1, j0, j1 = _resolve_shls_slice(shls_slice, nbas, hermi)
-
-    ptr_ones = env.shape[-1]
-    basc, basc_conc = conc_prim_bas(bas_conc, bas, ptr_ones)
-    nbas_prim = len(basc) - nbas
-
-    ptr_coeff0 = env.shape[-1] - ctr_coeff.shape[-1]
-    ctr_coeffc = np.append(ctr_coeff, 1.0)
-    envc = np.append(env, 1.0)
-
-    ao_loc = make_loc(basc_conc, "cart" if cart else "sph")
-    prim_shl_loc = primitive_shell_loc(bas_conc)
-
-    def weights(sh0, sh1):
-        """Primitive to contracted coefficient mapping.
-        """
-        maps = cs_scatter_maps(bas_conc, cart, (sh0, sh1))
-        coeff_env_idx = bas[:,PTR_COEFF][maps.entry_shell] + maps.coeff_off
-        w = ctr_coeff_dot[coeff_env_idx - ptr_coeff0]
-        return maps, w
+    i0, i1, j0, j1 = _resolve_shls_slice(shls_slice, len(bas), hermi)
+    cb = cross_basis(atm, bas, env, ctr_coeff, cart, 0, basis_array_metadata)
 
     def cross(shls):
         """The cross integrals of the shell block, with the static shell
         structure of the concatenated basis.
         """
-        return intor_cross(basc, envc, ctr_coeffc, shls, ao_loc, basc_conc)
+        return intor_cross(cb.basc, cb.envc, cb.ctr_coeffc, shls, cb.ao_loc,
+                           cb.basc_conc)
 
-    maps_bra, w_bra = weights(i0, i1)
+    maps_bra, w_bra = cs_weights(cb, ctr_coeff_dot, (i0, i1))
 
-    shls = (prim_shl_loc[i0], prim_shl_loc[i1], nbas_prim + j0, nbas_prim + j1)
+    shls = cb.prim_shls(i0, i1) + cb.real_shls(j0, j1)
     jvp = _contract_bra(cross(shls), maps_bra, w_bra, env.dtype)
 
     if hermi == 1:
@@ -452,9 +521,9 @@ def basis_jvp_cs(
         if (j0, j1) == (i0, i1):
             maps_ket, w_ket = maps_bra, w_bra
         else:
-            maps_ket, w_ket = weights(j0, j1)
+            maps_ket, w_ket = cs_weights(cb, ctr_coeff_dot, (j0, j1))
 
-        shls = (nbas_prim + i0, nbas_prim + i1, prim_shl_loc[j0], prim_shl_loc[j1])
+        shls = cb.real_shls(i0, i1) + cb.prim_shls(j0, j1)
         jvp += _contract_ket(cross(shls), maps_ket, w_ket, env.dtype)
     return jvp
 
@@ -473,50 +542,23 @@ def basis_jvp_exp(
     basis_array_metadata: BasisArrayMetadata | None = None, # used for padding
 ) -> Array:
     assert hermi in (0, 1), f"hermi={hermi} not supported"
-    natm = len(atm)
-    nbas = len(bas)
-    if basis_array_metadata is None:
-        bas_conc = resolve_bas_concrete(bas)
-    else:
-        bas_conc = resolve_bas_concrete(basis_array_metadata, natm)
-    i0, i1, j0, j1 = _resolve_shls_slice(shls_slice, nbas, hermi)
-
-    ptr_ones = env.shape[-1]
-    basc, basc_conc = conc_prim_bas(bas_conc, bas, ptr_ones, order=2)
-    nbas_prim = len(basc) - nbas
-
-    ptr_coeff0 = env.shape[-1] - ctr_coeff.shape[-1]
-    ptr_exp0 = ptr_coeff0 - exp.shape[-1]
-    ctr_coeffc = np.append(ctr_coeff, 1.0)
-    envc = np.append(env, 1.0)
-
-    ao_loc = make_loc(basc_conc, "cart")
-    prim_shl_loc = primitive_shell_loc(bas_conc)
-
-    def weights(sh0, sh1):
-        """``-r^2`` brought down by ``d/da``, times the contraction
-        coefficient of the primitive.
-        """
-        maps = exp_scatter_maps(bas_conc, cart, (sh0, sh1))
-        coeff_env_idx = bas[:,PTR_COEFF][maps.entry_shell] + maps.coeff_off
-        exp_env_idx = bas[:,PTR_EXP][maps.entry_shell] + maps.prim_off
-        c = ctr_coeff[coeff_env_idx - ptr_coeff0]
-        w = -(maps.fac * c) * exp_dot[exp_env_idx - ptr_exp0]
-        return maps, w
+    i0, i1, j0, j1 = _resolve_shls_slice(shls_slice, len(bas), hermi)
+    cb = cross_basis(atm, bas, env, ctr_coeff, cart, 2, basis_array_metadata)
 
     def cross(shls):
         """The cross integrals of the shell block, with the static shell
         structure of the concatenated basis.
         """
-        return intor_cross(basc, envc, ctr_coeffc, shls, ao_loc, basc_conc)
+        return intor_cross(cb.basc, cb.envc, cb.ctr_coeffc, shls, cb.ao_loc,
+                           cb.basc_conc)
 
     def c2s(sh0, sh1):
-        maps, fac = cart2sph_scatter_maps(bas_conc, (sh0, sh1))
+        maps, fac = cart2sph_scatter_maps(cb.bas_conc, (sh0, sh1))
         return maps, np.asarray(fac, dtype=env.dtype)
 
-    maps_bra, w_bra = weights(i0, i1)
+    maps_bra, w_bra = exp_weights(cb, exp, exp_dot, (i0, i1))
 
-    shls = (prim_shl_loc[i0], prim_shl_loc[i1], nbas_prim + j0, nbas_prim + j1)
+    shls = cb.prim_shls(i0, i1) + cb.real_shls(j0, j1)
     jvp = _contract_bra(cross(shls), maps_bra, w_bra, env.dtype)
     if not cart:
         c2s_ket = c2s(j0, j1)
@@ -528,9 +570,9 @@ def basis_jvp_exp(
         if (j0, j1) == (i0, i1):
             maps_ket, w_ket = maps_bra, w_bra
         else:
-            maps_ket, w_ket = weights(j0, j1)
+            maps_ket, w_ket = exp_weights(cb, exp, exp_dot, (j0, j1))
 
-        shls = (nbas_prim + i0, nbas_prim + i1, prim_shl_loc[j0], prim_shl_loc[j1])
+        shls = cb.real_shls(i0, i1) + cb.prim_shls(j0, j1)
         jvp_ket = _contract_ket(cross(shls), maps_ket, w_ket, env.dtype)
         if not cart:
             c2s_bra = c2s_ket if (j0, j1) == (i0, i1) else c2s(i0, i1)
@@ -542,19 +584,16 @@ def basis_jvp_exp(
 def _cross_shls_2e(
     slot: int,
     shls_slice: tuple[int, ...],
-    prim_shl_loc: numpy.ndarray,
-    nbas_prim: int,
+    cb: CrossBasis,
 ) -> tuple[int, ...]:
     """Shell ranges of a two-electron cross integral: the primitive shells
     of the differentiated slot, the real shells for the other three.
     """
-    real = tuple(nbas_prim + sh for sh in shls_slice)
+    real = tuple(cb.nbas_prim + sh for sh in shls_slice)
     if slot == 0:
-        prim = (prim_shl_loc[shls_slice[0]], prim_shl_loc[shls_slice[1]])
-        return prim + real[2:]
+        return cb.prim_shls(*shls_slice[0:2]) + real[2:]
     if slot == 2:
-        prim = (prim_shl_loc[shls_slice[4]], prim_shl_loc[shls_slice[5]])
-        return real[:4] + prim + real[6:]
+        return real[:4] + cb.prim_shls(*shls_slice[4:6]) + real[6:]
     raise NotImplementedError(f"slot = {slot} is not supported")
 
 
@@ -584,31 +623,13 @@ def basis_jvp_cs_2e(
     respectively ``(nij, naok, naol)``. The two remaining slots follow from
     the permutation symmetry of the integral and are the caller's business.
     """
-    natm = len(atm)
-    nbas = len(bas)
-    if basis_array_metadata is None:
-        bas_conc = resolve_bas_concrete(bas)
-    else:
-        bas_conc = resolve_bas_concrete(basis_array_metadata, natm)
+    cb = cross_basis(atm, bas, env, ctr_coeff, cart, 0, basis_array_metadata)
+    maps, w = cs_weights(cb, ctr_coeff_dot, _deriv_shl_range(slot, shls_slice))
 
-    ptr_ones = env.shape[-1]
-    basc, basc_conc = conc_prim_bas(bas_conc, bas, ptr_ones)
-    nbas_prim = len(basc) - nbas
-
-    ptr_coeff0 = env.shape[-1] - ctr_coeff.shape[-1]
-    ctr_coeffc = np.append(ctr_coeff, 1.0)
-    envc = np.append(env, 1.0)
-
-    ao_loc = make_loc(basc_conc, "cart" if cart else "sph")
-    prim_shl_loc = primitive_shell_loc(bas_conc)
-
-    maps = cs_scatter_maps(bas_conc, cart, _deriv_shl_range(slot, shls_slice))
-    coeff_env_idx = bas[:,PTR_COEFF][maps.entry_shell] + maps.coeff_off
-    w = ctr_coeff_dot[coeff_env_idx - ptr_coeff0]
-
-    shls = _cross_shls_2e(slot, shls_slice, prim_shl_loc, nbas_prim)
+    shls = _cross_shls_2e(slot, shls_slice, cb)
     aosym = "s2kl" if slot == 0 else "s2ij"
-    s = intor_cross(basc, envc, ctr_coeffc, shls, aosym, ao_loc, basc_conc)
+    s = intor_cross(cb.basc, cb.envc, cb.ctr_coeffc, shls, aosym, cb.ao_loc,
+                    cb.basc_conc)
 
     if slot == 0:
         return _contract_leading(s, maps, w, env.dtype)
@@ -641,33 +662,12 @@ def basis_jvp_exp_2e(
     weights); the three spectator indices are transformed afterwards and
     the spectator pair is packed last.
     """
-    natm = len(atm)
-    nbas = len(bas)
-    if basis_array_metadata is None:
-        bas_conc = resolve_bas_concrete(bas)
-    else:
-        bas_conc = resolve_bas_concrete(basis_array_metadata, natm)
+    cb = cross_basis(atm, bas, env, ctr_coeff, cart, 2, basis_array_metadata)
+    maps, w = exp_weights(cb, exp, exp_dot, _deriv_shl_range(slot, shls_slice))
 
-    ptr_ones = env.shape[-1]
-    basc, basc_conc = conc_prim_bas(bas_conc, bas, ptr_ones, order=2)
-    nbas_prim = len(basc) - nbas
-
-    ptr_coeff0 = env.shape[-1] - ctr_coeff.shape[-1]
-    ptr_exp0 = ptr_coeff0 - exp.shape[-1]
-    ctr_coeffc = np.append(ctr_coeff, 1.0)
-    envc = np.append(env, 1.0)
-
-    ao_loc = make_loc(basc_conc, "cart")
-    prim_shl_loc = primitive_shell_loc(bas_conc)
-
-    maps = exp_scatter_maps(bas_conc, cart, _deriv_shl_range(slot, shls_slice))
-    coeff_env_idx = bas[:,PTR_COEFF][maps.entry_shell] + maps.coeff_off
-    exp_env_idx = bas[:,PTR_EXP][maps.entry_shell] + maps.prim_off
-    c = ctr_coeff[coeff_env_idx - ptr_coeff0]
-    w = -(maps.fac * c) * exp_dot[exp_env_idx - ptr_exp0]
-
-    shls = _cross_shls_2e(slot, shls_slice, prim_shl_loc, nbas_prim)
-    s = intor_cross(basc, envc, ctr_coeffc, shls, "s1", ao_loc, basc_conc)
+    shls = _cross_shls_2e(slot, shls_slice, cb)
+    s = intor_cross(cb.basc, cb.envc, cb.ctr_coeffc, shls, "s1", cb.ao_loc,
+                    cb.basc_conc)
 
     if slot == 0:
         jvp = _contract_leading(s, maps, w, env.dtype)
@@ -683,7 +683,7 @@ def basis_jvp_exp_2e(
         c2s = {}
         for axis, shl_range in spectators:
             if shl_range not in c2s:
-                cmaps, fac = cart2sph_scatter_maps(bas_conc, shl_range)
+                cmaps, fac = cart2sph_scatter_maps(cb.bas_conc, shl_range)
                 c2s[shl_range] = (cmaps, np.asarray(fac, dtype=env.dtype))
             jvp = _contract_axis(jvp, axis, *c2s[shl_range], env.dtype)
 
