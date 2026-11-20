@@ -581,6 +581,56 @@ def basis_jvp_exp(
     return jvp
 
 
+def basis_jvp_cs_ao(
+    eval_cross: Callable,
+    atm: numpy.ndarray | Array,
+    bas: numpy.ndarray | Array,
+    env: Array,
+    ctr_coeff: Array,
+    ctr_coeff_dot: Array,
+    cart: bool,
+    shl_range: tuple[int, int] | None = None,
+    basis_array_metadata: BasisArrayMetadata | None = None, # used for padding
+) -> Array:
+    """Contraction-coefficient tangent of AO values ``(..., nao)`` on grids.
+
+    ``eval_cross(basc, envc, ctr_coeffc, shls_slice, ao_loc, bas_conc)``
+    evaluates the AOs of the shells ``shls_slice`` of the cross basis.
+    """
+    sh0, sh1 = (0, len(bas)) if shl_range is None else shl_range
+    cb = cross_basis(atm, bas, env, ctr_coeff, cart, 0, basis_array_metadata)
+    maps, w = cs_weights(cb, ctr_coeff_dot, (sh0, sh1))
+    ao = eval_cross(cb.basc, cb.envc, cb.ctr_coeffc, cb.prim_shls(sh0, sh1),
+                    cb.ao_loc, cb.basc_conc)
+    return _contract_ket(ao, maps, w, env.dtype)
+
+
+def basis_jvp_exp_ao(
+    eval_cross: Callable,
+    atm: numpy.ndarray | Array,
+    bas: numpy.ndarray | Array,
+    env: Array,
+    exp: Array,
+    ctr_coeff: Array,
+    exp_dot: Array,
+    cart: bool,
+    shl_range: tuple[int, int] | None = None,
+    basis_array_metadata: BasisArrayMetadata | None = None, # used for padding
+) -> Array:
+    """Exponent tangent of AO values ``(..., nao)`` on grids.
+
+    ``eval_cross`` (see :func:`basis_jvp_cs_ao`) has to evaluate Cartesian
+    AOs. The tangent comes back in the AO basis, as the transformation to
+    spherical functions is folded into the scatter weights.
+    """
+    sh0, sh1 = (0, len(bas)) if shl_range is None else shl_range
+    cb = cross_basis(atm, bas, env, ctr_coeff, cart, 2, basis_array_metadata)
+    maps, w = exp_weights(cb, exp, exp_dot, (sh0, sh1))
+    ao = eval_cross(cb.basc, cb.envc, cb.ctr_coeffc, cb.prim_shls(sh0, sh1),
+                    cb.ao_loc, cb.basc_conc)
+    return _contract_ket(ao, maps, w, env.dtype)
+
+
 def _cross_shls_2e(
     slot: int,
     shls_slice: tuple[int, ...],

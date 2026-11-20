@@ -22,7 +22,7 @@ from pyscfad import config_update
 from pyscfad import df, scf
 from pyscfad.df import _df_jk_opt, df_jk
 from pyscfad.gto import MoleLite
-from pyscfad.scf import hf_lite
+from pyscfad.scf import hf_lite, uhf_lite, rohf_lite
 from .util import (
     hf_energy,
     df_hf_energy,
@@ -240,16 +240,13 @@ def test_dot_eri_dm_packed(hermi, aosym):
     assert vk1.dtype == numpy.float32
 
 @pytest.mark.parametrize("aosym", ["s8", "s4"])
-def test_rhf_lite_packed_nuc_grad(aosym):
+def test_rhf_lite_packed_nuc_grad(h2o_lite, aosym):
     """SCFLite feeds a packed integral array through ``dot_eri_dm``, under
     jit and through the implicit derivative. ``get_jk`` builds an ``s8``
     array itself; any layout ``dot_eri_dm`` accepts can be preloaded into
     ``_eri`` instead.
     """
-    symbols = ("O", "H", "H")
-    coords = numpy.array([[0., 0., 0.23],
-                          [0., 1.43, -0.92],
-                          [0., -1.43, -0.92]])
+    symbols, coords = h2o_lite
 
     def energy(coords):
         mol = MoleLite(symbols, coords, basis="sto3g", verbose=0)
@@ -306,3 +303,50 @@ def test_rhf_lite_sp2_nuc_grad():
     coords_m[1,2] -= disp
     jac0 = (pyscf_rhf(coords_p).make_rdm1() - pyscf_rhf(coords_m).make_rdm1()) / (2*disp)
     assert abs(jac[:,:,1,2] - jac0).max() < 1e-6
+
+@pytest.mark.parametrize("use_sp2", [False, True])
+@pytest.mark.parametrize("method", ["UHF", "ROHF"])
+def test_open_shell_lite_nuc_grad(h2o_lite, method, use_sp2):
+    """Open-shell SCFLite classes with the diagonalization and the SP2
+    solvers, under jit (issue #175): energy, nuclear gradient and
+    density matrix response.
+    """
+    symbols, coords = h2o_lite
+    lite = {"UHF": uhf_lite.UHF, "ROHF": rohf_lite.ROHF}[method]
+
+    def pyscf_scf(coords):
+        mol = MoleLite(symbols, coords, basis="sto3g", charge=1, spin=1,
+                       verbose=0).to_pyscf()
+        mf = getattr(mol, method)()
+        mf.conv_tol = 1e-14
+        mf.conv_tol_grad = 1e-10
+        mf.kernel()
+        return mf
+
+    def energy_and_rdm1(coords):
+        mol = MoleLite(symbols, coords, basis="sto3g", charge=1, spin=1,
+                       verbose=0)
+        mf = lite(mol)
+        mf.init_guess = "hcore"
+        mf.use_sp2 = use_sp2
+        if use_sp2:
+            mf.diis = "anderson"
+        mf.kernel()
+        return mf.e_tot, mf.make_rdm1()
+
+    e, dm = jax.jit(energy_and_rdm1)(coords)
+    g, jac = jax.jit(jax.jacfwd(energy_and_rdm1))(coords)
+
+    mf0 = pyscf_scf(coords)
+    assert abs(e - mf0.e_tot) < 1e-9
+    # SP2 stops at |ddm| < sqrt(conv_tol)
+    assert abs(dm - mf0.make_rdm1()).max() < 1e-5
+    assert abs(g - mf0.nuc_grad_method().kernel()).max() < 1e-6
+
+    disp = 1e-4
+    coords_p = coords.copy()
+    coords_p[1,2] += disp
+    coords_m = coords.copy()
+    coords_m[1,2] -= disp
+    jac0 = (pyscf_scf(coords_p).make_rdm1() - pyscf_scf(coords_m).make_rdm1()) / (2*disp)
+    assert abs(jac[...,1,2] - jac0).max() < 1e-6

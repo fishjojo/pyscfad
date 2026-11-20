@@ -320,3 +320,34 @@ def test_cs_exp_int2e_mixed_unsupported(basis):
 def test_unsupported_intor(basis, intor, aosym):
     with pytest.raises(NotImplementedError):
         jax.jacfwd(intor_fn(intor, aosym=aosym))(basis)
+
+
+GRIDS = numpy.random.default_rng(1).uniform(-2., 3., (15, 3))
+
+def eval_gto_fn(eval_name, cart=False, shls_slice=None):
+    """``basis -> AO values on GRIDS`` for a fixed geometry."""
+    def fn(basis):
+        mol = MoleLite(symbols=SYMBOLS, coords=np.asarray(COORDS),
+                       basis=basis, cart=cart)
+        return mol.eval_gto(eval_name, GRIDS, shls_slice=shls_slice)
+    return fn
+
+
+@pytest.mark.parametrize("eval_name,cart,shls_slice", [
+    ("GTOval_sph", False, None),
+    ("GTOval_sph_deriv1", False, None),
+    ("GTOval_cart_deriv1", True, None),
+    ("GTOval_sph_deriv1", False, (1, 3)),
+])
+def test_cs_exp_eval_gto(basis, eval_name, cart, shls_slice):
+    """Basis derivatives of the AO values on grids, which are evaluated
+    for the primitive shells as the cross integrals are.
+    """
+    fn = eval_gto_fn(eval_name, cart, shls_slice)
+
+    jac = jax.jacfwd(fn)(basis)
+    assert_cs_exp_close(jac, four_point_fd(fn, basis), 1e-7)
+
+    jac_rev = jax.jit(jax.jacrev(fn))(basis)
+    for l_fwd, l_rev in zip(jax.tree.leaves(jac), jax.tree.leaves(jac_rev)):
+        assert abs(numpy.asarray(l_fwd) - numpy.asarray(l_rev)).max() < 1e-12

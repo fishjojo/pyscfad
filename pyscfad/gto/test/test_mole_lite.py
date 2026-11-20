@@ -355,3 +355,39 @@ def test_int2e_unsupported_aosym(coords, basis, aosym):
         jax.grad(lambda x: np.linalg.norm(
             MoleLite(symbols=("h1", "h2"), coords=x,
                      basis=basis).intor("int2e", aosym=aosym)))(coords)
+
+@pytest.mark.parametrize("eval_name", ["GTOval_sph", "GTOval_sph_deriv1",
+                                       "GTOval_cart_deriv2"])
+def test_eval_gto(atom, basis, unit, eval_name):
+    """AO values on grids, and their derivatives w.r.t. the atomic and the
+    grid coordinates, under jit.
+    """
+    cart = "_cart" in eval_name
+    mol = Mole()
+    mol.atom = atom
+    mol.basis = basis
+    mol.unit = unit
+    mol.cart = cart
+    mol.build(trace_exp=False, trace_ctr_coeff=False)
+    coords = np.asarray(mol.atom_coords())
+    grids = numpy.random.default_rng(0).uniform(-2., 4., (20, 3))
+
+    def eval_gto(coords, grids):
+        mol1 = MoleLite(symbols=("h1", "h2"), coords=coords, basis=basis, cart=cart)
+        return mol1.eval_gto(eval_name, grids)
+
+    ao0 = pyscf.gto.Mole.eval_gto(mol.to_pyscf(), eval_name, grids)
+    assert abs(jax.jit(eval_gto)(coords, grids) - ao0).max() < 1e-12
+
+    jac_coords, jac_grids = jax.jit(jax.jacfwd(eval_gto, (0, 1)))(coords, grids)
+    jac0 = jax.jacfwd(Mole.eval_gto, (0, 2))(mol, eval_name, grids)
+    assert abs(jac_coords - jac0[0].coords).max() < 1e-10
+    assert abs(jac_grids - jac0[1]).max() < 1e-10
+
+    # reverse mode
+    grad = jax.grad(lambda x: eval_gto(x, grids).sum())(coords)
+    assert abs(grad - jac_coords.sum(axis=tuple(range(ao0.ndim)))).max() < 1e-10
+
+def test_negative_spin():
+    with pytest.raises(ValueError):
+        MoleLite(symbols=("h1",), coords=[[0., 0., 0.]], basis="sto3g", spin=-1)

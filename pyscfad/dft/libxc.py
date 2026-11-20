@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import partial
+from functools import partial, lru_cache
+import numpy
 from pyscf.dft import libxc
 # pylint: disable=unused-import
 from pyscf.dft.libxc import (
@@ -30,6 +31,7 @@ from pyscf.dft.libxc import (
     __reference__,
 )
 from pyscfad import numpy as np
+from pyscfad import ops
 from pyscfad.ops import jit, custom_jvp
 
 def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
@@ -49,7 +51,33 @@ def eval_xc(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None, verbose=Non
 
 @partial(custom_jvp, nondiff_argnums=tuple(range(1,7)))
 def _eval_xc_comp(rho, xc_code, spin=0, relativity=0, deriv=1, omega=None, verbose=None):
-    out = libxc.eval_xc(xc_code, rho, spin, relativity, deriv, omega, verbose)[deriv]
+    # libxc only takes concrete arrays; calling it through pure_callback
+    # makes the XC evaluation traceable (jit, while_loop, custom_root).
+    callback = ops.cached_partial(_eval_xc_comp_numpy, xc_code, spin=spin,
+                                  relativity=relativity, deriv=deriv, omega=omega)
+    rho = np.asarray(rho) # stack (rho_a, rho_b) for spin = 1
+    ngrids = rho.shape[-1]
+
+    def shape_dtype(x):
+        # libxc puts the grid axis first in every output
+        if x is None:
+            return None
+        return ops.ShapeDtypeStruct((ngrids,) + x.shape[1:], x.dtype)
+
+    out = _eval_xc_comp_probe(callback, rho.shape[:-1])
+    if isinstance(out, (tuple, list)):
+        shape_dtypes = type(out)(shape_dtype(x) for x in out)
+    else:
+        shape_dtypes = shape_dtype(out)
+    return ops.pure_callback(callback, shape_dtypes, rho, vmap_method='sequential')
+
+@lru_cache(maxsize=None)
+def _eval_xc_comp_probe(callback, rho_shape):
+    # The output on a single grid point gives its structure for any grid.
+    return callback(numpy.zeros(rho_shape + (1,)))
+
+def _eval_xc_comp_numpy(xc_code, rho, spin=0, relativity=0, deriv=1, omega=None):
+    out = libxc.eval_xc(xc_code, rho, spin, relativity, deriv, omega)[deriv]
     if deriv == 1:
         out = tuple(out)
         if spin == 0:

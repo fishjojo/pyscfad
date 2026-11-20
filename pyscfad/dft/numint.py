@@ -15,8 +15,10 @@
 import warnings
 from functools import partial
 import numpy
+from jax.custom_derivatives import SymbolicZero
 from pyscf.dft import numint
 from pyscf.dft.gen_grid import BLKSIZE
+from pyscf.grad import rks as rks_grad
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.ops import (
@@ -176,7 +178,7 @@ def nr_rks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
 
     for i in range(nset):
         vmat[i] = vmat[i] + vmat[i].conj().T
-    nelec = numpy.asarray(nelec)
+    nelec = np.asarray(nelec)
     excsum = np.asarray(excsum)
     vmat = np.asarray(vmat)
     if nset == 1:
@@ -195,7 +197,7 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
     make_rhoa, nset = ni._gen_rho_evaluator(mol, dma, hermi, False, grids)[:2]
     make_rhob       = ni._gen_rho_evaluator(mol, dmb, hermi, False, grids)[0]
 
-    nelec = numpy.zeros((2,nset))
+    nelec = [[0]*nset for _ in range(2)]
     excsum = [0] * nset
     vmat = [[0]*nset for _ in range(2)]
     aow    = None
@@ -307,9 +309,10 @@ def nr_uks(ni, mol, grids, xc_code, dms, relativity=0, hermi=1,
         vmat[0][i] = vmat[0][i] + vmat[0][i].conj().T
         vmat[1][i] = vmat[1][i] + vmat[1][i].conj().T
 
+    nelec = np.asarray(nelec)
     if getattr(dma, 'ndim', None) == 2:
         excsum = excsum[0]
-        nelec  = numpy.asarray([nelec[0], nelec[1]])
+        nelec  = nelec[:,0]
         vmat   = np.asarray([vmat[0][0], vmat[1][0]])
 
     return nelec, excsum, vmat
@@ -457,17 +460,14 @@ def nr_nlc_vxc(ni, mol, grids, xc_code, dm, relativity=0, hermi=1,
         vvrho.append(make_rho(0, ao, mask, 'GGA'))
     rho = np.hstack(vvrho)
 
-    exc = 0
+    excsum = 0
     vxc = 0
     nlc_coefs = ni.nlc_coeff(xc_code)
     for nlc_pars, fac in nlc_coefs:
-        e, v = _vv10nlc(rho, grids.coords, rho, grids.weights,
-                        grids.coords, nlc_pars)
-        exc += e * fac
+        e, v = _vv10nlc(rho, grids.coords, grids.weights, nlc_pars)
+        excsum += e * fac
         vxc += v * fac
-    den = rho[0] * grids.weights
-    nelec = stop_grad(den).sum()
-    excsum = np.dot(den, exc)
+    nelec = stop_grad(rho[0] * grids.weights).sum()
 
     vmat = np.zeros((nao,nao))
     p1 = 0
@@ -480,26 +480,56 @@ def nr_nlc_vxc(ni, mol, grids, xc_code, dm, relativity=0, hermi=1,
     vmat = vmat + vmat.T
     return nelec, excsum, vmat
 
-@partial(custom_jvp, nondiff_argnums=(1,2,3,4,5,))
-def _vv10nlc(rho, coords, vvrho, vvweight, vvcoords, nlc_pars):
-    rho = ops.to_numpy(rho)
-    vvrho = ops.to_numpy(rho)
-    return numint._vv10nlc(rho, coords, vvrho, vvweight, vvcoords, nlc_pars)
+# The grids are not nondiff arguments, as JAX rejects traced nondiff
+# arguments under lax control flow, e.g., custom_root.
+@partial(custom_jvp, nondiff_argnums=(3,))
+def _vv10nlc(rho, coords, weights, nlc_pars):
+    """VV10 energy and potential on the grids."""
+    ngrids = rho.shape[-1]
+    exc, vxc = _vv10_callback(numint._vv10nlc, ((ngrids,), (2, ngrids)),
+                              rho, coords, weights, nlc_pars)
+    return np.dot(rho[0] * weights, exc), vxc
 
-@_vv10nlc.defjvp
-def _vv10nlc_jvp(coords, vvrho, vvweight, vvcoords, nlc_pars,
-                 primals, tangents):
-    rho, = primals
-    rho_t, = tangents
+def _vv10nlc_jvp(nlc_pars, primals, tangents):
+    rho, coords, weights = primals
+    rho_t, coords_t, weights_t = tangents
+    ngrids = rho.shape[-1]
+    exc, vxc = _vv10_callback(numint._vv10nlc, ((ngrids,), (2, ngrids)),
+                              rho, coords, weights, nlc_pars)
+    den = rho[0] * weights
+    e = np.dot(den, exc)
 
-    exc, vxc = _vv10nlc(rho, coords, vvrho, vvweight, vvcoords, nlc_pars)
-
-    exc_jvp = ((vxc[0] - exc) / rho[0] * rho_t[0]
-               + vxc[1] / rho[0] * 2. * np.einsum('np,np->p', rho[1:4], rho_t[1:4]))
+    e_t = np.zeros_like(e)
+    if not isinstance(rho_t, SymbolicZero):
+        e_t += np.dot(weights, vxc[0] * rho_t[0]
+                      + 2. * vxc[1] * np.einsum('xg,xg->g', rho[1:4], rho_t[1:4]))
+    # response of the grids, as in pyscf.grad.rks.get_nlc_vxc_full_response
+    if not isinstance(weights_t, SymbolicZero):
+        beta = (3. / nlc_pars[0]**2)**.75 / 32. # as in pyscf.dft.numint._vv10nlc
+        e_t += np.dot(rho[0] * (2. * exc - beta), weights_t)
+    if not isinstance(coords_t, SymbolicZero):
+        egrad = _vv10_callback(rks_grad._vv10nlc_grad, ((ngrids, 3), ()),
+                               rho, coords, weights, nlc_pars)[0]
+        e_t += np.einsum('g,gx,gx->', den, egrad, coords_t)
     # pylint: disable=W0511
     # FIXME jvp for vxc not implemented
-    vxc_jvp = np.zeros_like(vxc)
-    return (exc, vxc), (exc_jvp, vxc_jvp)
+    return (e, vxc), (e_t, np.zeros_like(vxc))
+
+_vv10nlc.defjvp(_vv10nlc_jvp, symbolic_zeros=True)
+
+def _vv10_callback(fn, shapes, rho, coords, weights, nlc_pars):
+    """Traceable ``fn(rho, coords, rho, weights, coords, nlc_pars)`` of pyscf,
+    with the outputs of the given shapes.
+    """
+    return ops.pure_callback(
+        ops.cached_partial(_vv10_numpy, fn, nlc_pars=tuple(nlc_pars)),
+        tuple(ops.ShapeDtypeStruct(shape, numpy.float64) for shape in shapes),
+        rho, coords, weights, vmap_method='sequential')
+
+def _vv10_numpy(fn, rho, coords, weights, nlc_pars):
+    # pure_callback passes jax arrays, which pyscf cannot take
+    rho, coords, weights = map(numpy.asarray, (rho, coords, weights))
+    return fn(rho, coords, rho, weights, coords, nlc_pars)
 
 class NumInt(numint.NumInt):
     libxc = libxc

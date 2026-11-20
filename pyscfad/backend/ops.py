@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import partial, lru_cache
 from .config import get_backend
 
 __all__ = [
@@ -22,6 +23,7 @@ __all__ = [
     'stop_gradient',
     'stop_grad',
     'stop_trace',
+    'cached_partial',
     'custom_jvp',
     'jit',
     'vmap',
@@ -57,6 +59,14 @@ def stop_trace(fn):
         kwargs_no_grad = {k : stop_grad(v) for k, v in kwargs.items()}
         return fn(*args_no_grad, **kwargs_no_grad)
     return wrapped_fn
+
+@lru_cache(maxsize=None)
+def cached_partial(func, *args, **kwargs):
+    """:func:`functools.partial`, returning the same object for the same
+    arguments. As the callback of ``pure_callback``, it avoids recompiling
+    every eager call, which a new callback object does.
+    """
+    return partial(func, *args, **kwargs)
 
 def jit(obj, **kwargs):
     return get_backend().jit(obj, **kwargs)

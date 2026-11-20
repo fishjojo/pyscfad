@@ -46,6 +46,26 @@ if TYPE_CHECKING:
     from pyscfad.gto import MoleLite
     from pyscfad.dft.rks import VXC
 
+def fill_occ(
+    mf: SCF,
+    mo_energy: Array,
+    mask: Array,
+    nocc: int | Array,
+) -> Array:
+    """Occupations, between 0 and 1, of ``nocc`` electrons in the MOs
+    selected by ``mask``, with smearing if ``mf.sigma`` is set.
+    """
+    # NOTE assuming mo_energy is in ascending order
+    if mf.sigma is not None and mf.sigma > 0:
+        return get_occ_smearing(mo_energy, nocc, mf.sigma, mask, method=mf.smearing_method)
+
+    pick = (np.cumsum(mask) <= nocc) & mask
+    if mf.verbose >= logger.DEBUG:
+        e_homo = np.max(np.where(pick, mo_energy, -np.inf))
+        e_lumo = np.min(np.where(mask & ~pick, mo_energy, np.inf))
+        logger.debug(mf, "  HOMO = %.15g  LUMO = %.15g", e_homo, e_lumo)
+    return pick.astype(np.floatx)
+
 def get_occ(
     mf: SCF,
     mo_energy: ArrayLike | None = None,
@@ -53,30 +73,16 @@ def get_occ(
 ) -> Array:
     """Get MO occupations.
     """
-    # NOTE assuming mo_energy is in ascending order
     if mo_energy is None:
         mo_energy = mf.mo_energy
     if mo_coeff is None:
         mo_coeff = mf.mo_coeff
-    nmo = mo_energy.size
 
     mask = mf.mo_mask(mo_energy, mo_coeff)
-    nocc = mf.tot_electrons // 2
-
-    if mf.sigma is not None and mf.sigma > 0:
-        mo_occ = get_occ_smearing(mo_energy, nocc, mf.sigma, mask, method=mf.smearing_method)
-        mo_occ *= 2
-    else:
-        pick = (np.cumsum(mask) <= nocc) & mask
-        mo_occ = np.zeros_like(pick, dtype=np.floatx)
-        mo_occ = np.where(pick, 2, mo_occ)
-        if mf.verbose >= logger.DEBUG:
-            e_homo = np.max(np.where(pick, mo_energy, -np.inf))
-            e_lumo = np.min(np.where(mask & ~pick, mo_energy, np.inf))
-            logger.debug(mf, "  HOMO = %.15g  LUMO = %.15g", e_homo, e_lumo)
+    mo_occ = fill_occ(mf, mo_energy, mask, mf.tot_electrons // 2) * 2
 
     if mf.verbose >= logger.DEBUG:
-        numpy.set_printoptions(threshold=nmo)
+        numpy.set_printoptions(threshold=mo_energy.size)
         logger.debug(mf, "  mo_energy =\n%s", mo_energy)
         numpy.set_printoptions(threshold=1000)
     return mo_occ
@@ -112,6 +118,24 @@ def get_grad(mo_coeff: ArrayLike, mo_occ: ArrayLike, fock_ao: ArrayLike) -> Arra
     vir_mask = 1 - occ_mask
     g = 2 * fock_mo * (vir_mask[:,None] * occ_mask[None,:])
     return g.ravel()
+
+def extrapolate_fock(
+    f: Array,
+    s1e: Array,
+    dm: Array,
+    diis: Any,
+    fock_last: Array | None = None,
+) -> Array:
+    """Update the Fock matrix with the SCF solver ``diis``.
+    """
+    if diis is None:
+        return f
+    if isinstance(diis, Anderson):
+        f_tril = diis.update(lib.pack_tril(f), lib.pack_tril(fock_last))
+        return lib.unpack_tril(f_tril)
+    if isinstance(diis, CDIIS):
+        return diis.update(s1e, dm, f, f_prev=fock_last)
+    raise NotImplementedError(f"Unsupported diis type {type(diis)}")
 
 def update_dm(
     mf: SCF,
@@ -502,22 +526,7 @@ class SCF(SCFBase):
 
         # hack for DFT
         vhf = getattr(vhf, "vxc", vhf)
-        f = h1e + vhf
-
-        if diis is None:
-            pass
-
-        elif isinstance(diis, Anderson):
-            f_tril = diis.update(lib.pack_tril(f), lib.pack_tril(fock_last))
-            f = lib.unpack_tril(f_tril)
-
-        elif isinstance(diis, CDIIS):
-            f = diis.update(s1e, dm, f, f_prev=fock_last)
-
-        else:
-            raise NotImplementedError(f"Unsupported diis type {type(diis)}")
-
-        return f
+        return extrapolate_fock(h1e + vhf, s1e, dm, diis, fock_last)
 
     def get_hcore(self, mol: MoleLite | None = None, **kwargs) -> Array:
         return super().get_hcore(mol)
@@ -536,6 +545,13 @@ class SCF(SCFBase):
         dm = (mo_coeff * mo_occ) @ mo_coeff.conj().T
         return dm
 
+    def make_rdm1_sp2(self, fock: Array, x: Array) -> Array:
+        """Density matrix from the SP2 purification of ``fock``
+        in the orthonormal basis ``x``, see :mod:`~pyscfad.scf.sp2`.
+        """
+        from pyscfad.scf import sp2
+        return sp2.make_rdm1(fock, x, self.tot_electrons // 2) * 2
+
     def mo_mask(
         self,
         mo_energy: ArrayLike | None = None,
@@ -550,7 +566,7 @@ class SCF(SCFBase):
         """
         if mo_energy is None:
             mo_energy = self.mo_energy
-        return np.ones(mo_energy.size, dtype=bool)
+        return np.ones(mo_energy.shape, dtype=bool)
 
     def get_grad(
         self,
