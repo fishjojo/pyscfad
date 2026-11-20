@@ -120,6 +120,12 @@ def _ao2mo(a, x):
 def _mo2ao(a, x):
     return np.dot(x, np.dot(a, x.T.conj()))
 
+def make_rdm1(fock, x, nocc):
+    """Density matrix of the ``nocc`` lowest states of ``fock``, singly
+    occupied, by SP2 purification in the orthonormal basis ``x``.
+    """
+    return _mo2ao(sp2(_ao2mo(fock, x), nocc), x)
+
 def update_dm(
     mf: SCF,
     h1e: Array,
@@ -139,11 +145,7 @@ def update_dm(
     last_hf_e = e_tot
     fock_last = fock
 
-    h = _ao2mo(fock_last, x)
-    nocc = mf.tot_electrons // 2 #FIXME
-    dm_orth = sp2(h, nocc)
-    dm = _mo2ao(dm_orth, x) * 2
-
+    dm = mf.make_rdm1_sp2(fock_last, x)
     vhf = mf.get_veff(mol, dm, dm_last, vhf, s1e=s1e)
     e_tot = mf.energy_tot(dm, h1e, vhf)
 

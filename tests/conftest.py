@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from functools import partial
+import numpy
 import pytest
 from pyscfad import gto
 from .util import make_mol
@@ -32,3 +33,9 @@ def mol_N2():
     atom = "N 0 0 0; N 0 0 1.09"
     yield partial(make_mol, atom=atom)
 
+@pytest.fixture
+def h2o_lite():
+    """Symbols and coordinates (in Bohr) of water for MoleLite."""
+    yield ("O", "H", "H"), numpy.array([[0., 0., 0.23],
+                                        [0., 1.43, -0.92],
+                                        [0., -1.43, -0.92]])

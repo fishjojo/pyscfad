@@ -32,6 +32,7 @@ from pyscf.data.elements import (
     _symbol,
 )
 from pyscf.data.nist import BOHR
+from pyscf.gto.eval_gto import _get_intor_and_comp
 from pyscf.gto.mole import (
     ATOM_OF,
     ATM_SLOTS,
@@ -55,7 +56,7 @@ from pyscf.gto.mole import (
 from pyscfad import numpy as np
 from pyscfad import ops
 from pyscfad.gto.mole import energy_nuc
-from pyscfad.gto import moleintor_lite
+from pyscfad.gto import moleintor_lite, eval_gto_lite
 from pyscfad.experimental import moleintor_cuint
 
 if TYPE_CHECKING:
@@ -156,6 +157,8 @@ class MoleLite(MoleBase):
             basis = _format_basis(_basis, uniq_symbols)
         self.basis = basis
 
+        if spin < 0:
+            raise ValueError(f"spin = {spin} must be non-negative.")
         self.charge = charge
         self.spin = spin
         self.cart = cart
@@ -317,6 +320,43 @@ class MoleLite(MoleBase):
                 aosym=aosym,
             )
         return out
+
+    def eval_gto(
+        self,
+        eval_name: str,
+        grid_coords: ArrayLike,
+        comp: int | None = None,
+        shls_slice: tuple[int, int] | None = None,
+        non0tab: numpy.ndarray | None = None,
+        ao_loc: numpy.ndarray | None = None,
+        cutoff: float | None = None,
+        out: ArrayLike | None = None,
+    ) -> Array:
+        """AO values on grids, differentiable w.r.t. the atomic
+        coordinates, the basis-set parameters and ``grid_coords``.
+
+        ``non0tab``, ``cutoff`` and ``out`` are unused.
+
+        See also:
+            :func:`pyscf.gto.eval_gto.eval_gto`
+        """
+        del comp, non0tab, cutoff, out
+        eval_name = _get_intor_and_comp(self, eval_name)[0]
+        return eval_gto_lite.eval_gto(
+            eval_name,
+            self._atm,
+            self._bas,
+            self._env,
+            self.r0,
+            self.exp,
+            self.ctr_coeff,
+            grid_coords,
+            shls_slice=shls_slice,
+            ao_loc=ao_loc,
+            basis_array_metadata=getattr(self.basis, "metadata", None),
+        )
+
+    eval_ao = eval_gto
 
     def set_common_origin(
         self,

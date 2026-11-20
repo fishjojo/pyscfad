@@ -24,7 +24,8 @@ class custom_jvp:
         self.fun = fun
         self.jvp = None
 
-    def defjvp(self, jvp):
+    def defjvp(self, jvp, symbolic_zeros=False):
+        del symbolic_zeros
         self.jvp = jvp
         return jvp
 
